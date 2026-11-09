@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Candidate } from './CandidateCard';
 import { CandidateTag } from '@/hooks/useCandidateTags';
+import { CvMissingBadge } from './CvMissingBadge';
 
 interface CandidateListViewProps {
   candidates: Candidate[];
@@ -34,6 +35,8 @@ interface CandidateListViewProps {
   onView: (candidate: Candidate) => void;
   onAssignTag: (candidateId: string) => void;
   onAddToPool: (candidate: Candidate) => void;
+  /** Kandidaten mit Lebenslauf; fehlt die Liste, wird nichts markiert */
+  withCvIds?: Set<string> | null;
 }
 
 export function CandidateListView({
@@ -47,6 +50,7 @@ export function CandidateListView({
   onView,
   onAssignTag,
   onAddToPool,
+  withCvIds,
 }: CandidateListViewProps) {
   const allSelected = candidates.length > 0 && selectedIds.length === candidates.length;
 
@@ -96,6 +100,7 @@ export function CandidateListView({
               <div className="min-w-0">
                 <p className="font-medium truncate">{candidate.full_name}</p>
                 <p className="text-sm text-muted-foreground truncate">{candidate.email}</p>
+                {withCvIds && !withCvIds.has(candidate.id) && <CvMissingBadge />}
               </div>
             </div>
             <div className="w-32 hidden md:block text-sm text-muted-foreground">

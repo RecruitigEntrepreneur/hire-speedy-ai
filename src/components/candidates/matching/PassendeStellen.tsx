@@ -29,7 +29,7 @@ import { cn } from '@/lib/utils';
 
 const REMOTE_LABELS: Record<string, string> = { remote: 'remote', hybrid: 'hybrid', onsite: 'vor Ort', field: 'Außendienst' };
 
-function jobMeta(r: MatchV41Row): string {
+export function jobMeta(r: MatchV41Row): string {
   const j = r.job;
   if (!j) return '';
   const budget = j.salary_max ? `${j.salary_min ? `${Math.round(j.salary_min / 1000)}–` : 'bis '}${Math.round(j.salary_max / 1000)}k` : null;

@@ -65,9 +65,11 @@ interface Props {
   form: DossierForm;
   onSave: (form: DossierForm) => Promise<DossierSaveResult>;
   focus?: EditFocus | null;
+  /** Hochgeladener Lebenslauf vorhanden (8. Punkt von „Bereit zum Einreichen“) */
+  hasCv?: boolean;
 }
 
-export function CandidateEditSheet({ open, onOpenChange, candidateName, form, onSave, focus }: Props) {
+export function CandidateEditSheet({ open, onOpenChange, candidateName, form, onSave, focus, hasCv = false }: Props) {
   const [draft, setDraft] = useState<DossierForm>(form);
   const [initial, setInitial] = useState<DossierForm>(form);
   const [errors, setErrors] = useState<Partial<Record<keyof DossierForm, string>>>({});
@@ -105,7 +107,7 @@ export function CandidateEditSheet({ open, onOpenChange, candidateName, form, on
   };
 
   const changes = useMemo(() => countChanges(draft, initial), [draft, initial]);
-  const readiness = useMemo(() => computeReadiness(draft), [draft]);
+  const readiness = useMemo(() => computeReadiness(draft, hasCv), [draft, hasCv]);
   // Was fehlt, steht immer orange da: am Feld („fehlt“), an den Abschnitts-Knöpfen und oben.
   const missing = useMemo(() => missingFieldSet(draft, readiness), [draft, readiness]);
   const missingSections = useMemo(() => new Set([...missing].map((f) => FIELD_SECTION[f]).filter(Boolean)), [missing]);
@@ -178,9 +180,13 @@ export function CandidateEditSheet({ open, onOpenChange, candidateName, form, on
                 {readiness.missing.map((m, i) => (
                   <span key={m.key}>
                     {i > 0 && ', '}
-                    <button type="button" className="underline underline-offset-2 hover:text-foreground" onClick={() => focusDossierField(m.field)}>
-                      {m.label}
-                    </button>
+                    {m.action === 'upload_cv' ? (
+                      <span title="Im Profil über „Lebenslauf hochladen“">{m.label}</span>
+                    ) : (
+                      <button type="button" className="underline underline-offset-2 hover:text-foreground" onClick={() => focusDossierField(m.field)}>
+                        {m.label}
+                      </button>
+                    )}
                   </span>
                 ))}
               </p>

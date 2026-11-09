@@ -73,9 +73,11 @@ export function nudgeState(nudges: string[], now: Date): NudgeState {
 
 export interface CandidateUpdateChoice {
   preselect: boolean;
-  /** Kein Versand möglich (keine E-Mail). */
+  /** Kein Versand möglich (keine E-Mail oder schon Bescheid gegeben). */
   disabled: boolean;
   reason: string;
+  /** Zu dieser Erinnerung schon einen Zwischenstand bekommen: Schritt erledigt, nicht noch mal senden. */
+  erledigt?: { at: string };
 }
 
 // Nach Kalendertagen: gestern 18:22 ist am Morgen danach „gestern“, nicht „heute“.
@@ -95,9 +97,18 @@ export function candidateUpdateChoice(o: {
   submittedAt: string | null;
   /** Wofür `submittedAt` steht: Einreichung (Kunde prüft) oder Interview (Kunde ohne Feedback). */
   anchor?: 'Einreichung' | 'Interview';
+  /** Die Erinnerung an den Kunden, zu der der Zwischenstand gehört. Ohne: die letzte zählt. */
+  nudgeAt?: string | null;
 }, now: Date): CandidateUpdateChoice {
   if (!o.hasEmail) return { preselect: false, disabled: true, reason: 'Keine E-Mail hinterlegt, lieber anrufen' };
   if (o.lastUpdateAt && now.getTime() - new Date(o.lastUpdateAt).getTime() < ZWISCHENSTAND_SPERRE_TAGE * DAY_MS) {
+    // Zu dieser Erinnerung schon Bescheid gegeben: nicht noch mal (05.11.2026, 5× an Sven).
+    // Erst eine neue Erinnerung an den Kunden macht einen neuen Zwischenstand sinnvoll.
+    if (!o.nudgeAt || Date.parse(o.lastUpdateAt) >= Date.parse(o.nudgeAt)) {
+      const tag = tageText(new Date(o.lastUpdateAt), now);
+      const zeit = tag === 'heute' ? ` um ${new Date(o.lastUpdateAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}` : '';
+      return { preselect: false, disabled: true, erledigt: { at: o.lastUpdateAt }, reason: `Zwischenstand ${tag}${zeit} bekommen` };
+    }
     return { preselect: false, disabled: false, reason: `Zwischenstand ${tageText(new Date(o.lastUpdateAt), now)} schon bekommen` };
   }
   const candidates = [o.lastContactAt, o.submittedAt].filter(Boolean) as string[];

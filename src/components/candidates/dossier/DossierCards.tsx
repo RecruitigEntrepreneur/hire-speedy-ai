@@ -1,4 +1,5 @@
-import { Check, Circle, FileText, MessagesSquare, Pencil, Send } from 'lucide-react';
+import { Check, Circle, FileText, MessagesSquare, Pencil, Send, Upload } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -13,11 +14,21 @@ import {
   optionLabel,
 } from '@/lib/candidateDossier';
 import type { EditFocus } from './CandidateEditSheet';
+import { CurrentCv, cvStandDate, formatCvDate } from '@/lib/candidateCv';
+import { cvViewUrl } from '@/hooks/useCandidateCv';
+
+async function openCv(cv: CurrentCv) {
+  const url = await cvViewUrl(cv);
+  if (url) window.open(url, '_blank', 'noopener');
+  else toast.error('Der Lebenslauf konnte nicht geöffnet werden.');
+}
 
 export function DossierReadinessCard({
   readiness,
   firstName,
+  cv,
   onEdit,
+  onUploadCv,
   onStartInterview,
   onCompleteAndSubmit,
   onViewExpose,
@@ -25,13 +36,18 @@ export function DossierReadinessCard({
 }: {
   readiness: Readiness;
   firstName: string;
+  /** Aktueller Lebenslauf; null = fehlt */
+  cv: CurrentCv | null;
   onEdit: (focus: EditFocus) => void;
+  /** Lebenslauf hochladen oder ersetzen */
+  onUploadCv: () => void;
   onStartInterview: () => void;
   /** Fehlt nur noch das Interview: abschließen und danach direkt einreichen. */
   onCompleteAndSubmit?: () => void;
   onViewExpose: () => void;
   onSubmit: () => void;
 }) {
+  const onlyCvMissing = readiness.missing.length === 1 && readiness.missing[0].action === 'upload_cv';
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -52,13 +68,29 @@ export function DossierReadinessCard({
               {item.ok ? <Check className="h-3.5 w-3.5 shrink-0 text-success" /> : <Circle className="h-3.5 w-3.5 shrink-0 text-warning" />}
               <span className={item.ok ? '' : 'text-warning'}>{item.label}</span>
               {!item.ok && (
-                <button type="button" className="text-xs text-primary underline-offset-2 hover:underline" onClick={() => (item.key === 'interview' ? onStartInterview() : onEdit({ section: item.section, field: item.field }))}>
-                  {item.key === 'interview' ? 'abschließen' : 'eintragen'}
+                <button
+                  type="button"
+                  className="text-xs text-primary underline-offset-2 hover:underline"
+                  onClick={() => (item.key === 'interview' ? onStartInterview() : item.action === 'upload_cv' ? onUploadCv() : onEdit({ section: item.section, field: item.field }))}
+                >
+                  {item.key === 'interview' ? 'abschließen' : item.action === 'upload_cv' ? 'hochladen' : 'eintragen'}
                 </button>
               )}
             </li>
           ))}
         </ul>
+        {cv && (
+          <p className="text-xs text-muted-foreground">
+            Lebenslauf:{' '}
+            <button type="button" className="text-foreground underline-offset-2 hover:underline" onClick={() => openCv(cv)}>
+              {cv.file_name}
+            </button>
+            {' · '}Stand {formatCvDate(cvStandDate(cv))}{' · '}
+            <button type="button" className="text-primary underline-offset-2 hover:underline" onClick={onUploadCv}>
+              ersetzen
+            </button>
+          </p>
+        )}
         {readiness.isReady ? (
           <div className="space-y-2.5">
             <p className="text-sm text-success">Alle Angaben komplett. {firstName} kann eingereicht werden.</p>
@@ -70,6 +102,13 @@ export function DossierReadinessCard({
                 <Send className="mr-1.5 h-3.5 w-3.5" /> Auf Stelle einreichen
               </Button>
             </div>
+          </div>
+        ) : onlyCvMissing ? (
+          <div className="space-y-2.5">
+            <p className="text-sm text-warning">Nur der Lebenslauf fehlt. Ohne ihn kann {firstName} nicht eingereicht werden.</p>
+            <Button size="sm" onClick={onUploadCv}>
+              <Upload className="mr-1.5 h-3.5 w-3.5" /> Lebenslauf hochladen
+            </Button>
           </div>
         ) : readiness.missing.length === 1 && readiness.missing[0].key === 'interview' && onCompleteAndSubmit ? (
           <div className="space-y-2.5">

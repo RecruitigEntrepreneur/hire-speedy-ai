@@ -1,4 +1,4 @@
-import { useContext } from 'react';
+import { KeyboardEvent, useContext, useState } from 'react';
 import { AlertTriangle, Plus, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +25,7 @@ import {
   noticeParts,
 } from '@/lib/candidateDossier';
 import { blockedSuggestions, industrySuggestions, locationSuggestions, offerSuggestions, roleSuggestions } from '@/lib/interviewSuggestions';
+import { haeufigFehlend, sprachVorschlaege } from '@/lib/sprachen';
 import { cn } from '@/lib/utils';
 import type { RoleFamily } from '@/lib/roleFamily';
 import { minimumChips, salaryWarnings, wishChips, type SalaryChip } from '@/lib/salaryChips';
@@ -323,16 +324,73 @@ export function ZieleBlock({ form, set }: BlockProps) {
   );
 }
 
+/**
+ * Sprache eintippen mit passenden Vorschlägen darunter (05.11.2026). Klick, Enter oder Tab
+ * übernimmt den markierten Vorschlag; was nicht in der Liste steht, bleibt wie getippt.
+ */
+function SprachFeld({ value, andere, onChange }: { value: string; andere: string[]; onChange: (v: string) => void }) {
+  const [offen, setOffen] = useState(false);
+  const [markiert, setMarkiert] = useState(0);
+  const liste = offen ? sprachVorschlaege(value, andere) : [];
+  const nimm = (v: string) => { onChange(v); setOffen(false); };
+  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (!liste.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      setMarkiert((m) => (m + (e.key === 'ArrowDown' ? 1 : liste.length - 1)) % liste.length);
+    } else if (e.key === 'Enter' || e.key === 'Tab') {
+      if (e.key === 'Enter') e.preventDefault();
+      nimm(liste[Math.min(markiert, liste.length - 1)]);
+    } else if (e.key === 'Escape') {
+      e.stopPropagation();
+      setOffen(false);
+    }
+  };
+  return (
+    <div className="relative">
+      <Input
+        value={value}
+        placeholder="Sprache"
+        aria-label="Sprache"
+        role="combobox"
+        aria-expanded={liste.length > 0}
+        aria-autocomplete="list"
+        autoComplete="off"
+        onChange={(e) => { onChange(e.target.value); setOffen(true); setMarkiert(0); }}
+        onKeyDown={onKeyDown}
+        onBlur={() => setOffen(false)}
+      />
+      {liste.length > 0 && (
+        <ul role="listbox" className="absolute left-0 right-0 top-full z-20 mt-1 rounded-md border border-border bg-popover p-1 shadow-md">
+          {liste.map((x, i) => (
+            <li
+              key={x}
+              role="option"
+              aria-selected={i === markiert}
+              className={cn('cursor-pointer rounded px-2 py-1.5 text-sm', i === markiert ? 'bg-muted' : 'hover:bg-muted')}
+              onMouseDown={(e) => { e.preventDefault(); nimm(x); }}
+              onMouseEnter={() => setMarkiert(i)}
+            >
+              {x}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export function SprachenBlock({ form, set }: BlockProps) {
   const fehlt = !!useContext(FieldMissingContext)?.has('languages');
   const update = (i: number, patch: Partial<DossierForm['languages'][number]>) =>
     set({ languages: form.languages.map((l, idx) => (idx === i ? { ...l, ...patch } : l)) });
+  const haeufig = haeufigFehlend(form.languages.map((l) => l.language));
   return (
     <div className={cn('space-y-2', fehlt && 'border-l-2 border-warning pl-3')} data-dossier-field="languages">
       {form.languages.length === 0 && <p className={cn('text-xs', fehlt ? 'text-warning' : 'text-muted-foreground')}>{fehlt ? 'fehlt · ' : ''}Noch keine Sprache eingetragen.</p>}
       {form.languages.map((l, i) => (
         <div key={i} className="grid grid-cols-[minmax(0,1fr)_minmax(0,11rem)_auto] items-center gap-2">
-          <Input value={l.language} placeholder="Sprache" onChange={(e) => update(i, { language: e.target.value })} aria-label="Sprache" />
+          <SprachFeld value={l.language} andere={form.languages.filter((_, idx) => idx !== i).map((x) => x.language)} onChange={(v) => update(i, { language: v })} />
           <Select value={l.proficiency || '__none'} onValueChange={(v) => update(i, { proficiency: v === '__none' ? '' : v })}>
             <SelectTrigger aria-label="Niveau">
               <SelectValue placeholder="Niveau" />
@@ -349,6 +407,21 @@ export function SprachenBlock({ form, set }: BlockProps) {
           </Button>
         </div>
       ))}
+      {haeufig.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-muted-foreground">Häufig:</span>
+          {haeufig.map((x) => (
+            <button
+              key={x}
+              type="button"
+              className="rounded-md border border-dashed border-primary px-2 py-0.5 text-xs text-primary hover:bg-primary/10"
+              onClick={() => set({ languages: [...form.languages, { language: x, proficiency: '' }] })}
+            >
+              + {x}
+            </button>
+          ))}
+        </div>
+      )}
       <Button
         type="button"
         variant="ghost"

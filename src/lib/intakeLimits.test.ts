@@ -29,6 +29,7 @@ const ALLE: Record<string, LimitRule[]> = {
   terminSeite: LIMITS.terminSeite('1.2.3.4'),
   terminLebenslauf: LIMITS.terminLebenslauf('1.2.3.4'),
   terminBuchen: LIMITS.terminBuchen('1.2.3.4', 'a@b.de'),
+  terminEinladen: LIMITS.terminEinladen('00000000-0000-0000-0000-000000000000'),
   terminVerwalten: LIMITS.terminVerwalten('1.2.3.4'),
 };
 

@@ -8,6 +8,7 @@
  */
 
 import type { LLMView } from '../pii-redaction.ts';
+import { fuehrungKiText } from '../fuehrung.ts';
 import type { CandidateInput, JobInput } from './understand.ts';
 
 type Row = Record<string, unknown>;
@@ -72,11 +73,8 @@ export function redactedCandidateText(view: LLMView, notes: Row | null, nowMs: n
   }
   const detailed = view.skillsDetailed.filter((s) => s.name && s.years);
   if (detailed.length) lines.push(`Erfahrung je Skill: ${detailed.slice(0, 20).map((s) => `${s.name} ${s.years} Jahre`).join(', ')}`);
-  const scope = str(notes?.leadership_scope);
-  const team = num(notes?.leadership_team_size);
-  if (scope && scope !== 'none') {
-    lines.push(`Führung: ${scope === 'disciplinary' ? 'disziplinarisch' : scope === 'functional' ? 'fachlich' : scope}${team ? `, ${team} Mitarbeitende` : ''}`);
-  }
+  const fuehrung = fuehrungKiText(notes, 'Mitarbeitende');
+  if (fuehrung) lines.push(`Führung: ${fuehrung}`);
   return lines.join('\n');
 }
 

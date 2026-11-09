@@ -1,11 +1,13 @@
 import { supabase } from '@/integrations/supabase/client';
 import {
   DossierForm,
+  isMissingColumnError,
   writeDroppingMissingColumns,
   toCandidatePayload,
   toNotesPayload,
 } from '@/lib/candidateDossier';
 import { CvEducation, CvExtraction, CvStation } from '@/lib/cvImport';
+import { CvSnapshot, isCvFileName, snapshotFromCv } from '@/lib/candidateCv';
 import { docxToText, isDocx } from '@/lib/docxText';
 
 export interface CvFileInfo {
@@ -15,7 +17,7 @@ export interface CvFileInfo {
   mimeType: string;
 }
 
-const sanitize = (name: string) => name.normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9._-]+/g, '_').slice(-80);
+export const sanitizeFileName = (name: string) => name.normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9._-]+/g, '_').slice(-80);
 
 async function invokeError(error: unknown): Promise<string> {
   const ctx = (error as { context?: unknown })?.context;
@@ -43,7 +45,7 @@ export async function extractCv(params: { userId: string; file?: File | null; te
   let fileInfo: CvFileInfo | null = null;
   const file = params.file ?? null;
   if (file) {
-    const path = `${params.userId}/${Date.now()}-${sanitize(file.name)}`;
+    const path = `${params.userId}/${Date.now()}-${sanitizeFileName(file.name)}`;
     const { error: upErr } = await supabase.storage.from('cv-documents').upload(path, file, { contentType: file.type || undefined });
     if (upErr) throw new Error(`Upload fehlgeschlagen: ${upErr.message}`);
     const { data: { publicUrl } } = supabase.storage.from('cv-documents').getPublicUrl(path);
@@ -86,15 +88,26 @@ function educationRows(candidateId: string, educations: CvEducation[]) {
   }));
 }
 
-async function insertDocument(candidateId: string, userId: string, fileInfo: CvFileInfo): Promise<string | null> {
+/**
+ * Neue Lebenslauf-Version: alte Versionen sind danach nicht mehr aktuell.
+ * Nur PDF und Word zählen als Lebenslauf (Text-Dateien werden nur ausgelesen).
+ */
+export async function insertCvDocument(candidateId: string, userId: string, fileInfo: CvFileInfo, extracted: CvSnapshot | null): Promise<string | null> {
+  if (!isCvFileName(fileInfo.fileName)) return null;
   await supabase.from('candidate_documents').update({ is_current: false } as never).eq('candidate_id', candidateId).eq('document_type', 'cv');
   const { data: existing } = await supabase.from('candidate_documents').select('version').eq('candidate_id', candidateId).eq('document_type', 'cv')
     .order('version', { ascending: false }).limit(1);
   const version = ((existing?.[0] as { version?: number } | undefined)?.version ?? 0) + 1;
-  const { error } = await supabase.from('candidate_documents').insert({
+  const row = {
     candidate_id: candidateId, document_type: 'cv', version, file_name: fileInfo.fileName, file_url: fileInfo.fileUrl,
-    file_size: fileInfo.fileSize, mime_type: fileInfo.mimeType, is_current: true, uploaded_by: userId,
-  } as never);
+    file_size: fileInfo.fileSize, mime_type: fileInfo.mimeType, is_current: true, uploaded_by: userId, extracted,
+  };
+  let { error } = await supabase.from('candidate_documents').insert(row as never);
+  if (error && isMissingColumnError(error)) {
+    // Spalte extracted noch nicht migriert: ohne Abdruck speichern
+    const { extracted: _e, ...withoutNew } = row;
+    ({ error } = await supabase.from('candidate_documents').insert(withoutNew as never));
+  }
   return error ? 'Lebenslauf-Datei' : null;
 }
 
@@ -119,6 +132,29 @@ export interface CvSaveResult {
   candidateId: string;
   /** Teile, die nicht gespeichert werden konnten – werden angezeigt, nie verschluckt. */
   failed: string[];
+}
+
+/** Platzhalter, wenn ohne Lebenslauf angelegt wird: keine Angaben aus einem Dokument. */
+export const manualCv = (): CvExtraction => ({
+  version: 'manuell',
+  contact: { full_name: '', email: '', phone: '', city: '', linkedin_url: '', github_url: '', portfolio_url: '', website_url: '' },
+  removed_sensitive: [], fields: {}, stations: [], educations: [], skills: [], languages: [],
+  suggestions: { summary: '', highlights: [], career_directions: [] }, rejected_quotes: 0, raw_text: '',
+});
+
+/** Neuer Kandidat nur mit Name und Kontakt (04.11.2026): Der Lebenslauf wird später angefragt. */
+export async function saveNewCandidateManual(p: { userId: string; form: DossierForm }): Promise<string> {
+  const { userId, form } = p;
+  const { data, error } = await supabase.from('candidates').insert({
+    ...toCandidatePayload(form),
+    email: form.email.trim(),
+    recruiter_id: userId,
+    import_source: 'manual',
+  } as never).select('id').single();
+  if (error || !data) throw new Error(`Kandidat konnte nicht angelegt werden: ${error?.message ?? 'unbekannt'}`);
+  const candidateId = (data as { id: string }).id;
+  await logConsent(userId, candidateId);
+  return candidateId;
 }
 
 /** Neuer Kandidat aus dem geprüften Lebenslauf. */
@@ -150,7 +186,7 @@ export async function saveNewCandidateFromCv(p: { userId: string; form: DossierF
   const notesFail = await writeNotes(candidateId, userId, form, null);
   if (notesFail) failed.push(notesFail);
   if (fileInfo) {
-    const docFail = await insertDocument(candidateId, userId, fileInfo);
+    const docFail = await insertCvDocument(candidateId, userId, fileInfo, snapshotFromCv(cv));
     if (docFail) failed.push(docFail);
   }
   await logConsent(userId, candidateId);
@@ -188,7 +224,7 @@ export async function saveCvIntoExisting(p: {
     if (e) failed.push('Stationen');
   }
   if (fileInfo) {
-    const docFail = await insertDocument(candidateId, userId, fileInfo);
+    const docFail = await insertCvDocument(candidateId, userId, fileInfo, snapshotFromCv(cv));
     if (docFail) failed.push(docFail);
   }
   return { candidateId, failed };

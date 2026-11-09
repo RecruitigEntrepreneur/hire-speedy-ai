@@ -137,6 +137,8 @@ const PartnerCheck = lazy(() => import("./pages/public/PartnerCheck"));
 // Terminseite des Headhunters (21.10.2026): öffentlich, ohne Konto.
 const TerminSeite = lazy(() => import("./pages/public/TerminSeite"));
 const TerminVerwalten = lazy(() => import("./pages/public/TerminVerwalten"));
+const TerminEinladung = lazy(() => import("./pages/public/TerminEinladung"));
+const TerminLebenslauf = lazy(() => import("./pages/public/TerminLebenslauf"));
 const AdminIntakes = lazy(() => import("./pages/admin/AdminIntakes"));
 const AdminIntakeDetail = lazy(() => import("./pages/admin/AdminIntakeDetail"));
 const AdminIntakeLinks = lazy(() => import("./pages/admin/AdminIntakeLinks"));
@@ -584,6 +586,8 @@ function AppRoutes() {
           Referrer-Headern und Server-Logs. */}
       {/* Öffentliche Prüfseite des Partnerstatus: ohne Login, nicht für Suchmaschinen. */}
       <Route path="/partner/:number" element={<Suspense fallback={<RouteFallback />}><PartnerCheck /></Suspense>} />
+      <Route path="/t/einladung/:token" element={<Suspense fallback={<RouteFallback />}><TerminEinladung /></Suspense>} />
+      <Route path="/t/lebenslauf/:token" element={<Suspense fallback={<RouteFallback />}><TerminLebenslauf /></Suspense>} />
       <Route path="/t/termin/:token" element={<Suspense fallback={<RouteFallback />}><TerminVerwalten /></Suspense>} />
       <Route path="/t/:slug" element={<Suspense fallback={<RouteFallback />}><TerminSeite /></Suspense>} />
       <Route path="/t/:slug/:stelle" element={<Suspense fallback={<RouteFallback />}><TerminSeite /></Suspense>} />

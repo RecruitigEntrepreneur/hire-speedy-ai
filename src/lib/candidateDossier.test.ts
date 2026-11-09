@@ -106,11 +106,11 @@ describe('Kandidatenakte: speichern', () => {
 });
 
 describe('Bereit zum Einreichen', () => {
-  it('Lena steht nach dem alten Dialog bei 7 von 11, ohne dass ein CV nötig ist', () => {
+  it('Lena steht nach dem alten Dialog bei 7 von 12, der Lebenslauf fehlt noch', () => {
     const r = computeReadiness(fromRecords(lena, null));
     expect(r.done).toBe(7);
-    expect(r.total).toBe(11);
-    expect(r.missing.map((m) => m.key)).toEqual(['motivation', 'sprachen', 'einschaetzung', 'interview']);
+    expect(r.total).toBe(12);
+    expect(r.missing.map((m) => m.key)).toEqual(['motivation', 'sprachen', 'einschaetzung', 'interview', 'lebenslauf']);
   });
 
   const deutsch = [{ language: 'Deutsch', proficiency: 'C2' }];
@@ -121,11 +121,18 @@ describe('Bereit zum Einreichen', () => {
   };
 
   it('ist erst mit abgeschlossenem Interview vollständig', () => {
-    const entwurf = computeReadiness({ ...fromRecords(lena, null, deutsch), ...gefuehrt, interview_status: 'draft' });
+    const entwurf = computeReadiness({ ...fromRecords(lena, null, deutsch), ...gefuehrt, interview_status: 'draft' }, true);
     expect(entwurf.isReady).toBe(false);
     expect(entwurf.missing.map((m) => m.key)).toEqual(['interview']);
-    const fertig = computeReadiness({ ...fromRecords(lena, null, deutsch), ...gefuehrt, interview_status: 'completed' });
+    const fertig = computeReadiness({ ...fromRecords(lena, null, deutsch), ...gefuehrt, interview_status: 'completed' }, true);
     expect(fertig.isReady).toBe(true);
+  });
+
+  it('ist erst mit hochgeladenem Lebenslauf vollständig (12.10.2026)', () => {
+    const f = { ...fromRecords(lena, null, deutsch), ...gefuehrt, interview_status: 'completed' };
+    expect(computeReadiness(f).isReady).toBe(false);
+    expect(computeReadiness(f).missing[0]).toMatchObject({ key: 'lebenslauf', action: 'upload_cv' });
+    expect(computeReadiness(f, true).isReady).toBe(true);
   });
 
   it('zählt ein abgeschlossenes Interview ohne Mindestangaben nicht', () => {
@@ -145,12 +152,12 @@ describe('Bereit zum Einreichen', () => {
   it('verlangt Arbeitsmodell, Wohnort mit Pendelzeit und Sprachen fürs Matching (19.10.2026)', () => {
     const stefan = { ...fromRecords(lena, null, deutsch), ...gefuehrt, interview_status: 'completed', city: 'Bamberg', remote_preference: null, max_commute_minutes: null };
     expect(rahmenGaps(stefan).map((g) => g.key)).toEqual(['arbeitsmodell', 'pendeln']);
-    const r = computeReadiness(stefan);
+    const r = computeReadiness(stefan, true);
     expect(r.items.find((i) => i.key === 'interview')?.ok).toBe(true);
     expect(r.missing.map((m) => m.key)).toEqual(['arbeitsmodell', 'pendeln']);
     expect(r.missing.find((m) => m.key === 'pendeln')?.field).toBe('max_commute_minutes');
     // Ohne Wohnort springt der Punkt zum Wohnort.
-    expect(computeReadiness({ ...stefan, city: '' }).missing.find((m) => m.key === 'pendeln')?.field).toBe('city');
+    expect(computeReadiness({ ...stefan, city: '' }, true).missing.find((m) => m.key === 'pendeln')?.field).toBe('city');
     // Abschließen verlangt beides: Mindestangaben und Rahmen.
     expect(abschlussGaps(stefan).map((g) => g.key)).toEqual(['arbeitsmodell', 'pendeln']);
   });

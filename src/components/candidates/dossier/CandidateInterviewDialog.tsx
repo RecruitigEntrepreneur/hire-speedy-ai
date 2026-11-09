@@ -1,10 +1,11 @@
-import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Check, ChevronLeft, ChevronRight, Loader2, Lock, Sparkles, Star, X } from 'lucide-react';
+import { Fragment, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { AlertTriangle, ChevronLeft, ChevronRight, Loader2, MoreHorizontal, Phone, Sparkles, Star, Video, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -15,15 +16,12 @@ import {
   DISCUSSED_OPTIONS,
   DossierForm,
   INTERVIEW_TYPE_OPTIONS,
-  LEADERSHIP_OPTIONS,
-  COMPANY_SIZE_OPTIONS,
-  INDUSTRY_CHANGE_OPTIONS,
-  INTERNATIONAL_OPTIONS,
   NON_COMPETE_OPTIONS,
   OTHER_APPLICATIONS_OPTIONS,
   RELOCATION_OPTIONS,
   RECOMMENDATION_OPTIONS,
   WOULD_STAY_OPTIONS,
+  CLIENT_SUMMARY_KEYS,
   autoClientSummary,
   buildClientSummary,
   changeEvidence,
@@ -39,43 +37,64 @@ import {
   WORKED_OPTIONS,
   actionsTaken,
   careerDirections,
+  locationSuggestions,
   phrasesOf,
 } from '@/lib/interviewSuggestions';
 import { ALL_GOALS, careerGoalSuggestions } from '@/lib/careerGoals';
-import { ASK_NON_COMPETE, FAMILY_CHIPS, FAMILY_LABEL, NOTICE_HINT, belowLevel, detectRoleFamily, isLeaderTitle } from '@/lib/roleFamily';
+import { ASK_NON_COMPETE, FAMILY_CHIPS, NOTICE_HINT, detectRoleFamily, isLeaderTitle } from '@/lib/roleFamily';
 import { clientMotivation, earlierGeneratedMotivation, evaluateMotiveFields, incidentHasEvent, incidentParts, incidentSentence, incidentSuggestions, isAutoWhyNow, isOldAutoMotivation, joinMotivation, legacyAddonFields, motiveLabels, splitMotivation, type MotiveFlow } from '@/lib/situationMotives';
 import { careerSignals, yearsLabel, type CareerHook, type CareerStation, type SignalStation } from '@/lib/careerSignals';
 import { clientTextIssues, type ClientTextField } from '@/lib/clientTextCheck';
 import { quickExtract, type CaptureSuggestion } from '@/lib/quickExtract';
 import { buildReview, freshText, fromAiFields, mergeSuggestions, type ReviewItem } from '@/lib/captureReview';
+import {
+  INTERVIEW_VIEWS,
+  ROLLE_FIELDS,
+  clearInterviewPosition,
+  clearLocalCopy,
+  firstOpenView,
+  isAfterCall,
+  markInterviewOpen,
+  pickTermin,
+  readInterviewLayout,
+  readInterviewPosition,
+  readLocalCopy,
+  resumedElapsed,
+  terminArt,
+  terminDatum,
+  viewAnswered,
+  viewIndex,
+  viewOfField,
+  writeInterviewLayout,
+  writeInterviewPosition,
+  writeLocalCopy,
+  wunschBand,
+  type InterviewLayout,
+  type InterviewViewKey,
+} from '@/lib/interviewViews';
 import type { DossierSaveResult } from '@/hooks/useCandidateDossier';
-import { AreaField, ChipGroup, Field, FieldMissingContext, FieldQuestionContext, NumberField, PhraseChips, TextField, fieldId, focusDossierField } from './DossierFields';
+import { useErstgespraeche } from '@/components/recruiter/termin/Erstgespraeche';
+import { InterviewInsightsCard } from '../client/ClientCandidateCards';
+import type { InterviewInsights } from '../client/useCandidateInsights';
+import type { EditFocus } from './CandidateEditSheet';
+import { ChipGroup, Field, FieldMissingContext, FieldQuestionContext, PhraseChips, TagInput, TextField, fieldId, focusDossierField } from './DossierFields';
+import { FuehrungFeld } from './FuehrungFeld';
 import { CareerGoalBlock, ClientMotivationField, IncidentBlock, MotiveBlock } from './MotiveBlock';
 import {
-  AngebotBlock,
   ArbeitsortBlock,
   ArbeitserlaubnisBlock,
   GehaltBlock,
-  KundeBlock,
   RolleBlock,
   SperrlisteBlock,
   SprachenBlock,
   VerfuegbarkeitBlock,
-  ZieleBlock,
 } from './DossierBlocks';
 
 // Live-Interview: der Headhunter führt das Gespräch jetzt und geht die Fragen
 // direkt mit dem Kandidaten durch. Kein Leitfaden, keine Skripte (die kommen
-// in die Akademie). Bekanntes ist vorausgefüllt, rechts steht die freie Notiz
-// mit Erkennung beim Tippen und immer die nächste offene Frage.
-
-const PHASES = [
-  { key: 'situation', label: 'Heute, Ziel und Wechsel' },
-  { key: 'ziele', label: 'Wunschstelle' },
-  { key: 'rahmen', label: 'Rahmen' },
-  { key: 'markt', label: 'Markt und Einschätzung' },
-  { key: 'kundenprofil', label: 'Kundenprofil' },
-] as const;
+// in die Akademie). Bekanntes ist vorausgefüllt, links stehen fünf Punkte und der
+// Abschluss, rechts die freie Notiz mit Erkennung beim Tippen. Ruhig gehalten
+// (02.11.2026: „gelb grün … überfordert“): Gelb nur, wo jetzt etwas zu tun ist.
 
 const NEXT_QUESTION: Record<string, string> = {
   kontakt: 'Wie erreiche ich Sie am besten, per Mail oder Telefon?',
@@ -84,7 +103,10 @@ const NEXT_QUESTION: Record<string, string> = {
   gehalt: 'Welches Jahresgehalt stellen Sie sich vor?',
   verfuegbarkeit: 'Wie lang ist Ihre Kündigungsfrist?',
   motivation: 'Was ist für Sie der wichtigste Grund für einen Wechsel?',
-  einschaetzung: 'Deine Einschätzung fehlt noch (Phase 4).',
+  change_motivation: 'Was ist für Sie der wichtigste Grund für einen Wechsel?',
+  expected_salary: 'Welches Jahresgehalt stellen Sie sich vor?',
+  notice_period: 'Wie lang ist Ihre Kündigungsfrist?',
+  einschaetzung: 'Deine Einschätzung fehlt noch (Abschluss).',
   why_now: 'Was ist jetzt anders als vor einem Jahr?',
   interview_type: 'Telefon, Video oder vor Ort? Oben im Kopf wählen.',
   interview_date: 'Wann war das Gespräch? Oben im Kopf.',
@@ -92,35 +114,52 @@ const NEXT_QUESTION: Record<string, string> = {
   wohnort: 'Wo wohnen Sie aktuell?',
   pendeln: 'Wie lange darf der Arbeitsweg höchstens dauern?',
   sprachen: 'Welche Sprachen sprechen Sie, und wie gut?',
+  lebenslauf: 'Bitte um den aktuellen Lebenslauf als PDF oder Word.',
 };
-
-type PhaseKey = (typeof PHASES)[number]['key'];
 
 /**
- * Wo eine fehlende Angabe steht: Phase und Feld, damit „fehlt“ dorthin springt.
- * „kopf“ = Datum und Gesprächsart oben, „akte“ = steht nicht im Interview.
+ * Wo eine fehlende Angabe steht, damit „fehlt“ dorthin springt: „frage“ = in einem
+ * Punkt, „kopf“ = Datum und Gesprächsart oben, „akte“ = steht nicht im Interview.
  */
-const WHERE: Record<string, { phase: PhaseKey | 'kopf' | 'akte'; field: string }> = {
-  interview_date: { phase: 'kopf', field: 'interview_date' },
-  interview_type: { phase: 'kopf', field: 'interview_type' },
-  change_motivation: { phase: 'situation', field: 'change_motivation' },
-  motivation: { phase: 'situation', field: 'change_motivation' },
-  why_now: { phase: 'situation', field: 'specific_incident' },
-  rolle: { phase: 'situation', field: 'job_title' },
-  expected_salary: { phase: 'rahmen', field: 'expected_salary' },
-  gehalt: { phase: 'rahmen', field: 'expected_salary' },
-  notice_period: { phase: 'rahmen', field: 'notice_period' },
-  verfuegbarkeit: { phase: 'rahmen', field: 'notice_period' },
-  einschaetzung: { phase: 'markt', field: 'recommendation' },
-  kontakt: { phase: 'akte', field: 'email' },
-  skills: { phase: 'akte', field: 'skills' },
-  kundentexte: { phase: 'kundenprofil', field: 'summary_motivation' },
+const WHERE: Record<string, { ort: 'frage' | 'kopf' | 'akte'; field: string }> = {
+  interview_date: { ort: 'kopf', field: 'interview_date' },
+  interview_type: { ort: 'kopf', field: 'interview_type' },
+  change_motivation: { ort: 'frage', field: 'change_motivation' },
+  motivation: { ort: 'frage', field: 'change_motivation' },
+  why_now: { ort: 'frage', field: 'specific_incident' },
+  rolle: { ort: 'frage', field: 'job_title' },
+  expected_salary: { ort: 'frage', field: 'expected_salary' },
+  gehalt: { ort: 'frage', field: 'expected_salary' },
+  notice_period: { ort: 'frage', field: 'notice_period' },
+  verfuegbarkeit: { ort: 'frage', field: 'notice_period' },
+  einschaetzung: { ort: 'frage', field: 'recommendation' },
+  kontakt: { ort: 'akte', field: 'email' },
+  skills: { ort: 'akte', field: 'skills' },
+  kundentexte: { ort: 'frage', field: 'summary_motivation' },
   // Rahmen fürs Matching (19.10.2026), Pflicht zum Abschließen
-  arbeitsmodell: { phase: 'rahmen', field: 'remote_preference' },
-  wohnort: { phase: 'rahmen', field: 'city' },
-  pendeln: { phase: 'rahmen', field: 'max_commute_minutes' },
-  sprachen: { phase: 'rahmen', field: 'languages' },
+  arbeitsmodell: { ort: 'frage', field: 'remote_preference' },
+  wohnort: { ort: 'frage', field: 'city' },
+  pendeln: { ort: 'frage', field: 'max_commute_minutes' },
+  sprachen: { ort: 'frage', field: 'languages' },
+  // Lebenslauf (12.10.2026): Datei in der Akte, nicht im Interview
+  lebenslauf: { ort: 'akte', field: 'cv' },
 };
+
+/** Name des Kundentexts in Hinweisen am Abschluss. */
+const CLIENT_TEXT_LABEL: Record<ClientTextField, string> = {
+  summary_motivation: 'Warum wechseln',
+  summary_salary: 'Gehaltsrahmen',
+  summary_notice: 'Verfügbarkeit',
+  summary_key_requirements: 'Key Requirements',
+  summary_cultural_fit: 'Cultural Fit',
+  expose_summary: 'Kurzprofil',
+  expose_highlights: 'Highlights',
+};
+
+const TERMIN_TAG = new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', weekday: 'short', day: 'numeric', month: 'numeric' });
+const TERMIN_ZEIT = new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' });
+/** „Di, 3.11. um 14:00“ */
+const terminText = (iso: string) => `${TERMIN_TAG.format(new Date(iso)).replace('.,', ',')} um ${TERMIN_ZEIT.format(new Date(iso))}`;
 
 const monthYear = (d: Date) => `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 
@@ -149,13 +188,13 @@ function FixHint({ text, actions }: { text: string; actions: { label: string; on
   );
 }
 
-/** Aus „Was gefällt, was stört“ (Phase 1) vorgemerkt für Phase 3. */
+/** Aus „Was gefällt, was stört“ (Rolle heute) vorgemerkt für „Gehalt und Rahmen“. */
 const FLOW_HINT: Record<MotiveFlow, string> = {
-  gehalt: 'Aus Phase 1: Geld ist ein Wechselgrund. Wunschgehalt genau erfragen.',
-  leaver: 'Aus Phase 1: Beteiligung. Rückkaufregeln beim Ausstieg klären.',
-  kundenschutz: 'Aus Phase 1: Kundenbeziehungen. Nach einer Kundenschutzklausel fragen.',
-  pendeln: 'Aus Phase 1: Der Arbeitsweg ist wichtig. Pendelzeit genau erfassen.',
-  arbeitsmodell: 'Aus Phase 1: Remote oder Flexibilität ist wichtig. Arbeitsmodell genau erfassen.',
+  gehalt: 'Aus „Rolle heute“: Geld ist ein Wechselgrund. Wunschgehalt genau erfragen.',
+  leaver: 'Aus „Rolle heute“: Beteiligung. Rückkaufregeln beim Ausstieg klären.',
+  kundenschutz: 'Aus „Rolle heute“: Kundenbeziehungen. Nach einer Kundenschutzklausel fragen.',
+  pendeln: 'Aus „Rolle heute“: Der Arbeitsweg ist wichtig. Pendelzeit genau erfassen.',
+  arbeitsmodell: 'Aus „Rolle heute“: Remote oder Flexibilität ist wichtig. Arbeitsmodell genau erfassen.',
 };
 
 /** Wofür die Frage gut ist, eine Zeile unter dem Label. */
@@ -185,19 +224,42 @@ interface Props {
   pendingColumns: boolean;
   onSave: (form: DossierForm) => Promise<DossierSaveResult>;
   onComplete: () => Promise<void>;
+  /** Kam über „Interview abschließen und einreichen“: nach dem Abschluss direkt weiter, ohne Karte. */
+  directSubmit?: boolean;
+  /** Knopf „Auf Stelle einreichen“ auf der Abschluss-Karte. */
+  onSubmitToJob?: () => void;
+  /** Knopf „Fehlendes eintragen“, wenn die Angabe nicht im Interview steht (Kontakt, Skills). */
+  onEditMissing?: (focus: EditFocus) => void;
+  /** Hochgeladener Lebenslauf vorhanden (Punkt von „Bereit zum Einreichen“, 12.10.2026). */
+  hasCv?: boolean;
+  /** Lebenslauf hochladen (Abschluss-Karte, wenn nur er fehlt). */
+  onUploadCv?: () => void;
 }
 
 type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
 
-export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form, pendingColumns, onSave, onComplete }: Props) {
+/** Neuer Speicherversuch nach einem Fehler. */
+const SAVE_RETRY_MS = 5000;
+
+const uhrzeit = (d: Date | number) => new Date(d).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+
+export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form, pendingColumns, onSave, onComplete, directSubmit = false, onSubmitToJob, onEditMissing, hasCv = false, onUploadCv }: Props) {
   const { user } = useAuth();
   const [draft, setDraft] = useState<DossierForm>(form);
-  const [phase, setPhase] = useState(0);
+  // Eine Stelle für beide Darstellungen: Schritt für Schritt die Frage, sonst deren Phase.
+  const [view, setView] = useState(0);
+  const [layout, setLayout] = useState<InterviewLayout>('steps');
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [newColumnsPending, setNewColumnsPending] = useState(pendingColumns);
-  const [startedAt, setStartedAt] = useState<number>(Date.now());
-  const [now, setNow] = useState<number>(Date.now());
+  const [elapsed, setElapsed] = useState(0);
+  const [finished, setFinished] = useState(false);
+  // Gelbe Kante „fehlt“ am Feld erst nach einem Klick auf eine fehlende Angabe, nicht im ganzen Gespräch.
+  const [zeigeFehlt, setZeigeFehlt] = useState(false);
+  // Ohne Rolle in der Akte steht „Rolle heute“ ganz oben in Punkt 1 (die Ziel-Vorschläge hängen an der Rolle).
+  const [rolleOben, setRolleOben] = useState(false);
+  const [rueckkehr, setRueckkehr] = useState<{ savedAt: number | null } | null>(null);
+  const [completedAtOpen, setCompletedAtOpen] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<CaptureSuggestion[]>([]);
   // Kundenprofil schreibt sich mit: zuletzt erzeugte Entwürfe und vom Headhunter geänderte Felder
   const lastSummaryRef = useRef<ClientSummary>(buildClientSummary(form));
@@ -214,11 +276,15 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
   const [editSprachen, setEditSprachen] = useState(false);
   const [onlyMissing, setOnlyMissing] = useState(false);
   const [hiddenHooks, setHiddenHooks] = useState<Set<string>>(new Set());
-  const [keptHints, setKeptHints] = useState<Set<string>>(new Set());
   const [startSaved, setStartSaved] = useState(false);
   const [busyFirm, setBusyFirm] = useState('');
   const lastMotivRef = useRef('');
   const autoBlockedRef = useRef(false);
+  // „Wichtig ist“ folgt den Klicks, solange dort nichts Eigenes steht (ältere Top 3 bleiben).
+  const wichtigFolgtRef = useRef(false);
+  // Einmal ohne Wohnort gesehen, bleibt das Feld stehen (sonst verschwindet es beim Tippen).
+  const wohnortFragen = useRef(false);
+  const terminFertigRef = useRef<string | null>(null);
 
   const draftRef = useRef(draft);
   const versionRef = useRef(0);
@@ -226,62 +292,112 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
   const mainRef = useRef<HTMLDivElement>(null);
   const notesRef = useRef<HTMLTextAreaElement>(null);
   const baselineNotesRef = useRef('');
+  // Erst mit der ersten Antwort entsteht ein Entwurf; bloßes Öffnen schreibt nichts.
+  const touchedRef = useRef(false);
+  const movedRef = useRef(false);
+  const elapsedRef = useRef(0);
+  const clockStoppedRef = useRef(false);
+  const savedAtRef = useRef<number | null>(null);
+  const viewRef = useRef(0);
+  const flushRef = useRef<() => Promise<boolean>>(async () => true);
+  const writePosRef = useRef<() => void>(() => undefined);
 
-  const phaseDone = (i: number, f: DossierForm): boolean => {
-    switch (PHASES[i].key) {
-      case 'situation': return !!(f.change_motivation.trim() || f.change_motivation_tags.length) && !!(f.current_positive.trim() || f.current_negative.trim() || f.leadership_scope || f.specific_incident.trim());
-      case 'ziele': return !!(f.target_roles.length || f.target_industries.length || f.target_locations.length || f.company_size_pref);
-      case 'rahmen': return !!f.expected_salary && !!(f.notice_period || f.availability_date) && rahmenGaps(f).length === 0;
-      case 'markt': return !!f.recommendation && !!(f.previous_process_issues.trim() || f.blocked_companies.length);
-      case 'kundenprofil': return !!(f.summary_motivation || f.summary_salary || f.summary_notice || f.summary_key_requirements || f.summary_cultural_fit);
-      default: return false;
-    }
-  };
+  const stepMode = layout === 'steps';
+  const currentView = INTERVIEW_VIEWS[view];
 
-  // Beim Öffnen einmal übernehmen und bei der ersten offenen Phase starten.
-  // Danach nie mehr von außen überschreiben (sonst verschluckt das Nachladen
-  // nach dem Speichern die Eingaben – der Fehler aus dem alten Interview).
+  // Gebuchter Termin von heute: Datum, Gesprächsart, Beitreten oder Anrufen und die Notiz des Kandidaten.
+  const termine = useErstgespraeche({ candidateId });
+  const termin = useMemo(() => (open ? pickTermin(termine.data ?? [], Date.now()) : null), [open, termine.data]);
+  const terminStartRef = useRef(0);
+  terminStartRef.current = termin ? Date.parse(termin.starts_at) : 0;
+
+  // Beim Öffnen einmal übernehmen und dort weitermachen, wo der Headhunter war, sonst
+  // bei der ersten offenen Frage. Danach nie mehr von außen überschreiben (sonst
+  // verschluckt das Nachladen nach dem Speichern die Eingaben – der Fehler aus dem alten Interview).
   useEffect(() => {
     if (!open) return;
-    setDraft(form);
-    draftRef.current = form;
+    const pos = user ? readInterviewPosition(user.id, candidateId) : null;
+    const copy = readLocalCopy(candidateId);
+    const start = copy ? { ...form, ...copy.draft } : form;
+    setDraft(start);
+    draftRef.current = start;
     baselineNotesRef.current = form.additional_notes;
-    const firstOpen = PHASES.findIndex((_, i) => !phaseDone(i, form));
-    setPhase(firstOpen === -1 ? 0 : firstOpen);
+    const completed = form.interview_status === 'completed';
+    setCompletedAtOpen(completed);
+    setLayout(completed ? 'all' : user ? readInterviewLayout(user.id) : 'steps');
+    const startView = completed ? 0 : pos ? viewIndex(pos.view) : firstOpenView(form);
+    setView(startView);
+    viewRef.current = startView;
+    setRueckkehr(pos && !completed ? { savedAt: pos.savedAt } : null);
+    savedAtRef.current = pos?.savedAt ?? null;
+    elapsedRef.current = completed ? 0 : resumedElapsed(pos, Date.now());
+    setElapsed(Math.floor(elapsedRef.current));
+    setFinished(false);
+    setZeigeFehlt(false);
+    setRolleOben(!start.job_title.trim());
+    wohnortFragen.current = !start.city.trim();
+    const wichtigAuto = evaluateMotiveFields(detectRoleFamily(start), start.current_positive, start.current_negative).weiter.wichtig;
+    wichtigFolgtRef.current = !start.offer_requirements.length || [...start.offer_requirements].sort().join('|') === [...wichtigAuto].sort().join('|');
+    terminFertigRef.current = null;
     setSaveState('idle');
     setAiSuggestions([]);
     setDismissed(new Set());
     setEditRolle(false);
-    setEditSprachen(false);
+    // Ohne Sprache in der Akte bleibt das Feld offen, sonst klappt es nach dem ersten Eintrag zu, bevor das Niveau gewählt ist.
+    setEditSprachen(!start.languages.length);
     setOnlyMissing(false);
     setHiddenHooks(new Set());
-    setKeptHints(new Set());
     setStartSaved(false);
     setBusyFirm('');
     lastMotivRef.current = '';
     autoBlockedRef.current = false;
-    setStartedAt(Date.now());
+    touchedRef.current = !!copy;
+    movedRef.current = false;
+    versionRef.current = copy ? 1 : 0;
+    markInterviewOpen(candidateId, true);
+    if (copy) {
+      toast.info('Nicht gespeicherte Eingaben übernommen', { description: `Stand von ${uhrzeit(copy.at)}. Wird jetzt gespeichert.` });
+      schedule();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   useEffect(() => setNewColumnsPending(pendingColumns), [pendingColumns]);
-  useEffect(() => { mainRef.current?.scrollTo({ top: 0 }); }, [phase]);
+  // Schritt für Schritt beginnt jeder Punkt oben; auf der langen Seite nur beim Wechsel der Darstellung.
+  useEffect(() => { mainRef.current?.scrollTo({ top: 0 }); }, [stepMode ? view : -1, stepMode, onlyMissing, finished]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Die Uhr rechnet über Zeitstempel: Hintergrund-Tabs drosseln den Takt.
+  const clockStopped = finished || (stepMode && isAfterCall(currentView.key));
+  clockStoppedRef.current = clockStopped;
   useEffect(() => {
     if (!open) return;
-    const t = window.setInterval(() => setNow(Date.now()), 1000);
+    let last = Date.now();
+    const t = window.setInterval(() => {
+      const now = Date.now();
+      // Mit Termin startet die Uhr mit dem Gespräch: zur gebuchten Zeit oder mit der ersten Antwort.
+      const laeuft = !terminStartRef.current || now >= terminStartRef.current || touchedRef.current;
+      if (!clockStoppedRef.current && laeuft) elapsedRef.current += (now - last) / 1000;
+      last = now;
+      setElapsed(Math.floor(elapsedRef.current));
+    }, 1000);
     return () => window.clearInterval(t);
   }, [open]);
 
   const flush = async (): Promise<boolean> => {
     window.clearTimeout(timerRef.current);
-    if (versionRef.current === 0) return true;
+    if (versionRef.current === 0 || !touchedRef.current) return true;
     const version = versionRef.current;
     setSaveState('saving');
     const result = await onSave(draftRef.current);
     if (!result.ok) {
+      // Nichts geht verloren: Kopie im Tab, und es wird von selbst neu versucht.
       setSaveState('error');
+      writeLocalCopy(candidateId, draftRef.current, Date.now());
+      timerRef.current = window.setTimeout(() => { void flushRef.current(); }, SAVE_RETRY_MS);
       return false;
     }
+    clearLocalCopy(candidateId);
+    savedAtRef.current = Date.now();
     if (result.pendingColumns) setNewColumnsPending(true);
     if (versionRef.current === version) {
       versionRef.current = 0;
@@ -292,13 +408,17 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
     }
     return true;
   };
+  flushRef.current = flush;
 
   const schedule = () => {
     window.clearTimeout(timerRef.current);
-    timerRef.current = window.setTimeout(() => { flush(); }, 900);
+    timerRef.current = window.setTimeout(() => { void flushRef.current(); }, 900);
   };
 
+  /** Antwort des Headhunters: Ab hier gibt es einen Entwurf, mit Datum. */
   const set = (patch: Partial<DossierForm>) => {
+    touchedRef.current = true;
+    setRueckkehr(null);
     setDraft((d) => {
       const next = { ...d, ...patch, interview_date: patch.interview_date ?? d.interview_date ?? today() };
       draftRef.current = next;
@@ -309,20 +429,58 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
     schedule();
   };
 
-  useEffect(() => () => window.clearTimeout(timerRef.current), []);
+  /** Was sich von selbst füllt (Kundentexte, Sperrliste): wird erst mit der ersten Antwort gespeichert. */
+  const setAuto = (patch: Partial<DossierForm>) => {
+    setDraft((d) => {
+      const next = { ...d, ...patch };
+      draftRef.current = next;
+      return next;
+    });
+    versionRef.current += 1;
+    if (!touchedRef.current) return;
+    setSaveState('dirty');
+    schedule();
+  };
 
-  const readiness = useMemo(() => computeReadiness(draft), [draft]);
+  const writePos = () => {
+    if (!user || !(touchedRef.current || movedRef.current) || draftRef.current.interview_status === 'completed') return;
+    writeInterviewPosition(user.id, candidateId, { view: INTERVIEW_VIEWS[viewRef.current].key, at: Date.now(), elapsed: elapsedRef.current, savedAt: savedAtRef.current });
+  };
+  writePosRef.current = writePos;
+
+  // Tab-Wechsel: nicht auf die 0,9 Sekunden warten. Neuladen: Stelle und Uhr bleiben.
+  useEffect(() => {
+    if (!open) return;
+    const onHide = () => {
+      if (document.visibilityState !== 'hidden') return;
+      void flushRef.current();
+      writePosRef.current();
+    };
+    const onLeave = () => writePosRef.current();
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', onLeave);
+    return () => {
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', onLeave);
+    };
+  }, [open]);
+
+  useEffect(() => () => {
+    window.clearTimeout(timerRef.current);
+    // Weg von der Seite innerhalb der App: nicht von selbst wieder öffnen. Neuladen kommt hier nicht vorbei.
+    markInterviewOpen(candidateId, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const readiness = useMemo(() => computeReadiness(draft, hasCv), [draft, hasCv]);
   const evidence = useMemo(() => changeEvidence(draft), [draft]);
   const firstName = draft.full_name.split(' ')[0] || 'die Person';
 
   // Was fehlt -- zum Abschließen (Mindestangaben und Rahmen fürs Matching, wie die
-  // Datenbank beim Einreichen) und zusätzlich zum Einreichen. Gelb im Kopf, an den
-  // Reitern, in der Seitenleiste und am Feld (Durchklicken 15.10.2026: „fehlt noch etwas, aber was?“).
+  // Datenbank beim Einreichen) und zusätzlich zum Einreichen. Gelb nur noch auf „Markt“
+  // („Bevor du auflegst“), beim Abschluss und am Feld nach dem Klick darauf.
   const gaps = useMemo(() => abschlussGaps(draft), [draft]);
-  // Einmal ohne Wohnort gesehen, bleibt das Feld stehen (sonst verschwindet es beim Tippen).
-  const wohnortFragen = useRef(false);
   if (!draft.city.trim()) wohnortFragen.current = true;
-  const gapKeys = useMemo(() => new Set(gaps.map((g) => g.key)), [gaps]);
   const fuerEinreichen = useMemo(() => {
     const gapFields = new Set(gaps.map((g) => WHERE[g.key]?.field));
     return readiness.missing.filter((m) => m.key !== 'interview' && !gapFields.has(WHERE[m.key]?.field));
@@ -340,40 +498,77 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
     }
     return out;
   }, [gaps, fuerEinreichen, draft.job_title, draft.experience_years]);
-  const phaseMissing = (i: number) => {
-    const key = PHASES[i].key;
-    if (key === 'kundenprofil') return kannAbschliessen;
-    return [...gaps.map((g) => g.key), ...fuerEinreichen.map((m) => m.key)].some((k) => WHERE[k]?.phase === key);
-  };
 
-  // Erkennung beim Tippen: Schnellerkennung auf der Notiz, dazu KI-Vorschläge
+  // Erkennung beim Tippen: Schnellerkennung auf der Notiz und der Notiz aus der Buchung, dazu KI-Vorschläge
+  const terminNotiz = termin?.note?.trim() ?? '';
   const liveItems: ReviewItem[] = useMemo(() => {
     const fresh = freshText(draft.additional_notes, baselineNotesRef.current);
-    const quick = fresh.trim() ? quickExtract(fresh, 'Notiz').suggestions : [];
+    const quick = [
+      ...(terminNotiz ? quickExtract(terminNotiz, 'Notiz aus der Buchung').suggestions : []),
+      ...(fresh.trim() ? quickExtract(fresh, 'Notiz').suggestions : []),
+    ];
     return buildReview(draft, mergeSuggestions(aiSuggestions, quick))
       .filter((i) => i.status !== 'same' && !dismissed.has(`${i.key}:${i.display}`));
-  }, [draft, aiSuggestions, dismissed]);
+  }, [draft, aiSuggestions, dismissed, terminNotiz]);
 
   const applyItem = (i: ReviewItem) => set({ [i.key]: i.value } as Partial<DossierForm>);
 
-  const goTo = (i: number) => setPhase(i);
+  const goToView = (i: number) => {
+    movedRef.current = true;
+    viewRef.current = i;
+    setView(i);
+    setRueckkehr(null);
+    setZeigeFehlt(false);
+    writePos();
+  };
 
-  /** Zur fehlenden Angabe springen: Phase öffnen, Feld fokussieren. */
+  /** Klick links: zum Punkt, bei „Alle Fragen zeigen“ auf der Seite dorthin scrollen. */
+  const openView = (i: number) => {
+    setOnlyMissing(false);
+    setFinished(false);
+    goToView(i);
+    if (!stepMode) {
+      window.setTimeout(() => {
+        document.querySelector(`[data-interview-point="${INTERVIEW_VIEWS[i].key}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 80);
+    }
+  };
+
+  const changeLayout = (next: InterviewLayout) => {
+    setOnlyMissing(false);
+    setLayout(next);
+    if (user && !completedAtOpen) writeInterviewLayout(user.id, next);
+  };
+
+  /** Punkt eines Felds; die Rolle steht ohne Akte-Eintrag in Punkt 1. */
+  const viewFor = (field: string) => (rolleOben && ROLLE_FIELDS.includes(field) ? 0 : viewOfField(field));
+
+  /** Zur fehlenden Angabe springen: Punkt öffnen, Feld fokussieren und gelb markieren. */
   const jump = (key: string) => {
     const w = WHERE[key];
-    if (!w || w.phase === 'akte') {
+    if (!w || w.ort === 'akte') {
       toast.info('Steht nicht im Interview', { description: 'Kontakt und Skills ergänzt du in der Akte über „Bearbeiten“.' });
       return;
     }
-    if (w.phase === 'kopf') {
+    if (w.ort === 'kopf') {
       const el = document.getElementById(fieldId(w.field));
       el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       (el?.matches('input') ? el : el?.querySelector<HTMLElement>('button'))?.focus({ preventScroll: true });
       return;
     }
     setOnlyMissing(false);
-    goTo(PHASES.findIndex((p) => p.key === w.phase));
+    setFinished(false);
+    const target = viewFor(w.field);
+    if (target >= 0) goToView(target);
+    setZeigeFehlt(true);
     window.setTimeout(() => focusDossierField(w.field), 80);
+  };
+
+  /** „Nur Fehlendes“: im selben Blick zum Baustein, ohne die Ansicht zu verlassen. */
+  const scrollToGap = (key: string) => {
+    const w = WHERE[key];
+    if (!w || w.ort !== 'frage') { jump(key); return; }
+    focusDossierField(w.field);
   };
 
   // Beim Öffnen: Werdegang (Stationen, Lebenslauf-Text) laden, Entwurfsstand festhalten.
@@ -465,7 +660,6 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
   const textIssues = useMemo(() => clientTextIssues(draft), [draft]);
   const issuesFor = (field: ClientTextField) => textIssues.filter((i) => i.field === field);
   const leadSuggested = !draft.leadership_scope && isLeaderTitle(draft.job_title) ? 'disciplinary' : null;
-  const lowRoles = draft.target_roles.filter((r) => belowLevel(family, r));
   const remoteMismatch = draft.target_locations.some((l) => /remote/i.test(l)) && !draft.remote_preference;
 
   // „Warum gerade jetzt?“ (Pflicht) füllt sich aus dem Auslöser. Ein früher erfasster eigener
@@ -473,7 +667,7 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
   useEffect(() => {
     if (!open) return;
     const gen = incidentSentence(draft.specific_incident, incidentHasEvent(draft.specific_incident) ? draft.frequency_of_issues : null);
-    if (draft.why_now.trim() !== gen && isAutoWhyNow(draft.why_now)) set({ why_now: gen });
+    if (draft.why_now.trim() !== gen && isAutoWhyNow(draft.why_now)) setAuto({ why_now: gen });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, draft.specific_incident, draft.frequency_of_issues]);
 
@@ -498,17 +692,17 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
       if (legacy.env.international && !draft.international_pref) patch.international_pref = legacy.env.international;
       if (legacy.env.relocation && draft.relocation_willing == null) patch.relocation_willing = true;
       lastMotivRef.current = gen;
-      set({ ...patch, change_motivation: joinMotivation(gen, legacy.rest) });
+      setAuto({ ...patch, change_motivation: joinMotivation(gen, legacy.rest) });
       return;
     }
     if (gen && fromGen.auto) {
       lastMotivRef.current = gen;
     } else if (gen && (cur === '' || isOldAutoMotivation(cur) || fromLast.auto)) {
       lastMotivRef.current = gen;
-      set({ change_motivation: joinMotivation(gen, fromLast.auto ? fromLast.addition : '') });
+      setAuto({ change_motivation: joinMotivation(gen, fromLast.auto ? fromLast.addition : '') });
     } else if (!gen && fromLast.auto) {
       lastMotivRef.current = '';
-      set({ change_motivation: fromLast.addition });
+      setAuto({ change_motivation: fromLast.addition });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, clientMotiv.text, envReady]);
@@ -520,9 +714,28 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
     if (!open || !motiveLabels(draft.current_negative, 'neg').length) return;
     const themen = motives.weiter.themen;
     const tags = draft.change_motivation_tags;
-    if (themen.length !== tags.length || themen.some((t) => !tags.includes(t))) set({ change_motivation_tags: themen });
+    if (themen.length !== tags.length || themen.some((t) => !tags.includes(t))) setAuto({ change_motivation_tags: themen });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, motives.weiter.themen.join('|'), draft.change_motivation_tags.join('|')]);
+
+  // „Wichtig ist“ beim Kunden und in der KI-Prüfung: Die Frage nach den Top 3 ist raus
+  // (02.11.2026), die Zeile füllt sich aus „gefällt“ und „stört“, ohne Gehalt und Bonus.
+  useEffect(() => {
+    if (!open || !wichtigFolgtRef.current) return;
+    const next = motives.weiter.wichtig;
+    if (next.join('|') !== draft.offer_requirements.join('|')) setAuto({ offer_requirements: next });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, motives.weiter.wichtig.join('|')]);
+
+  // Termin aus der Buchung: Datum und Gesprächsart stehen fest, einmal je Termin. Eigene Wahl bleibt.
+  useEffect(() => {
+    if (!open || !termin || terminFertigRef.current === termin.id || draftRef.current.interview_status === 'completed') return;
+    terminFertigRef.current = termin.id;
+    const patch: Partial<DossierForm> = {};
+    if (!draftRef.current.interview_type) patch.interview_type = terminArt(termin);
+    if (!draftRef.current.interview_date || !touchedRef.current) patch.interview_date = terminDatum(termin);
+    if (Object.keys(patch).length) setAuto(patch);
+  }, [open, termin]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Der aktuelle Arbeitgeber steht automatisch auf „Nicht vorstellen bei“ (entfernbar).
   useEffect(() => {
@@ -530,7 +743,7 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
     const c = draft.company.trim();
     if (!c) return;
     autoBlockedRef.current = true;
-    if (!draft.blocked_companies.length) set({ blocked_companies: [c] });
+    if (!draft.blocked_companies.length) setAuto({ blocked_companies: [c] });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, draft.company]);
 
@@ -539,7 +752,7 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
   useEffect(() => {
     if (!open) return;
     const gen = buildClientSummary(draft).summary_salary;
-    if (draft.summary_salary !== gen) set({ summary_salary: gen });
+    if (draft.summary_salary !== gen) setAuto({ summary_salary: gen });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, draft.expected_salary, draft.salary_basis, draft.summary_salary]);
 
@@ -560,7 +773,7 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
     const { patch, generated, edited } = autoClientSummary(draft, lastSummaryRef.current);
     lastSummaryRef.current = generated;
     setEditedSummaries((prev) => (prev.size === edited.size && [...edited].every((k) => prev.has(k)) ? prev : edited));
-    if (Object.keys(patch).length) set(patch);
+    if (Object.keys(patch).length) setAuto(patch);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, draft]);
 
@@ -598,22 +811,30 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
       toast.error('Die letzten Änderungen sind noch nicht gespeichert', { description: 'Bitte noch einmal versuchen oder die Verbindung prüfen.' });
       return;
     }
+    writePos();
+    markInterviewOpen(candidateId, false);
+    if (touchedRef.current && draftRef.current.interview_status !== 'completed') {
+      toast.success('Gespeichert', { description: `Beim nächsten Öffnen geht es bei „${INTERVIEW_VIEWS[viewRef.current].label}“ weiter.` });
+    }
+    onOpenChange(false);
+  };
+
+  const closeAfterFinish = () => {
+    markInterviewOpen(candidateId, false);
     onOpenChange(false);
   };
 
   const complete = async () => {
     setCompleting(true);
+    touchedRef.current = true;
     const ok = await flush();
     if (!ok) { setCompleting(false); toast.error('Speichern hat nicht geklappt'); return; }
     // Abschließen nur mit Mindestangaben und Rahmen (gleiche Regel wie die Datenbank beim Einreichen).
     const offen = abschlussGaps(draftRef.current);
     if (offen.length) {
       setCompleting(false);
-      const keys = offen.map((g) => g.key);
-      jump(keys[0]);
-      toast.error('Zum Abschließen fehlt noch etwas', {
-        description: `${offen.map((g) => g.label).join(', ')}.${keys.includes('interview_date') || keys.includes('interview_type') ? ' Datum und Gesprächsart stehen oben im Kopf.' : ''}`,
-      });
+      // Die gelbe Zeile über dem Knopf nennt alles Offene, der Klick führt zur ersten Lücke.
+      jump(offen[0].key);
       return;
     }
     await onComplete();
@@ -625,18 +846,26 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
       } as never).then(() => undefined, () => undefined);
     }
     setCompleting(false);
-    const nachher = computeReadiness({ ...draftRef.current, interview_status: 'completed' });
-    toast.success('Interview abgeschlossen', { description: nachher.isReady ? `${firstName} ist bereit zum Einreichen.` : `Noch offen: ${nachher.missing.map((m) => m.label).join(', ')}` });
-    onOpenChange(false);
+    if (user) clearInterviewPosition(user.id, candidateId);
+    const nachher = computeReadiness({ ...draftRef.current, interview_status: 'completed' }, hasCv);
+    if (directSubmit) {
+      toast.success('Interview abgeschlossen', { description: nachher.isReady ? `${firstName} ist bereit zum Einreichen.` : `Noch offen: ${nachher.missing.map((m) => m.label).join(', ')}` });
+      closeAfterFinish();
+      return;
+    }
+    // Die Karte bleibt stehen, bis der Headhunter wählt.
+    const fertig = { ...draftRef.current, interview_status: 'completed' };
+    draftRef.current = fertig;
+    setDraft(fertig);
+    setFinished(true);
   };
 
-  const elapsed = Math.max(0, Math.floor((now - startedAt) / 1000));
   const clock = `${String(Math.floor(elapsed / 60)).padStart(2, '0')}:${String(elapsed % 60).padStart(2, '0')}`;
   const saveLabel =
     saveState === 'saving' ? 'Speichert …'
     : saveState === 'dirty' ? 'Ungespeicherte Änderungen'
     : saveState === 'error' ? 'Nicht gespeichert'
-    : savedAt ? `Gespeichert ${savedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`
+    : savedAt ? `Gespeichert ${uhrzeit(savedAt)}`
     : 'Speichert automatisch';
 
   // ---- Bausteine, die in den Phasen und in „Nur Fehlendes“ gleich aussehen ----
@@ -699,7 +928,7 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
               )}
             </div>
             <div className="shrink-0 text-right text-xs leading-relaxed">
-              <p className="text-success">✓ {fromCv ? 'aus dem Lebenslauf' : 'aus der Akte'}</p>
+              <p className="text-muted-foreground">✓ {fromCv ? 'aus dem Lebenslauf' : 'aus der Akte'}</p>
               <button type="button" className="text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => setEditRolle(true)}>ändern</button>
             </div>
           </div>
@@ -757,264 +986,253 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
     toast.success(`${f} steht jetzt unter „Nicht vorstellen bei“`);
   };
 
-  const renderPhase = () => {
-    switch (PHASES[phase].key) {
-      case 'situation':
-        return (
-          <Phase title="Heute, Ziel und Wechsel">
-            <Field label="Was wollen Sie in Ihrer Karriere ultimativ erreichen?" field="career_ultimate_goal">
-              <Why>Danach suchst du Stellen aus und so stellst du die Person beim Kunden vor.</Why>
-              <HookHint hooks={hooksAt('career_ultimate_goal')} />
-              <CareerGoalBlock form={draft} set={set} suggestions={goalSugs} legacy={[...careerDirections(draft), ...draft.target_roles]} candidateId={candidateId} family={family} />
-              {cvGoal && <p className="text-xs text-muted-foreground">Aus dem Lebenslauf: {cvGoal}</p>}
-            </Field>
-            {/* Ziel-Nachfragen: ohne eigene Überschrift und Einrückung, gleich wie die anderen Fragen. */}
-            <>
-              <Field label="Was haben Sie dafür schon getan?" field="career_actions_taken">
-                <Why>Belegt, dass das Ziel ernst gemeint ist.</Why>
-                <PhraseChips field="career_actions_taken" options={uniqChips(actionsTaken(draft), fam.getan)} suggested={actionsTaken(draft).filter((a) => a.startsWith('Weiterbildung:') || a.startsWith('Team von'))} value={draft.career_actions_taken} onChange={(v) => set({ career_actions_taken: v })} />
-              </Field>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Was hat gut funktioniert?" field="career_what_worked">
-                  <Why>Was hat die Person bisher weitergebracht?</Why>
-                  <HookHint hooks={hooksAt('career_what_worked')} />
-                  <PhraseChips field="career_what_worked" options={uniqChips(fam.funktioniert, WORKED_OPTIONS).slice(0, 7)} value={draft.career_what_worked} onChange={(v) => set({ career_what_worked: v })} />
-                </Field>
-                <Field label="Was weniger?" field="career_what_didnt_work">
-                  <Why>Was hat gebremst? Das darf sich beim nächsten Job nicht wiederholen.</Why>
-                  <PhraseChips field="career_what_didnt_work" options={uniqChips(fam.weniger, DIDNT_WORK_OPTIONS).slice(0, 7)} value={draft.career_what_didnt_work} onChange={(v) => set({ career_what_didnt_work: v })} />
-                </Field>
-              </div>
-            </>
-            {rolleFact()}
-            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,16rem)]">
-              <Field label="Führungsverantwortung: Wie viele Menschen führen Sie disziplinarisch?" field="leadership_scope">
-                <Why>Fachlich oder mit Personalverantwortung, und für wie viele. Entscheidet über passende Stellen.</Why>
-                <ChipGroup field="leadership_scope" options={LEADERSHIP_OPTIONS} value={draft.leadership_scope} onChange={(v) => set({ leadership_scope: v })}
-                  suggested={leadSuggested} suggestedHint={`Vorschlag, weil Titel „${draft.job_title}“`} />
-                {leadSuggested && <p className="text-xs text-primary">Vorschlag „Disziplinarisch“, weil Titel {draft.job_title}</p>}
-              </Field>
-              {draft.leadership_scope && draft.leadership_scope !== 'none' && (
-                <Field label="Teamgröße" field="leadership_team_size">
-                  <div className="flex flex-wrap gap-1">
-                    {[5, 15, 50, 200, 250].map((n, i) => (
-                      <button key={n} type="button" onClick={() => set({ leadership_team_size: n })}
-                        className={cn('rounded-md border px-2 py-0.5 text-xs', draft.leadership_team_size === n ? 'border-primary bg-primary text-primary-foreground' : 'border-border hover:bg-muted')}>
-                        {['1–5', '6–15', '16–50', '51–200', 'über 200'][i]}
-                      </button>
-                    ))}
-                  </div>
-                  <NumberField field="leadership_team_size" value={draft.leadership_team_size} onChange={(v) => set({ leadership_team_size: v })} suffix="Personen" />
-                </Field>
-              )}
+  // ---- Fragen: Schritt für Schritt und „Alle Fragen zeigen“ nutzen dieselben Bausteine ----
+  const careerGoalField = () => (
+    <Field label="Was wollen Sie in Ihrer Karriere ultimativ erreichen?" field="career_ultimate_goal">
+      <Why>Danach suchst du Stellen aus und so stellst du die Person beim Kunden vor.</Why>
+      <HookHint hooks={hooksAt('career_ultimate_goal')} />
+      <CareerGoalBlock form={draft} set={set} suggestions={goalSugs} legacy={[...careerDirections(draft), ...draft.target_roles]} candidateId={candidateId} family={family} />
+      {cvGoal && <p className="text-xs text-muted-foreground">Aus dem Lebenslauf: {cvGoal}</p>}
+    </Field>
+  );
+
+  /* Ziel-Nachfragen: ohne eigene Überschrift und Einrückung, gleich wie die anderen Fragen. */
+  const zielNachfragen = (collapsible: boolean) => (
+    <>
+      <Field label="Was haben Sie dafür schon getan?" field="career_actions_taken">
+        <Why>Belegt, dass das Ziel ernst gemeint ist.</Why>
+        <PhraseChips field="career_actions_taken" collapsible={collapsible} options={uniqChips(actionsTaken(draft), fam.getan)} suggested={actionsTaken(draft).filter((a) => a.startsWith('Weiterbildung:') || a.startsWith('Team von'))} value={draft.career_actions_taken} onChange={(v) => set({ career_actions_taken: v })} />
+      </Field>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Was hat gut funktioniert?" field="career_what_worked">
+          <Why>Was hat die Person bisher weitergebracht?</Why>
+          <HookHint hooks={hooksAt('career_what_worked')} />
+          <PhraseChips field="career_what_worked" collapsible={collapsible} options={uniqChips(fam.funktioniert, WORKED_OPTIONS).slice(0, 7)} value={draft.career_what_worked} onChange={(v) => set({ career_what_worked: v })} />
+        </Field>
+        <Field label="Was weniger?" field="career_what_didnt_work">
+          <Why>Was hat gebremst? Das darf sich beim nächsten Job nicht wiederholen.</Why>
+          <PhraseChips field="career_what_didnt_work" collapsible={collapsible} options={uniqChips(fam.weniger, DIDNT_WORK_OPTIONS).slice(0, 7)} value={draft.career_what_didnt_work} onChange={(v) => set({ career_what_didnt_work: v })} />
+        </Field>
+      </div>
+    </>
+  );
+
+  const leadershipFields = () => (
+    <FuehrungFeld
+      value={draft}
+      onChange={set}
+      label="Führen Sie Menschen? Disziplinarisch, also mit Personalverantwortung, oder fachlich, z. B. im Projekt?"
+      hinweis={<>
+        <Why>Beides geht. Entscheidet über passende Stellen.</Why>
+        {leadSuggested && <p className="text-xs text-primary">Vorschlag „Disziplinarisch“, weil Titel {draft.job_title}</p>}
+      </>}
+      vorschlag={leadSuggested}
+      vorschlagHinweis={`Vorschlag, weil Titel „${draft.job_title}“`}
+      groessen
+    />
+  );
+
+  /* Gegenangebot-Risiko nur bei einem echten Auslöser (sonst gibt es nichts „zu lösen“); schon Beantwortetes bleibt sichtbar. */
+  const gegenangebotFields = () => (incidentHasEvent(draft.specific_incident) || draft.discussed_internally || draft.would_stay) && (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <Field label="Haben Sie das intern angesprochen?" field="discussed_internally">
+        <ChipGroup field="discussed_internally" options={DISCUSSED_OPTIONS} value={draft.discussed_internally} onChange={(v) => set({ discussed_internally: v })} />
+      </Field>
+      <Field label="Würden Sie bleiben, wenn Ihr Arbeitgeber das löst?" field="would_stay">
+        <ChipGroup field="would_stay" options={WOULD_STAY_OPTIONS} value={draft.would_stay} onChange={(v) => set({ would_stay: v })} />
+      </Field>
+    </div>
+  );
+
+  /* Von der früheren Wunschstelle bleiben Zielorte und Umzug: Beides liest das Matching. */
+  const zielorteFields = () => (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <Field label="Zielorte" field="target_locations">
+        <Why>Wo die nächste Stelle sein darf. Das Matching rechnet damit.</Why>
+        <TagInput field="target_locations" values={draft.target_locations} onChange={(v) => set({ target_locations: v })} placeholder="Ort eintippen" suggestions={locationSuggestions(draft)} />
+      </Field>
+      <Field label="Umzug" field="relocation_willing">
+        <Why>Für Stellen außerhalb der Pendelzeit.</Why>
+        <ChipGroup field="relocation_willing" options={RELOCATION_OPTIONS} value={draft.relocation_willing == null ? null : draft.relocation_willing ? 'yes' : 'no'} onChange={(v) => set({ relocation_willing: v == null ? null : v === 'yes' })} />
+      </Field>
+    </div>
+  );
+
+  const nonCompeteField = () => (ASK_NON_COMPETE[family] || draft.non_compete) && (
+    <Field label="Gibt es ein Wettbewerbsverbot oder eine Freistellung?" field="non_compete">
+      <Why>Kann den Start um Monate verschieben. Nur intern.</Why>
+      {flowHint('kundenschutz')}
+      <ChipGroup field="non_compete" options={NON_COMPETE_OPTIONS} value={draft.non_compete} onChange={(v) => set({ non_compete: v })} />
+    </Field>
+  );
+
+  const wohnortField = () => (
+    <Field label="Wohnort" field="city">
+      <TextField field="city" value={draft.city} onChange={(v) => set({ city: v })} placeholder="z. B. Bamberg" />
+    </Field>
+  );
+
+  const arbeitFields = () => (
+    <>
+      <div className="space-y-4">
+        {flowHint('pendeln', 'arbeitsmodell')}
+        {/* Ohne Wohnort kann das Matching keinen Arbeitsweg rechnen -- dann hier fragen. */}
+        {wohnortFragen.current && wohnortField()}
+        {zielorteFields()}
+        <ArbeitsortBlock form={draft} set={set} hideRelocation />
+        {remoteMismatch && (
+          <FixHint text="Zielort ist „Remote“, das Arbeitsmodell ist leer." actions={[{ label: 'Remote übernehmen', onClick: () => set({ remote_preference: 'remote' }) }]} />
+        )}
+      </div>
+      <Field label="Sprachen" field="languages">
+        {editSprachen || !draft.languages.length ? (
+          <SprachenBlock form={draft} set={set} />
+        ) : (
+          <div className="flex flex-wrap items-center gap-x-2 text-sm">
+            <span className="text-muted-foreground">✓ {fromCv ? 'aus dem Lebenslauf' : 'aus der Akte'}:</span>
+            <span>{draft.languages.map((l) => (l.proficiency ? `${l.language} (${l.proficiency})` : l.language)).join(' · ')}</span>
+            <button type="button" className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => setEditSprachen(true)}>ändern</button>
+          </div>
+        )}
+      </Field>
+      <Field label="Arbeitserlaubnis" field="work_permit">
+        <Why>Nur erfragen, nie aus Name oder Herkunft ableiten.</Why>
+        <ArbeitserlaubnisBlock form={draft} set={set} />
+      </Field>
+    </>
+  );
+
+  const marktFields = (collapsible: boolean) => (
+    <>
+      <Field label="Laufen aktuell andere Bewerbungen? Wo und mit welchem Stand?" field="other_applications">
+        <Why>Davon hängt dein Tempo ab. Nur intern, nie für den Kunden.</Why>
+        <ChipGroup field="other_applications" options={OTHER_APPLICATIONS_OPTIONS} value={draft.other_applications} onChange={(v) => set({ other_applications: v })} />
+        {draft.other_applications && draft.other_applications !== 'none' && (
+          <div className="space-y-2 pt-1">
+            <TextField field="other_applications_notes" value={draft.other_applications_notes} onChange={(v) => set({ other_applications_notes: v })} placeholder="Wo und mit welchem Stand? z. B. Zweitgespräch nächste Woche" />
+            <div className="flex flex-wrap items-center gap-2">
+              <Input value={busyFirm} onChange={(e) => setBusyFirm(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addBusyFirm(); } }} placeholder="Firma, bei der es läuft" className="h-8 w-56 text-xs" />
+              <Button type="button" variant="outline" size="sm" className="h-8 text-xs" disabled={!busyFirm.trim()} onClick={addBusyFirm}>Auf „Nicht vorstellen bei“</Button>
             </div>
-            <MotiveBlock form={draft} set={set} family={family} candidateId={candidateId} />
-            {motivationField()}
-            {hookCards()}
-            {incidentField()}
-            {/* Gegenangebot-Risiko nur bei einem echten Auslöser (sonst gibt es nichts „zu lösen“); schon Beantwortetes bleibt sichtbar. */}
-            {(incidentHasEvent(draft.specific_incident) || draft.discussed_internally || draft.would_stay) && (
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Haben Sie das intern angesprochen?" field="discussed_internally">
-                  <ChipGroup field="discussed_internally" options={DISCUSSED_OPTIONS} value={draft.discussed_internally} onChange={(v) => set({ discussed_internally: v })} />
-                </Field>
-                <Field label="Würden Sie bleiben, wenn Ihr Arbeitgeber das löst?" field="would_stay">
-                  <ChipGroup field="would_stay" options={WOULD_STAY_OPTIONS} value={draft.would_stay} onChange={(v) => set({ would_stay: v })} />
-                </Field>
-              </div>
+          </div>
+        )}
+      </Field>
+      <div className="space-y-1.5">
+        <SperrlisteBlock form={draft} set={set} formerEmployers={formerEmployers} />
+        <Why>Der aktuelle Arbeitgeber steht automatisch drauf. Entfernen nur, wenn es wirklich passt.</Why>
+      </div>
+      <Field label="Was lief in früheren Bewerbungsprozessen nicht gut?" field="previous_process_issues">
+        <Why>Das musst du diesmal besser machen, z. B. schneller Rückmeldung geben.</Why>
+        <PhraseChips field="previous_process_issues" collapsible={collapsible} options={PROCESS_ISSUE_OPTIONS} value={draft.previous_process_issues} onChange={(v) => set({ previous_process_issues: v })} />
+      </Field>
+      <label className="flex items-start gap-2.5 rounded-md border border-border p-3 text-sm">
+        <Checkbox className="mt-0.5" checked={draft.presentation_consent === true} onCheckedChange={(v) => set({ presentation_consent: v === true, presentation_consent_at: v === true ? new Date().toISOString() : null })} />
+        <span>
+          {firstName} ist einverstanden, anonym für passende Positionen vorgestellt zu werden.
+          {draft.presentation_consent && draft.presentation_consent_at && <span className="text-muted-foreground"> Erfasst am {new Date(draft.presentation_consent_at).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}{draft.interview_type ? `, ${INTERVIEW_TYPE_OPTIONS.find((o) => o.value === draft.interview_type)?.label}` : ''}.</span>}
+          <span className="mt-1 block text-xs text-muted-foreground">Vor jeder konkreten Vorstellung stimmst du dich noch einmal ab.</span>
+        </span>
+      </label>
+    </>
+  );
+
+  // Abschluss (02.11.2026: Einschätzung und Kundenprofil auf einer Seite): Statt fünf
+  // Kundentexten, von denen nur einer beim Kunden ankommt, die Karte, die er wirklich sieht.
+  const kundenVorschau: InterviewInsights = {
+    interview_date: draft.interview_date,
+    interview_type: (draft.interview_type || null) as InterviewInsights['interview_type'],
+    // Wie die Kunden-Ansicht: eigener Kundentext vor der Wechselmotivation.
+    change_motivation: draft.summary_motivation.trim() || draft.change_motivation,
+    change_motivation_tags: draft.change_motivation_tags,
+    why_now: draft.why_now,
+    offer_requirements: draft.offer_requirements,
+    notice_period: draft.notice_period || null,
+    earliest_start_date: draft.availability_date || null,
+    leadership_scope: (draft.leadership_scope || null) as InterviewInsights['leadership_scope'],
+    leadership_team_size: draft.leadership_team_size,
+    leadership_also_functional: draft.leadership_also_functional,
+    leadership_functional_size: draft.leadership_functional_size,
+    other_applications: null,
+    salary_wish: wunschBand(draft.expected_salary),
+  };
+
+  const neuUebernehmen = (key: (typeof CLIENT_SUMMARY_KEYS)[number]) => {
+    const g = buildClientSummary(draftRef.current);
+    lastSummaryRef.current = { ...lastSummaryRef.current, [key]: g[key] };
+    set({ [key]: g[key] } as Partial<DossierForm>);
+  };
+
+  const abschlussPunkt = () => {
+    const kundentextFehler = textIssues.filter((i) => i.level === 'danger' || i.field === 'summary_motivation');
+    return (
+      <div className="space-y-6">
+        <p className="text-xs text-muted-foreground">Nach dem Gespräch: füllst du allein aus, der Kandidat ist nicht mehr in der Leitung.</p>
+        {recommendationField()}
+        <div className="space-y-2">
+          <Field label="Wechselbereitschaft (setzt du selbst)" field="change_readiness">
+            <Why>Aktiv, offen oder passiv. Gibt es nur als deine Einschätzung, nie automatisch.</Why>
+            <ChipGroup field="change_readiness" options={CHANGE_READINESS_OPTIONS} value={draft.change_readiness} onChange={(v) => set({ change_readiness: v })} />
+          </Field>
+          {evidence.length > 0 && <p className="text-xs text-muted-foreground">Belege aus dem Gespräch: {evidence.join(' · ')}</p>}
+        </div>
+        <div className="space-y-2 border-t border-border pt-5" data-dossier-field="summary_motivation">
+          <p className="text-sm font-medium">So sieht der Kunde {firstName}</p>
+          <Why>Diese Karte steht beim Kunden unter „Aus dem Gespräch“. Namen und Firmen werden dort entfernt.</Why>
+          {draft.presentation_consent === false && <p className="text-xs text-muted-foreground">Ohne Einverständnis (Markt) sieht der Kunde diese Karte nicht.</p>}
+          <InterviewInsightsCard interview={kundenVorschau} recruiterNotes={null} />
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+            <button type="button" className="underline underline-offset-2 hover:text-foreground" onClick={() => openView(viewIndex('motivation'))}>„Warum wechseln“ ändern</button>
+            {editedSummaries.has('summary_motivation') && draft.summary_motivation.trim() && (
+              <button type="button" className="underline underline-offset-2 hover:text-foreground" onClick={() => neuUebernehmen('summary_motivation')}>Eigenen Text durch den Entwurf ersetzen</button>
             )}
-          </Phase>
-        );
-      case 'ziele':
-        return (
-          <Phase title={`Was für eine Stelle sucht ${firstName}?`} intro="Erst fragen, dann antippen. Vorschläge passen zur Rolle und gehen nie unter die heutige Ebene.">
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Welche Rollen, Branchen und Orte kommen infrage?</p>
-              <Why>Steuert direkt, welche Stellen das Matching vorschlägt.</Why>
-              <ZieleBlock form={draft} set={set} />
-              {lowRoles.length > 0 && !keptHints.has('lowRoles') && (
-                <FixHint text={`„${lowRoles.join('“, „')}“ liegt unter der heutigen Ebene (${FAMILY_LABEL[family]}).`} actions={[
-                  { label: 'Entfernen', onClick: () => set({ target_roles: draft.target_roles.filter((r) => !belowLevel(family, r)) }) },
-                  { label: 'Ist gewollt', onClick: () => setKeptHints((s) => new Set(s).add('lowRoles')) },
-                ]} />
-              )}
-            </div>
-            <Field label="Wie soll das neue Unternehmen sein?" field="company_size_pref">
-              <Why>Steht so im Kundentext unter „Warum wechseln“ und wird als Feld gespeichert.</Why>
-              {envReady === false && <p className="text-xs text-warning">Größe, Branche und International werden erst gespeichert, wenn das Datenbank-Update in Lovable gelaufen ist.</p>}
-              <div className="space-y-1.5">
-                <p className="text-xs font-medium">Größe</p>
-                <ChipGroup field="company_size_pref" options={COMPANY_SIZE_OPTIONS} value={draft.company_size_pref} onChange={(v) => set({ company_size_pref: v })} />
-                <p className="text-xs font-medium">Branche</p>
-                <ChipGroup field="industry_change" options={INDUSTRY_CHANGE_OPTIONS} value={draft.industry_change} onChange={(v) => set({ industry_change: v })} />
-                <p className="text-xs font-medium">Umzug</p>
-                <ChipGroup field="relocation_willing" options={RELOCATION_OPTIONS} value={draft.relocation_willing == null ? null : draft.relocation_willing ? 'yes' : 'no'} onChange={(v) => set({ relocation_willing: v == null ? null : v === 'yes' })} />
-                <p className="text-xs font-medium">International</p>
-                <ChipGroup field="international_pref" options={INTERNATIONAL_OPTIONS} value={draft.international_pref} onChange={(v) => set({ international_pref: v })} />
-              </div>
-            </Field>
-          </Phase>
-        );
-      case 'rahmen':
-        return (
-          <Phase title="Rahmenbedingungen" intro="Erst was das Angebot haben muss, dann das Geld.">
-            <div className="space-y-1.5">
-              <AngebotBlock form={draft} set={set} />
-              <Why>Damit prüfst du später jedes Angebot. Der Kunde sieht es als „Key Requirements“.</Why>
-            </div>
-            {flowHint('gehalt', 'leaver')}
-            {salaryField()}
-            {noticeField()}
-            {(ASK_NON_COMPETE[family] || draft.non_compete) && (
-              <Field label="Gibt es ein Wettbewerbsverbot oder eine Freistellung?" field="non_compete">
-                <Why>Kann den Start um Monate verschieben. Nur intern.</Why>
-                {flowHint('kundenschutz')}
-                <ChipGroup field="non_compete" options={NON_COMPETE_OPTIONS} value={draft.non_compete} onChange={(v) => set({ non_compete: v })} />
-              </Field>
-            )}
-            <div className="space-y-1.5">
-              {flowHint('pendeln', 'arbeitsmodell')}
-              {/* Ohne Wohnort kann das Matching keinen Arbeitsweg rechnen -- dann hier fragen. */}
-              {wohnortFragen.current && (
-                <Field label="Wohnort" field="city">
-                  <TextField field="city" value={draft.city} onChange={(v) => set({ city: v })} placeholder="z. B. Bamberg" />
-                </Field>
-              )}
-              <ArbeitsortBlock form={draft} set={set} hideRelocation />
-              {remoteMismatch && (
-                <FixHint text="Zielort ist „Remote“, das Arbeitsmodell ist leer." actions={[{ label: 'Remote übernehmen', onClick: () => set({ remote_preference: 'remote' }) }]} />
-              )}
-            </div>
-            <Field label="Sprachen" field="languages">
-              {editSprachen || !draft.languages.length ? (
-                <SprachenBlock form={draft} set={set} />
-              ) : (
-                <div className="flex flex-wrap items-center gap-x-2 text-sm">
-                  <span className="text-success">✓ {fromCv ? 'aus dem Lebenslauf' : 'aus der Akte'}:</span>
-                  <span>{draft.languages.map((l) => (l.proficiency ? `${l.language} (${l.proficiency})` : l.language)).join(' · ')}</span>
-                  <button type="button" className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => setEditSprachen(true)}>ändern</button>
-                </div>
-              )}
-            </Field>
-            <Field label="Arbeitserlaubnis" field="work_permit">
-              <Why>Nur erfragen, nie aus Name oder Herkunft ableiten.</Why>
-              <ArbeitserlaubnisBlock form={draft} set={set} />
-            </Field>
-          </Phase>
-        );
-      case 'markt':
-        return (
-          <Phase title="Markt und Einschätzung">
-            <Field label="Laufen aktuell andere Bewerbungen? Wo und mit welchem Stand?" field="other_applications">
-              <Why>Davon hängt dein Tempo ab. Nur intern, nie für den Kunden.</Why>
-              <ChipGroup field="other_applications" options={OTHER_APPLICATIONS_OPTIONS} value={draft.other_applications} onChange={(v) => set({ other_applications: v })} />
-              {draft.other_applications && draft.other_applications !== 'none' && (
-                <div className="space-y-2 pt-1">
-                  <TextField field="other_applications_notes" value={draft.other_applications_notes} onChange={(v) => set({ other_applications_notes: v })} placeholder="Wo und mit welchem Stand? z. B. Zweitgespräch nächste Woche" />
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Input value={busyFirm} onChange={(e) => setBusyFirm(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addBusyFirm(); } }} placeholder="Firma, bei der es läuft" className="h-8 w-56 text-xs" />
-                    <Button type="button" variant="outline" size="sm" className="h-8 text-xs" disabled={!busyFirm.trim()} onClick={addBusyFirm}>Auf „Nicht vorstellen bei“</Button>
-                  </div>
-                </div>
-              )}
-            </Field>
-            <div className="space-y-1.5">
-              <SperrlisteBlock form={draft} set={set} formerEmployers={formerEmployers} />
-              <Why>Der aktuelle Arbeitgeber steht automatisch drauf. Entfernen nur, wenn es wirklich passt.</Why>
-            </div>
-            <Field label="Was lief in früheren Bewerbungsprozessen nicht gut?" field="previous_process_issues">
-              <Why>Das musst du diesmal besser machen, z. B. schneller Rückmeldung geben.</Why>
-              <PhraseChips field="previous_process_issues" options={PROCESS_ISSUE_OPTIONS} value={draft.previous_process_issues} onChange={(v) => set({ previous_process_issues: v })} />
-            </Field>
-            <label className="flex items-start gap-2.5 rounded-md border border-border p-3 text-sm">
-              <Checkbox className="mt-0.5" checked={draft.presentation_consent === true} onCheckedChange={(v) => set({ presentation_consent: v === true, presentation_consent_at: v === true ? new Date().toISOString() : null })} />
-              <span>
-                {firstName} ist einverstanden, anonym für passende Positionen vorgestellt zu werden.
-                {draft.presentation_consent && draft.presentation_consent_at && <span className="text-muted-foreground"> Erfasst am {new Date(draft.presentation_consent_at).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}{draft.interview_type ? `, ${INTERVIEW_TYPE_OPTIONS.find((o) => o.value === draft.interview_type)?.label}` : ''}.</span>}
-                <span className="mt-1 block text-xs text-muted-foreground">Vor jeder konkreten Vorstellung stimmst du dich noch einmal ab.</span>
-              </span>
-            </label>
-            <div className="space-y-4 border-t-2 border-border pt-4">
-              <p className="text-xs font-semibold text-muted-foreground">Nach dem Gespräch: füllst du allein aus, der Kandidat ist nicht mehr in der Leitung</p>
-              {recommendationField()}
-              <div className="space-y-2">
-                <Field label="Wechselbereitschaft (setzt du selbst)" field="change_readiness">
-                  <Why>Aktiv, offen oder passiv. Gibt es nur als deine Einschätzung, nie automatisch.</Why>
-                  <ChipGroup field="change_readiness" options={CHANGE_READINESS_OPTIONS} value={draft.change_readiness} onChange={(v) => set({ change_readiness: v })} />
-                </Field>
-                {evidence.length > 0 && <p className="text-xs text-muted-foreground">Belege aus dem Gespräch: {evidence.join(' · ')}</p>}
-              </div>
-            </div>
-          </Phase>
-        );
-      case 'kundenprofil':
-        return (
-          <Phase title="Kundenprofil" intro="Schreibt sich während des Gesprächs mit, anonym. Jeder Text wird geprüft, bevor er zum Kunden kann.">
-            <Button type="button" variant="outline" size="sm" onClick={() => { const g = buildClientSummary(draftRef.current); lastSummaryRef.current = g; set(g); }}>
-              <Sparkles className="mr-1.5 h-3.5 w-3.5" /> Alle Entwürfe neu erzeugen
-            </Button>
-            {[
-              { key: 'summary_motivation' as const, label: 'Wechselmotivation (Zusammenfassung)' },
-              { key: 'summary_salary' as const, label: 'Gehaltsrahmen' },
-              { key: 'summary_notice' as const, label: 'Verfügbarkeit und Kündigungsfrist' },
-              { key: 'summary_key_requirements' as const, label: 'Key Requirements' },
-              { key: 'summary_cultural_fit' as const, label: 'Cultural Fit' },
-            ].map((item) => {
-              const issues = issuesFor(item.key);
-              const locked = item.key === 'summary_salary';
-              return (
-                <Field
-                  key={item.key}
-                  label={
-                    <span className="flex items-center gap-2">
-                      {item.label}
-                      {locked ? (
-                        <span className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground"><Lock className="h-2.5 w-2.5" />nur aus Klicks</span>
-                      ) : draft[item.key].trim() && (
-                        <span className={cn('rounded px-1.5 py-0.5 text-[10px] font-normal', editedSummaries.has(item.key) ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground')}>
-                          {editedSummaries.has(item.key) ? 'von dir bearbeitet' : 'Entwurf · aktualisiert sich'}
-                        </span>
-                      )}
-                    </span>
-                  }
-                  field={item.key}
-                >
-                  {locked ? (
-                    <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">{draft.summary_salary || 'Erscheint, sobald das Wunschgehalt gewählt ist.'}</p>
-                  ) : (
-                    <AreaField field={item.key} value={draft[item.key]} onChange={(v) => set({ [item.key]: v } as Partial<DossierForm>)} rows={2} />
-                  )}
-                  {issues.map((i) => (
-                    <p key={i.message} className={cn('flex flex-wrap items-center gap-2 rounded-md px-2.5 py-1.5 text-xs', i.level === 'danger' ? 'bg-destructive/10 text-destructive' : 'bg-warning/10 text-warning')}>
-                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />{i.message}
-                      <button type="button" className="underline underline-offset-2" onClick={() => { const g = buildClientSummary(draftRef.current); lastSummaryRef.current = { ...lastSummaryRef.current, [item.key]: g[item.key] }; set({ [item.key]: g[item.key] } as Partial<DossierForm>); }}>Neu übernehmen</button>
-                    </p>
-                  ))}
-                </Field>
-              );
-            })}
-            <div className="border-t border-border pt-4">
-              <p className="mb-3 text-xs font-semibold text-muted-foreground">Kurzprofil für den Kunden · KI-Entwurf, anonym</p>
-              <KundeBlock form={draft} set={set} />
-              {[...issuesFor('expose_summary'), ...issuesFor('expose_highlights')].filter((i) => i.level === 'danger').map((i) => (
-                <p key={i.message} className="mt-2 flex items-center gap-1.5 text-xs text-destructive"><AlertTriangle className="h-3.5 w-3.5" />{i.message}</p>
-              ))}
-            </div>
-            {!textIssues.some((i) => i.level === 'danger') && (
-              <p className="flex items-center gap-1.5 rounded-md bg-success/10 px-2.5 py-1.5 text-xs text-success"><Check className="h-3.5 w-3.5" />Geprüft: kein aktuelles Gehalt, keine Schmerzgrenze, keine anderen Bewerbungen, kein Name und kein Arbeitgeber in den Kundentexten.</p>
-            )}
-          </Phase>
-        );
-      default:
-        return null;
+          </div>
+          {kundentextFehler.map((i) => {
+            const summary = (CLIENT_SUMMARY_KEYS as readonly string[]).includes(i.field) ? (i.field as (typeof CLIENT_SUMMARY_KEYS)[number]) : null;
+            return (
+              <p key={`${i.field}:${i.message}`} className={cn('flex flex-wrap items-center gap-2 rounded-md px-2.5 py-1.5 text-xs', i.level === 'danger' ? 'bg-destructive/10 text-destructive' : 'bg-warning/10 text-warning')}>
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />{CLIENT_TEXT_LABEL[i.field]}: {i.message}
+                {summary ? (
+                  <button type="button" className="underline underline-offset-2" onClick={() => neuUebernehmen(summary)}>Neu übernehmen</button>
+                ) : <span>In der Akte unter „Bearbeiten“ korrigieren.</span>}
+              </p>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  /** Inhalt eines Punkts. Schritt für Schritt untereinander, auf der langen Seite wie gewohnt nebeneinander. */
+  const punkt = (key: InterviewViewKey, schritt: boolean) => {
+    switch (key) {
+      case 'ziel': return <>{rolleOben && rolleFact()}{careerGoalField()}{zielNachfragen(schritt)}</>;
+      case 'rolle': return <>{!rolleOben && rolleFact()}{leadershipFields()}<MotiveBlock form={draft} set={set} family={family} candidateId={candidateId} stacked={schritt} /></>;
+      case 'motivation': return <>{motivationField()}{hookCards()}{incidentField()}{gegenangebotFields()}</>;
+      case 'rahmen': return <>{flowHint('gehalt', 'leaver')}{salaryField()}{noticeField()}{nonCompeteField()}{arbeitFields()}</>;
+      case 'markt': return marktFields(schritt);
+      case 'abschluss': return abschlussPunkt();
+      default: return null;
     }
   };
+
+  /** „Alle Fragen zeigen“: alle Punkte auf einer Seite, links springt dorthin. */
+  const renderAll = () => (
+    <div className="space-y-10">
+      {INTERVIEW_VIEWS.map((v) => (
+        <section key={v.key} data-interview-point={v.key} className="scroll-mt-4 space-y-5">
+          <h3 className="text-base font-semibold">{v.label}</h3>
+          {punkt(v.key, false)}
+        </section>
+      ))}
+    </div>
+  );
 
   /** „Nur Fehlendes“: nur die offenen Pflicht- und Einreichen-Punkte, mit denselben Bausteinen. */
   const renderGaps = () => {
     const keys = [...gaps.map((g) => g.key), ...fuerEinreichen.map((m) => m.key)];
     const shown = new Set<string>();
     const blocks: ReactNode[] = [];
+    let arbeitsortGezeigt = false;
     for (const k of keys) {
       const w = WHERE[k];
       const id = w?.field ?? k;
@@ -1027,7 +1245,14 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
       else if (k === 'notice_period' || k === 'verfuegbarkeit') blocks.push(<div key={k}>{noticeField()}</div>);
       else if (k === 'einschaetzung') blocks.push(<div key={k}>{recommendationField()}</div>);
       else if (k === 'rolle') blocks.push(<div key={k}><RolleBlock form={draft} set={set} /></div>);
-      else if (k === 'kundentexte') blocks.push(<p key={k} className="text-sm">Ein Kundentext nennt interne Angaben. In Phase 5 „Kundenprofil“ korrigieren.</p>);
+      else if (k === 'arbeitsmodell' || k === 'pendeln') {
+        if (!arbeitsortGezeigt) blocks.push(<div key="arbeitsort"><ArbeitsortBlock form={draft} set={set} hideRelocation /></div>);
+        arbeitsortGezeigt = true;
+      }
+      else if (k === 'wohnort') blocks.push(<div key={k}>{wohnortField()}</div>);
+      else if (k === 'sprachen') blocks.push(<Field key={k} label="Sprachen" field="languages"><SprachenBlock form={draft} set={set} /></Field>);
+      else if (k === 'lebenslauf') blocks.push(<p key={k} className="text-sm text-muted-foreground">Lebenslauf: im Profil hochladen. {NEXT_QUESTION.lebenslauf}</p>);
+      else if (k === 'kundentexte') blocks.push(<p key={k} className="text-sm">Ein Kundentext nennt interne Angaben. Unter „Abschluss“ korrigieren.</p>);
       else blocks.push(<p key={k} className="text-sm text-muted-foreground">{readiness.items.find((i) => i.key === k)?.label ?? k}: in der Akte über „Bearbeiten“ ergänzen.</p>);
     }
     return (
@@ -1037,131 +1262,193 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
     );
   };
 
+  /** Die Karte nach dem Abschluss: bleibt stehen, bis der Headhunter wählt. */
+  const renderFinished = () => {
+    const nachher = computeReadiness(draft, hasCv);
+    const fehlendesEintragen = () => {
+      const m = nachher.missing[0];
+      const w = m ? WHERE[m.key] : undefined;
+      if (w && w.ort === 'frage') { jump(m.key); return; }
+      // Fehlt nur noch der Lebenslauf: direkt zum Hochladen.
+      if (m?.key === 'lebenslauf' && onUploadCv) { closeAfterFinish(); onUploadCv(); return; }
+      closeAfterFinish();
+      if (m) onEditMissing?.({ section: m.section, field: m.field });
+    };
+    return (
+      <div className="flex min-h-full items-center justify-center">
+        <div className={cn('w-full max-w-md space-y-3 rounded-lg border p-6 text-center', nachher.isReady ? 'border-success/50' : 'border-border')}>
+          <p className={cn('text-base font-semibold', nachher.isReady && 'text-success')}>✓ Interview abgeschlossen</p>
+          <p className={cn('text-sm', !nachher.isReady && 'text-warning')}>
+            {nachher.isReady ? `${firstName} ist bereit zum Einreichen.` : `Noch offen: ${nachher.missing.map((m) => m.label).join(', ')}`}
+          </p>
+          <p className={cn('text-xs', nachher.isReady ? 'text-success' : 'text-muted-foreground')}>Bereit zum Einreichen {nachher.done} von {nachher.total}</p>
+          <div className="flex flex-wrap justify-center gap-2 pt-1">
+            <Button variant="outline" onClick={closeAfterFinish}>Zum Profil</Button>
+            {nachher.isReady ? (
+              <Button onClick={() => { closeAfterFinish(); onSubmitToJob?.(); }}>Auf Stelle einreichen</Button>
+            ) : (
+              <Button onClick={fehlendesEintragen}>{nachher.missing[0]?.key === 'lebenslauf' && onUploadCv ? 'Lebenslauf hochladen' : 'Fehlendes eintragen'}</Button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const openItems = [...gaps, ...fuerEinreichen];
+  const openLabel = (m: { key: string; label: string }) => `${m.label}${WHERE[m.key]?.ort === 'kopf' ? ' (oben)' : WHERE[m.key]?.ort === 'akte' ? ' (Akte)' : ''}`;
+  const ersteOffene = firstOpenView(draft);
+
+  // Gelb nur in zwei Momenten: auf „Markt“, solange der Kandidat noch in der Leitung ist
+  // (was fehlt, muss er jetzt noch sagen), und beim Abschluss bzw. auf der langen Seite.
+  const vorDemAuflegen = gaps.filter((g) => WHERE[g.key]?.ort !== 'kopf');
+  const hinweisZeile = onlyMissing || finished ? null
+    : (!stepMode || currentView.key === 'abschluss') && gaps.length ? { titel: 'Zum Abschließen fehlt noch etwas:', liste: gaps, frage: null as string | null }
+    : stepMode && currentView.key === 'markt' && vorDemAuflegen.length ? { titel: 'Bevor du auflegst, fehlt noch:', liste: vorDemAuflegen, frage: NEXT_QUESTION[vorDemAuflegen[0].key] ?? null }
+    : null;
+
+  const abschliessenKnopf = (
+    <Button onClick={complete} disabled={completing}>
+      {completing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+      Interview abschließen
+    </Button>
+  );
+  // Von der Abschluss-Karte aus Fehlendes eingetragen: ohne zweites Abschließen zurück zur Karte.
+  const zurKarteKnopf = draft.interview_status === 'completed' && !completedAtOpen && (
+    <Button onClick={async () => { if (await flush()) setFinished(true); }}>Zum Abschluss</Button>
+  );
+  const hatVor = view > 0;
+  const hatNach = view < INTERVIEW_VIEWS.length - 1;
+
+  // Gelbe Kante „fehlt“ am Feld nur bei „Nur Fehlendes“ und nach einem Klick auf eine fehlende Angabe.
+  const fehltAnzeigen = onlyMissing || zeigeFehlt;
+  const terminTelefon = (termin?.phone || draft.phone).replace(/[^\d+]/g, '');
+  const terminLink = !termin ? null : termin.mode === 'teams' ? termin.join_url : terminTelefon ? `tel:${terminTelefon}` : null;
+
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="flex h-[92vh] w-[96vw] max-w-6xl flex-col gap-0 overflow-hidden p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
+      <DialogContent
+        className="flex h-[92vh] w-[96vw] max-w-6xl flex-col gap-0 overflow-hidden p-0"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+      >
         <div className="border-b border-border px-6 pb-3 pt-5">
           <div className="flex flex-wrap items-center justify-between gap-3 pr-8">
-            <DialogTitle className="text-base">Live · {draft.full_name} <span className="ml-1 font-normal tabular-nums text-muted-foreground">{clock}</span></DialogTitle>
-            <DialogDescription className="sr-only">Live-Interview in fünf Phasen, speichert automatisch in die Kandidatenakte.</DialogDescription>
-            <div className="flex flex-wrap items-center gap-3">
-              <span className={cn('text-xs', gaps.length ? 'text-warning' : 'text-success')} title="Pflichtangaben zum Abschließen: Datum, Gesprächsart, Wechselmotivation, Warum jetzt, Wunschgehalt, Kündigungsfrist">Pflicht {6 - gaps.length}/6</span>
-              <span className="flex items-center gap-1" title={readiness.missing.length ? `Fehlt: ${readiness.missing.map((m) => m.label).join(', ')}` : 'Bereit zum Einreichen'}>
-                {readiness.items.map((i) => (
-                  <span key={i.key} className={cn('h-3 w-3 rounded-full border', i.ok ? 'border-success bg-success' : 'border-warning bg-warning')} />
-                ))}
-                <span className={cn('ml-1 text-xs', readiness.isReady ? 'text-muted-foreground' : 'text-warning')}>{readiness.done} von {readiness.total}</span>
-              </span>
-              <Input id={fieldId('interview_date')} type="date" aria-label="Datum des Interviews" className={cn('h-8 w-36', gapKeys.has('interview_date') && 'border-warning')} value={draft.interview_date ?? today()} onChange={(e) => set({ interview_date: e.target.value || today() })} />
-              <span className={cn('flex items-center gap-2 rounded-md', gapKeys.has('interview_type') && 'ring-2 ring-warning ring-offset-2 ring-offset-background')}>
-                {gapKeys.has('interview_type') && <span className="pl-1 text-xs text-warning">Gesprächsart?</span>}
-                <ChipGroup field="interview_type" options={INTERVIEW_TYPE_OPTIONS} value={draft.interview_type} onChange={(v) => set({ interview_type: v })} />
-              </span>
-            </div>
-          </div>
-          <div className="mt-3 flex flex-wrap items-center gap-1.5">
-            {PHASES.map((p, i) => (
-              <button
-                key={p.key}
-                type="button"
-                onClick={() => { setOnlyMissing(false); goTo(i); }}
-                className={cn(
-                  'rounded-md border px-2.5 py-1 text-xs transition-colors',
-                  i === phase ? 'border-primary bg-primary/10 text-primary'
-                    : phaseMissing(i) ? 'border-warning/60 text-warning'
-                    : phaseDone(i, draft) ? 'border-border text-success'
-                    : 'border-border text-muted-foreground hover:text-foreground',
+            <DialogTitle className="text-base">
+              {completedAtOpen ? (
+                <>{draft.full_name} <span className="ml-1 font-normal text-muted-foreground">· Interview vom {draft.interview_date ? new Date(draft.interview_date).toLocaleDateString('de-DE') : '–'}</span></>
+              ) : clockStopped ? (
+                <>{draft.full_name} <span className="ml-1 font-normal tabular-nums text-muted-foreground">Gespräch beendet · {clock}</span></>
+              ) : (
+                <>{draft.full_name} <span className="ml-1 font-normal tabular-nums text-muted-foreground">{clock}</span></>
+              )}
+            </DialogTitle>
+            <DialogDescription className="sr-only">Live-Interview in fünf Punkten und dem Abschluss, speichert automatisch in die Kandidatenakte.</DialogDescription>
+            {termin && !completedAtOpen ? (
+              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  {termin.mode === 'teams' ? <Video className="h-3.5 w-3.5" /> : <Phone className="h-3.5 w-3.5" />}
+                  {terminText(termin.starts_at)} · {termin.mode === 'teams' ? 'Teams' : 'Telefon'}
+                </span>
+                {terminLink && (
+                  <Button asChild variant="outline" size="sm" className="h-7 px-2.5 text-xs">
+                    <a href={terminLink} target={termin.mode === 'teams' ? '_blank' : undefined} rel="noreferrer">{termin.mode === 'teams' ? 'Beitreten' : 'Anrufen'}</a>
+                  </Button>
                 )}
-              >
-                {phaseMissing(i) ? '● ' : phaseDone(i, draft) && i !== phase && '✓ '}
-                {i + 1} {p.label}
-                {phaseMissing(i) && p.key === 'kundenprofil' && ' · abschließen'}
-              </button>
-            ))}
-            <button
-              type="button"
-              onClick={() => setOnlyMissing((v) => !v)}
-              className={cn('ml-auto rounded-md border px-2.5 py-1 text-xs transition-colors', onlyMissing ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:text-foreground')}
-            >
-              {onlyMissing ? 'Alle Fragen zeigen' : 'Nur Fehlendes'}
-            </button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                <Input id={fieldId('interview_date')} type="date" aria-label="Datum des Interviews" className="h-8 w-36 text-xs" value={draft.interview_date ?? today()} onChange={(e) => set({ interview_date: e.target.value || today() })} />
+                <ChipGroup field="interview_type" options={INTERVIEW_TYPE_OPTIONS} value={draft.interview_type} onChange={(v) => set({ interview_type: v })} />
+              </div>
+            )}
           </div>
           {newColumnsPending && (
             <p className="mt-2 rounded-md bg-warning/10 px-3 py-1.5 text-xs text-warning">
               Einige neue Angaben (z. B. fix oder mit Bonus, Wettbewerbsverbot) werden erst nach dem Datenbank-Update dauerhaft gespeichert. Alles andere ist gesichert.
             </p>
           )}
+          {saveState === 'error' && (
+            <p className="mt-2 rounded-md bg-destructive/10 px-3 py-1.5 text-xs text-destructive">
+              Nicht gespeichert · neuer Versuch läuft. Deine Eingaben bleiben in diesem Tab, bis es geklappt hat.
+            </p>
+          )}
         </div>
-        <div className="grid min-h-0 flex-1 md:grid-cols-[minmax(0,1fr)_320px]">
-          <div ref={mainRef} className="min-h-0 overflow-y-auto px-6 py-5">
-            <FieldMissingContext.Provider value={missingFields}>
+        <div className="min-h-0 flex-1 overflow-y-auto md:grid md:grid-cols-[160px_minmax(0,1fr)_230px] md:overflow-hidden lg:grid-cols-[180px_minmax(0,1fr)_300px]">
+          {/* Links nur die Punkte, ohne Ampel: ✓ heißt beantwortet, hell ist der aktuelle Punkt. */}
+          <nav aria-label="Punkte" className="flex flex-wrap items-center gap-1 border-b border-border p-3 text-sm md:min-h-0 md:flex-col md:flex-nowrap md:items-stretch md:overflow-y-auto md:border-b-0 md:border-r">
+            {onlyMissing ? (
+              <>
+                <p className="px-2 pb-1 text-xs text-muted-foreground">Nur Fehlendes</p>
+                {openItems.map((m) => (
+                  <button key={m.key} type="button" onClick={() => scrollToGap(m.key)} className="rounded-md px-2 py-1.5 text-left leading-snug hover:bg-muted">{openLabel(m)}</button>
+                ))}
+                {!openItems.length && <p className="px-2 text-xs text-muted-foreground">Es fehlt nichts mehr.</p>}
+              </>
+            ) : (
+              INTERVIEW_VIEWS.map((v, i) => {
+                const active = !finished && i === view;
+                const done = viewAnswered(v.key, draft);
+                return (
+                  <Fragment key={v.key}>
+                    {v.key === 'abschluss' && <hr className="my-1 hidden border-border md:block" />}
+                    <button
+                      type="button"
+                      aria-current={active ? 'step' : undefined}
+                      onClick={() => openView(i)}
+                      className={cn(
+                        'flex items-center gap-1.5 rounded-md px-2 py-1.5 text-left leading-snug transition-colors',
+                        active ? 'bg-muted font-medium text-foreground' : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                      )}
+                    >
+                      <span aria-hidden className="w-3 shrink-0 text-xs text-muted-foreground">{done ? '✓' : ''}</span>
+                      {v.label}
+                      {done && <span className="sr-only"> (beantwortet)</span>}
+                    </button>
+                  </Fragment>
+                );
+              })
+            )}
+            <div className="md:mt-auto md:pt-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button type="button" aria-label="Darstellung" className="rounded-md px-2 py-1 text-muted-foreground hover:bg-muted hover:text-foreground">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" side="top">
+                  <DropdownMenuCheckboxItem checked={!stepMode && !onlyMissing} onCheckedChange={(c) => changeLayout(c ? 'all' : 'steps')}>Alle Fragen zeigen</DropdownMenuCheckboxItem>
+                  <DropdownMenuCheckboxItem checked={onlyMissing} onCheckedChange={(c) => setOnlyMissing(c === true)}>Nur Fehlendes</DropdownMenuCheckboxItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </nav>
+
+          <div ref={mainRef} className="px-6 py-5 md:min-h-0 md:overflow-y-auto">
+            {rueckkehr && !onlyMissing && !finished && (
+              <p className="mb-4 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                <span>Weiter, wo du warst{rueckkehr.savedAt ? ` · zuletzt gespeichert ${uhrzeit(rueckkehr.savedAt)}` : ''}</span>
+                {ersteOffene !== view && (
+                  <button type="button" className="underline underline-offset-2 hover:text-foreground" onClick={() => openView(ersteOffene)}>Zum ersten offenen Punkt</button>
+                )}
+              </p>
+            )}
+            <FieldMissingContext.Provider value={fehltAnzeigen ? missingFields : null}>
               <FieldQuestionContext.Provider value>
-                {onlyMissing ? renderGaps() : renderPhase()}
+                {finished ? renderFinished() : onlyMissing ? renderGaps() : stepMode ? <div className="space-y-5">{punkt(currentView.key, true)}</div> : renderAll()}
               </FieldQuestionContext.Provider>
             </FieldMissingContext.Provider>
           </div>
 
-          <aside className="min-h-0 space-y-4 overflow-y-auto border-t border-border bg-muted/30 p-5 md:border-l md:border-t-0">
-            {gaps.length > 0 || fuerEinreichen.length > 0 ? (
-              <div className="space-y-2 rounded-md bg-warning/10 px-3 py-2 text-xs text-warning">
-                {[
-                  { titel: 'Zum Abschließen fehlt', liste: gaps },
-                  { titel: gaps.length ? 'Zum Einreichen außerdem' : 'Zum Einreichen fehlt', liste: fuerEinreichen },
-                ].filter((g) => g.liste.length).map((g) => (
-                  <div key={g.titel} className="space-y-1">
-                    <p className="font-semibold">{g.titel}</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {g.liste.map((m) => (
-                        <button key={m.key} type="button" onClick={() => jump(m.key)} className="rounded border border-warning/50 px-1.5 py-0.5 hover:bg-warning/10">
-                          {m.label}{WHERE[m.key]?.phase === 'kopf' ? ' (oben)' : WHERE[m.key]?.phase === 'akte' ? ' (Akte)' : ''}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-                {NEXT_QUESTION[(gaps[0] ?? fuerEinreichen[0]).key] && (
-                  <p className="text-muted-foreground">{NEXT_QUESTION[(gaps[0] ?? fuerEinreichen[0]).key]}</p>
-                )}
-                {kannAbschliessen && (
-                  <Button size="sm" className="h-7" onClick={complete} disabled={completing}>
-                    {completing && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}Interview abschließen
-                  </Button>
-                )}
-              </div>
-            ) : nurAbschliessen ? (
-              <div className="space-y-1.5 rounded-md bg-warning/10 px-3 py-2 text-xs text-warning">
-                <p className="font-semibold">Noch 1 Schritt: Interview abschließen</p>
-                <p>Alle Mindestangaben sind da.</p>
-                <Button size="sm" className="h-7" onClick={complete} disabled={completing}>
-                  {completing && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}Interview abschließen
-                </Button>
-              </div>
-            ) : readiness.isReady ? (
-              <div className="rounded-md bg-success/10 px-3 py-2 text-xs text-success">
-                <span className="font-semibold">Bereit zum Einreichen.</span>
-              </div>
-            ) : null}
-            {werdegang.length > 0 && (
-              <div className="space-y-1.5 text-xs">
-                <p className="text-sm font-semibold">Werdegang {fromCv ? 'aus dem Lebenslauf' : 'aus der Akte'}</p>
-                {werdegang.map((w, i) => w.kind === 'gap' ? (
-                  <p key={`gap-${i}`} className="border-l-2 border-warning pl-2 leading-tight text-warning">
-                    Lücke {monthYear(w.from)} – {monthYear(w.to)} · {w.months} Monate
-                  </p>
-                ) : (
-                  <p key={w.st.id ?? i} className={cn('border-l-2 pl-2 leading-tight', w.st.current ? 'border-success' : w.short ? 'border-warning' : 'border-border')}>
-                    <span className={w.st.current ? 'font-medium' : ''}>{w.st.title || 'Station'}</span>
-                    <br />
-                    <span className="text-muted-foreground">
-                      {w.st.company ? `${w.st.company} · ` : ''}{yearsLabel(w.st)}
-                      {w.st.current && signals.tenureYears != null ? ` · ${signals.tenureYears} Jahre` : ''}
-                    </span>
-                    {w.short && <span className="text-warning"> · nur {w.short} Monate</span>}
-                  </p>
-                ))}
-              </div>
-            )}
+          <aside className="space-y-4 border-t border-border bg-muted/30 p-5 md:min-h-0 md:overflow-y-auto md:border-l md:border-t-0">
             <div className="space-y-2">
+              {termin && terminNotiz && (
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">Notiz von {termin.first_name || firstName}:</span> „{terminNotiz}“
+                </p>
+              )}
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold">Notiz, erkennt beim Tippen</p>
                 <Button type="button" variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={markMoment}>
@@ -1176,7 +1463,6 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
                 placeholder="will 45k, min 40k, Kündigung 3M z. QE, Englisch B2 …"
                 rows={7}
               />
-              <p className="text-[11px] text-muted-foreground">{saveLabel}</p>
               {liveItems.length > 0 && (
                 <div className="space-y-1.5">
                   <p className="text-xs font-semibold text-muted-foreground">Erkannt · antippen übernimmt</p>
@@ -1197,68 +1483,65 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
               </Button>
             </div>
 
-            <div className="space-y-1.5 border-t border-border pt-4">
-              <div className="flex justify-between text-xs">
-                <span className="font-semibold">Bereit zum Einreichen</span>
-                <span>{readiness.done} von {readiness.total}</span>
-              </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                <div className="h-full rounded-full bg-success transition-all" style={{ width: `${(readiness.done / readiness.total) * 100}%` }} />
-              </div>
-              <div className="flex flex-wrap gap-x-2 gap-y-0.5 pt-1 text-[11px]">
-                {readiness.items.map((i) => (i.ok ? (
-                  <span key={i.key} className="text-success">✓ {i.label}</span>
+            {werdegang.length > 0 && (
+              <div className="space-y-1.5 border-t border-border pt-4 text-xs">
+                <p className="text-sm font-semibold">Werdegang {fromCv ? 'aus dem Lebenslauf' : 'aus der Akte'}</p>
+                {werdegang.map((w, i) => w.kind === 'gap' ? (
+                  <p key={`gap-${i}`} className="border-l-2 border-warning/60 pl-2 leading-tight text-muted-foreground">
+                    Lücke {monthYear(w.from)} – {monthYear(w.to)} · {w.months} Monate
+                  </p>
                 ) : (
-                  <button
-                    key={i.key}
-                    type="button"
-                    className="text-warning hover:underline"
-                    onClick={() => (i.key === 'interview' ? (gaps.length ? jump(gaps[0].key) : void complete()) : jump(i.key))}
-                  >
-                    ● {i.key === 'interview' ? 'Interview abschließen' : i.label}
-                  </button>
-                )))}
+                  <p key={w.st.id ?? i} className={cn('border-l-2 pl-2 leading-tight', w.st.current ? 'border-foreground/40' : w.short ? 'border-warning/60' : 'border-border')}>
+                    <span className={w.st.current ? 'font-medium' : ''}>{w.st.title || 'Station'}</span>
+                    <br />
+                    <span className="text-muted-foreground">
+                      {w.st.company ? `${w.st.company} · ` : ''}{yearsLabel(w.st)}
+                      {w.st.current && signals.tenureYears != null ? ` · ${signals.tenureYears} Jahre` : ''}
+                      {w.short ? ` · nur ${w.short} Monate` : ''}
+                    </span>
+                  </p>
+                ))}
               </div>
-            </div>
-
-            <div className="space-y-1 border-t border-border pt-4 text-xs">
-              <p className="mb-1 font-semibold">Phasen</p>
-              {PHASES.map((p, i) => (
-                <button key={p.key} type="button" onClick={() => goTo(i)} className={cn('block w-full text-left hover:underline', phaseMissing(i) ? 'text-warning' : phaseDone(i, draft) ? 'text-success' : 'text-muted-foreground')}>
-                  {phaseMissing(i) ? '●' : phaseDone(i, draft) ? '✓' : '○'} {p.label}
-                </button>
-              ))}
-            </div>
+            )}
           </aside>
         </div>
 
-        <div className="flex items-center justify-between gap-3 border-t border-border px-6 py-3">
-          <Button variant="outline" onClick={() => goTo(Math.max(0, phase - 1))} disabled={phase === 0}>
-            <ChevronLeft className="mr-1 h-4 w-4" />
-            {phase > 0 ? PHASES[phase - 1].label : 'Zurück'}
-          </Button>
-          <span className={cn('hidden text-xs sm:inline', saveState === 'error' ? 'text-destructive' : 'text-muted-foreground')}>{saveLabel}</span>
-          {phase < PHASES.length - 1 ? (
-            <div className="flex gap-2">
-              {/* Alle Mindestangaben da: abschließen aus jeder Phase, nicht erst in Phase 5. */}
-              <Button variant={kannAbschliessen ? 'outline' : 'default'} onClick={() => goTo(phase + 1)}>
-                Weiter: {PHASES[phase + 1].label}
-                <ChevronRight className="ml-1 h-4 w-4" />
+        {hinweisZeile && (
+          <div className="flex flex-wrap items-center gap-1.5 border-t border-border bg-warning/10 px-6 py-2 text-xs text-warning">
+            <span>{hinweisZeile.titel}</span>
+            {hinweisZeile.liste.map((m) => (
+              <button key={m.key} type="button" onClick={() => jump(m.key)} className="rounded border border-warning/50 px-1.5 py-0.5 hover:bg-warning/10">{openLabel(m)} ›</button>
+            ))}
+            {hinweisZeile.frage && <span className="text-muted-foreground">{hinweisZeile.frage}</span>}
+          </div>
+        )}
+
+        {!finished && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-6 py-3">
+            {onlyMissing ? (
+              <Button variant="outline" onClick={() => setOnlyMissing(false)}>
+                <ChevronLeft className="mr-1 h-4 w-4" />Zurück zum Interview
               </Button>
-              {kannAbschliessen && (
-                <Button onClick={complete} disabled={completing}>
-                  {completing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Interview abschließen
-                </Button>
-              )}
-            </div>
-          ) : (
-            <Button onClick={complete} disabled={completing}>
-              {completing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Interview abschließen
-            </Button>
-          )}
-        </div>
+            ) : stepMode ? (
+              <Button variant="outline" onClick={() => goToView(view - 1)} disabled={!hatVor}>
+                <ChevronLeft className="mr-1 h-4 w-4" />Zurück
+              </Button>
+            ) : <span />}
+            <span className={cn('text-xs text-muted-foreground', saveState === 'error' && 'text-destructive')}>{saveLabel}</span>
+            {onlyMissing ? (zurKarteKnopf || (kannAbschliessen ? abschliessenKnopf : <span />))
+              : !stepMode ? (zurKarteKnopf || abschliessenKnopf)
+              : hatNach ? (
+                <div className="flex gap-2">
+                  {/* Alle Mindestangaben da: abschließen von überall, nicht erst am Ende. */}
+                  <Button variant={kannAbschliessen || zurKarteKnopf ? 'outline' : 'default'} onClick={() => goToView(view + 1)}>
+                    Weiter: {INTERVIEW_VIEWS[view + 1].label}
+                    <ChevronRight className="ml-1 h-4 w-4" />
+                  </Button>
+                  {zurKarteKnopf || (kannAbschliessen && abschliessenKnopf)}
+                </div>
+              ) : (zurKarteKnopf || abschliessenKnopf)}
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

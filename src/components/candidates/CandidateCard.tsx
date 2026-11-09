@@ -24,6 +24,7 @@ import {
   Eye,
 } from 'lucide-react';
 import { CandidateTag } from '@/hooks/useCandidateTags';
+import { CvMissingBadge } from './CvMissingBadge';
 
 export interface Candidate {
   id: string;
@@ -113,6 +114,8 @@ interface CandidateCardProps {
   onView: (candidate: Candidate) => void;
   onAssignTag: (candidateId: string) => void;
   onAddToPool: (candidate: Candidate) => void;
+  /** Kein hochgeladener Lebenslauf: Markierung „Lebenslauf fehlt“ */
+  cvMissing?: boolean;
 }
 
 const statusLabels: Record<string, string> = {
@@ -145,6 +148,7 @@ export function CandidateCard({
   onView,
   onAssignTag,
   onAddToPool,
+  cvMissing,
 }: CandidateCardProps) {
   const statusLabel = statusLabels[candidate.candidate_status || 'new'] || candidate.candidate_status;
 
@@ -172,6 +176,7 @@ export function CandidateCard({
             </Avatar>
             <div onClick={() => onView(candidate)}>
               <h3 className="font-semibold">{candidate.full_name}</h3>
+              {cvMissing && <CvMissingBadge className="mb-0.5" />}
               <p className="text-sm text-muted-foreground">
                 {candidate.job_title ? `${candidate.job_title}${candidate.company ? ` bei ${candidate.company}` : ''}` : candidate.email}
               </p>

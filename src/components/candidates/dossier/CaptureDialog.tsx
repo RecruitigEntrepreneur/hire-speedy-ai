@@ -62,6 +62,8 @@ interface Props {
   onSubmitToJob?: () => void;
   /** Setzt das Interview auf abgeschlossen (useCandidateDossier.markInterviewCompleted). */
   onComplete?: () => Promise<void>;
+  /** Hochgeladener Lebenslauf vorhanden (8. Punkt von „Bereit zum Einreichen“) */
+  hasCv?: boolean;
 }
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -74,7 +76,7 @@ const dots = (n: 1 | 2 | 3) => (
   </span>
 );
 
-export function CaptureDialog({ open, onOpenChange, mode, candidateId, form, onSave, onEdit, onSubmitToJob, onComplete }: Props) {
+export function CaptureDialog({ open, onOpenChange, mode, candidateId, form, onSave, onEdit, onSubmitToJob, onComplete, hasCv = false }: Props) {
   const { user } = useAuth();
   const [step, setStep] = useState<Step>('input');
   const [sources, setSources] = useState<Source[]>([]);
@@ -111,7 +113,7 @@ export function CaptureDialog({ open, onOpenChange, mode, candidateId, form, onS
   const cards = useMemo(() => items.filter((i) => i.status === 'uncertain' || i.status === 'conflict' || i.status === 'sensitive'), [items]);
   const counts = useMemo(() => reviewCounts(items), [items]);
   const acceptedCount = items.filter((i) => i.status !== 'same' && decisions[i.id] === 'accept').length;
-  const readiness = useMemo(() => computeReadiness(draft), [draft]);
+  const readiness = useMemo(() => computeReadiness(draft, hasCv), [draft, hasCv]);
   const firstName = draft.full_name.split(' ')[0] || 'die Person';
 
   const set = (patch: Partial<DossierForm>) => setDraft((d) => ({ ...d, ...patch }));
@@ -530,6 +532,7 @@ export function CaptureDialog({ open, onOpenChange, mode, candidateId, form, onS
                       )}
                     </div>
                   )}
+                  {m.action === 'upload_cv' && <p className="text-xs text-muted-foreground">Bitte um den aktuellen Lebenslauf (PDF oder Word) und lade ihn im Profil über „Lebenslauf hochladen“ hoch.</p>}
                 </div>
               ))}
               {!readiness.isReady && whatsappLink() && (
@@ -537,8 +540,8 @@ export function CaptureDialog({ open, onOpenChange, mode, candidateId, form, onS
                   <MessageCircle className="h-4 w-4" /> Offene Frage per WhatsApp an {firstName}
                 </a>
               )}
-              {onEdit && !readiness.isReady && (
-                <button type="button" className="block text-xs text-muted-foreground underline underline-offset-2" onClick={() => { onOpenChange(false); onEdit({ field: readiness.missing[0]?.field, section: readiness.missing[0]?.section }); }}>
+              {onEdit && readiness.missing.some((m) => !m.action) && (
+                <button type="button" className="block text-xs text-muted-foreground underline underline-offset-2" onClick={() => { const first = readiness.missing.find((m) => !m.action); onOpenChange(false); onEdit({ field: first?.field, section: first?.section }); }}>
                   Lieber im Bearbeiten-Panel ergänzen
                 </button>
               )}

@@ -5,6 +5,8 @@ interface CvUploadDialogProps {
   onOpenChange: (open: boolean) => void;
   onCandidateCreated?: (candidateId: string) => void;
   existingCandidateId?: string;
+  /** Das Textfeld für Lebenslauf oder LinkedIn-Profil ist gleich offen. */
+  startWithText?: boolean;
 }
 
 /**

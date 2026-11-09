@@ -12,8 +12,8 @@ import { KundePrueftWindow } from './KundePrueftWindow';
  */
 export function CandidateTaskWindow({ candidateId }: { candidateId: string }) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { allItems, waitingItems, parkedItems, loading, markDone, snooze, refetch } = useUnifiedTaskInbox('all');
-  const mine = useMemo(() => allItems.filter((i) => i.candidateId === candidateId), [allItems, candidateId]);
+  const { allItems, soonItems, waitingItems, parkedItems, loading, markDone, snooze, refetch } = useUnifiedTaskInbox('all');
+  const mine = useMemo(() => [...allItems, ...soonItems].filter((i) => i.candidateId === candidateId), [allItems, soonItems, candidateId]);
   // „Kunde prüft“ gehört ins Stellen-Fenster (unten), nie ins Personen-Fenster.
   const groups = useMemo(() => groupByPerson(mine.filter(i => !BUNDLED_CATEGORIES.includes(i.taskCategory))), [mine]);
   const task = useTaskHost({ allItems: mine, groups, markDone, snooze, refetch });

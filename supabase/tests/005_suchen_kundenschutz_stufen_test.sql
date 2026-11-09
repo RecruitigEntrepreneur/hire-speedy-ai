@@ -82,6 +82,11 @@ INSERT INTO public.candidates (id, recruiter_id, full_name, email) VALUES
   ('00000005-0000-0000-0002-000000000001', '00000005-0000-0000-0000-0000000000a1', 'Lena K.', 'lena-005@example.com'),
   ('00000005-0000-0000-0002-000000000002', '00000005-0000-0000-0000-0000000000a1', 'Jonas M.', 'jonas-005@example.com');
 
+-- Lebenslauf-Pflicht (20261014120000): beide haben einen Lebenslauf
+INSERT INTO public.candidate_documents (candidate_id, document_type, file_name, file_url, is_current) VALUES
+  ('00000005-0000-0000-0002-000000000001', 'cv', 'lena.pdf',  'https://x.test/storage/v1/object/public/cv-documents/t/lena.pdf',  true),
+  ('00000005-0000-0000-0002-000000000002', 'cv', 'jonas.pdf', 'https://x.test/storage/v1/object/public/cv-documents/t/jonas.pdf', true);
+
 -- ============================================================================
 -- A) „Ich suche“, Kundenfrage, Einreichen
 -- ============================================================================

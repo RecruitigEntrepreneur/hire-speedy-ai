@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { anonymizeCompanyName } from '@/lib/anonymization';
 import { ERINNERUNG_AB_TAGEN, FEEDBACK_AB_WERKTAGEN, nudgeState, workdaysBetween, type WaitState } from '@/lib/kundePrueft';
+import { vorbereitenTexte, type Vorbereitung } from '@/lib/kandidatVorbereiten';
+import { ladeVorbereitung } from '@/lib/vorbereitenLaden';
 
 export interface UnifiedTaskItem {
   itemType: 'alert' | 'task' | 'derived';
@@ -58,6 +60,9 @@ export interface UnifiedTaskItem {
   /** „In Prüfung“: wie oft das Kundenteam das Profil geöffnet hat, zuletzt wann (29.10.2026) */
   clientViewCount?: number;
   clientLastViewedAt?: string | null;
+  /** Aufgabe vor der Einreichung (01.11.2026): kein Honorar, keine Stelle, dafür der Beruf des Kandidaten. */
+  prep?: Vorbereitung;
+  candidateRole?: string | null;
 }
 
 /** Stand der Stelle zu einer eigenen Einreichung (my_submission_jobs, 28.10.2026). */
@@ -645,10 +650,56 @@ function mapRejectedInform(sub: any): UnifiedTaskItem {
   };
 }
 
+function mapVorbereitung(v: Vorbereitung, recruiterId: string): UnifiedTaskItem {
+  return {
+    itemType: 'derived',
+    itemId: `prep-${v.art}-${v.candidateId}`,
+    recruiterId,
+    title: vorbereitenTexte(v).pill,
+    description: null,
+    recommendedAction: null,
+    taskCategory: `prep_${v.art}`,
+    sortPriority: ALERT_PRIORITY_MAP.medium,
+    priority: 'medium',
+    submissionId: null,
+    candidateId: v.candidateId,
+    jobId: null,
+    playbookId: null,
+    createdAt: v.seit,
+    dueAt: null,
+    isRead: false,
+    isArchived: false,
+    isCompleted: false,
+    completedAt: null,
+    snoozedUntil: null,
+    impactScore: 30,
+    feeValue: null,
+    candidateName: v.name,
+    candidatePhone: v.telefon,
+    candidateEmail: v.email,
+    jobTitle: null,
+    companyName: null,
+    isStale: false,
+    candidateRole: v.rolle,
+    prep: v,
+  };
+}
+
 /** Alle Aufgaben-Listen auf der Seite neu laden (Seite, Profil-Block, Fenster). */
-const TASKS_CHANGED = 'matchunt:tasks-changed';
+export const TASKS_CHANGED = 'matchunt:tasks-changed';
 export function notifyTasksChanged() {
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(TASKS_CHANGED));
+}
+
+/** Sätze wie „in 20 Minuten“ und „Als Nächstes“ bleiben aktuell, solange heute ein Termin ansteht. */
+export function useMinutenTakt(aktiv: boolean) {
+  const [takt, setTakt] = useState(0);
+  useEffect(() => {
+    if (!aktiv) return;
+    const t = setInterval(() => setTakt(n => n + 1), 60_000);
+    return () => clearInterval(t);
+  }, [aktiv]);
+  return takt;
 }
 
 export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
@@ -659,6 +710,8 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
   const [waitingItems, setWaitingItems] = useState<UnifiedTaskItem[]>([]);
   /** Ebenfalls „Wartet auf andere“, aber ohne Erinnerungen: Vertrag bis Tag 10, pausierte Stelle. */
   const [parkedItems, setParkedItems] = useState<UnifiedTaskItem[]>([]);
+  /** Vor der Einreichung, gerade erst angelegt: „Diese Woche“, noch kein Handgriff. */
+  const [soonItems, setSoonItems] = useState<UnifiedTaskItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -669,6 +722,12 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
       setError(null);
       const now = new Date().toISOString();
       const nowMs = Date.now();
+
+      // Aufgaben vor der Einreichung: Fehler dort dürfen die übrigen Aufgaben nicht mitreißen
+      const prepPromise = ladeVorbereitung(user.id, nowMs).catch((err) => {
+        console.error('Aufgaben vor der Einreichung:', err);
+        return [] as Vorbereitung[];
+      });
 
       // Query 1: influence_alerts with nested submission → candidate + job
       const alertsQuery = supabase
@@ -1187,6 +1246,10 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
         .filter(i => !alertKeys.has(`${i.taskCategory}:${i.submissionId}`))
         .filter(i => !suppressions[i.itemId]);
 
+      const prepItems = (await prepPromise).map(v => mapVorbereitung(v, user.id)).filter(i => !suppressions[i.itemId]);
+      setSoonItems(prepItems.filter(i => i.prep!.frisch));
+      derivedItems.push(...prepItems.filter(i => !i.prep!.frisch));
+
       // Merge + sort: by sortPriority ASC, then impact DESC, then createdAt DESC
       const staleBefore = nowMs - 21 * DAY_MS;
       const merged = [...alertItems, ...taskItems, ...derivedItems].map(i => ({
@@ -1234,6 +1297,15 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
+
+  // Endet ein Termin von heute, wird daraus „Gespräch war“
+  useEffect(() => {
+    const jetzt = Date.now();
+    const enden = items.flatMap(i => (i.prep?.art === 'termin' && i.prep.termin ? [Date.parse(i.prep.termin.ende)] : [])).filter(t => t > jetzt);
+    if (!enden.length) return;
+    const t = setTimeout(() => { void fetchItems(); }, Math.min(...enden) - jetzt + 1000);
+    return () => clearTimeout(t);
+  }, [items, fetchItems]);
 
   // Ein Handgriff in einem Fenster lädt jede Liste neu, nicht nur die eigene.
   useEffect(() => {
@@ -1361,7 +1433,7 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
       suppressDerivedItem(itemId, new Date(Date.now() + 3 * DAY_MS));
     }
 
-    if (!error) setItems(prev => prev.filter(i => i.itemId !== itemId));
+    if (!error) { setItems(prev => prev.filter(i => i.itemId !== itemId)); setSoonItems(prev => prev.filter(i => i.itemId !== itemId)); }
     return { error };
   };
 
@@ -1420,6 +1492,9 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
     allItems: items,
     waitingItems,
     parkedItems,
+    soonItems,
+    /** Kandidaten vor der Einreichung, die gerade etwas brauchen (ohne „ohne Bewegung“) */
+    prepCount: items.filter(i => i.prep && !i.isStale).length + soonItems.length,
     urgentItems,
     openItems,
     completedItems,

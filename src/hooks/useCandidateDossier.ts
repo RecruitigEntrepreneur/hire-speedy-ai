@@ -11,6 +11,8 @@ import {
   toCandidatePayload,
   toNotesPayload,
 } from '@/lib/candidateDossier';
+import type { CurrentCv } from '@/lib/candidateCv';
+import { fetchCurrentCv } from '@/hooks/useCandidateCv';
 
 type Rec = Record<string, unknown>;
 
@@ -38,18 +40,19 @@ function changedKeys(next: Rec, prev: Rec): Rec {
 }
 
 /** Akte und "Bereit zum Einreichen" eines Kandidaten, gleiche Regel wie im Profil. */
-export async function fetchDossier(candidateId: string): Promise<{ form: DossierForm; readiness: Readiness }> {
-  const [cand, notes, langs] = await Promise.all([
+export async function fetchDossier(candidateId: string): Promise<{ form: DossierForm; readiness: Readiness; cv: CurrentCv | null }> {
+  const [cand, notes, langs, cv] = await Promise.all([
     supabase.from('candidates').select('*').eq('id', candidateId).maybeSingle(),
     supabase.from('candidate_interview_notes').select('*').eq('candidate_id', candidateId).order('updated_at', { ascending: false, nullsFirst: false }),
     supabase.from('candidate_languages').select('language, proficiency').eq('candidate_id', candidateId),
+    fetchCurrentCv(candidateId),
   ]);
   const form = fromRecords(
     cand.data as Rec | null,
     mergeNoteRows((notes.data as Rec[] | null) ?? []),
     (langs.data as Array<{ language: string | null; proficiency: string | null }> | null) ?? [],
   );
-  return { form, readiness: computeReadiness(form) };
+  return { form, readiness: computeReadiness(form, !!cv), cv };
 }
 
 export async function fetchDossierReadiness(candidateId: string): Promise<Readiness> {
@@ -68,6 +71,7 @@ export const notifyCandidateChanged = (candidateId: string) => window.dispatchEv
 export function useCandidateDossier(candidateId: string | undefined) {
   const { user } = useAuth();
   const [state, setState] = useState<DossierState>({ candidate: null, notes: null, olderNoteIds: [], languages: [] });
+  const [cv, setCv] = useState<CurrentCv | null>(null);
   const [loading, setLoading] = useState(true);
   const [pendingColumns, setPendingColumns] = useState(false);
   // Speichervorgänge laufen nacheinander und sehen immer den zuletzt geladenen
@@ -77,7 +81,7 @@ export function useCandidateDossier(candidateId: string | undefined) {
 
   const load = useCallback(async () => {
     if (!candidateId) return;
-    const [cand, notes, langs] = await Promise.all([
+    const [cand, notes, langs, currentCv] = await Promise.all([
       supabase.from('candidates').select('*').eq('id', candidateId).maybeSingle(),
       supabase
         .from('candidate_interview_notes')
@@ -85,7 +89,9 @@ export function useCandidateDossier(candidateId: string | undefined) {
         .eq('candidate_id', candidateId)
         .order('updated_at', { ascending: false, nullsFirst: false }),
       supabase.from('candidate_languages').select('language, proficiency').eq('candidate_id', candidateId),
+      fetchCurrentCv(candidateId),
     ]);
+    setCv(currentCv);
     const noteRows = ((notes.data as Rec[] | null) ?? []).filter((r) => r.status !== 'superseded');
     const next: DossierState = {
       candidate: (cand.data as Rec | null) ?? null,
@@ -110,7 +116,7 @@ export function useCandidateDossier(candidateId: string | undefined) {
   }, [load, candidateId]);
 
   const form = useMemo(() => fromRecords(state.candidate, state.notes, state.languages), [state]);
-  const readiness = useMemo(() => computeReadiness(form), [form]);
+  const readiness = useMemo(() => computeReadiness(form, !!cv), [form, cv]);
 
   const saveNow = useCallback(
     async (next: DossierForm): Promise<DossierSaveResult> => {
@@ -210,6 +216,8 @@ export function useCandidateDossier(candidateId: string | undefined) {
     loading,
     form,
     readiness,
+    /** Aktueller Lebenslauf (PDF/Word) oder null */
+    cv,
     candidateRow: state.candidate,
     hasNotes: !!state.notes,
     pendingColumns,

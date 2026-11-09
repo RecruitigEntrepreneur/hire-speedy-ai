@@ -78,4 +78,17 @@ describe('Kundenprofil schreibt sich mit', () => {
     expect(r.edited.has('summary_motivation')).toBe(true);
     expect(r.patch.summary_salary).toBe('Wunschgehalt um 85.000 € im Jahr');
   });
+
+  it('hält einen älteren Automatik-Text mit altem Startdatum nicht für selbst geschrieben', () => {
+    const f = { ...base, notice_period: '3_months_eoq' };
+    const gestern = buildClientSummary(f, new Date(2026, 9, 31));
+    const heute = new Date(2027, 0, 15);
+    const r = autoClientSummary({ ...f, ...gestern }, buildClientSummary(f, heute), heute);
+    expect(r.edited.has('summary_notice')).toBe(false);
+    expect(r.patch.summary_notice).toBe(buildClientSummary(f, heute).summary_notice);
+    // Selbst geschriebener Text bleibt.
+    const eigen = autoClientSummary({ ...f, ...gestern, summary_notice: 'Kann nach Absprache früher' }, buildClientSummary(f, heute), heute);
+    expect(eigen.edited.has('summary_notice')).toBe(true);
+    expect(eigen.patch.summary_notice).toBeUndefined();
+  });
 });

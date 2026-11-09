@@ -44,11 +44,38 @@ export interface TerminAnsicht {
   headhunter: HeadhunterOeffentlich; stelle: string | null; dauer: number; tage: TerminTag[];
 }
 
+/** Persönliche Einladung /t/einladung/<token> aus Sicht des Kandidaten. */
+export interface EinladungsDaten {
+  stand: 'offen' | 'gebucht' | 'abgelaufen' | 'zurueckgezogen'; offen: boolean; pausiert: boolean; kalender: boolean; tage: TerminTag[];
+  dauer: number; arten: Gespraechsart[]; headhunter: HeadhunterOeffentlich; vorname: string; email_maskiert: string | null; telefon_bekannt: boolean;
+  /** 'angefragt': Der Headhunter bittet um den Lebenslauf und es liegt noch keiner vor (05.11.2026). */
+  lebenslauf?: 'angefragt' | null;
+  /** Bei „gebucht“: der Termin, für die Seite „Du hast schon einen Termin“. */
+  termin?: { start: string; mode: Gespraechsart } | null;
+}
+
+/** Lebenslauf-Anfrage ohne Termin /t/lebenslauf/<token> aus Sicht des Kandidaten (05.11.2026). */
+export interface AnfrageDaten {
+  stand: 'offen' | 'erledigt' | 'abgelaufen' | 'zurueckgezogen';
+  headhunter: { name: string; initialen: string; titel: string | null; linkedin: string | null };
+  vorname: string;
+}
+
+/** Wer nimmt den Lebenslauf an: Terminseite (slug), persönliche Einladung oder Anfrage-Link. */
+export type LebenslaufZiel = { slug: string } | { einladung: string } | { anfrage: string };
+
 export const terminSeiteApi = {
   seite: (slug: string, stelle?: string) => rufe<SeitenDaten>('termin-seite', { action: 'seite', slug, stelle }),
-  lebenslauf: (slug: string, datei: { name: string; typ: string; base64: string | null; text?: string }) =>
+  einladung: (token: string) => rufe<EinladungsDaten>('termin-seite', { action: 'einladung', token }),
+  buchenEinladung: (token: string, d: { start: string; mode: Gespraechsart; consent: boolean; email?: string; phone?: string; website?: string; upload_id?: string | null; linkedin_url?: string }) =>
+    rufe<{ ok: true; termin: { start: string; ende: string; mode: Gespraechsart; join_url: string | null; headhunter: string } | null }>(
+      'termin-seite', { action: 'buchen', einladung: token, ...d }),
+  lebenslauf: (ziel: string | LebenslaufZiel, datei: { name: string; typ: string; base64: string | null; text?: string }) =>
     rufe<{ upload_id: string; gelesen: boolean; felder: { first_name: string; last_name: string; email: string; phone: string; linkedin_url: string } }>(
-      'termin-seite', { action: 'lebenslauf', slug, name: datei.name, typ: datei.typ, datei: datei.base64, text: datei.text }, 'Der Lebenslauf konnte nicht gelesen werden. Du kannst trotzdem buchen.'),
+      'termin-seite', { action: 'lebenslauf', ...(typeof ziel === 'string' ? { slug: ziel } : ziel), name: datei.name, typ: datei.typ, datei: datei.base64, text: datei.text }, 'Der Lebenslauf konnte nicht gelesen werden. Du kannst trotzdem buchen.'),
+  anfrage: (token: string) => rufe<AnfrageDaten>('termin-seite', { action: 'anfrage', token }),
+  lebenslaufSenden: (ziel: { einladung: string } | { anfrage: string }, d: { upload_id?: string | null; linkedin_url?: string; consent: boolean }) =>
+    rufe<{ ok: true; lebenslauf: boolean; linkedin: boolean }>('termin-seite', { action: 'lebenslauf_senden', ...ziel, ...d }, 'Das hat gerade nicht geklappt. Versuch es gleich noch einmal.'),
   buchen: (slug: string, stelle: string | undefined, d: BuchungsDaten) =>
     rufe<{ ok: true; termin: { start: string; ende: string; mode: Gespraechsart; join_url: string | null; headhunter: string } | null; verwalten_url?: string }>(
       'termin-seite', { action: 'buchen', slug, stelle, ...d }),
@@ -56,6 +83,28 @@ export const terminSeiteApi = {
   verschieben: (token: string, start: string) => rufe<{ ok: true; start: string; join_url: string | null }>('termin-seite', { action: 'verschieben', token, start }),
   absagen: (token: string, grund: string) => rufe<{ ok: true }>('termin-seite', { action: 'absagen', token, grund }),
 };
+
+// ---------------------------------------------------------------------------
+// Kandidat zum Gespräch einladen (Headhunter, angemeldet)
+// ---------------------------------------------------------------------------
+export const einladungApi = {
+  senden: (d: { candidate_id: string; arten: Gespraechsart[]; weg: 'mail' | 'selbst'; text?: string; lebenslauf?: boolean }) =>
+    rufe<{ ok: true; id: string; token: string }>('termin-einladung', { action: 'senden', ...d }, 'Die Einladung konnte nicht verschickt werden.'),
+  link: (candidate_id: string) => rufe<{ ok: true; id: string; token: string }>('termin-einladung', { action: 'link', candidate_id }),
+  erinnern: (candidate_id: string) => rufe<{ ok: true }>('termin-einladung', { action: 'erinnern', candidate_id }, 'Die Erinnerung konnte nicht verschickt werden.'),
+  zurueckziehen: (candidate_id: string) => rufe<{ ok: true }>('termin-einladung', { action: 'zurueckziehen', candidate_id }),
+  /** Lebenslauf anfragen ohne Termin (05.11.2026): eigener Link, per Mail oder zum selbst Verschicken. */
+  lebenslaufAnfragen: (d: { candidate_id: string; weg: 'mail' | 'selbst'; text?: string }) =>
+    rufe<{ ok: true; id: string; token: string }>('termin-einladung', { action: 'lebenslauf_anfragen', ...d }, 'Die Anfrage konnte nicht verschickt werden.'),
+  lebenslaufErinnern: (candidate_id: string) =>
+    rufe<{ ok: true }>('termin-einladung', { action: 'lebenslauf_erinnern', candidate_id }, 'Die Erinnerung konnte nicht verschickt werden.'),
+};
+
+/** Fertiger Link zur Lebenslauf-Anfrage. */
+export const lebenslaufLink = (token: string) => `${window.location.origin}/t/lebenslauf/${token}`;
+
+/** Fertiger Link zur Einladung, auf der Adresse, auf der der Headhunter gerade arbeitet. */
+export const einladungsLink = (token: string) => `${window.location.origin}/t/einladung/${token}`;
 
 // ---------------------------------------------------------------------------
 // LinkedIn

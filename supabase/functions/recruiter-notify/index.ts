@@ -24,6 +24,8 @@ import { authUser, defaultCtx, interviewFailure, must } from '../_shared/intervi
 
 const UUID = /^[0-9a-f-]{36}$/i;
 const NUDGE_COOLDOWN_MS = 3 * 86_400_000;
+// Ein Zwischenstand je Erinnerung an den Kunden, höchstens alle 7 Tage (wie ZWISCHENSTAND_SPERRE_TAGE in kundePrueft.ts)
+const ZWISCHENSTAND_SPERRE_MS = 7 * 86_400_000;
 const QUESTIONS_COOLDOWN_MS = 7 * 86_400_000;
 
 // Anlass der Nachricht an den Kunden (29.10.2026): Betreff, Schluss und Link passen zur Aufgabe.
@@ -267,6 +269,24 @@ serve(async (req) => {
       must(!!b.candidate.email, 'Der Kandidat hat keine E-Mail-Adresse.', 'not_found');
       const first = String(b.candidate.full_name || '').trim().split(/\s+/)[0] || 'Hallo';
       const subject = typeof body.subject === 'string' && body.subject.trim() ? body.subject.trim().slice(0, 120) : `Kurze Rückmeldung zu ${b.job.title}`;
+      // Zwischenstand nur einmal je Erinnerung (05.11.2026: 5× an Sven in zwei Minuten). Erst eine
+      // neue Erinnerung an den Kunden macht den nächsten sinnvoll; auch gegen Doppelklick und zweiten Tab.
+      if (body.kind === 'zwischenstand') {
+        const { data: letzte } = await db.from('candidate_activity_log').select('created_at')
+          .eq('related_submission_id', b.submission.id)
+          .contains('metadata', { kind: 'candidate_message', message_kind: 'zwischenstand', sent: true })
+          .gte('created_at', new Date(ctx.now() - ZWISCHENSTAND_SPERRE_MS).toISOString())
+          .order('created_at', { ascending: false }).limit(1);
+        const zuletzt = (letzte ?? [])[0]?.created_at as string | undefined;
+        if (zuletzt) {
+          const { data: neuer } = await db.from('candidate_activity_log').select('id')
+            .eq('related_submission_id', b.submission.id)
+            .contains('metadata', { kind: 'client_nudge' })
+            .gt('created_at', zuletzt).limit(1);
+          const am = new Date(zuletzt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' });
+          must((neuer ?? []).length > 0, `${first} hat am ${am} schon einen Zwischenstand bekommen.`, 'not_allowed');
+        }
+      }
       // In Julias Ton (29.10.2026): du, Gruß mit Vornamen, darunter Name und Telefon
       const meFirst = me.name.trim().split(/\s+/)[0] || me.name;
       const bodyText = `Hallo ${first},\n\n${text}\n\nViele Grüße\n${meFirst}\n\n${me.name} · über Matchunt${me.phone ? ` · ${me.phone}` : ''}`;

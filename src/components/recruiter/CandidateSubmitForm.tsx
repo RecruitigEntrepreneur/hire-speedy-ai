@@ -32,6 +32,9 @@ import { fetchMatchV41, type MatchRequirementRow } from '@/lib/matchV41';
 import { FIT_LABEL, byFit, fitOf, isFitting, type Fit } from '@/lib/matchFit';
 import { usePoolFit } from '@/hooks/usePoolFit';
 import { notifyClientAboutSubmission } from '@/lib/submissionNotify';
+import { SubmitCvCheck } from './SubmitCvCheck';
+import { LebenslaufAnfragenFenster } from './termin/LebenslaufAnfragenFenster';
+import { compareCvWithDossier, submissionErrorText, type CurrentCv } from '@/lib/candidateCv';
 
 interface CandidateSubmitFormProps {
   jobId: string;
@@ -57,6 +60,11 @@ export function CandidateSubmitForm({ jobId, jobTitle, initialCandidateId, job =
   const [newOpen, setNewOpen] = useState(false);
   const [dossier, setDossier] = useState<DossierForm | null>(null);
   const [readiness, setReadiness] = useState<{ isReady: boolean; done: number; total: number; missing: string[] } | null>(null);
+  // Lebenslauf (Pflicht seit 12.10.2026): fehlt er, ist Vorstellen gesperrt, hochladen geht direkt hier.
+  const [cv, setCv] = useState<CurrentCv | null>(null);
+  const [cvUploadOpen, setCvUploadOpen] = useState(false);
+  const [anfragenOpen, setAnfragenOpen] = useState(false);
+  const [reload, setReload] = useState(0);
   const [duplicate, setDuplicate] = useState(false);
   const [musts, setMusts] = useState<MatchRequirementRow[]>([]);
   const [mustLoad, setMustLoad] = useState<Load>('loading');
@@ -80,15 +88,16 @@ export function CandidateSubmitForm({ jobId, jobTitle, initialCandidateId, job =
   useEffect(() => {
     if (!candidateId) return;
     let alive = true;
-    setDossier(null); setReadiness(null); setDuplicate(false); setMusts([]); setMustLoad('loading'); setMatchFit(null);
+    setDossier(null); setReadiness(null); setCv(null); setDuplicate(false); setMusts([]); setMustLoad('loading'); setMatchFit(null);
     setConfirmed(new Set()); setConsent(false);
 
     supabase.from('submissions').select('id').eq('job_id', jobId).eq('candidate_id', candidateId).limit(1)
       .then(({ data }) => { if (alive) setDuplicate((data?.length ?? 0) > 0); });
 
-    fetchDossier(candidateId).then(({ form, readiness: r }) => {
+    fetchDossier(candidateId).then(({ form, readiness: r, cv: aktuell }) => {
       if (!alive) return;
       setDossier(form);
+      setCv(aktuell);
       setReadiness({ isReady: r.isReady, done: r.done, total: r.total, missing: r.missing.map((m) => m.label) });
       if (!r.isReady) return;
       // KI-Prüfung im Hintergrund: Zusatz, nie Sperre.
@@ -103,7 +112,7 @@ export function CandidateSubmitForm({ jobId, jobTitle, initialCandidateId, job =
         .catch(() => { if (alive) setMustLoad('failed'); });
     });
     return () => { alive = false; };
-  }, [candidateId, jobId]);
+  }, [candidateId, jobId, reload]);
 
   const fitCandidate: FitCandidate = {
     expected_salary: dossier?.expected_salary ?? null,
@@ -152,7 +161,7 @@ export function CandidateSubmitForm({ jobId, jobTitle, initialCandidateId, job =
     }
     if (error) {
       setBusy(false);
-      toast({ title: 'Vorstellen hat nicht geklappt', description: error.message, variant: 'destructive' });
+      toast({ title: 'Vorstellen hat nicht geklappt', description: submissionErrorText(error, error.message), variant: 'destructive' });
       return;
     }
     const id = (data as { id?: string } | null)?.id;
@@ -220,7 +229,19 @@ export function CandidateSubmitForm({ jobId, jobTitle, initialCandidateId, job =
         <Alert variant="destructive"><XCircle className="h-4 w-4" /><AlertDescription>Dieser Kandidat ist für diese Stelle schon vorgestellt.</AlertDescription></Alert>
       )}
 
-      {readiness && !readiness.isReady && (
+      {dossier && candidateId && (readiness?.isReady || cv || (readiness?.missing.length === 1 && readiness.missing[0] === 'Lebenslauf')) && (
+        <SubmitCvCheck cv={cv} loading={false} mismatches={cv ? compareCvWithDossier(cv.extracted, dossier, [], new Date(cv.created_at)) : []} onUpload={() => setCvUploadOpen(true)}
+          anfrage={{ label: `Bei ${dossier.full_name.split(' ')[0] || dossier.full_name} anfragen`, onClick: () => setAnfragenOpen(true) }} />
+      )}
+      {candidateId && (
+        <CvUploadDialog open={cvUploadOpen} onOpenChange={setCvUploadOpen} existingCandidateId={candidateId} onCandidateCreated={() => setReload((n) => n + 1)} />
+      )}
+      {candidateId && dossier && (
+        <LebenslaufAnfragenFenster open={anfragenOpen} onOpenChange={setAnfragenOpen}
+          candidate={{ id: candidateId, vorname: dossier.full_name.split(' ')[0] || dossier.full_name, email: dossier.email || null }} />
+      )}
+
+      {readiness && !readiness.isReady && !(readiness.missing.length === 1 && readiness.missing[0] === 'Lebenslauf') && (
         <Alert className="border-warning/40 bg-warning/10">
           <Lock className="h-4 w-4 text-warning" />
           <AlertDescription className="space-y-1.5">

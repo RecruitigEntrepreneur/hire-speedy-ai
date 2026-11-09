@@ -34,6 +34,7 @@ import { cn } from '@/lib/utils';
 import { getExposeReadiness } from '@/hooks/useExposeReadiness';
 import { prefetchRecommendations } from '@/hooks/useMatchRecommendation';
 import { formatSimpleAnonymousCompany, formatAnonymousCompany } from '@/lib/anonymousCompanyFormat';
+import { submissionErrorText } from '@/lib/candidateCv';
 
 interface CandidateJobMatchingV3Props {
   candidate: {
@@ -252,7 +253,7 @@ export function CandidateJobMatchingV3({ candidate, onSubmissionCreated }: Candi
       onSubmissionCreated?.();
     } catch (error) {
       console.error('Error creating submission:', error);
-      toast.error('Fehler beim Einreichen');
+      toast.error(submissionErrorText(error));
     } finally {
       setSubmitting(null);
     }

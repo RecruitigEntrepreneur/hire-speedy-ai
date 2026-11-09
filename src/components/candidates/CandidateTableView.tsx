@@ -21,6 +21,7 @@ import {
 import { MoreVertical, Eye, Edit, Trash2, Tag, UserPlus } from 'lucide-react';
 import { Candidate } from './CandidateCard';
 import { CandidateTag } from '@/hooks/useCandidateTags';
+import { CvMissingBadge } from './CvMissingBadge';
 
 interface CandidateTableViewProps {
   candidates: Candidate[];
@@ -33,6 +34,8 @@ interface CandidateTableViewProps {
   onView: (candidate: Candidate) => void;
   onAssignTag: (candidateId: string) => void;
   onAddToPool: (candidate: Candidate) => void;
+  /** Kandidaten mit Lebenslauf; fehlt die Liste, wird nichts markiert */
+  withCvIds?: Set<string> | null;
 }
 
 export function CandidateTableView({
@@ -46,6 +49,7 @@ export function CandidateTableView({
   onView,
   onAssignTag,
   onAddToPool,
+  withCvIds,
 }: CandidateTableViewProps) {
   const allSelected = candidates.length > 0 && selectedIds.length === candidates.length;
 
@@ -92,6 +96,7 @@ export function CandidateTableView({
                   onClick={() => onView(candidate)}
                 >
                   {candidate.full_name}
+                  {withCvIds && !withCvIds.has(candidate.id) && <CvMissingBadge className="ml-2" />}
                 </TableCell>
                 <TableCell>{candidate.email}</TableCell>
                 <TableCell>{candidate.phone || '-'}</TableCell>

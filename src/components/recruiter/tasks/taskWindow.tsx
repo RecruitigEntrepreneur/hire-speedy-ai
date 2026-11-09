@@ -28,10 +28,12 @@ import { OfferAnswerDialog } from '@/components/offers/OfferAnswerDialog';
 import { RecommendationDialog } from '@/components/offers/RecommendationDialog';
 import { ContractWindow } from '@/components/contracts/ContractWindow';
 import { Honorar } from '@/components/recruiter/Honorar';
+import { vorbereitenTexte } from '@/lib/kandidatVorbereiten';
+import { VorbereitenFenster } from './VorbereitenFenster';
 
 export const DAY_MS = 86_400_000;
 
-export type Kind = 'call' | 'called' | 'followup' | 'debrief' | 'done' | 'akte' | 'client' | 'candidate' | 'offer' | 'recommend' | 'contract' | 'frage';
+export type Kind = 'call' | 'called' | 'followup' | 'debrief' | 'done' | 'akte' | 'client' | 'candidate' | 'offer' | 'recommend' | 'contract' | 'prep' | 'frage';
 
 export interface Guide {
   pill: string;
@@ -59,6 +61,10 @@ export function buildGuide(item: UnifiedTaskItem): Guide {
   const fee = euro(item.feeValue);
   const cat = item.taskCategory;
 
+  if (item.prep) {
+    const t = vorbereitenTexte(item.prep);
+    return { pill: t.pill, advice: t.text, facts: [], consequence: null, steps: [], goal: t.pill, primary: { label: t.knopf, kind: 'prep' }, reachedOptions: [] };
+  }
   if (cat === 'client_review_stalled') {
     const d = daysSince(item.createdAt);
     return {
@@ -353,7 +359,8 @@ export interface PersonGroup {
 export function groupByPerson(items: UnifiedTaskItem[]): PersonGroup[] {
   const map = new Map<string, UnifiedTaskItem[]>();
   for (const it of items) {
-    const key = it.candidateId || it.itemId;
+    // Vor der Einreichung: eigenes Fenster, nie zusammen mit anderen Aufgaben des Kandidaten
+    const key = it.prep ? it.itemId : it.candidateId || it.itemId;
     map.set(key, [...(map.get(key) ?? []), it]);
   }
   const groups: PersonGroup[] = [];
@@ -396,8 +403,10 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
   const [recFor, setRecFor] = useState<string | null>(null);
   const [frageFor, setFrageFor] = useState<string | null>(null);
   const [contractFor, setContractFor] = useState<string | null>(null);
+  const [prepItem, setPrepItem] = useState<UnifiedTaskItem | null>(null);
   /** Aufgaben mit eigenem Fenster direkt öffnen; true = erledigt. */
   const openOwnWindow = (it: UnifiedTaskItem) => {
+    if (it.prep) { setPrepItem(it); return true; }
     if (it.taskCategory === 'interview_debrief_due') { setNach({ target: nachTargetFromItem(it), item: it }); return true; }
     if (it.taskCategory === 'offer_deliver' && it.submissionId) { setOfferFor(it.submissionId); return true; }
     if (it.taskCategory === 'recommendation_due' && it.submissionId) { setRecFor(it.submissionId); return true; }
@@ -435,6 +444,9 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
         return;
       case 'contract':
         if (item.submissionId) setContractFor(item.submissionId);
+        return;
+      case 'prep':
+        setPrepItem(item);
         return;
       case 'call':
         if (item.candidatePhone) window.location.href = `tel:${item.candidatePhone}`;
@@ -541,7 +553,7 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
 
   /** Öffnet das Fenster der Person, zu der die Aufgabe gehört. */
   const openItem = (itemId: string) => {
-    const it = /^derived-(debrief|offer|recommend|contract)-/.test(itemId) ? allItems.find(i => i.itemId === itemId) : null;
+    const it = /^(derived-(debrief|offer|recommend|contract)|prep)-/.test(itemId) ? allItems.find(i => i.itemId === itemId) : null;
     if (it && openOwnWindow(it)) return true;
     const g = groups.find(x => x.primary.itemId === itemId || x.others.some(o => o.itemId === itemId));
     if (g) openGroupKey(g.key);
@@ -594,12 +606,13 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
         onDone={refetch}
         onLater={contractItem ? until => { setContractFor(null); later(contractItem, until); } : undefined}
       />
+      <VorbereitenFenster item={prepItem} onClose={() => setPrepItem(null)} onChanged={() => { refetch(); notifyTasksChanged(); }} />
     </>
   );
 
   /** Vertrags-Fenster direkt (Vertrag unter „Wartet auf andere“, 28.10.2026). */
   const openContract = (submissionId: string) => setContractFor(submissionId);
-  return { act, later, openDetail, openItem, openContract, setWindowKey: openGroupKey, host };
+  return { act, later, openDetail, openItem, openContract, openPrep: setPrepItem, setWindowKey: openGroupKey, host };
 }
 
 type Side = 'call' | 'done' | 'client' | 'candidate';

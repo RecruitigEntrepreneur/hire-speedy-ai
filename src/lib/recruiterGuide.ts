@@ -106,7 +106,7 @@ export const GUIDE_STEPS: GuideStep[] = [
 
   // 4 · Meine Kandidaten
   { id: 'candidatesAdd', chapter: 4, route: '/recruiter/candidates', target: at('candidates.add'), lockTarget: true, example: 'candidate', title: 'Kandidaten aufnehmen',
-    body: 'Über „Kandidat hinzufügen“ legst du Kandidaten von Hand an, lädst einen Lebenslauf hoch oder übernimmst sie aus HubSpot. Danach stehen sie in deiner Liste, etwa so:' },
+    body: 'Über „Kandidaten anlegen“ lädst du einen Lebenslauf hoch, fügst Text oder ein LinkedIn-Profil ein oder legst Kandidaten nur mit Name und E-Mail an. Danach stehen sie in deiner Liste, etwa so:' },
   menuStep('navPipeline', 4, '/recruiter/candidates', '/recruiter/submissions', 'Pipeline', 'Deine Pipeline'),
 
   // 5 · Pipeline

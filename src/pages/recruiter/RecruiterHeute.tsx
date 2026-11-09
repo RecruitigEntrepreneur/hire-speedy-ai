@@ -5,13 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CreateTaskDialog } from '@/components/influence/CreateTaskDialog';
-import { useUnifiedTaskInbox, type UnifiedTaskItem } from '@/hooks/useUnifiedTaskInbox';
+import { useMinutenTakt, useUnifiedTaskInbox, type UnifiedTaskItem } from '@/hooks/useUnifiedTaskInbox';
 import { useRecruiterInterviewAgenda, type RecruiterInterview } from '@/hooks/useRecruiterInterviewAgenda';
 import { useRecruiterPipeline, PIPELINE_LABELS, type PipelineStageKey } from '@/hooks/useRecruiterPipeline';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
-import { DAY_MS, buildGuide, dateDe, daysSince, euro, firstName, useTaskHost, type Guide, type PersonGroup } from '@/components/recruiter/tasks/taskWindow';
+import { DAY_MS, buildGuide, dateDe, daysSince, euro, firstName, groupByPerson, useTaskHost, type Guide, type PersonGroup } from '@/components/recruiter/tasks/taskWindow';
 import { KundePrueftWindow } from '@/components/recruiter/tasks/KundePrueftWindow';
 import { bundleByJob, viewText, type StalledBundle } from '@/lib/kundePrueft';
 import { handgriffOf, rowItem, rowItems, splitJetzt, type Handgriff, type JetztRow } from '@/components/recruiter/tasks/jetztRows';
@@ -20,6 +20,7 @@ import { de } from 'date-fns/locale';
 import { Bell, Check, CheckSquare, ChevronDown, ChevronRight, Lock, Mail, NotebookPen, Phone, Plus, Video } from 'lucide-react';
 import { Honorar } from '@/components/recruiter/Honorar';
 import { useVerdecke } from '@/lib/honorarVerdeckt';
+import { istGleichDran, VORBEREITEN_TON } from '@/lib/kandidatVorbereiten';
 
 // ---------------------------------------------------------------------------
 // „Heute“: eine Seite, eine Spalte. Jede Zeile ist ein Deal, der einen Handgriff
@@ -34,7 +35,7 @@ export default function RecruiterHeute() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { allItems, completedItems, waitingItems, parkedItems, loading, markDone, snooze, refetch } = useUnifiedTaskInbox('all');
+  const { allItems, completedItems, waitingItems, parkedItems, soonItems, prepCount, loading, markDone, snooze, refetch } = useUnifiedTaskInbox('all');
   const { data: agenda } = useRecruiterInterviewAgenda();
   const pipeline = useRecruiterPipeline();
   const [stageFilter, setStageFilter] = useState<PipelineStageKey | null>(null);
@@ -59,7 +60,12 @@ export default function RecruiterHeute() {
 
   const now = Date.now();
   // „Jetzt“: dieselben Zeilen wie die Aufgaben-Karte im Dashboard
-  const { jetzt, groups, bundles, rows } = useMemo(() => splitJetzt(allItems), [allItems]);
+  // Der Takt läuft, solange heute ein Termin ansteht: 30 Minuten vorher rückt er nach oben
+  const takt = useMinutenTakt(allItems.some(i => i.prep?.art === 'termin'));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const { jetzt, groups, bundles, rows } = useMemo(() => splitJetzt(allItems), [allItems, takt]);
+  // Vor der Einreichung, gerade erst angelegt: noch kein Handgriff, aber diese Woche dran
+  const soonGroups = useMemo(() => groupByPerson(soonItems), [soonItems]);
   const stale = useMemo(() => allItems.filter(i => i.isStale), [allItems]);
   // „Kunde prüft“ je Stelle gebündelt (20.10.2026): eine Zeile, eine Mail für alle
   // Kandidaten. Alles andere bleibt je Person.
@@ -188,6 +194,7 @@ export default function RecruiterHeute() {
               <span>Zurückgezogen · {pipeline.withdrawnThisMonth}</span>
               <span>Ohne Bewegung seit 3 Wochen · {stale.length}</span>
               <span>Heute erledigt · {doneToday.length}</span>
+              {prepCount > 0 && <span className="font-medium text-foreground">Vor der Einreichung · {prepCount}</span>}
             </div>
           )}
         </div>
@@ -254,6 +261,29 @@ export default function RecruiterHeute() {
               </Card>
             )}
           </>
+        )}
+
+        {/* Diese Woche (01.11.2026): gerade angelegt, noch kein Gespräch */}
+        {!loading && !stageFilter && soonGroups.length > 0 && (
+          <Card className="border-border/30 shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-border/40 px-4 py-3">
+              <CardTitle className="text-sm">Diese Woche · {soonGroups.length}</CardTitle>
+              <span className="text-xs text-muted-foreground">neu angelegt, noch kein Gespräch</span>
+            </CardHeader>
+            <CardContent className="divide-y divide-border/40 p-0">
+              {soonGroups.map(g => (
+                <PersonRow
+                  key={g.key}
+                  row={{ kind: 'person', key: g.key, prio: g.primary.sortPriority, fee: 0, critical: false, group: g }}
+                  group={g}
+                  stage={null}
+                  quiet
+                  onOpen={() => task.openPrep(g.primary)}
+                  onAct={item => task.openPrep(item)}
+                />
+              ))}
+            </CardContent>
+          </Card>
         )}
 
         {/* Termine + Wartet */}
@@ -363,8 +393,8 @@ export default function RecruiterHeute() {
           <FoldCard label="Ohne Bewegung seit über 3 Wochen" count={stale.length} open={staleOpen} onToggle={() => setStaleOpen(o => !o)}>
             {stale.map(i => (
               <div key={i.itemId} className="flex items-center gap-3 px-4 py-2.5 text-sm text-muted-foreground">
-                <span className="min-w-0 flex-1 truncate"><span className="text-foreground">{i.candidateName || i.title}</span> · {i.jobTitle} · {daysSince(i.createdAt)} Tage</span>
-                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => task.openDetail(i)}>Öffnen</Button>
+                <span className="min-w-0 flex-1 truncate"><span className="text-foreground">{i.candidateName || i.title}</span> · {i.jobTitle ?? i.candidateRole} · {daysSince(i.createdAt)} Tage</span>
+                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { if (i.prep) task.openPrep(i); else task.openDetail(i); }}>Öffnen</Button>
                 <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => task.later(i, new Date(Date.now() + 14 * DAY_MS))}>14 Tage ruhen</Button>
               </div>
             ))}
@@ -425,11 +455,13 @@ const DIRECT_KINDS = new Set(['call', 'followup', 'done']);
 const BLOCKS: { key: Handgriff; label: string; hint: string }[] = [
   { key: 'anruf', label: 'Anrufe', hint: 'Kandidaten anrufen' },
   { key: 'kunde', label: 'Mails an Kunden', hint: 'eine Bitte für alle Kandidaten' },
+  { key: 'vorbereiten', label: 'Kandidaten vorbereiten', hint: 'bevor du sie einreichen kannst' },
   { key: 'kurz', label: 'Kurz erledigen', hint: '' },
 ];
 
 const rowName = (r: JetztRow) => (r.kind === 'person'
-  ? (r.group.primary.candidateName ? firstName(r.group.primary.candidateName) : r.group.primary.title)
+  ? r.group.primary.prep && istGleichDran(r.group.primary.prep) ? `Gespräch mit ${firstName(r.group.primary.candidateName)}`
+    : (r.group.primary.candidateName ? firstName(r.group.primary.candidateName) : r.group.primary.title)
   : (r.more.length && r.bundle.companyName ? r.bundle.companyName : r.bundle.jobTitle ?? 'Stelle'));
 
 /** Linke Spalte (Vorschlag 6, 28.10.2026): Phase der Einreichung als vier Striche, darunter das Wort. */
@@ -453,8 +485,9 @@ function ViewState({ bundle }: { bundle: StalledBundle }) {
 
 function PhaseCell({ stage, items }: { stage: PipelineStageKey | null; items: UnifiedTaskItem[] }) {
   const fromStage = phaseIndex(stage);
-  const idx = Math.max(fromStage ?? -1, ...items.map(i => impliedPhase(i.taskCategory)));
-  const label = idx < 0 ? '–' : stage === 'placed' && idx === 3 ? 'Platziert' : stage === 'in_review' && idx === 0 ? 'In Prüfung' : PHASES[idx];
+  const vorher = items.length > 0 && items.every(i => i.prep);
+  const idx = vorher ? -1 : Math.max(fromStage ?? -1, ...items.map(i => impliedPhase(i.taskCategory)));
+  const label = vorher ? 'Vorher' : idx < 0 ? '–' : stage === 'placed' && idx === 3 ? 'Platziert' : stage === 'in_review' && idx === 0 ? 'In Prüfung' : PHASES[idx];
   return (
     <div className="flex w-[5.5rem] shrink-0 flex-col items-center gap-1" title={idx < 0 ? undefined : `Phase: ${label}`}>
       <div className="flex gap-0.5" aria-hidden="true">
@@ -474,11 +507,13 @@ function NextCard({ row, stage, onOpen, onOpenItem }: {
   onOpen: () => void;
   onOpenItem: (itemId: string) => boolean;
 }) {
+  const navigate = useNavigate();
   const item = rowItem(row);
   const guide = buildGuide(item);
   const fee = euro(row.fee);
   const all = row.kind === 'person' ? [row.group.primary, ...row.group.others] : [];
   const title = row.kind === 'person' ? row.group.name : rowName(row);
+  const termin = item.prep?.art === 'termin' ? item.prep.termin : null;
   return (
     <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/[0.04] px-4 py-3">
       <PhaseCell stage={stage} items={rowItems(row)} />
@@ -487,6 +522,7 @@ function NextCard({ row, stage, onOpen, onOpenItem }: {
         <div className="flex flex-wrap items-center gap-x-2">
           <span className="text-base font-semibold">{title}</span>
           {item.jobTitle && row.kind === 'person' && <span className="text-sm text-muted-foreground">· {item.jobTitle}</span>}
+          {item.candidateRole && <span className="text-sm text-muted-foreground">· {item.candidateRole}</span>}
           {item.companyName && <span className="text-sm text-muted-foreground">· {item.companyName}</span>}
           {fee && <span className="text-sm font-medium text-emerald-500 tabular-nums"><Honorar>{fee}</Honorar></span>}
         </div>
@@ -495,7 +531,18 @@ function NextCard({ row, stage, onOpen, onOpenItem }: {
         </p>
       </button>
       <div className="flex shrink-0 flex-col items-end gap-1.5">
-        <Button size="sm" className="h-8 text-xs" onClick={onOpen}>Aufgabe öffnen</Button>
+        {termin ? (
+          <div className="flex items-center gap-1.5">
+            {termin.joinUrl ? (
+              <Button size="sm" className="h-8 gap-1 text-xs" asChild><a href={termin.joinUrl} target="_blank" rel="noreferrer"><Video className="h-3.5 w-3.5" />Beitreten</a></Button>
+            ) : item.candidatePhone ? (
+              <Button size="sm" className="h-8 gap-1 text-xs" asChild><a href={`tel:${item.candidatePhone.replace(/[^\d+]/g, '')}`}><Phone className="h-3.5 w-3.5" />Anrufen</a></Button>
+            ) : null}
+            <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => navigate(`/recruiter/candidates/${item.candidateId}?interview=live`)}>Interview öffnen</Button>
+          </div>
+        ) : (
+          <Button size="sm" className="h-8 text-xs" onClick={onOpen}>Aufgabe öffnen</Button>
+        )}
         {all.length > 1 && (
           <div className="flex flex-wrap justify-end gap-1 text-[11px] text-muted-foreground">
             <span>{all.length} Aufgaben:</span>
@@ -599,10 +646,12 @@ function BundleRow({ row, bundle, more, stage, sameClientCount, onOpen }: {
   );
 }
 
-function PersonRow({ row, group, stage, onOpen, onAct }: {
+function PersonRow({ row, group, stage, quiet, onOpen, onAct }: {
   row: JetztRow;
   group: PersonGroup;
   stage: PipelineStageKey | null;
+  /** Noch kein Handgriff (Diese Woche): Knopf zurückhaltend */
+  quiet?: boolean;
   onOpen: () => void;
   onAct: (item: UnifiedTaskItem, guide: Guide) => void;
 }) {
@@ -616,7 +665,7 @@ function PersonRow({ row, group, stage, onOpen, onAct }: {
       <PhaseCell stage={stage} items={rowItems(row)} />
       <button type="button" className="min-w-0 flex-1 text-left" onClick={onOpen}>
         <div className="flex flex-wrap items-center gap-x-2 text-sm">
-          <Badge variant="secondary" className="h-4 px-1.5 text-[10px] font-medium">{guide.pill}</Badge>
+          <Badge variant="secondary" className={cn('h-4 px-1.5 text-[10px] font-medium', item.prep && VORBEREITEN_TON[item.prep.art])}>{guide.pill}</Badge>
           <span
             className="font-medium hover:underline"
             onClick={e => { if (item.candidateId) { e.stopPropagation(); navigate(`/recruiter/candidates/${item.candidateId}`); } }}
@@ -624,6 +673,7 @@ function PersonRow({ row, group, stage, onOpen, onAct }: {
             {group.name}
           </span>
           {item.jobTitle && <span className="text-muted-foreground">· {item.jobTitle}</span>}
+          {item.candidateRole && <span className="text-muted-foreground">· {item.candidateRole}</span>}
           {item.companyName && <span className="text-muted-foreground">· {item.companyName}</span>}
           {!item.companyName && item.jobTitle && <Lock className="h-3 w-3 text-muted-foreground" />}
           {fee && <span className="font-medium text-emerald-500 tabular-nums"><Honorar>{fee}</Honorar></span>}
@@ -635,7 +685,7 @@ function PersonRow({ row, group, stage, onOpen, onAct }: {
       {DIRECT_KINDS.has(guide.primary.kind) ? (
         <Button size="sm" className="h-7 shrink-0 text-xs" onClick={onOpen}>Aufgabe öffnen</Button>
       ) : (
-        <Button size="sm" className="h-7 shrink-0 gap-1 text-xs" onClick={() => onAct(item, guide)}>
+        <Button size="sm" variant={quiet ? 'outline' : 'default'} className="h-7 shrink-0 gap-1 text-xs" onClick={() => onAct(item, guide)}>
           {guide.primary.kind === 'debrief' && <NotebookPen className="h-3 w-3" />}
           {(guide.primary.kind === 'client' || guide.primary.kind === 'candidate') && <Mail className="h-3 w-3" />}
           {guide.primary.label}
