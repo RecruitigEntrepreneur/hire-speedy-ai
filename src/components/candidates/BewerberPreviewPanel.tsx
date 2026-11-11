@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { TAGESSATZ_ABSTIMMUNG } from '@/lib/contractingKunde';
 import { useCandidateFitAssessment } from '@/hooks/useCandidateFitAssessment';
 import { useCandidateInsights, verfuegbarAus } from '@/components/candidates/client/useCandidateInsights';
 import { Button } from '@/components/ui/button';
@@ -143,6 +146,16 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
   const [skillsExpanded, setSkillsExpanded] = useState(false);
   const [showFrage, setShowFrage] = useState(false);
   const { data: submitter } = useSubmitter(item.submissionId, item.jobId);
+  // Contracting: kein Gehaltswunsch, der Kunde sieht seinen Preis (lib/contractingKunde)
+  const { data: vertragsart } = useQuery({
+    queryKey: ['job-employment-type', item.jobId],
+    enabled: !!item.jobId,
+    staleTime: 300_000,
+    queryFn: async () => {
+      const { data } = await supabase.from('jobs').select('employment_type').eq('id', item.jobId).maybeSingle();
+      return (data as { employment_type?: string | null } | null)?.employment_type ?? null;
+    },
+  });
   const hhName = submitterName(submitter);
   // Nie den Rohwert („3_months_eoq“) zeigen
   const verfuegbar =
@@ -211,7 +224,9 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
           </span>
           <span className="flex items-center gap-1">
             <Banknote className="h-3 w-3" />
-            {gespraech?.salary_wish || item.salaryBand || t('bewerber.chips.salary_locked')}
+            {vertragsart === 'freelance'
+              ? `Tagessatz: ${TAGESSATZ_ABSTIMMUNG}`
+              : gespraech?.salary_wish || item.salaryBand || t('bewerber.chips.salary_locked')}
           </span>
           <span className="flex items-center gap-1">
             <Laptop className="h-3 w-3" />

@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import { formatAnonymousCompanyShort, formatWorkModel } from '@/lib/anonymousCompanyFormat';
 import { FirmenLogo } from '@/components/company/FirmenLogo';
 import { cn } from '@/lib/utils';
-import { spezialistenSatz, verdienstJeTag } from '@/lib/recruiterContracting';
+import { spezialistenGrenze, verdienstJeTag } from '@/lib/recruiterContracting';
 import { Honorar } from './Honorar';
 
 interface JobPreviewPanelProps {
@@ -189,7 +189,7 @@ export function JobPreviewPanel({
           {tagVerdienst ? (
             <>
               <Fakt label="Dein Verdienst"><span className="text-emerald-500"><Honorar>{`${tagVerdienst} je Einsatztag`}</Honorar></span></Fakt>
-              <Fakt label="Tagessatz Spezialist">{spezialistenSatz(job) ?? 'k. A.'}</Fakt>
+              <Fakt label="Tagessatz Kandidat">{spezialistenGrenze(job) ?? 'k. A.'}</Fakt>
             </>
           ) : (
             <>

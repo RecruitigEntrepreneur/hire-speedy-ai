@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import type { CandidateFitAssessment, useCandidateFitAssessment } from '@/hooks/useCandidateFitAssessment';
 import { readGaps } from '@/lib/clientQuestions';
 import { fmtDatum, fuehrung, GESPRAECH, verfuegbarAus, type EducationEntry, type InterviewInsights } from './useCandidateInsights';
+import { TAGESSATZ_ABSTIMMUNG } from '@/lib/contractingKunde';
 
 // Ersetzte Namen („der Kandidat“) stehen oft am Satzanfang.
 const satz = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
@@ -32,7 +33,7 @@ function Zeile({ label, children }: { label: string; children: ReactNode }) {
  * anonymisiert über client_candidate_interview_view. Heutiges Gehalt, Mindestgehalt,
  * gesperrte Firmen und interne Einschätzungen bleiben beim Headhunter.
  */
-export function InterviewInsightsCard({ interview, recruiterNotes, recruiterName = null }: { interview: InterviewInsights | null; recruiterNotes: string | null; recruiterName?: string | null }) {
+export function InterviewInsightsCard({ interview, recruiterNotes, recruiterName = null, contracting = false }: { interview: InterviewInsights | null; recruiterNotes: string | null; recruiterName?: string | null; contracting?: boolean }) {
   const i = interview;
   const verfuegbar = verfuegbarAus(i);
   const wichtig = (i?.offer_requirements ?? []).filter(Boolean);
@@ -40,7 +41,8 @@ export function InterviewInsightsCard({ interview, recruiterNotes, recruiterName
     i.change_motivation?.trim() && { label: 'Warum wechseln', value: satz(i.change_motivation.trim()) },
     i.why_now?.trim() && { label: 'Warum jetzt', value: satz(i.why_now.trim()) },
     wichtig.length > 0 && { label: 'Wichtig ist', value: <span className="flex flex-wrap gap-1.5">{wichtig.map((w) => <Badge key={w} variant="secondary" className="font-normal">{w}</Badge>)}</span> },
-    i.salary_wish && { label: 'Gehaltswunsch', value: i.salary_wish },
+    // Contracting: nie der Satz des Kandidaten, der Kunde sieht seinen Preis (lib/contractingKunde)
+    contracting ? { label: 'Tagessatz', value: TAGESSATZ_ABSTIMMUNG } : i.salary_wish && { label: 'Gehaltswunsch', value: i.salary_wish },
     verfuegbar && { label: 'Verfügbar', value: verfuegbar },
     fuehrung(i) && { label: 'Führung', value: fuehrung(i) },
   ].filter(Boolean) as { label: string; value: ReactNode }[] : [];

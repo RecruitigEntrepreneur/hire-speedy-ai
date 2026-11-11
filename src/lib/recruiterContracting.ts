@@ -37,11 +37,39 @@ export function spezialistenSatz(job: Job): string | null {
   return s ? euroSpanne(s) : null;
 }
 
+/**
+ * "bis 810 €" -- die Obergrenze für den Kandidaten (Etappe 1, 04.11.2026). Die
+ * Spanne allein las sich wie ein Korridor; entscheidend ist, bis wohin der
+ * Kandidat gehen darf. Ohne Obergrenze die Untergrenze ("ab 660 €").
+ */
+export function spezialistenGrenze(job: Job): string | null {
+  if (!istContracting(job)) return null;
+  const bis = Number(feld(job, 'day_rate_max'));
+  if (Number.isFinite(bis) && bis > 0) return `bis ${euroSpanne([bis, bis])}`;
+  const ab = Number(feld(job, 'day_rate_min'));
+  return Number.isFinite(ab) && ab > 0 ? `ab ${euroSpanne([ab, ab])}` : null;
+}
+
+/** Fürs Gespräch: Vertragspartner und Status des Kandidaten. */
+export const VERTRAG_KANDIDAT =
+  'Vertrag und Rechnung laufen über Matchunt, nicht über den Kunden. Selbstständig: eigene Rechnung, eigene Versicherung, keine Anstellung.';
+
 /** "44–110 €" -- was der Recruiter je Einsatztag verdient. */
 export function verdienstJeTag(job: Job): string | null {
   if (!istContracting(job)) return null;
   const s = spanne(feld(job, 'recruiter_day_earning_min'), feld(job, 'recruiter_day_earning_max'));
   return s ? euroSpanne(s) : null;
+}
+
+/** "24.400–30.200 €" -- Verdienst über die ganze Laufzeit bei der angegebenen Auslastung, auf 100 € gerundet. */
+export function verdienstLaufzeit(job: Job): string | null {
+  if (!istContracting(job)) return null;
+  const s = spanne(feld(job, 'recruiter_day_earning_min'), feld(job, 'recruiter_day_earning_max'));
+  const tage = Number(feld(job, 'utilization_days_per_week'));
+  const monate = Number(feld(job, 'contract_duration_months'));
+  if (!s || !(tage > 0) || !(monate > 0)) return null;
+  const gesamt = (n: number) => Math.round((n * tage * 52 * monate) / 12 / 100) * 100;
+  return euroSpanne([gesamt(s[0]), gesamt(s[1])]);
 }
 
 /** "570–1.430 €" -- Verdienst im Monat bei der angegebenen Auslastung, auf 10 € gerundet. */

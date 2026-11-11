@@ -81,6 +81,41 @@ export function recruiterOfferUpdate(o: { recruiterFirstName: string | null; can
   return { subject: heading, html: layout({ preheader: o.candidateName, heading, body, cta: { label: 'Akte öffnen', url: o.akteUrl } }), text: plain(heading, o.akteUrl) };
 }
 
+// --- Contracting: Einsatz angefragt (Etappe 1, 11.11.2026) ------------------------
+// Bis Projektauftrag und Leistungsschein in der Plattform laufen, stimmt Matchunt
+// Tagessatz und Vertrag von Hand ab. Kein Angebot, kein Arbeitsvertrag.
+
+export interface EinsatzFacts { startDate: string; months: number; daysPerWeek: number }
+
+const einsatzZeile = (e: EinsatzFacts) => `Beginn ${day(e.startDate)} · ${e.months} Monate · ${e.daysPerWeek} Tage je Woche`;
+
+export function recruiterEinsatzAngefragt(o: { recruiterFirstName: string | null; candidateName: string; companyName: string; jobTitle: string; einsatz: EinsatzFacts; akteUrl: string }): MailContent {
+  const first = o.candidateName.trim().split(/\s+/)[0];
+  const heading = `${o.companyName} will ${o.candidateName} einsetzen`;
+  const body = [
+    p(`Hallo${o.recruiterFirstName ? ` ${esc(o.recruiterFirstName)}` : ''},`),
+    p(`${esc(o.companyName)} möchte <b style="font-weight:600">${esc(o.candidateName)}</b> als Spezialisten für ${esc(o.jobTitle)} einsetzen: ${esc(einsatzZeile(o.einsatz))}.`),
+    p(`Sag ${esc(first)} Bescheid. Matchunt meldet sich bei dir wegen seines Tagessatzes und des Vertrags. Ein Angebot über ein Gehalt gibt es bei Contracting nicht.`),
+  ].join('');
+  return {
+    subject: heading,
+    html: layout({ preheader: einsatzZeile(o.einsatz), heading, body, cta: { label: 'Akte öffnen', url: o.akteUrl } }),
+    text: plain(heading, einsatzZeile(o.einsatz), `Sag ${first} Bescheid. Matchunt meldet sich bei dir wegen seines Tagessatzes und des Vertrags.`, o.akteUrl),
+  };
+}
+
+export function adminEinsatzAngefragt(o: { candidateName: string; companyName: string; jobTitle: string; recruiterName: string; budget: string | null; einsatz: EinsatzFacts; url: string }): MailContent {
+  const heading = `Einsatz angefragt: ${o.candidateName} bei ${o.companyName}`;
+  const zeilen = [
+    `${o.jobTitle} · ${einsatzZeile(o.einsatz)}`,
+    o.budget ?? 'Kunde ohne Budget: Tagessatz je Einsatz abstimmen',
+    `Headhunter: ${o.recruiterName}`,
+  ];
+  const todo = 'Von Hand: Tagessatz mit dem Headhunter abstimmen, Projektauftrag an den Kunden, Freelancer-Vertrag und Leistungsschein an den Spezialisten.';
+  const body = [...zeilen.map((z) => p(esc(z))), p(muted(esc(todo)))].join('');
+  return { subject: heading, html: layout({ preheader: zeilen[0], heading, body, cta: { label: 'Bewerbung öffnen', url: o.url } }), text: plain(heading, ...zeilen, todo, o.url) };
+}
+
 // --- An den Kunden ---------------------------------------------------------------
 
 export type AnswerWay = 'accepted' | 'considering' | 'countered' | 'declined';

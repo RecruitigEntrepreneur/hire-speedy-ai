@@ -1,4 +1,5 @@
 import { verguetung } from './jobPosting';
+import { spezialistenGrenze } from './recruiterContracting';
 import { briefingText } from './recruiterBriefing';
 import type { WorkspaceJob } from '@/components/recruiter/RecruiterJobWorkspace';
 
@@ -28,7 +29,9 @@ export function kopfFakten(job: WorkspaceJob): KopfFakt[] {
   const freelance = job.employment_type === 'freelance';
   const geld = verguetung(job);
   const monate = briefingText(job.salary_months);
-  if (geld) out.push({ symbol: 'geld', text: freelance ? `${geld}, zzgl. USt` : `${geld}${monate ? ` × ${monate}` : ''}` });
+  // Contracting: die Obergrenze für den Kandidaten statt der Spanne (Etappe 1, 04.11.2026)
+  const grenze = freelance ? spezialistenGrenze(job) : null;
+  if (geld) out.push({ symbol: 'geld', text: freelance ? `${grenze ?? geld} pro Tag, zzgl. USt` : `${geld}${monate ? ` × ${monate}` : ''}` });
   if (freelance) {
     const laufzeit = zahl(job.contract_duration_months);
     const umfang = zahl(job.utilization_days_per_week);

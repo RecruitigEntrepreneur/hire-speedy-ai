@@ -78,6 +78,7 @@ import { candidateAnonCode } from '@/lib/anonymization';
 import { clientTasksApi, taskMainLabel, useClientTasksFor, type ClientTask } from '@/lib/clientTasksApi';
 import { ClientTaskWindow, type TaskHandlers } from '@/components/client/tasks/ClientTaskWindow';
 import { ProfileTaskCards, ProfileTaskCardsLoading, TASK_ICON } from '@/components/client/tasks/ClientTaskParts';
+import { kundenGeld } from '@/lib/contractingKunde';
 
 // ============================================================================
 // Helpers
@@ -260,7 +261,7 @@ export default function CandidateDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('jobs')
-        .select('skills, must_haves, nice_to_haves, salary_min, salary_max, experience_level, location, remote_policy, onsite_required')
+        .select('skills, must_haves, nice_to_haves, salary_min, salary_max, experience_level, location, remote_policy, onsite_required, employment_type')
         .eq('id', candidateView!.jobId)
         .single();
       if (error) throw error;
@@ -270,6 +271,7 @@ export default function CandidateDetail() {
         nice_to_haves: string[] | null;
         salary_min: number | null;
         salary_max: number | null;
+        employment_type: string | null;
         experience_level: string | null;
         location: string | null;
         remote_policy: string | null;
@@ -518,7 +520,9 @@ export default function CandidateDetail() {
   // ist der Kunde am Zug und bekommt die Primäraktion „Vorschlag prüfen".
   const isPendingCandidate = state.key === 'wartet_kandidat';
   const iv = insights?.interview ?? null;
-  const gehalt = iv?.salary_wish ?? salaryRange;
+  // Contracting: nie Gehalt oder Satz des Kandidaten, sondern der Hinweis (lib/contractingKunde).
+  const geld = kundenGeld(jobReqs?.employment_type, iv?.salary_wish ?? salaryRange);
+  const gehalt = geld.value;
   const tsd = (n: number) => Math.round(n / 1000);
   const budget = jobReqs?.salary_min || jobReqs?.salary_max
     ? jobReqs.salary_min && jobReqs.salary_max ? `${tsd(jobReqs.salary_min)}–${tsd(jobReqs.salary_max)} T€` : `${tsd((jobReqs.salary_min || jobReqs.salary_max)!)} T€`
@@ -540,7 +544,7 @@ export default function CandidateDetail() {
         facts: [
           { label: 'Seniorität', value: fmtSeniority(seniority) },
           { label: 'Erfahrung', value: experience },
-          { label: 'Gehaltswunsch', value: gehalt },
+          { label: geld.label, value: gehalt },
           { label: 'Verfügbar', value: verfuegbar },
           { label: 'Region', value: region },
           { label: 'Arbeitsmodell', value: enrichedWorkModel },
@@ -859,7 +863,7 @@ export default function CandidateDetail() {
             <div className="mt-4 pt-3 border-t flex flex-wrap items-center gap-x-4 gap-y-1.5">
               <KeyFactChip icon={GraduationCap} label="Seniorität" value={fmtSeniority(seniority)} faded={isPlaceholder(seniority)} />
               <KeyFactChip icon={Briefcase} label="Erfahrung" value={experience} faded={isPlaceholder(experience)} />
-              <KeyFactChip icon={Banknote} label="Gehaltswunsch" value={gehalt} faded={isPlaceholder(gehalt)} />
+              <KeyFactChip icon={Banknote} label={geld.label} value={gehalt} faded={isPlaceholder(gehalt)} />
               {budget && <KeyFactChip icon={Banknote} label="Ihre Stelle" value={budget} />}
               <KeyFactChip icon={Clock} label="Verfügbar" value={verfuegbar} faded={isPlaceholder(verfuegbar)} />
               <KeyFactChip icon={MapPin} label="Region" value={region} faded={isPlaceholder(region)} />
@@ -1013,7 +1017,7 @@ export default function CandidateDetail() {
                 </CardContent>
               </Card>
             )}
-            <InterviewInsightsCard interview={iv} recruiterNotes={null} recruiterName={submitter?.name ?? null} />
+            <InterviewInsightsCard interview={iv} recruiterNotes={null} recruiterName={submitter?.name ?? null} contracting={jobReqs?.employment_type === 'freelance'} />
             <FitTextCard fit={fit} />
             <MussKriterienCard assessment={fit.assessment} />
           </div>
