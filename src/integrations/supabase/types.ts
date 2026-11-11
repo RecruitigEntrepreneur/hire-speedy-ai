@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      accounting_periods: {
+        Row: {
+          locked_at: string
+          locked_by: string | null
+          period: string
+        }
+        Insert: {
+          locked_at?: string
+          locked_by?: string | null
+          period: string
+        }
+        Update: {
+          locked_at?: string
+          locked_by?: string | null
+          period?: string
+        }
+        Relationships: []
+      }
       activity_logs: {
         Row: {
           action: string
@@ -80,6 +98,119 @@ export type Database = {
           name?: string
           trigger_event?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      bank_imports: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          file_name: string
+          format: string
+          id: string
+          period_from: string | null
+          period_to: string | null
+          row_count: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          file_name: string
+          format: string
+          id?: string
+          period_from?: string | null
+          period_to?: string | null
+          row_count?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          file_name?: string
+          format?: string
+          id?: string
+          period_from?: string | null
+          period_to?: string | null
+          row_count?: number
+        }
+        Relationships: []
+      }
+      bank_transactions: {
+        Row: {
+          amount_cents: number
+          booked_at: string | null
+          booked_by: string | null
+          booked_on: string
+          counterparty: string | null
+          counterparty_iban: string | null
+          created_at: string
+          credit_note_id: string | null
+          fingerprint: string
+          id: string
+          import_id: string | null
+          invoice_id: string | null
+          purpose: string | null
+          status: string
+        }
+        Insert: {
+          amount_cents: number
+          booked_at?: string | null
+          booked_by?: string | null
+          booked_on: string
+          counterparty?: string | null
+          counterparty_iban?: string | null
+          created_at?: string
+          credit_note_id?: string | null
+          fingerprint: string
+          id?: string
+          import_id?: string | null
+          invoice_id?: string | null
+          purpose?: string | null
+          status?: string
+        }
+        Update: {
+          amount_cents?: number
+          booked_at?: string | null
+          booked_by?: string | null
+          booked_on?: string
+          counterparty?: string | null
+          counterparty_iban?: string | null
+          created_at?: string
+          credit_note_id?: string | null
+          fingerprint?: string
+          id?: string
+          import_id?: string | null
+          invoice_id?: string | null
+          purpose?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_transactions_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "bank_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
         }
         Relationships: []
       }
@@ -2842,6 +2973,42 @@ export type Database = {
           },
         ]
       }
+      client_cooperation_events: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          deadline: string | null
+          id: string
+          job_id: string | null
+          kind: string
+          note: string | null
+          owner_id: string
+          stage: number | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          deadline?: string | null
+          id?: string
+          job_id?: string | null
+          kind: string
+          note?: string | null
+          owner_id: string
+          stage?: number | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          deadline?: string | null
+          id?: string
+          job_id?: string | null
+          kind?: string
+          note?: string | null
+          owner_id?: string
+          stage?: number | null
+        }
+        Relationships: []
+      }
       client_framework_agreements: {
         Row: {
           agb_sha256: string | null
@@ -4126,6 +4293,7 @@ export type Database = {
           annual_revenue: string | null
           benefits: Json | null
           billing_cc_emails: string[]
+          billing_country: string | null
           billing_email: string | null
           brand_color_primary: string | null
           brand_color_secondary: string | null
@@ -4172,6 +4340,7 @@ export type Database = {
           annual_revenue?: string | null
           benefits?: Json | null
           billing_cc_emails?: string[]
+          billing_country?: string | null
           billing_email?: string | null
           brand_color_primary?: string | null
           brand_color_secondary?: string | null
@@ -4218,6 +4387,7 @@ export type Database = {
           annual_revenue?: string | null
           benefits?: Json | null
           billing_cc_emails?: string[]
+          billing_country?: string | null
           billing_email?: string | null
           brand_color_primary?: string | null
           brand_color_secondary?: string | null
@@ -4406,16 +4576,21 @@ export type Database = {
       continuity_claims: {
         Row: {
           category: string
+          client_sphere: boolean
           created_at: string
           deadline: string
           decided_at: string | null
           decided_by: string | null
+          decision_note: string | null
           description: string | null
           evidence: Json
           id: string
+          kind: string
           known_at: string
           mandate_id: string | null
           placement_id: string
+          recruiter_statement: string | null
+          recruiter_statement_at: string | null
           rejection_reason: string | null
           reported_at: string
           reported_by: string | null
@@ -4425,16 +4600,21 @@ export type Database = {
         }
         Insert: {
           category: string
+          client_sphere?: boolean
           created_at?: string
           deadline: string
           decided_at?: string | null
           decided_by?: string | null
+          decision_note?: string | null
           description?: string | null
           evidence?: Json
           id?: string
+          kind?: string
           known_at: string
           mandate_id?: string | null
           placement_id: string
+          recruiter_statement?: string | null
+          recruiter_statement_at?: string | null
           rejection_reason?: string | null
           reported_at?: string
           reported_by?: string | null
@@ -4444,16 +4624,21 @@ export type Database = {
         }
         Update: {
           category?: string
+          client_sphere?: boolean
           created_at?: string
           deadline?: string
           decided_at?: string | null
           decided_by?: string | null
+          decision_note?: string | null
           description?: string | null
           evidence?: Json
           id?: string
+          kind?: string
           known_at?: string
           mandate_id?: string | null
           placement_id?: string
+          recruiter_statement?: string | null
+          recruiter_statement_at?: string | null
           rejection_reason?: string | null
           reported_at?: string
           reported_by?: string | null
@@ -4611,6 +4796,86 @@ export type Database = {
           vendor_street?: string
           vendor_vat_id?: string | null
           version?: number
+        }
+        Relationships: []
+      }
+      credit_note_objections: {
+        Row: {
+          created_at: string
+          credit_note_id: string
+          id: string
+          note: string
+          recruiter_id: string
+          resolution: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          topic: string
+        }
+        Insert: {
+          created_at?: string
+          credit_note_id: string
+          id?: string
+          note: string
+          recruiter_id: string
+          resolution?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          topic: string
+        }
+        Update: {
+          created_at?: string
+          credit_note_id?: string
+          id?: string
+          note?: string
+          recruiter_id?: string
+          resolution?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          topic?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_note_objections_credit_note_id_fkey"
+            columns: ["credit_note_id"]
+            isOneToOne: false
+            referencedRelation: "recruiter_credit_notes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_note_runs: {
+        Row: {
+          created_at: string
+          id: string
+          issued_at: string
+          issued_by: string | null
+          period: string
+          sepa_created_at: string | null
+          sepa_path: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          issued_at?: string
+          issued_by?: string | null
+          period: string
+          sepa_created_at?: string | null
+          sepa_path?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          issued_at?: string
+          issued_by?: string | null
+          period?: string
+          sepa_created_at?: string | null
+          sepa_path?: string | null
+          status?: string
         }
         Relationships: []
       }
@@ -7577,10 +7842,110 @@ export type Database = {
           },
         ]
       }
+      invoice_payments: {
+        Row: {
+          amount_cents: number
+          bank_transaction_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          invoice_id: string
+          note: string | null
+          paid_on: string
+          source: string
+        }
+        Insert: {
+          amount_cents: number
+          bank_transaction_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_id: string
+          note?: string | null
+          paid_on: string
+          source?: string
+        }
+        Update: {
+          amount_cents?: number
+          bank_transaction_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_id?: string
+          note?: string | null
+          paid_on?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_reminders: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          fee_cents: number
+          id: string
+          interest_cents: number
+          invoice_id: string
+          level: number
+          note: string | null
+          open_cents: number | null
+          pay_until: string | null
+          sent_at: string | null
+          sent_to: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          fee_cents?: number
+          id?: string
+          interest_cents?: number
+          invoice_id: string
+          level: number
+          note?: string | null
+          open_cents?: number | null
+          pay_until?: string | null
+          sent_at?: string | null
+          sent_to?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          fee_cents?: number
+          id?: string
+          interest_cents?: number
+          invoice_id?: string
+          level?: number
+          note?: string | null
+          open_cents?: number | null
+          pay_until?: string | null
+          sent_at?: string | null
+          sent_to?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_reminders_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
           amount: number
           amount_cents: number | null
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by_invoice_id: string | null
           client_id: string
           client_paid_reported_at: string | null
           client_paid_reported_by: string | null
@@ -7590,6 +7955,7 @@ export type Database = {
           created_at: string
           currency: string | null
           due_date: string | null
+          dunning_level: number
           id: string
           invoice_number: string
           invoice_type: string
@@ -7604,11 +7970,14 @@ export type Database = {
           pdf_path: string | null
           pdf_url: string | null
           placement_id: string
+          po_follows: boolean
           pricing_snapshot: Json | null
           purchase_order: string | null
           recipient: Json | null
           released_at: string | null
           released_by: string | null
+          reminder_sent_at: string | null
+          research_offer_id: string | null
           reverse_charge: boolean
           sent_at: string | null
           sent_to: string | null
@@ -7618,6 +7987,7 @@ export type Database = {
           submission_id: string | null
           tax_amount: number | null
           tax_amount_cents: number | null
+          tax_case: string | null
           total_amount: number
           total_amount_cents: number | null
           updated_at: string
@@ -7626,6 +7996,9 @@ export type Database = {
         Insert: {
           amount: number
           amount_cents?: number | null
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by_invoice_id?: string | null
           client_id: string
           client_paid_reported_at?: string | null
           client_paid_reported_by?: string | null
@@ -7635,6 +8008,7 @@ export type Database = {
           created_at?: string
           currency?: string | null
           due_date?: string | null
+          dunning_level?: number
           id?: string
           invoice_number: string
           invoice_type?: string
@@ -7649,11 +8023,14 @@ export type Database = {
           pdf_path?: string | null
           pdf_url?: string | null
           placement_id: string
+          po_follows?: boolean
           pricing_snapshot?: Json | null
           purchase_order?: string | null
           recipient?: Json | null
           released_at?: string | null
           released_by?: string | null
+          reminder_sent_at?: string | null
+          research_offer_id?: string | null
           reverse_charge?: boolean
           sent_at?: string | null
           sent_to?: string | null
@@ -7663,6 +8040,7 @@ export type Database = {
           submission_id?: string | null
           tax_amount?: number | null
           tax_amount_cents?: number | null
+          tax_case?: string | null
           total_amount: number
           total_amount_cents?: number | null
           updated_at?: string
@@ -7671,6 +8049,9 @@ export type Database = {
         Update: {
           amount?: number
           amount_cents?: number | null
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by_invoice_id?: string | null
           client_id?: string
           client_paid_reported_at?: string | null
           client_paid_reported_by?: string | null
@@ -7680,6 +8061,7 @@ export type Database = {
           created_at?: string
           currency?: string | null
           due_date?: string | null
+          dunning_level?: number
           id?: string
           invoice_number?: string
           invoice_type?: string
@@ -7694,11 +8076,14 @@ export type Database = {
           pdf_path?: string | null
           pdf_url?: string | null
           placement_id?: string
+          po_follows?: boolean
           pricing_snapshot?: Json | null
           purchase_order?: string | null
           recipient?: Json | null
           released_at?: string | null
           released_by?: string | null
+          reminder_sent_at?: string | null
+          research_offer_id?: string | null
           reverse_charge?: boolean
           sent_at?: string | null
           sent_to?: string | null
@@ -7708,6 +8093,7 @@ export type Database = {
           submission_id?: string | null
           tax_amount?: number | null
           tax_amount_cents?: number | null
+          tax_case?: string | null
           total_amount?: number
           total_amount_cents?: number | null
           updated_at?: string
@@ -8107,6 +8493,7 @@ export type Database = {
           contract_sensitive_topics: string | null
           contract_sent_digitally: boolean | null
           contract_type: string | null
+          cooperation_paused_at: string | null
           core_hours: string | null
           core_hours_detail: string | null
           created_at: string
@@ -8178,6 +8565,8 @@ export type Database = {
           requirements: string | null
           requirements_normalization_version: string | null
           requirements_normalized_at: string | null
+          research_for_placement_id: string | null
+          research_since: string | null
           reveal_envelope: Json | null
           reveal_trigger: string | null
           salary_flex: string | null
@@ -8245,6 +8634,7 @@ export type Database = {
           contract_sensitive_topics?: string | null
           contract_sent_digitally?: boolean | null
           contract_type?: string | null
+          cooperation_paused_at?: string | null
           core_hours?: string | null
           core_hours_detail?: string | null
           created_at?: string
@@ -8316,6 +8706,8 @@ export type Database = {
           requirements?: string | null
           requirements_normalization_version?: string | null
           requirements_normalized_at?: string | null
+          research_for_placement_id?: string | null
+          research_since?: string | null
           reveal_envelope?: Json | null
           reveal_trigger?: string | null
           salary_flex?: string | null
@@ -8383,6 +8775,7 @@ export type Database = {
           contract_sensitive_topics?: string | null
           contract_sent_digitally?: boolean | null
           contract_type?: string | null
+          cooperation_paused_at?: string | null
           core_hours?: string | null
           core_hours_detail?: string | null
           created_at?: string
@@ -8454,6 +8847,8 @@ export type Database = {
           requirements?: string | null
           requirements_normalization_version?: string | null
           requirements_normalized_at?: string | null
+          research_for_placement_id?: string | null
+          research_since?: string | null
           reveal_envelope?: Json | null
           reveal_trigger?: string | null
           salary_flex?: string | null
@@ -11686,8 +12081,10 @@ export type Database = {
         Row: {
           agreed_salary: number | null
           client_fee_cents: number | null
+          client_sphere_at: string | null
           compensation_verified_at: string | null
           compensation_verified_by: string | null
+          conditions_version: number | null
           continuity_end_date: string | null
           continuity_state: string
           cost_center: string | null
@@ -11705,6 +12102,9 @@ export type Database = {
           escrow_status: string | null
           first_working_day: string | null
           gross_annual_target_compensation_cents: number | null
+          halfway_at: string | null
+          halfway_note: string | null
+          halfway_status: string | null
           id: string
           invoice_state: string
           mandate_id: string | null
@@ -11726,23 +12126,40 @@ export type Database = {
           recruiter_initial_cents: number | null
           recruiter_payout: number | null
           recruiter_retention_cents: number | null
+          replaces_placement_id: string | null
+          research_bounty_cents: number | null
+          research_end_reason: string | null
+          research_ended_at: string | null
+          research_job_id: string | null
+          research_kind: string | null
+          research_started_at: string | null
           research_state: string
           retention_release_date: string | null
           retention_state: string
           start_confirmed_at: string | null
           start_confirmed_by: string | null
+          start_contest_note: string | null
+          start_contested_at: string | null
           start_date: string | null
+          start_fixed_at: string | null
+          start_fixed_how: string | null
           start_moved_at: string | null
           start_moved_by: string | null
           start_moved_note: string | null
+          start_report_kind: string | null
+          start_reported_at: string | null
+          start_reported_by: string | null
+          start_reported_on: string | null
           submission_id: string
           total_fee: number | null
         }
         Insert: {
           agreed_salary?: number | null
           client_fee_cents?: number | null
+          client_sphere_at?: string | null
           compensation_verified_at?: string | null
           compensation_verified_by?: string | null
+          conditions_version?: number | null
           continuity_end_date?: string | null
           continuity_state?: string
           cost_center?: string | null
@@ -11760,6 +12177,9 @@ export type Database = {
           escrow_status?: string | null
           first_working_day?: string | null
           gross_annual_target_compensation_cents?: number | null
+          halfway_at?: string | null
+          halfway_note?: string | null
+          halfway_status?: string | null
           id?: string
           invoice_state?: string
           mandate_id?: string | null
@@ -11781,23 +12201,40 @@ export type Database = {
           recruiter_initial_cents?: number | null
           recruiter_payout?: number | null
           recruiter_retention_cents?: number | null
+          replaces_placement_id?: string | null
+          research_bounty_cents?: number | null
+          research_end_reason?: string | null
+          research_ended_at?: string | null
+          research_job_id?: string | null
+          research_kind?: string | null
+          research_started_at?: string | null
           research_state?: string
           retention_release_date?: string | null
           retention_state?: string
           start_confirmed_at?: string | null
           start_confirmed_by?: string | null
+          start_contest_note?: string | null
+          start_contested_at?: string | null
           start_date?: string | null
+          start_fixed_at?: string | null
+          start_fixed_how?: string | null
           start_moved_at?: string | null
           start_moved_by?: string | null
           start_moved_note?: string | null
+          start_report_kind?: string | null
+          start_reported_at?: string | null
+          start_reported_by?: string | null
+          start_reported_on?: string | null
           submission_id: string
           total_fee?: number | null
         }
         Update: {
           agreed_salary?: number | null
           client_fee_cents?: number | null
+          client_sphere_at?: string | null
           compensation_verified_at?: string | null
           compensation_verified_by?: string | null
+          conditions_version?: number | null
           continuity_end_date?: string | null
           continuity_state?: string
           cost_center?: string | null
@@ -11815,6 +12252,9 @@ export type Database = {
           escrow_status?: string | null
           first_working_day?: string | null
           gross_annual_target_compensation_cents?: number | null
+          halfway_at?: string | null
+          halfway_note?: string | null
+          halfway_status?: string | null
           id?: string
           invoice_state?: string
           mandate_id?: string | null
@@ -11836,15 +12276,30 @@ export type Database = {
           recruiter_initial_cents?: number | null
           recruiter_payout?: number | null
           recruiter_retention_cents?: number | null
+          replaces_placement_id?: string | null
+          research_bounty_cents?: number | null
+          research_end_reason?: string | null
+          research_ended_at?: string | null
+          research_job_id?: string | null
+          research_kind?: string | null
+          research_started_at?: string | null
           research_state?: string
           retention_release_date?: string | null
           retention_state?: string
           start_confirmed_at?: string | null
           start_confirmed_by?: string | null
+          start_contest_note?: string | null
+          start_contested_at?: string | null
           start_date?: string | null
+          start_fixed_at?: string | null
+          start_fixed_how?: string | null
           start_moved_at?: string | null
           start_moved_by?: string | null
           start_moved_note?: string | null
+          start_report_kind?: string | null
+          start_reported_at?: string | null
+          start_reported_by?: string | null
+          start_reported_on?: string | null
           submission_id?: string
           total_fee?: number | null
         }
@@ -12238,6 +12693,114 @@ export type Database = {
         }
         Relationships: []
       }
+      recruiter_account_codes: {
+        Row: {
+          attempts: number
+          code_hash: string
+          created_at: string
+          expires_at: string
+          id: string
+          recruiter_id: string
+          used_at: string | null
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          recruiter_id: string
+          used_at?: string | null
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          recruiter_id?: string
+          used_at?: string | null
+        }
+        Relationships: []
+      }
+      recruiter_billing_profiles: {
+        Row: {
+          account_holder: string | null
+          bic: string | null
+          city: string | null
+          country: string
+          created_at: string
+          iban: string | null
+          iban_confirmed_at: string | null
+          legal_form: string | null
+          legal_name: string | null
+          pending_account_holder: string | null
+          pending_bic: string | null
+          pending_confirmed_at: string | null
+          pending_effective_at: string | null
+          pending_iban: string | null
+          pending_requested_at: string | null
+          postal_code: string | null
+          recruiter_id: string
+          self_billing_objected_at: string | null
+          street: string | null
+          tax_mode: string
+          tax_number: string | null
+          updated_at: string
+          vat_id: string | null
+        }
+        Insert: {
+          account_holder?: string | null
+          bic?: string | null
+          city?: string | null
+          country?: string
+          created_at?: string
+          iban?: string | null
+          iban_confirmed_at?: string | null
+          legal_form?: string | null
+          legal_name?: string | null
+          pending_account_holder?: string | null
+          pending_bic?: string | null
+          pending_confirmed_at?: string | null
+          pending_effective_at?: string | null
+          pending_iban?: string | null
+          pending_requested_at?: string | null
+          postal_code?: string | null
+          recruiter_id: string
+          self_billing_objected_at?: string | null
+          street?: string | null
+          tax_mode?: string
+          tax_number?: string | null
+          updated_at?: string
+          vat_id?: string | null
+        }
+        Update: {
+          account_holder?: string | null
+          bic?: string | null
+          city?: string | null
+          country?: string
+          created_at?: string
+          iban?: string | null
+          iban_confirmed_at?: string | null
+          legal_form?: string | null
+          legal_name?: string | null
+          pending_account_holder?: string | null
+          pending_bic?: string | null
+          pending_confirmed_at?: string | null
+          pending_effective_at?: string | null
+          pending_iban?: string | null
+          pending_requested_at?: string | null
+          postal_code?: string | null
+          recruiter_id?: string
+          self_billing_objected_at?: string | null
+          street?: string | null
+          tax_mode?: string
+          tax_number?: string | null
+          updated_at?: string
+          vat_id?: string | null
+        }
+        Relationships: []
+      }
       recruiter_booking_pages: {
         Row: {
           active: boolean
@@ -12479,6 +13042,66 @@ export type Database = {
           },
         ]
       }
+      recruiter_client_reports: {
+        Row: {
+          created_at: string
+          handled_at: string | null
+          handled_by: string | null
+          id: string
+          job_id: string
+          note: string
+          recruiter_id: string
+          status: string
+          topic: string
+        }
+        Insert: {
+          created_at?: string
+          handled_at?: string | null
+          handled_by?: string | null
+          id?: string
+          job_id: string
+          note: string
+          recruiter_id: string
+          status?: string
+          topic: string
+        }
+        Update: {
+          created_at?: string
+          handled_at?: string | null
+          handled_by?: string | null
+          id?: string
+          job_id?: string
+          note?: string
+          recruiter_id?: string
+          status?: string
+          topic?: string
+        }
+        Relationships: []
+      }
+      recruiter_condition_consents: {
+        Row: {
+          consented_at: string
+          created_at: string
+          id: string
+          recruiter_id: string
+          version: number
+        }
+        Insert: {
+          consented_at?: string
+          created_at?: string
+          id?: string
+          recruiter_id: string
+          version: number
+        }
+        Update: {
+          consented_at?: string
+          created_at?: string
+          id?: string
+          recruiter_id?: string
+          version?: number
+        }
+        Relationships: []
+      }
       recruiter_contract_envelopes: {
         Row: {
           approved_at: string
@@ -12573,6 +13196,83 @@ export type Database = {
             columns: ["case_id"]
             isOneToOne: false
             referencedRelation: "recruiter_onboarding_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recruiter_credit_notes: {
+        Row: {
+          created_at: string
+          iban_masked: string | null
+          id: string
+          issued_on: string
+          lines: Json
+          net_cents: number
+          number: string
+          paid_on: string | null
+          pay_until: string | null
+          pdf_path: string | null
+          period: string
+          recipient: Json
+          recruiter_id: string
+          run_id: string | null
+          sent_at: string | null
+          status: string
+          tax_mode: string
+          total_cents: number
+          vat_cents: number
+          vat_rate: number
+        }
+        Insert: {
+          created_at?: string
+          iban_masked?: string | null
+          id?: string
+          issued_on: string
+          lines?: Json
+          net_cents: number
+          number: string
+          paid_on?: string | null
+          pay_until?: string | null
+          pdf_path?: string | null
+          period: string
+          recipient?: Json
+          recruiter_id: string
+          run_id?: string | null
+          sent_at?: string | null
+          status?: string
+          tax_mode: string
+          total_cents: number
+          vat_cents?: number
+          vat_rate?: number
+        }
+        Update: {
+          created_at?: string
+          iban_masked?: string | null
+          id?: string
+          issued_on?: string
+          lines?: Json
+          net_cents?: number
+          number?: string
+          paid_on?: string | null
+          pay_until?: string | null
+          pdf_path?: string | null
+          period?: string
+          recipient?: Json
+          recruiter_id?: string
+          run_id?: string | null
+          sent_at?: string | null
+          status?: string
+          tax_mode?: string
+          total_cents?: number
+          vat_cents?: number
+          vat_rate?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recruiter_credit_notes_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "credit_note_runs"
             referencedColumns: ["id"]
           },
         ]
@@ -13108,6 +13808,7 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           created_at: string
+          credit_note_id: string | null
           due_condition: string
           due_date: string | null
           forfeit_reason: string | null
@@ -13126,6 +13827,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           created_at?: string
+          credit_note_id?: string | null
           due_condition: string
           due_date?: string | null
           forfeit_reason?: string | null
@@ -13144,6 +13846,7 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           created_at?: string
+          credit_note_id?: string | null
           due_condition?: string
           due_date?: string | null
           forfeit_reason?: string | null
@@ -13919,6 +14622,76 @@ export type Database = {
             foreignKeyName: "research_assignments_succeeded_placement_id_fkey"
             columns: ["succeeded_placement_id"]
             isOneToOne: false
+            referencedRelation: "recruiter_placements_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      research_offers: {
+        Row: {
+          answered_at: string | null
+          answered_by: string | null
+          created_at: string
+          decided_at: string
+          decided_by: string | null
+          decision: string
+          id: string
+          invoice_id: string | null
+          note: string | null
+          placement_id: string
+          price_cents: number | null
+          status: string
+          valid_until: string | null
+        }
+        Insert: {
+          answered_at?: string | null
+          answered_by?: string | null
+          created_at?: string
+          decided_at?: string
+          decided_by?: string | null
+          decision: string
+          id?: string
+          invoice_id?: string | null
+          note?: string | null
+          placement_id: string
+          price_cents?: number | null
+          status?: string
+          valid_until?: string | null
+        }
+        Update: {
+          answered_at?: string | null
+          answered_by?: string | null
+          created_at?: string
+          decided_at?: string
+          decided_by?: string | null
+          decision?: string
+          id?: string
+          invoice_id?: string | null
+          note?: string | null
+          placement_id?: string
+          price_cents?: number | null
+          status?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "research_offers_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: true
+            referencedRelation: "client_placements_view"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "research_offers_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: true
+            referencedRelation: "placements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "research_offers_placement_id_fkey"
+            columns: ["placement_id"]
+            isOneToOne: true
             referencedRelation: "recruiter_placements_view"
             referencedColumns: ["id"]
           },
@@ -16044,6 +16817,7 @@ export type Database = {
         Args: { p_job_id: string; p_user_id?: string }
         Returns: boolean
       }
+      can_see_job_billing: { Args: { _job_id: string }; Returns: boolean }
       client_account_of: {
         Args: { p_user_id: string }
         Returns: {

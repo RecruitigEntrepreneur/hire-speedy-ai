@@ -1,5 +1,12 @@
 # Roadmap
 
+## Auftrag 46 (11.11.2026) — Buchhaltung und Nachbesetzung
+- [x] Aktuelles main 5df7f12 geprüft; Auftrag 46 aus LOVABLE_DB_PROMPTS.md: Buchhaltung-Umbau, nicht der ältere Wartezustand-Auftrag.
+- [x] Vorprüfung: alle 15 neuen Tabellen mit GRANT vor RLS; zwölf Functions und verify_jwt vorhanden; Journal endet bei 0055, keine Buchhaltung-Migration enthalten.
+- [x] Ausschließlich 20261111100000_buchhaltung_umbau.sql bytegleich als 0056_buchhaltung_umbau angewendet; alle 15 Tabellen mit RLS/GRANTs und neue Spalten live bestätigt; Cron buchhaltung-taeglich aktiv, 30 6 * * *, mit privatem Cron-Schlüssel.
+- [x] Alle zwölf beauftragten Functions erfolgreich deployt: abrechnung, buchhaltung, buchhaltung-taeglich, placement, client-tasks, process-payout, recruiter-onboarding, contract-followups, contract-sign, contract-status, employment-contract, employment-docusign-webhook; keine manuellen Code- oder Secret-Änderungen, Schema-Typen automatisch regeneriert.
+- [x] Vorschau build OK; Sicherheitsprüfung unverändert sieben kritische Befunde (Freigabe zur Veröffentlichung bereits erteilt); Publish wird für matchunt.ai angefordert, Abschluss unbestätigt.
+
 ## Auftrag 45 (11.11.2026) — Einsatz anfragen
 - [x] Arbeitskopie und GitHub main identisch: 76a6fda; offer enthält einsatz_anfragen.
 - [x] Alle neun Functions erfolgreich deployt: offer, offer-answer, placement, process-rejection, contract-followups, contract-sign, contract-status, employment-contract, employment-docusign-webhook; Einstellungen laut config.toml.
