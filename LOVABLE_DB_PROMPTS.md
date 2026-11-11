@@ -1436,6 +1436,28 @@ Danach: `drizzle/migrations/meta/_journal.json` prüfen (vier neue Einträge nac
 
 ---
 
+## 45 — Contracting: Konditionen im Kunden-Dashboard, Einsatz anfragen statt Angebot (11.11.2026)
+
+Commits 12f44de und 95a51d3. **Keine Migration, 9 Edge Functions, Publish.** Erst nach Nr. 44.
+Bei Contracting gibt es danach kein Angebot über ein Gehalt mehr: Der Kunde fragt den Einsatz an, Matchunt
+stimmt Tagessatz, Projektauftrag und Leistungsschein von Hand ab und bekommt dafür Glocke und Mail.
+
+> 1. Aktuellen Stand von `main` übernehmen. Keine Migration ausführen, auch keine Datei, die noch nicht im Journal
+>    steht (die Akademie-Dateien `20261022…` sind weiter bewusst nicht dran). Keine neuen Tabellen, keine
+>    Daten-Einfügungen, kein Cron, keine neuen Secrets.
+> 2. Diese 9 Edge Functions deployen: `offer`, `offer-answer`, `placement`, `process-rejection`, `contract-followups`,
+>    `contract-sign`, `contract-status`, `employment-contract`, `employment-docusign-webhook`. Sie nutzen die
+>    geänderten Module `offer-service`, `offer-mails` und `placement-service`. `offer` hat die neue Aktion
+>    `einsatz_anfragen`.
+> 3. Danach Publish, damit die Oberfläche zu den Functions passt.
+> 4. Am Code nichts ändern. Keine Function überspringen. Falls etwas nicht durchläuft, alle Befunde gesammelt mit
+>    Grund melden. Am Ende melden: welche Functions deployt sind und dass Publish durch ist.
+
+Danach: `drizzle/migrations/meta/_journal.json` prüfen, darf sich nicht ändern (letzter Eintrag
+`0055_fuehrung_beides`).
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über
