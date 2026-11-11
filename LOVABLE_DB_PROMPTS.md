@@ -1458,6 +1458,42 @@ Danach: `drizzle/migrations/meta/_journal.json` prüfen, darf sich nicht ändern
 
 ---
 
+## 46 — Buchhaltung und Nachbesetzung: 1 Migration, 12 Edge Functions, Publish (11.11.2026)
+
+Commits 739417a und 05e1862. Erst nach Nr. 45. Gutschriften an Headhunter, Zahlungen aus dem Kontoauszug,
+Erinnerung und Mahnung, Storno, Antritt mit Gegenprobe, Nachbesetzung, Pakete & Konditionen. Bankverbindung und
+Nummernkreise fehlen noch (kommen später als Secrets `BILLING_*`); bis dahin sind nur „Rechnung freigeben“,
+Gutschriften und SEPA-Datei gesperrt, alles andere läuft.
+
+> 1. Aktuellen Stand von `main` übernehmen.
+> 2. Genau diese eine Migration über den Migrations-Flow ausführen: `supabase/migrations/20261111100000_buchhaltung_umbau.sql`.
+>    Keine andere Datei, die noch nicht im Journal steht (die Akademie-Dateien `20261022…` bleiben bewusst draußen).
+>    Inhalt: neue Spalten an `placements`, `jobs`, `invoices`, `continuity_claims`, `company_profiles`; neue Tabellen
+>    (`billing_settings`, `recruiter_condition_consents`, `recruiter_billing_profiles`, `recruiter_account_codes`,
+>    `invoice_payments`, `invoice_reminders`, `bank_imports`, `bank_transactions`, `credit_note_runs`,
+>    `recruiter_credit_notes`, `credit_note_objections`, `research_offers`, `client_cooperation_events`,
+>    `recruiter_client_reports`, `accounting_periods`), jeweils erst GRANT, dann RLS; ersetzte Trigger-Funktionen;
+>    neue Lese-Regel für Rechnungen (nur Rollen mit Abrechnung); ein **täglicher** Cron `buchhaltung-taeglich`
+>    um 06:30 mit eigenem Schlüssel (`private.cron_token_for`), wie bei `contract-followups`. Keine Daten-Einfügungen,
+>    kein BEGIN/COMMIT, keine Fremdschlüssel auf `auth.users`.
+> 3. Diese 12 Edge Functions deployen: neu `abrechnung`, `buchhaltung`, `buchhaltung-taeglich`; geändert `placement`,
+>    `client-tasks`, `process-payout`, `recruiter-onboarding`, `contract-followups`, `contract-sign`, `contract-status`,
+>    `employment-contract`, `employment-docusign-webhook`. `verify_jwt` steht in `supabase/config.toml`
+>    (`abrechnung` und `buchhaltung` true, `buchhaltung-taeglich` false wegen Cron-Schlüssel).
+> 4. Danach Publish, damit die Oberfläche zu den Functions passt. Die Reihenfolge ist wichtig: erst Migration, dann
+>    Functions, dann Publish – die neue Oberfläche ruft `abrechnung` und `buchhaltung` auf und liest die neuen Spalten.
+> 5. Am Code nichts ändern. Keine Function überspringen. Falls etwas nicht durchläuft, alle Befunde gesammelt mit
+>    Grund melden. Am Ende melden: Migration gelaufen (Journal-Eintrag), welche Functions deployt sind, ob der Cron
+>    `buchhaltung-taeglich` angelegt ist, und dass Publish durch ist.
+
+Danach: `drizzle/migrations/meta/_journal.json` prüfen (ein neuer Eintrag `…_buchhaltung_umbau` nach `0055_fuehrung_beides`).
+Später, wenn Marko sie hat, als Secrets eintragen (ohne Code-Änderung): `BILLING_BANK_HOLDER`, `BILLING_BANK_IBAN`,
+`BILLING_BANK_BIC`, `BILLING_BANK_NAME`, `BILLING_NUMBER_INVOICE`, `BILLING_NUMBER_CANCELLATION`,
+`BILLING_NUMBER_CREDIT_NOTE` (Vorlage z. B. `{YYYY}-{NNNN}` mit Präfix), je optional `…_START`, optional
+`BILLING_BASE_RATE_PCT` (Basiszinssatz für Mahnungen).
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über
