@@ -100,7 +100,7 @@ export async function loadSubmission(db: SupabaseClient, submissionId: string) {
   const { data: submission } = await db.from('submissions').select('id, job_id, candidate_id, recruiter_id, stage, identity_unlocked, company_revealed').eq('id', submissionId).maybeSingle();
   must(submission, 'Bewerbung nicht gefunden.', 'not_found');
   const [{ data: job }, { data: candidate }] = await Promise.all([
-    db.from('jobs').select('id, title, company_name, industry, client_id, organization_id, fee_percentage, mandate_id, status, research_for_placement_id').eq('id', (submission as any).job_id).maybeSingle(),
+    db.from('jobs').select('id, title, company_name, industry, client_id, organization_id, fee_percentage, mandate_id, status, employment_type, research_for_placement_id').eq('id', (submission as any).job_id).maybeSingle(),
     db.from('candidates').select('id, full_name').eq('id', (submission as any).candidate_id).maybeSingle(),
   ]);
   must(job, 'Stelle nicht gefunden.', 'not_found');
@@ -118,6 +118,12 @@ export async function onContractFinal(ctx: PlacementCtx, contractId: string) {
   const { data: existing } = await ctx.db.from('placements').select('id').eq('submission_id', c.submission_id).maybeSingle();
   if (existing) return { created: false, placementId: (existing as any).id };
   const b = await loadSubmission(ctx.db, c.submission_id);
+  // Contracting rechnet nach Einsatztagen ab, nie als Prozent vom Gehalt: keine Besetzung
+  // mit Honorar anlegen, Matchunt rechnet von Hand ab (Etappe 1, 11.11.2026).
+  if (b.job.employment_type === 'freelance') {
+    console.warn('[placement] Contracting-Stelle, keine Besetzung mit Honorar angelegt', b.job.id);
+    return { created: false, contracting: true };
+  }
   const gross = Math.round(((c.salary ?? 0) + (c.variable_salary ?? 0)) * 100);
   const nowIso = new Date(ctx.now()).toISOString();
 

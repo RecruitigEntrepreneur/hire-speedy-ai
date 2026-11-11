@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { ANTEIL_SPEZIALIST, spezialistenTagessatz } from '../../supabase/functions/_shared/contracting-konditionen';
-import { einsatzFuerKandidat, spezialistenSatz, verdienstImMonat, verdienstJeTag } from './recruiterContracting';
+import { einsatzFuerKandidat, spezialistenGrenze, spezialistenSatz, verdienstImMonat, verdienstJeTag, verdienstLaufzeit } from './recruiterContracting';
 
 // So liefert recruiter_jobs_view eine Contracting-Stelle mit Budget 400–1.000 € aus.
 const ausView = {
@@ -20,10 +20,25 @@ describe('Contracting für Recruiter', () => {
     expect(verdienstImMonat({ ...ausView, utilization_days_per_week: null })).toBeNull();
   });
 
+  it('nennt die Obergrenze für den Kandidaten, ohne sie die Untergrenze', () => {
+    expect(spezialistenGrenze(ausView)).toBe('bis 780 €');
+    expect(spezialistenGrenze({ ...ausView, day_rate_max: null })).toBe('ab 310 €');
+    expect(spezialistenGrenze({ ...ausView, day_rate_min: null, day_rate_max: null })).toBeNull();
+  });
+
+  it('rechnet die ganze Laufzeit, gerundet auf 100 €', () => {
+    // Budget 850–1.050 €, 5 Tage, 12 Monate: 94–116 € je Tag, 260 Einsatztage
+    const beispiel = { ...ausView, recruiter_day_earning_min: 94, recruiter_day_earning_max: 116, utilization_days_per_week: 5, contract_duration_months: 12 };
+    expect(verdienstLaufzeit(beispiel)).toBe('24.400–30.200 €');
+    expect(verdienstLaufzeit({ ...beispiel, contract_duration_months: null })).toBeNull();
+  });
+
   it('lässt Festanstellungen in Ruhe', () => {
     const fest = { employment_type: 'full-time', day_rate_min: 400, recruiter_day_earning_min: 44 };
     expect(spezialistenSatz(fest)).toBeNull();
     expect(verdienstJeTag(fest)).toBeNull();
+    expect(spezialistenGrenze(fest)).toBeNull();
+    expect(verdienstLaufzeit(fest)).toBeNull();
   });
 
   it('rundet den Satz des Spezialisten ab, nie auf', () => {

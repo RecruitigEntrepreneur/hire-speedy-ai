@@ -107,13 +107,12 @@ export function factEntries(facts: JobFacts): { eintraege: FactEntry[]; zertifik
   const eintraege: FactEntry[] = [];
 
   const rate = (value: number) => value.toLocaleString('de-DE');
-  const tagessatz = facts.dayRateMin != null && facts.dayRateMax != null
-    ? `${rate(facts.dayRateMin)} – ${rate(facts.dayRateMax)} € / Tag`
-    : facts.dayRateMin != null ? `ab ${rate(facts.dayRateMin)} € / Tag`
-    : facts.dayRateMax != null ? `bis ${rate(facts.dayRateMax)} € / Tag` : null;
+  // Die Obergrenze zählt, nicht der Korridor: bis wohin der Kandidat gehen darf (Etappe 1, 04.11.2026)
+  const tagessatz = facts.dayRateMax != null ? `bis ${rate(facts.dayRateMax)} € / Tag`
+    : facts.dayRateMin != null ? `ab ${rate(facts.dayRateMin)} € / Tag` : null;
   const gehalt = geld(facts.salaryMin, facts.salaryMax);
 
-  if (tagessatz) eintraege.push({ icon: Euro, label: 'Tagessatz Spezialist', wert: tagessatz });
+  if (tagessatz) eintraege.push({ icon: Euro, label: 'Tagessatz Kandidat', wert: tagessatz });
   /* "Gehalt" liess offen, was darin steckt -- der Katalog fragt woertlich nach
      dem FIXGEHALT ("In was fuer eine Range befindet sich das Fixgehalt?"), und
      die Monatsgehaelter sind eine eigene Frage. Beide Antworten liegen vor;

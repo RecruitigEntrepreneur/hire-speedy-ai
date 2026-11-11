@@ -6,7 +6,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { ArrowLeft, ChevronDown, ChevronUp, Loader2, Plus, Send, ShieldCheck, Users } from 'lucide-react';
 import { CONSENT_TEXT } from '@/components/intake/guest/consentText';
-import type { ClientFramework, CommercialChoice, PublicPackage } from '@/hooks/useClientIntake';
+import { ContractingKarte } from '@/components/intake/guest/SummaryStep';
+import { CONTRACTING_ZUSTIMMUNG } from '../../../../supabase/functions/_shared/contracting-konditionen';
+import { contractingUnterRahmen, type ClientFramework, type CommercialChoice, type PublicPackage } from '@/hooks/useClientIntake';
 
 /**
  * Einreichen im Dashboard.
@@ -17,6 +19,10 @@ import type { ClientFramework, CommercialChoice, PublicPackage } from '@/hooks/u
  *
  * Ohne Rahmenvertrag (einmalig je Kunde) waehlt der Kunde ein Paket und fragt
  * die Beauftragung an, mit demselben Einwilligungstext wie beim Link.
+ *
+ * Contracting kennt weder Pakete noch Prozente: dieselbe Karte "Konditionen
+ * Contracting" wie auf /start. Ohne Unterschrift nur unter einem Rahmenvertrag
+ * ab Fassung 2, sonst Anfrage mit der Zustimmung fuer Contracting.
  */
 
 interface Row { label: string; value: string }
@@ -29,6 +35,8 @@ interface Props {
   frameworkReadable: boolean;
   packages: PublicPackage[];
   isFreelance: boolean;
+  /** Gesetzt bei Contracting: das Budget aus der Aufnahme fuer die Konditionen-Karte. */
+  contracting?: { dayRateMin: number | null; dayRateMax: number | null } | null;
   /** Fachbereich mit interner Freigabe: geht an HR statt an Matchunt. */
   needsInternalApproval: boolean;
   /** Mitte des Gehaltsbands, fuer die Beispielrechnung. */
@@ -45,7 +53,7 @@ interface Props {
 const eur = (n: number) => `${Math.round(n).toLocaleString('de-DE')} €`;
 
 export function SubmitStep({
-  rows, framework, frameworkLoading, frameworkReadable, packages, isFreelance, needsInternalApproval,
+  rows, framework, frameworkLoading, frameworkReadable, packages, isFreelance, contracting = null, needsInternalApproval,
   exampleSalary, openQuestions, signerName, onBack, onDelegate, onSubmit, sperre = null,
 }: Props) {
   const [busy, setBusy] = useState(false);
@@ -104,8 +112,8 @@ export function SubmitStep({
         <div>
           <h2 className="text-2xl font-bold tracking-tight">Zur Freigabe an Ihre Personalabteilung</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            In Ihrem Unternehmen gibt HR neue Positionen frei, bevor sie an Matchunt gehen. Konditionen und
-            Aufstocken entscheidet HR beim Freigeben.
+            In Ihrem Unternehmen gibt HR neue Positionen frei, bevor sie an Matchunt gehen.{' '}
+            {contracting ? 'Die Konditionen bestätigt HR beim Freigeben.' : 'Konditionen und Aufstocken entscheidet HR beim Freigeben.'}
           </p>
         </div>
         {summary}
@@ -115,6 +123,74 @@ export function SubmitStep({
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Zur Freigabe senden
           </Button>
         </div>
+      </div>
+    );
+  }
+
+  // ---- Contracting ---------------------------------------------------------
+  if (contracting) {
+    if (frameworkLoading && frameworkReadable) {
+      return (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" /> Konditionen werden geladen …
+        </div>
+      );
+    }
+    const unterRv = contractingUnterRahmen(framework);
+    // HR/Admin sehen den Rahmenvertrag nicht (RLS): einreichen, Matchunt prueft.
+    const ohneEinsicht = !framework && !frameworkReadable;
+    const direkt = unterRv || ohneEinsicht;
+    const schluss = unterRv
+      ? 'Keine Unterschrift nötig. Matchunt prüft die Position und gibt sie frei.'
+      : ohneEinsicht
+        ? 'Matchunt prüft die Position und den Rahmenvertrag Ihres Unternehmens und gibt sie frei.'
+        : framework
+          ? `Ihr Rahmenvertrag ${framework.agreement_number} regelt bisher nur Festanstellung und gilt dafür unverändert weiter. `
+            + 'Für Contracting unterschreiben Sie einmal die aktuelle Fassung, Matchunt meldet sich dazu; erst danach starten wir die Suche.'
+          : 'Mit dem Absenden kommt noch kein Vertrag zustande. Matchunt meldet sich mit dem Rahmenvertrag zur Unterschrift; '
+            + 'erst danach starten wir die Suche.';
+    return (
+      <div className="mx-auto max-w-2xl space-y-5">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">{direkt ? 'Prüfen und einreichen' : 'Prüfen und anfragen'}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            So bekommen die Headhunter die Position, ohne Ihren Firmennamen.
+          </p>
+        </div>
+        {summary}
+        <ContractingKarte budget={contracting} />
+        {unterRv && framework && (
+          <p className="-mt-2 text-xs text-muted-foreground">
+            aus Rahmenvertrag {framework.agreement_number}
+            {framework.agreed_at ? ` · vereinbart am ${new Date(framework.agreed_at).toLocaleDateString('de-DE')}` : ''}
+          </p>
+        )}
+        {!direkt && (
+          <label className="flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-sm">
+            <Checkbox checked={consent} onCheckedChange={(v) => setConsent(v === true)} className="mt-0.5" />
+            <span className="space-y-1">
+              <span className="block">{CONTRACTING_ZUSTIMMUNG}</span>
+              <span className="block text-xs text-muted-foreground">Ihr Name: {signerName} · <Link to="/agb" className="underline">AGB</Link></span>
+            </span>
+          </label>
+        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={onBack} className="gap-1.5"><ArrowLeft className="h-4 w-4" /> Zurück</Button>
+          <Button
+            onClick={() => run({ package_key: null, upgraded: false })}
+            disabled={busy || !!sperre || (!direkt && !consent)}
+            className="gap-2"
+          >
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            {direkt ? 'Position einreichen' : 'Beauftragung anfragen'}
+          </Button>
+          {direkt && (
+            <Button variant="ghost" onClick={onDelegate} className="gap-1.5 text-muted-foreground">
+              <Users className="h-4 w-4" /> An Kollegen weitergeben
+            </Button>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground">{schluss}</p>
       </div>
     );
   }

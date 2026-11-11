@@ -79,7 +79,16 @@ export interface OfferContext {
   recommendation: Recommendation | null;
   currentOffer: OfferView | null;
   otherOpenOffers: number;
+  /** Contracting: kein Angebot über ein Gehalt, sondern „Einsatz anfragen“ (Etappe 1). */
+  contracting?: {
+    budget: string | null;
+    defaults: { months: number | null; daysPerWeek: number | null };
+    request: (EinsatzInput & { requestedAt: string }) | null;
+  } | null;
 }
+
+/** Was der Kunde beim Contracting anfragt; Tagessatz und Vertrag stimmt Matchunt danach ab. */
+export interface EinsatzInput { startDate: string; months: number; daysPerWeek: number }
 
 /** Sicht des Headhunters: Angebot, Empfehlung, Nachgespräch und Akte (Schmerzgrenze nur hier). */
 export interface RecruiterOfferContext {
@@ -136,6 +145,8 @@ export interface AnswerInput {
 export const offerApi = {
   context: (submissionId: string) => callFunction<OfferContext>('offer', { action: 'context', submissionId }),
   recruiterContext: (submissionId: string) => callFunction<RecruiterOfferContext>('offer', { action: 'recruiter_context', submissionId }),
+  einsatzAnfragen: (submissionId: string, input: EinsatzInput) =>
+    callFunction<{ ok: true; requestedAt: string; einsatz: EinsatzInput }>('offer', { action: 'einsatz_anfragen', submissionId, ...input }, 'Die Anfrage konnte nicht gesendet werden.'),
   create: (input: OfferInput) => callFunction<{ offerId: string; offer: OfferView; candidateMailAt: string | null }>('offer', { action: 'create', ...input }, 'Das Angebot konnte nicht gesendet werden.'),
   respond: (input: AnswerInput) => callFunction<{ ok: true; offer: OfferView; awaitingConfirmation?: boolean }>('offer', { action: 'respond', ...input }, 'Die Antwort konnte nicht gespeichert werden.'),
   /** Gespräch geführt: Mail mit dem Angebot geht sofort an den Kandidaten */

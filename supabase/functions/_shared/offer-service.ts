@@ -11,6 +11,7 @@ import type { SupabaseClient, User } from 'https://esm.sh/@supabase/supabase-js@
 import { canUserActOnJob } from './team-access.ts';
 import { dbFail, must, type ServiceCtx } from './interview-service.ts';
 import * as mails from './offer-mails.ts';
+import { budgetZeile } from './contracting-konditionen.ts';
 import { DECLINE_REASONS, cancelCandidateMails, candidateState, reportAccept, revokeCandidateLinks, scheduleCandidateMail, tellCandidateExtended, whenLabel } from './offer-candidate.ts';
 
 // accept_reported: Headhunter hat eine Zusage gemeldet, der Kandidat bestätigt noch (G + H, 25.10.2026)
@@ -37,7 +38,7 @@ async function loadBundle(db: SupabaseClient, submissionId: string): Promise<Bun
   dbFail(error, 'Die Bewerbung');
   must(submission, 'Bewerbung nicht gefunden.', 'not_found');
   const { data: job } = await db.from('jobs')
-    .select('id, title, company_name, industry, client_id, salary_min, salary_max, location, remote_type, onsite_days_required, benefits, fee_percentage, mandate_id')
+    .select('id, title, company_name, industry, client_id, salary_min, salary_max, location, remote_type, onsite_days_required, benefits, fee_percentage, mandate_id, employment_type, day_rate_min, day_rate_max, contract_duration_months, utilization_days_per_week')
     .eq('id', (submission as any).job_id).maybeSingle();
   must(job, 'Stelle nicht gefunden.', 'not_found');
   const { data: candidate } = await db.from('candidates').select('id, full_name, email').eq('id', (submission as any).candidate_id).maybeSingle();
@@ -72,6 +73,19 @@ async function loadOffer(db: SupabaseClient, offerId: unknown) {
 async function event(ctx: ServiceCtx, offerId: string, type: string, actorType: string, actorId: string | null, details: Record<string, unknown> = {}) {
   const { error } = await ctx.db.from('offer_events').insert({ offer_id: offerId, event_type: type, actor_type: actorType, actor_id: actorId, details });
   if (error) console.warn('[offer] Verlauf nicht gespeichert', error.code, error.message);
+}
+
+const isContracting = (job: any) => job?.employment_type === 'freelance';
+/** Protokolleintrag einer Einsatz-Anfrage (Contracting, Etappe 1) in activity_logs. */
+const EINSATZ_ANGEFRAGT = 'contracting_einsatz_angefragt';
+
+async function adminRecipients(db: SupabaseClient): Promise<{ id: string; email: string | null }[]> {
+  const { data } = await db.from('user_roles').select('user_id').eq('role', 'admin');
+  const ids = ((data ?? []) as any[]).map((r) => r.user_id);
+  if (!ids.length) return [];
+  const { data: profiles } = await db.from('profiles').select('user_id, email').in('user_id', ids);
+  const mail = new Map(((profiles ?? []) as any[]).map((r) => [r.user_id, r.email ?? null]));
+  return ids.map((id) => ({ id, email: mail.get(id) ?? null }));
 }
 
 async function notify(ctx: ServiceCtx, userId: string | null | undefined, type: string, title: string, message: string, relatedType: string, relatedId: string) {
@@ -137,6 +151,12 @@ export async function offerContext(ctx: ServiceCtx, user: User, body: any) {
     feePercent(ctx.db, b.job),
   ]);
   const rec = (recs ?? [])[0] as any;
+  const contracting = isContracting(b.job);
+  const { data: anfragen } = contracting
+    ? await ctx.db.from('activity_logs').select('details, created_at').eq('action', EINSATZ_ANGEFRAGT)
+      .eq('entity_type', 'submission').eq('entity_id', b.submission.id).order('created_at', { ascending: false }).limit(1)
+    : { data: [] };
+  const anfrage = ((anfragen ?? []) as any[])[0];
   return {
     submissionId: b.submission.id,
     candidateName: b.submission.identity_unlocked ? b.candidate.full_name : null,
@@ -151,6 +171,14 @@ export async function offerContext(ctx: ServiceCtx, user: User, body: any) {
     recommendation: rec ? { intro: rec.intro ?? null, items: rec.items ?? [], createdAt: rec.created_at } : null,
     currentOffer: clientOfferView((offers ?? [])[0], ctx.now()),
     otherOpenOffers: ((others ?? []) as any[]).filter((o) => o.submission_id !== b.submission.id).length,
+    // Contracting: kein Angebot über ein Gehalt, sondern „Einsatz anfragen“ (Etappe 1, 11.11.2026)
+    contracting: contracting
+      ? {
+          budget: budgetZeile(b.job.day_rate_min, b.job.day_rate_max),
+          defaults: { months: b.job.contract_duration_months ?? null, daysPerWeek: b.job.utilization_days_per_week ?? null },
+          request: anfrage ? { ...(anfrage.details ?? {}), requestedAt: anfrage.created_at } : null,
+        }
+      : null,
   };
 }
 
@@ -221,6 +249,9 @@ const todayKey = (now: number) => new Date(now).toLocaleDateString('sv-SE', { ti
 
 export async function createOffer(ctx: ServiceCtx, user: User, body: any, opts: { immediate?: boolean } = {}) {
   const b = await requireClient(ctx, user, body?.submissionId);
+  // Contracting kennt kein Angebot über ein Fixgehalt und keinen Arbeitsvertrag: sonst endete der
+  // Einsatz als Besetzung mit Prozent vom Gehalt (Befund 02.11.2026).
+  must(!isContracting(b.job), 'Bei Contracting gibt es kein Angebot über ein Gehalt. Fragen Sie den Einsatz an, Matchunt schickt Ihnen den Projektauftrag.', 'conflict');
   must(b.submission.identity_unlocked, 'Ein Angebot geht erst, wenn der Kandidat sein Profil freigegeben hat.', 'conflict');
   must(!CLOSED_STAGES.includes(String(b.submission.stage ?? '')) && !CLOSED_STAGES.includes(String(b.submission.status ?? '')), 'Diese Bewerbung ist abgeschlossen.', 'conflict');
   const int = (v: unknown, min: number, max: number) => {
@@ -287,6 +318,64 @@ export async function createOffer(ctx: ServiceCtx, user: User, body: any, opts: 
   }
   const { data: fresh } = await ctx.db.from('offers').select('*').eq('id', (offer as any).id).maybeSingle();
   return { offerId: (offer as any).id, offer: clientOfferView(fresh ?? offer, ctx.now()), candidateMailAt: planned.dueAt };
+}
+
+// ---------------------------------------------------------------------------
+// Kunde: Einsatz anfragen (Contracting, Etappe 1, 11.11.2026)
+// ---------------------------------------------------------------------------
+
+/**
+ * Statt eines Angebots: Der Kunde fragt den Einsatz an. Bis Projektauftrag und
+ * Leistungsschein in der Plattform laufen, stimmt Matchunt Tagessatz und Vertrag
+ * von Hand ab. Geschrieben wird nur das Protokoll; Headhunter und Matchunt
+ * bekommen Glocke und Mail. Kein Angebot, keine Mail an den Kandidaten.
+ */
+export async function requestEngagement(ctx: ServiceCtx, user: User, body: any) {
+  const b = await requireClient(ctx, user, body?.submissionId);
+  must(isContracting(b.job), 'Einen Einsatz fragen Sie nur bei Contracting-Stellen an.', 'conflict');
+  must(b.submission.identity_unlocked, 'Den Einsatz fragen Sie an, sobald der Kandidat sein Profil freigegeben hat.', 'conflict');
+  must(!CLOSED_STAGES.includes(String(b.submission.stage ?? '')) && !CLOSED_STAGES.includes(String(b.submission.status ?? '')), 'Diese Bewerbung ist abgeschlossen.', 'conflict');
+  const int = (v: unknown, min: number, max: number) => {
+    const n = Math.round(Number(v));
+    return Number.isFinite(n) && n >= min && n <= max ? n : null;
+  };
+  const startDate = validDate(body.startDate, 'den Beginn');
+  must(startDate >= todayKey(ctx.now()), 'Der Beginn liegt in der Vergangenheit.');
+  const months = int(body.months, 1, 60);
+  must(months, 'Bitte die Laufzeit in Monaten angeben (1 bis 60).');
+  const daysPerWeek = int(body.daysPerWeek, 1, 5);
+  must(daysPerWeek, 'Bitte die Tage je Woche angeben (1 bis 5).');
+  const einsatz = { startDate, months: months!, daysPerWeek: daysPerWeek! };
+
+  const { error } = await ctx.db.from('activity_logs').insert({
+    user_id: user.id, action: EINSATZ_ANGEFRAGT, entity_type: 'submission', entity_id: b.submission.id, details: einsatz,
+  });
+  dbFail(error, 'Die Anfrage');
+
+  const company = companyFor(b);
+  const candidate = b.candidate.full_name;
+  const first = firstName(candidate) ?? 'dem Kandidaten';
+  await notify(ctx, b.submission.recruiter_id, 'engagement_requested', `${company} will ${first} einsetzen`,
+    `Beginn ${startDate.split('-').reverse().join('.')} · ${months} Monate · ${daysPerWeek} Tage je Woche. Sag ${first} Bescheid, Matchunt meldet sich bei dir wegen seines Tagessatzes und des Vertrags.`,
+    'candidate', b.candidate.id);
+  if (b.recruiter?.email) {
+    const content = mails.recruiterEinsatzAngefragt({
+      recruiterFirstName: firstName(b.recruiter.name), candidateName: candidate, companyName: company, jobTitle: b.job.title, einsatz, akteUrl: offerUrl(ctx, b),
+    });
+    await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: b.recruiter.email, ...content }, { template: 'engagement_requested_recruiter', meta: { submission_id: b.submission.id } });
+  }
+  const adminMail = mails.adminEinsatzAngefragt({
+    candidateName: candidate, companyName: b.job.company_name, jobTitle: b.job.title, recruiterName: b.recruiter?.name || 'unbekannt',
+    budget: budgetZeile(b.job.day_rate_min, b.job.day_rate_max), einsatz, url: `${ctx.appUrl()}/admin/jobs`,
+  });
+  for (const admin of await adminRecipients(ctx.db)) {
+    await notify(ctx, admin.id, 'engagement_requested_admin', adminMail.subject,
+      `${b.job.title} · Tagessatz, Projektauftrag und Leistungsschein von Hand.`, 'submission', b.submission.id);
+    if (admin.email) {
+      await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: admin.email, ...adminMail }, { template: 'engagement_requested_admin', meta: { submission_id: b.submission.id } });
+    }
+  }
+  return { ok: true as const, requestedAt: new Date(ctx.now()).toISOString(), einsatz };
 }
 
 // ---------------------------------------------------------------------------

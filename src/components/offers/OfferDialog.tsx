@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { dayDe, euro, offerApi, plusWorkdays, whenDe, type OfferContext, type OfferInput } from '@/lib/offerApi';
+import { EinsatzForm } from './EinsatzForm';
 
 interface Props {
   submissionId: string;
@@ -70,6 +71,9 @@ export function OfferDialog({ submissionId, open, onOpenChange, onSent, onAsk, o
               ? <p className="text-sm text-destructive">{ctx.error instanceof Error ? ctx.error.message : 'Konnte nicht geladen werden.'}</p>
               : <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
           </>
+        ) : ctx.data.contracting ? (
+          // Contracting: kein Angebot über ein Gehalt, sondern „Einsatz anfragen“ (Etappe 1, 11.11.2026)
+          <EinsatzForm c={ctx.data} onClose={() => onOpenChange(false)} onSent={onSent} onAsk={onAsk} onReject={onReject} />
         ) : (
           <OfferForm c={ctx.data} onClose={() => onOpenChange(false)} onSent={onSent} onAsk={onAsk} onReject={onReject} />
         )}

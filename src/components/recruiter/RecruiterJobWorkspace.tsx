@@ -261,6 +261,8 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
               </p>
             </div>
               : <EmptyAnswer>Für diese Stelle gibt es noch keine Anzeige. Alle Angaben des Kunden stehen im Briefing.</EmptyAnswer>}
+            {/* Contracting: Projektkonditionen offen auf der Stelle, nicht nur hinter „Verdienst berechnen“ (Etappe 1, 04.11.2026) */}
+            {job.employment_type === 'freelance' && <div className="mt-8 max-w-[42rem]"><ContractingKonditionen job={job} /></div>}
           </TabsContent>
 
           <TabsContent value="briefing" className="m-0">

@@ -13,6 +13,8 @@ import { companyAddress, companyLabel, useClientCompanies, type ClientCompany } 
 // Dieselbe Abbildung Entwurf -> Stelle wie beim Link (/start). Liegt in
 // _shared, weil Deno nicht aus src/ importieren kann; umgekehrt geht es.
 import { draftToJobRow } from '../../supabase/functions/_shared/intake-mapping';
+import { CONTRACTING_FASSUNG } from '../../supabase/functions/_shared/contracting-konditionen';
+import { unterRahmenvertrag } from '../../supabase/functions/_shared/contracting-mandat';
 
 /**
  * Die Jobaufnahme fuer angemeldete Kunden.
@@ -37,7 +39,14 @@ export interface ClientFramework {
   name: string;
   continuity_days: number | null;
   agreed_at: string | null;
+  /** Ab Fassung 2 regelt der Rahmenvertrag auch Contracting (Modul B). */
+  template_version: number;
 }
+
+/** Läuft eine Contracting-Position unter diesem Rahmenvertrag, ohne neue
+ *  Unterschrift? Dieselbe Regel wie intake-submit: erst ab Fassung 2. */
+export const contractingUnterRahmen = (rv: ClientFramework | null | undefined): boolean =>
+  unterRahmenvertrag(rv ? { status: 'active', template_version: rv.template_version } : null, 'freelance');
 
 export interface PublicPackage {
   package_key: string;
@@ -52,7 +61,8 @@ export interface PublicPackage {
 }
 
 export interface CommercialChoice {
-  package_key: string;
+  /** Bei Contracting null: dort gibt es kein Paket, nur den Tagessatz all-in. */
+  package_key: string | null;
   /** Hoeher als im Rahmenvertrag -- nur fuer diese Position. */
   upgraded: boolean;
 }
@@ -147,7 +157,7 @@ export function useClientIntake(jobIdParam?: string) {
     queryFn: async (): Promise<ClientFramework | null> => {
       const { data } = await (supabase as any)
         .from('client_framework_agreements')
-        .select('id, agreement_number, status, package_key, pricing_snapshot, package_selected_at, countersigned_at, organization_id')
+        .select('id, agreement_number, status, package_key, pricing_snapshot, package_selected_at, countersigned_at, organization_id, template_version')
         .eq('status', 'active');
       const rows = ((data ?? []) as any[]).filter((r) => r.package_key);
       const rv = rows.find((r) => r.organization_id) ?? rows[0];
@@ -160,6 +170,7 @@ export function useClientIntake(jobIdParam?: string) {
         name: rv.pricing_snapshot?.publicName ?? rv.package_key,
         continuity_days: rv.pricing_snapshot?.continuityDays ?? null,
         agreed_at: rv.package_selected_at ?? rv.countersigned_at ?? null,
+        template_version: Number(rv.template_version ?? 1) || 1,
       };
     },
   });
@@ -505,7 +516,26 @@ export function useClientIntake(jobIdParam?: string) {
         return { ok: false as const, message: sperre };
       }
       const t = target ?? (await resolveIntakeSubmitTarget(user.id));
-      const commercial = choice
+      // Contracting: kein Paket und keine Prozente, sondern der Tagessatz all-in
+      // (fee_basis 'day_rate_all_in', Modul B). Vorher stand hier auch bei
+      // Contracting ein Festanstellungs-Paket, meist 'core' (Befund 02.11.2026).
+      const contracting = captureRef.current?.type === 'freelance';
+      const commercial = choice && contracting
+        ? {
+            commercial: {
+              model: 'contracting',
+              fassung: CONTRACTING_FASSUNG,
+              framework_agreement_id: framework?.id ?? null,
+              agreement_number: framework?.agreement_number ?? null,
+              under_framework: contractingUnterRahmen(framework),
+              package_key: null,
+              upgraded: false,
+              confirmed_at: new Date().toISOString(),
+              confirmed_by_user_id: user.id,
+              provisional: true,
+            },
+          }
+        : choice
         ? {
             commercial: {
               framework_agreement_id: framework?.id ?? null,

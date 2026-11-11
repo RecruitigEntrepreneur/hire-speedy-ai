@@ -375,7 +375,9 @@ export default function ClientJobDetail() {
     ].filter(Boolean).join(' · ');
     // Honorar nur für Owner/Admin/Finance (wie im Live-Cockpit).
     const darfHonorar = !orgLoading && (!myOrg || ['owner', 'admin', 'finance'].includes(myOrgRole ?? ''));
-    const paketKey: string | undefined = raw.intake_payload?.commercial?.package_key;
+    // Contracting hat kein Paket. Eingereichte Contracting-Stellen trugen bis
+    // 02.11.2026 trotzdem 'core' -- auch die zeigen hier nichts.
+    const paketKey: string | undefined = job.employment_type === 'freelance' ? undefined : raw.intake_payload?.commercial?.package_key;
     const paketName = paketKey ? ({ core: 'Core', continuity_90: 'Continuity 90', continuity_180: 'Continuity 180' } as Record<string, string>)[paketKey] ?? paketKey : null;
     const paket = paketName ? `Paket ${paketName}${darfHonorar && job.fee_percentage ? ` ${job.fee_percentage} %` : ''}` : null;
 
@@ -596,6 +598,11 @@ export default function ClientJobDetail() {
   const verlaufShown = verlaufEvents.slice(0, 8);
 
   const fmtK = (n: number) => `${Math.round(n / 1000)}k`;
+  const dayRate = job as unknown as { day_rate_min?: number | null; day_rate_max?: number | null };
+  const dayRateLabel = dayRate.day_rate_min || dayRate.day_rate_max
+    ? [dayRate.day_rate_min, dayRate.day_rate_max].filter((v): v is number => !!v)
+        .map((v) => v.toLocaleString('de-DE')).filter((v, i, a) => a.indexOf(v) === i).join('–')
+    : null;
   const salaryLabel =
     job.salary_min && job.salary_max
       ? `€${fmtK(job.salary_min)} – €${fmtK(job.salary_max)}`
@@ -760,6 +767,7 @@ export default function ClientJobDetail() {
                 feePercentage={job.fee_percentage}
                 canSeeFee={canSeeFee}
                 descriptor={descriptor}
+                contracting={job.employment_type === 'freelance' ? { budget: dayRateLabel } : null}
               />
             </AccordionContent>
           </AccordionItem>

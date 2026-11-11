@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Lock, Search, Check } from 'lucide-react';
 import { formatAnonymousCompanyShort, formatWorkModel } from '@/lib/anonymousCompanyFormat';
-import { spezialistenSatz, verdienstJeTag } from '@/lib/recruiterContracting';
+import { spezialistenGrenze, verdienstImMonat, verdienstJeTag } from '@/lib/recruiterContracting';
 import { FirmenLogo } from '@/components/company/FirmenLogo';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
@@ -81,7 +81,8 @@ export function JobActionCard({
 }: JobActionCardProps) {
   const salaryRange = formatSalaryRange(job.salary_min, job.salary_max);
   const tagVerdienst = verdienstJeTag(job);
-  const tagessatz = spezialistenSatz(job);
+  const monatVerdienst = verdienstImMonat(job);
+  const tagessatz = spezialistenGrenze(job);
   // Verdienst nach Paket und Fassung, mit „in 2 Teilen“ (H3) bzw. Nachbesetzung (H6), Umbau 11.11.2026
   const { earning: plan } = useJobEarning(tagVerdienst ? null : job.id, job.salary_min, job.salary_max);
   const skills = (job.skills || []).slice(0, 3);
@@ -145,7 +146,7 @@ export function JobActionCard({
         </div>
         {/* Am Handy genügt der Betrag oben; Satz und Arbeitsmodell ab sm. */}
         <span className="hidden shrink-0 tabular-nums sm:inline">
-          {tagVerdienst ? 'je Einsatztag' : plan ? plan.cardLine : earning != null ? <Honorar>{`${job.recruiter_fee_percentage} % Honorar`}</Honorar> : null}
+          {tagVerdienst ? <>je Einsatztag{monatVerdienst ? <span className="hidden xl:inline"> · ca. <Honorar>{monatVerdienst}</Honorar> im Monat</span> : null}</> : plan ? plan.cardLine : earning != null ? <Honorar>{`${job.recruiter_fee_percentage} % Honorar`}</Honorar> : null}
         </span>
       </div>
 

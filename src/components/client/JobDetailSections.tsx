@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { CONTRACTING_PUNKTE } from '../../../supabase/functions/_shared/contracting-konditionen';
 import { useNavigate } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -155,13 +156,18 @@ export function JobKonditionen({
   feePercentage,
   canSeeFee,
   descriptor,
+  contracting = null,
 }: {
   salaryLabel: string | null;
   feePercentage: number | null;
   canSeeFee: boolean;
   descriptor: string | null;
+  /** Contracting: Budget je Tag statt Gehalt und Honorar. fee_percentage ist dort
+   *  die Marge (Innenseite) und gehört nie auf die Kundenseite. */
+  contracting?: { budget: string | null } | null;
 }) {
   const { t } = useTranslation();
+  const verguetung = CONTRACTING_PUNKTE.find((p) => p.label === 'Vergütung')?.text ?? '';
 
   // Seit 08.10.2026 für alle Stufen gleich: start_job_search gibt den Namen bei
   // „Ich suche“ frei. jobs.reveal_trigger wirkt nicht mehr.
@@ -171,7 +177,26 @@ export function JobKonditionen({
     <div className="space-y-3">
       <table className="w-full text-sm">
         <tbody>
-          {salaryLabel && (
+          {contracting ? (
+            <>
+              {contracting.budget && (
+                <tr>
+                  <td className="w-40 py-1 pr-3 align-top text-muted-foreground">
+                    {t('jobdetail.konditionen.day_rate', { defaultValue: 'Budget je Tag' })}
+                  </td>
+                  <td className="py-1">
+                    {t('jobdetail.konditionen.day_rate_value', { range: contracting.budget, defaultValue: '{{range}} €, alles inklusive' })}
+                  </td>
+                </tr>
+              )}
+              <tr>
+                <td className="w-40 py-1 pr-3 align-top text-muted-foreground">
+                  {t('jobdetail.konditionen.verguetung', { defaultValue: 'Vergütung' })}
+                </td>
+                <td className="py-1">{verguetung}</td>
+              </tr>
+            </>
+          ) : salaryLabel && (
             <tr>
               <td className="w-40 py-1 pr-3 align-top text-muted-foreground">
                 {t('jobdetail.konditionen.salary')}
@@ -179,7 +204,7 @@ export function JobKonditionen({
               <td className="py-1">{salaryLabel}</td>
             </tr>
           )}
-          {canSeeFee && feePercentage != null && (
+          {!contracting && canSeeFee && feePercentage != null && (
             <tr>
               <td className="w-40 py-1 pr-3 align-top text-muted-foreground">
                 {t('jobdetail.konditionen.fee')}
