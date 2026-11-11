@@ -8,9 +8,11 @@ import type { SupabaseClient, User } from 'https://esm.sh/@supabase/supabase-js@
 import { encodeBase64 } from 'https://deno.land/std@0.224.0/encoding/base64.ts';
 import { billingOwnerOfJob, billingScope, canSeeInvoice } from './billing-access.ts';
 import { dbFail, must, type ServiceCtx } from './interview-service.ts';
-import { PAYMENT_TERMS_DAYS, VAT_RATE, NUMBERING, formatNumber, isReverseCharge, releaseBlockers } from './billing-config.ts';
+import { PAYMENT_TERMS_DAYS, VAT_RATE, NUMBERING, formatNumber, releaseBlockers, taxCaseFor } from './billing-config.ts';
 import { eur, renderInvoicePdf, type InvoiceDoc } from './invoice-pdf.ts';
 import { esc, layout } from './intake-mail.ts';
+import { bountyFor, differenceFeeCents, isPackageKey, snapshotWithConditions, splitFor, versionOfSnapshot, type PackageKey } from './konditionen.ts';
+import { recruiterVersionForJob } from './konditionen-db.ts';
 
 export interface FilePort {
   put(path: string, bytes: Uint8Array, contentType?: string): Promise<void>;
@@ -94,11 +96,11 @@ function amountsFor(snapshot: any, grossCents: number) {
   return { client_fee_cents: client, recruiter_initial_cents: initial, recruiter_retention_cents: retention, matchunt_cents: client - initial - retention };
 }
 
-async function loadSubmission(db: SupabaseClient, submissionId: string) {
+export async function loadSubmission(db: SupabaseClient, submissionId: string) {
   const { data: submission } = await db.from('submissions').select('id, job_id, candidate_id, recruiter_id, stage, identity_unlocked, company_revealed').eq('id', submissionId).maybeSingle();
   must(submission, 'Bewerbung nicht gefunden.', 'not_found');
   const [{ data: job }, { data: candidate }] = await Promise.all([
-    db.from('jobs').select('id, title, company_name, industry, client_id, organization_id, fee_percentage, mandate_id, status').eq('id', (submission as any).job_id).maybeSingle(),
+    db.from('jobs').select('id, title, company_name, industry, client_id, organization_id, fee_percentage, mandate_id, status, research_for_placement_id').eq('id', (submission as any).job_id).maybeSingle(),
     db.from('candidates').select('id, full_name').eq('id', (submission as any).candidate_id).maybeSingle(),
   ]);
   must(job, 'Stelle nicht gefunden.', 'not_found');
@@ -117,13 +119,31 @@ export async function onContractFinal(ctx: PlacementCtx, contractId: string) {
   if (existing) return { created: false, placementId: (existing as any).id };
   const b = await loadSubmission(ctx.db, c.submission_id);
   const gross = Math.round(((c.salary ?? 0) + (c.variable_salary ?? 0)) * 100);
-  const snapshot = b.job.mandate_id ? null : fallbackSnapshot(b.job);
   const nowIso = new Date(ctx.now()).toISOString();
+
+  // Nachbesetzung: die Stelle wurde für eine frühere Besetzung wieder geöffnet (Umbau 11.11.2026)
+  if (b.job.research_for_placement_id) {
+    return await onReplacementFinal(ctx, c, b, gross, nowIso);
+  }
+
+  // Paket aus dem Auftrag (sonst Core zum Satz der Stelle) und die Aufteilung der
+  // Konditionen-Fassung, die bei der Aktivierung der Stelle für den Headhunter galt.
+  let base: any = null;
+  if (b.job.mandate_id) {
+    const { data: m } = await ctx.db.from('commercial_mandates').select('pricing_snapshot, package_key').eq('id', b.job.mandate_id).maybeSingle();
+    base = (m as any)?.pricing_snapshot ?? null;
+  }
+  base ??= fallbackSnapshot(b.job);
+  const pkgKey: PackageKey = isPackageKey(base.packageKey) ? base.packageKey : 'core';
+  const version = b.submission.recruiter_id ? await recruiterVersionForJob(ctx.db, b.submission.recruiter_id, b.job.id, nowIso) : 1;
+  // Bestandsstellen ohne Auftrag behalten ihren Satz; Fassung ändert dort nur die Kennung.
+  const snapshot = b.job.mandate_id ? snapshotWithConditions(base, pkgKey, version) : { ...base, conditionsVersion: version };
   const row: Record<string, unknown> = {
     submission_id: b.submission.id, start_date: c.start_date, first_working_day: c.start_date,
     agreed_salary: (c.salary ?? 0) + (c.variable_salary ?? 0), gross_annual_target_compensation_cents: gross,
     compensation_verified_at: nowIso, placement_state: 'agreed', payment_status: 'pending',
-    ...(snapshot ? { pricing_snapshot: snapshot, package_key: 'core', package_version: 1, ...amountsFor(snapshot, gross) } : {}),
+    pricing_snapshot: snapshot, package_key: pkgKey, package_version: Number(base.packageVersion ?? 1), conditions_version: version,
+    ...amountsFor(snapshot, gross),
   };
   const { data: placement, error } = await ctx.db.from('placements').insert(row).select('*').maybeSingle();
   if (error?.code === '23505') return { created: false };
@@ -159,22 +179,119 @@ export async function onContractFinal(ctx: PlacementCtx, contractId: string) {
   for (const uid of await adminIds(ctx.db)) {
     await notify(ctx, uid, 'invoice_draft', `Rechnung zur Freigabe: ${b.candidate.full_name}`, `${b.job.company_name} · ${eur(p.client_fee_cents ?? 0)} netto`, 'invoice', invoiceId ?? p.id);
   }
-  await notify(ctx, b.submission.recruiter_id, 'placement_created', `Einstellung verbindlich: ${b.candidate.full_name}`, `Start ${dateDe(c.start_date)}. Deine Tranchen siehst du unter Verdienste.`, 'placement', p.id);
+  await notify(ctx, b.submission.recruiter_id, 'placement_created', `Einstellung verbindlich: ${b.candidate.full_name}`, `Start ${dateDe(c.start_date)}. Was du wann bekommst, siehst du unter Verdienste.`, 'placement', p.id);
   const { error: evErr } = await ctx.db.from('employment_contract_events').insert({ contract_id: c.id, event_type: 'placement_created', actor_role: 'system', details: { placementId: p.id, invoiceId } });
   if (evErr) console.warn('[placement] Verlauf nicht gespeichert', evErr.message);
   return { created: true, placementId: p.id, invoiceId };
 }
 
-async function createInvoiceDraft(ctx: PlacementCtx, p: any, b: Awaited<ReturnType<typeof loadSubmission>>, c: any): Promise<string | null> {
+/**
+ * Ersatzbesetzung einer Nachbesetzung (Umbau 11.11.2026). Kein neues Honorar,
+ * außer das Gehalt ist höher (Rechnung über den Unterschied, V7). Keine zweite
+ * Garantie. Die Auslobung hängt als Tranche an der neuen Besetzung und wird
+ * mit deren Antritt fällig; der ursprüngliche Headhunter bekommt insgesamt
+ * höchstens seinen normalen Anteil (Deckel, R4).
+ */
+async function onReplacementFinal(ctx: PlacementCtx, c: any, b: Awaited<ReturnType<typeof loadSubmission>>, gross: number, nowIso: string) {
+  const { data: origRow } = await ctx.db.from('placements').select('*').eq('id', b.job.research_for_placement_id).maybeSingle();
+  const orig = origRow as any;
+  must(orig, 'Die ursprüngliche Besetzung zur Nachbesetzung fehlt.', 'not_found');
+  const origSnap = orig.pricing_snapshot ?? {};
+  const pkgKey: PackageKey = isPackageKey(orig.package_key) ? orig.package_key : 'core';
+  const version = versionOfSnapshot(origSnap);
+  const split = splitFor(pkgKey, version);
+  const clientPct = Number(origSnap.clientFeePct ?? split.clientPct);
+  const origGross = Number(orig.gross_annual_target_compensation_cents ?? 0);
+  const diffFee = differenceFeeCents(origGross, gross, clientPct);
+  const snapshot = {
+    ...origSnap, replacementFor: orig.id, clientFeePct: 0, continuityDays: null,
+    recruiterInitialPct: 0, recruiterRetentionPct: 0, matchuntPct: 0, researchBountyPct: 0, matchuntOnClaimPct: 0,
+    differenceFeeCents: diffFee, originalClientFeePct: clientPct,
+  };
+  const row: Record<string, unknown> = {
+    submission_id: b.submission.id, start_date: c.start_date, first_working_day: c.start_date,
+    agreed_salary: (c.salary ?? 0) + (c.variable_salary ?? 0), gross_annual_target_compensation_cents: gross,
+    compensation_verified_at: nowIso, placement_state: 'agreed', payment_status: 'pending',
+    pricing_snapshot: snapshot, package_key: pkgKey, package_version: orig.package_version ?? 1, conditions_version: version,
+    replaces_placement_id: orig.id, client_fee_cents: 0, recruiter_initial_cents: 0, recruiter_retention_cents: 0, matchunt_cents: 0,
+  };
+  const { data: placement, error } = await ctx.db.from('placements').insert(row).select('*').maybeSingle();
+  if (error?.code === '23505') return { created: false };
+  dbFail(error, 'Die Ersatzbesetzung');
+  const p = placement as any;
+
+  // Auslobung: Grundlage ist die erste Besetzung; der ursprüngliche Headhunter behält seinen 1. Teil (außer bei Nichtantritt)
+  const { data: origSub } = await ctx.db.from('submissions').select('recruiter_id').eq('id', orig.submission_id).maybeSingle();
+  const sameRecruiter = !!b.submission.recruiter_id && (origSub as any)?.recruiter_id === b.submission.recruiter_id;
+  const { data: origTranches } = await ctx.db.from('recruiter_payout_tranches').select('tranche_type, amount_cents, status').eq('placement_id', orig.id);
+  const kept = ((origTranches ?? []) as any[]).filter((t) => t.tranche_type === 'initial' && t.status !== 'forfeited' && t.status !== 'cancelled').reduce((a, t) => a + Number(t.amount_cents ?? 0), 0);
+  const bountyBase = Number(orig.research_bounty_cents ?? 0) || Math.round(origGross * split.bountyPct / 100);
+  const bounty = bountyFor({ bountyCents: bountyBase, sameRecruiter, keptByOriginalCents: kept, differenceFeeCents: diffFee, split });
+  if (b.submission.recruiter_id && bounty > 0) {
+    const { error: tErr } = await ctx.db.from('recruiter_payout_tranches').insert({
+      placement_id: p.id, recruiter_id: b.submission.recruiter_id, tranche_type: 'research_bounty', amount_cents: bounty,
+      due_condition: 'nach Antritt der Ersatzbesetzung und Zahlungseingang', status: 'pending',
+    });
+    if (tErr) console.warn('[placement] Auslobung nicht angelegt', tErr.code, tErr.message);
+  }
+
+  // Erste Besetzung: Nachbesetzung erfolgreich, Stelle nicht mehr im Nachbesetzungs-Modus
+  await ctx.db.from('placements').update({ research_state: 'succeeded', research_ended_at: nowIso, research_end_reason: 'filled' }).eq('id', orig.id);
+  await ctx.db.from('submissions').update({ stage: 'placed' }).eq('id', b.submission.id);
+  await ctx.db.from('jobs').update({
+    research_for_placement_id: null, status: 'filled', closed_reason: 'filled_via_matchunt', closed_at: nowIso,
+    closed_hire_submission_id: b.submission.id, closed_hire_start: c.start_date, closed_hire_salary: c.salary,
+  }).eq('id', b.job.id);
+  const { data: subs } = await ctx.db.from('submissions').select('id, recruiter_id').eq('job_id', b.job.id).in('stage', ACTIVE_STAGES);
+  for (const o of ((subs ?? []) as any[]).filter((x) => x.id !== b.submission.id)) {
+    await ctx.db.from('submissions').update({ stage: 'withdrawn' }).eq('id', o.id);
+  }
+  for (const r of [...new Set(((subs ?? []) as any[]).map((x) => x.recruiter_id).filter((x) => x && x !== b.submission.recruiter_id))]) {
+    await notify(ctx, r as string, 'job_filled', 'Nachbesetzung besetzt', `„${b.job.title}“ ist wieder besetzt. Deine Einreichungen dafür sind abgeschlossen.`, 'job', b.job.id);
+  }
+
+  let invoiceId: string | null = null;
+  if (diffFee > 0) {
+    invoiceId = await createInvoiceDraft(ctx, { ...p, client_fee_cents: diffFee }, b, c, {
+      type: 'salary_difference',
+      title: `Nachbesetzung: ${b.job.title}, Unterschied zum höheren Gehalt`,
+      details: [
+        `Ersatzbesetzung: ${b.candidate.full_name} · Beginn ${dateDe(c.start_date)}`,
+        `Bruttojahreszielgehalt ${eur(gross)} statt ${eur(origGross)} · Unterschied ${eur(gross - origGross)} × ${String(clientPct).replace('.', ',')} %`,
+      ],
+    });
+    for (const uid of await adminIds(ctx.db)) {
+      await notify(ctx, uid, 'invoice_draft', `Rechnung zur Freigabe: Unterschied ${b.candidate.full_name}`, `${b.job.company_name} · ${eur(diffFee)} netto`, 'invoice', invoiceId ?? p.id);
+    }
+  }
+  await notify(ctx, b.submission.recruiter_id, 'placement_created', `Nachbesetzung verbindlich: ${b.candidate.full_name}`,
+    `Start ${dateDe(c.start_date)}. Deine Auslobung (${eur(bounty)}) kommt in einem Teil, sobald ${b.candidate.full_name.split(' ')[0]} angefangen hat.`, 'placement', p.id);
+  for (const uid of await adminIds(ctx.db)) {
+    await notify(ctx, uid, 'placement_created', `Nachbesetzung besetzt: ${b.candidate.full_name}`, `${b.job.company_name} · ${b.job.title} · Auslobung ${eur(bounty)}`, 'placement', p.id);
+  }
+  const { error: evErr } = await ctx.db.from('employment_contract_events').insert({ contract_id: c.id, event_type: 'placement_created', actor_role: 'system', details: { placementId: p.id, invoiceId, replacementFor: orig.id } });
+  if (evErr) console.warn('[placement] Verlauf nicht gespeichert', evErr.message);
+  return { created: true, placementId: p.id, invoiceId, replacementFor: orig.id };
+}
+
+export interface DraftOptions {
+  type?: 'placement_fee' | 'research_option' | 'salary_difference';
+  title?: string;
+  details?: string[];
+  researchOfferId?: string | null;
+}
+
+export async function createInvoiceDraft(ctx: PlacementCtx, p: any, b: Awaited<ReturnType<typeof loadSubmission>>, c: any, opts: DraftOptions = {}): Promise<string | null> {
   // Rechnungsdaten aus dem Firmenprofil des Inhabers (Team) bzw. des Kunden
   const billingOwner = await billingOwnerOfJob(ctx.db, b.job);
-  const { data: company } = await ctx.db.from('company_profiles').select('company_name, legal_name, street, postal_code, city, address, tax_id, billing_email, default_cost_center').eq('user_id', billingOwner).maybeSingle();
+  const { data: company } = await ctx.db.from('company_profiles').select('company_name, legal_name, street, postal_code, city, address, tax_id, billing_email, default_cost_center, billing_country').eq('user_id', billingOwner).maybeSingle();
   const cp = (company ?? {}) as any;
   const owner = await profile(ctx.db, billingOwner);
   const vatId = (cp.tax_id ?? '').trim() || null;
-  const reverse = isReverseCharge(vatId);
+  // Steuerfall aus Land und USt-IdNr. (K12): 19 %, Reverse Charge oder nicht im Inland steuerbar
+  const tax = taxCaseFor(cp.billing_country, vatId);
   const net = Number(p.client_fee_cents ?? 0);
-  const vat = reverse ? 0 : Math.round(net * VAT_RATE / 100);
+  const vat = Math.round(net * tax.vatRate / 100);
   const pct = p.pricing_snapshot?.clientFeePct ?? null;
   const pkg = PACKAGE_NAMES[p.package_key ?? ''] ?? p.pricing_snapshot?.publicName ?? '';
   let reference: string | null = null;
@@ -186,27 +303,29 @@ async function createInvoiceDraft(ctx: PlacementCtx, p: any, b: Awaited<ReturnTy
     name: cp.legal_name || cp.company_name || b.job.company_name,
     street: cp.street || (cp.address ? String(cp.address).split(',')[0] : null),
     city: [cp.postal_code, cp.city].filter(Boolean).join(' ') || null,
+    country: cp.billing_country || null,
     vatId,
     email: cp.billing_email || owner?.email || null,
     reference,
   };
+  const type = opts.type ?? 'placement_fee';
   const lines = [{
-    title: `Personalvermittlung: ${b.job.title}`,
-    details: [
+    title: opts.title ?? `Personalvermittlung: ${b.job.title}`,
+    details: opts.details ?? [
       `Kandidat/in: ${b.candidate.full_name} · Beginn ${dateDe(c.start_date)}`,
       `Arbeitsvertrag geschlossen am ${dateDe(c.signed_on)}`,
       `Bemessungsgrundlage: Bruttojahreszielgehalt ${eur(Number(p.gross_annual_target_compensation_cents ?? 0))}${pct ? ` × ${String(pct).replace('.', ',')} %` : ''}${pkg ? ` (${pkg})` : ''}`,
     ],
     amountCents: net,
-    serviceOn: c.signed_on ?? null,
+    serviceOn: c.signed_on ?? todayKey(ctx.now()),
   }];
   const { data, error } = await ctx.db.from('invoices').insert({
-    placement_id: p.id, client_id: b.job.client_id, invoice_number: `ENTWURF-${String(p.id).slice(0, 8)}`,
+    placement_id: p.id, client_id: b.job.client_id, invoice_number: `ENTWURF-${type === 'placement_fee' ? '' : `${type.slice(0, 3).toUpperCase()}-`}${String(p.id).slice(0, 8)}`,
     amount: net / 100, tax_amount: vat / 100, total_amount: (net + vat) / 100,
-    status: 'draft', invoice_type: 'placement_fee', amount_cents: net, tax_amount_cents: vat, total_amount_cents: net + vat,
+    status: 'draft', invoice_type: type, amount_cents: net, tax_amount_cents: vat, total_amount_cents: net + vat,
     payment_terms_days: PAYMENT_TERMS_DAYS, pricing_snapshot: p.pricing_snapshot ?? null, mandate_id: b.job.mandate_id ?? null,
-    submission_id: b.submission.id, job_id: b.job.id, vat_rate: reverse ? 0 : VAT_RATE, reverse_charge: reverse,
-    recipient, lines, issued_at: todayKey(ctx.now()),
+    submission_id: b.submission.id, job_id: b.job.id, vat_rate: tax.vatRate, reverse_charge: tax.taxCase === 'reverse_charge', tax_case: tax.taxCase,
+    recipient, lines, issued_at: todayKey(ctx.now()), research_offer_id: opts.researchOfferId ?? null,
     purchase_order: p.purchase_order ?? null, cost_center: p.cost_center ?? cp.default_cost_center ?? null,
   }).select('id').maybeSingle();
   if (error) { console.warn('[placement] Rechnungsentwurf nicht angelegt', error.code, error.message); return null; }
@@ -217,21 +336,76 @@ async function createInvoiceDraft(ctx: PlacementCtx, p: any, b: Awaited<ReturnTy
 // PDF, Freigabe, Zahlung
 // ---------------------------------------------------------------------------
 
-function docOf(inv: any, overrides: Partial<InvoiceDoc> = {}): InvoiceDoc {
+export function docOf(inv: any, overrides: Partial<InvoiceDoc> = {}): InvoiceDoc {
   const r = inv.recipient ?? {};
+  const cancellation = inv.invoice_type === 'cancellation';
   return {
-    kind: 'invoice', draft: inv.status === 'draft', number: inv.status === 'draft' ? null : inv.invoice_number,
+    kind: cancellation ? 'cancellation' : 'invoice', draft: inv.status === 'draft', number: inv.status === 'draft' ? null : inv.invoice_number,
     issuedOn: inv.issued_at ?? new Date().toISOString().slice(0, 10), dueOn: inv.due_date ?? null,
     serviceOn: inv.lines?.[0]?.serviceOn ?? null,
-    recipient: { name: r.name ?? '', street: r.street ?? null, city: r.city ?? null, vatId: r.vatId ?? null },
+    recipient: { name: r.name ?? '', street: r.street ?? null, city: r.city ?? null, vatId: r.vatId ?? null, country: r.country ?? null },
     reference: r.reference ?? null,
     purchaseOrder: inv.purchase_order ?? null,
     costCenter: inv.cost_center ?? null,
+    poFollows: !!inv.po_follows,
+    reason: inv.cancel_reason ?? null,
     lines: (inv.lines ?? []) as any,
     netCents: Number(inv.amount_cents ?? 0), vatRate: Number(inv.vat_rate ?? VAT_RATE), vatCents: Number(inv.tax_amount_cents ?? 0),
     totalCents: Number(inv.total_amount_cents ?? 0), reverseCharge: !!inv.reverse_charge,
+    taxCase: inv.tax_case ?? null,
     ...overrides,
   };
+}
+
+/**
+ * Entwurf auf den Stand der Firmendaten bringen (A3): Anschrift, Land und
+ * Steuerfall (19 % / Reverse Charge / nicht steuerbar), Zahlungsziel aus dem
+ * Auftrag. Nur für Entwürfe – gestellte Rechnungen ändert niemand.
+ */
+export async function refreshDraft(db: SupabaseClient, inv: any) {
+  const cp = await billingCompany(db, inv);
+  const refs = await orderRefs(db, inv);
+  const vatId = (cp.tax_id ?? '').trim() || inv.recipient?.vatId || null;
+  const country = (cp.billing_country ?? '').trim().toUpperCase() || inv.recipient?.country || null;
+  const tax = taxCaseFor(country, vatId);
+  const net = Number(inv.amount_cents ?? 0);
+  const vat = Math.round(net * tax.vatRate / 100);
+  let terms = Number(inv.payment_terms_days ?? PAYMENT_TERMS_DAYS);
+  let termsSource: 'mandate' | 'default' = 'default';
+  if (inv.mandate_id) {
+    const { data: m } = await db.from('commercial_mandates').select('payment_terms_days').eq('id', inv.mandate_id).maybeSingle();
+    const t = Number((m as any)?.payment_terms_days);
+    if (Number.isInteger(t) && t > 0) { terms = t; termsSource = 'mandate'; }
+  }
+  const recipient = {
+    ...(inv.recipient ?? {}),
+    name: cp.legal_name || cp.company_name || inv.recipient?.name,
+    street: cp.street || inv.recipient?.street || null,
+    city: [cp.postal_code, cp.city].filter(Boolean).join(' ') || inv.recipient?.city || null,
+    country,
+    vatId,
+    email: inv.recipient?.email || cp.billing_email || null,
+  };
+  return {
+    inv: {
+      ...inv, recipient, purchase_order: refs.purchaseOrder, cost_center: refs.costCenter,
+      tax_case: tax.taxCase, vat_rate: tax.vatRate, reverse_charge: tax.taxCase === 'reverse_charge',
+      tax_amount_cents: vat, total_amount_cents: net + vat, payment_terms_days: terms,
+    },
+    company: cp,
+    tax,
+    termsSource,
+    postalCode: (cp.postal_code ?? '') as string,
+  };
+}
+
+/** Monat festgeschrieben (A9)? Dann keine Buchung und kein Beleg mit Datum darin. */
+export async function assertPeriodOpen(db: SupabaseClient, dateIso: string, what = 'Diese Buchung') {
+  const period = String(dateIso).slice(0, 7);
+  const { data, error } = await db.from('accounting_periods').select('period').eq('period', period).maybeSingle();
+  if (error) return; // Tabelle fehlt (Migration nicht eingespielt): keine Sperre
+  const [y, m] = period.split('-');
+  must(!data, `${what} fällt in ${m}/${y}. Der Monat ist festgeschrieben; Korrekturen laufen im neuen Monat.`, 'conflict');
 }
 
 export async function loadInvoice(db: SupabaseClient, invoiceId: unknown) {
@@ -249,9 +423,10 @@ async function billingCompany(db: SupabaseClient, inv: any) {
     const { data: job } = await db.from('jobs').select('client_id, organization_id').eq('id', inv.job_id).maybeSingle();
     if (job) ownerId = await billingOwnerOfJob(db, job as any);
   }
-  const { data } = await db.from('company_profiles').select('company_name, legal_name, street, postal_code, city, address, tax_id, billing_email, billing_cc_emails, purchase_order_required, default_cost_center').eq('user_id', ownerId).maybeSingle();
+  const { data } = await db.from('company_profiles').select('company_name, legal_name, street, postal_code, city, address, tax_id, billing_email, billing_cc_emails, purchase_order_required, default_cost_center, billing_country').eq('user_id', ownerId).maybeSingle();
   return (data ?? {}) as any;
 }
+export { billingCompany };
 
 /** Bestellnummer und Kostenstelle: von der Rechnung, sonst aus der Einstellung (Kunden-Aufgabe). */
 async function orderRefs(db: SupabaseClient, inv: any): Promise<{ purchaseOrder: string | null; costCenter: string | null }> {
@@ -266,9 +441,9 @@ async function requireAdmin(ctx: ServiceCtx, user: User) {
 
 export async function invoicePreview(ctx: PlacementCtx, user: User, body: any) {
   await requireAdmin(ctx, user);
-  const inv = await loadInvoice(ctx.db, body?.invoiceId);
+  const raw = await loadInvoice(ctx.db, body?.invoiceId);
+  const { inv, company: cp } = raw.status === 'draft' ? await refreshDraft(ctx.db, raw) : { inv: raw, company: await billingCompany(ctx.db, raw) };
   const refs = await orderRefs(ctx.db, inv);
-  const cp = await billingCompany(ctx.db, inv);
   const bytes = await renderInvoicePdf(docOf(inv, refs));
   const missingAddress = !inv.recipient?.street || !inv.recipient?.city;
   const missingOrder = !!cp.purchase_order_required && !refs.purchaseOrder;
@@ -277,31 +452,56 @@ export async function invoicePreview(ctx: PlacementCtx, user: User, body: any) {
 
 export async function releaseInvoice(ctx: PlacementCtx, user: User, body: any) {
   await requireAdmin(ctx, user);
+  const inv = await loadInvoice(ctx.db, body?.invoiceId);
+  return await releaseInvoiceCore(ctx, inv, user.id, typeof body?.email === 'string' ? body.email : null, { poFollows: body?.poFollows === true });
+}
+
+/** Tage, ab denen eine Rechnung ohne Bestellnummer mit „Bestellnummer folgt“ raus darf (K12). */
+export const PO_FOLLOWS_AFTER_DAYS = 7;
+
+/** Tag der Unterschrift (Leistungsdatum) einer Rechnung. */
+export const signedOnOf = (inv: any): string | null => (inv?.lines?.[0]?.serviceOn ? String(inv.lines[0].serviceOn).slice(0, 10) : inv?.issued_at ? String(inv.issued_at).slice(0, 10) : null);
+
+/**
+ * Rechnung stellen: Nummer, PDF, Mail. Auch ohne Admin-Klick nutzbar (z. B. die
+ * Rechnung für eine angenommene Nachbesetzung bei Core, J3).
+ * poFollows: Bestellnummer ist beim Kunden Pflicht, fehlt aber noch; ab Tag 7
+ * nach der Unterschrift darf die Rechnung mit „Bestellnummer folgt“ raus.
+ */
+export async function releaseInvoiceCore(ctx: PlacementCtx, rawInv: any, actorId: string | null, emailOverride: string | null = null, opts: { poFollows?: boolean } = {}) {
   const blockers = releaseBlockers('invoice');
   must(blockers.length === 0, `Freigabe noch gesperrt. Es fehlt: ${blockers.join(', ')}.`, 'conflict');
-  const inv = await loadInvoice(ctx.db, body?.invoiceId);
-  must(inv.status === 'draft', 'Die Rechnung ist schon gestellt.', 'conflict');
-  // Anschrift aus den aktuellen Firmendaten (§ 14 UStG: vollständige Anschrift des Empfängers)
-  const cp = await billingCompany(ctx.db, inv);
+  const body = { email: emailOverride };
+  const user = { id: actorId } as any;
+  must(rawInv.status === 'draft', 'Die Rechnung ist schon gestellt.', 'conflict');
+  const today = todayKey(ctx.now());
+  await assertPeriodOpen(ctx.db, today, 'Die Rechnung');
+  // Anschrift, Land und Steuerfall aus den aktuellen Firmendaten (§ 14 UStG), Zahlungsziel aus dem Auftrag
+  const fresh = await refreshDraft(ctx.db, rawInv);
+  const inv = fresh.inv;
+  const cp = fresh.company;
+  must(Number(inv.amount_cents ?? 0) > 0, 'Der Betrag ist 0 €. Bitte Paket und Gehalt der Besetzung prüfen.', 'conflict');
+  must(!fresh.tax.missing, `Es fehlt: ${fresh.tax.missing}.`, 'conflict');
   const refs = await orderRefs(ctx.db, inv);
-  must(!cp.purchase_order_required || refs.purchaseOrder, 'Die Bestellnummer des Kunden fehlt. Der Kunde trägt sie in seiner Aufgabe „Bestellnummer angeben“ ein.', 'conflict');
-  inv.recipient = {
-    ...inv.recipient,
-    name: cp.legal_name || cp.company_name || inv.recipient?.name,
-    street: cp.street || inv.recipient?.street || null,
-    city: [cp.postal_code, cp.city].filter(Boolean).join(' ') || inv.recipient?.city || null,
-    vatId: (cp.tax_id ?? '').trim() || inv.recipient?.vatId || null,
-  };
+  let poFollows = false;
+  if (cp.purchase_order_required && !refs.purchaseOrder) {
+    const signed = signedOnOf(inv);
+    const from = signed ? plusDays(signed, PO_FOLLOWS_AFTER_DAYS) : null;
+    must(opts.poFollows && from && today >= from,
+      from && today < from
+        ? `Die Bestellnummer des Kunden fehlt. Ohne Nummer geht die Rechnung ab ${dateDe(from)} mit „Bestellnummer folgt“ raus.`
+        : 'Die Bestellnummer des Kunden fehlt. Der Kunde trägt sie in seiner Aufgabe „Bestellnummer angeben“ ein.', 'conflict');
+    poFollows = true;
+  }
   must(inv.recipient.street && inv.recipient.city, 'Die Anschrift des Kunden fehlt. Bitte in den Firmendaten des Kunden Straße, PLZ und Ort ergänzen.', 'conflict');
   const recipientEmail = (typeof body?.email === 'string' && body.email.trim()) || inv.recipient?.email;
   must(recipientEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipientEmail), 'Bitte die Rechnungs-E-Mail des Kunden angeben.');
-  const today = todayKey(ctx.now());
   const year = Number(today.slice(0, 4));
   const { data: n, error: nErr } = await ctx.db.rpc('next_document_number', { _kind: 'invoice', _year: year, _start: NUMBERING.invoice.startNext });
   must(!nErr && typeof n === 'number', 'Die Rechnungsnummer konnte nicht vergeben werden.');
   const number = formatNumber(NUMBERING.invoice.template, year, n as number);
   const due = plusDays(today, inv.payment_terms_days ?? PAYMENT_TERMS_DAYS);
-  const final = { ...inv, status: 'open', invoice_number: number, issued_at: today, due_date: due, purchase_order: refs.purchaseOrder, cost_center: refs.costCenter };
+  const final = { ...inv, status: 'open', invoice_number: number, issued_at: today, due_date: due, purchase_order: refs.purchaseOrder, cost_center: refs.costCenter, po_follows: poFollows };
   const bytes = await renderInvoicePdf(docOf(final));
   const path = `${year}/${number.replace(/[^\w.-]/g, '_')}.pdf`;
   await ctx.invoiceFiles.put(path, bytes);
@@ -309,17 +509,24 @@ export async function releaseInvoice(ctx: PlacementCtx, user: User, body: any) {
   const { data: updated, error } = await ctx.db.from('invoices').update({
     status: 'open', invoice_number: number, issued_at: today, due_date: due, pdf_path: path,
     released_at: nowIso, released_by: user.id, recipient: { ...inv.recipient, email: recipientEmail },
-    purchase_order: refs.purchaseOrder, cost_center: refs.costCenter,
+    purchase_order: refs.purchaseOrder, cost_center: refs.costCenter, po_follows: poFollows,
+    tax_case: inv.tax_case, vat_rate: inv.vat_rate, reverse_charge: inv.reverse_charge,
+    amount: Number(inv.amount_cents) / 100, tax_amount: Number(inv.tax_amount_cents) / 100, total_amount: Number(inv.total_amount_cents) / 100,
+    tax_amount_cents: inv.tax_amount_cents, total_amount_cents: inv.total_amount_cents, payment_terms_days: inv.payment_terms_days,
   }).eq('id', inv.id).eq('status', 'draft').select('*').maybeSingle();
   dbFail(error, 'Die Rechnung');
   must(updated, 'Die Rechnung wurde gerade schon freigegeben.', 'conflict');
-  await ctx.db.from('placements').update({ invoice_state: 'invoiced' }).eq('id', inv.placement_id);
+  if (['placement_fee', 'salary_difference'].includes(inv.invoice_type ?? 'placement_fee')) {
+    await ctx.db.from('placements').update({ invoice_state: 'invoiced' }).eq('id', inv.placement_id).neq('invoice_state', 'paid');
+  }
 
   // Versand an die Rechnungs-E-Mail, PDF im Anhang
   const heading = `Rechnung ${number}`;
+  const what = inv.invoice_type === 'research_option' ? 'die Nachbesetzung' : inv.invoice_type === 'salary_difference' ? 'die Nachbesetzung (Unterschied zum höheren Gehalt)' : 'die Personalvermittlung';
   const body2 = [
     `<p style="margin:0 0 12px 0;">Guten Tag,</p>`,
-    `<p style="margin:0 0 12px 0;">anbei unsere Rechnung <strong>${esc(number)}</strong> über <strong>${esc(eur(Number(inv.total_amount_cents)))}</strong> für die Personalvermittlung (${esc(inv.lines?.[0]?.title?.replace('Personalvermittlung: ', '') ?? '')}).</p>`,
+    `<p style="margin:0 0 12px 0;">anbei unsere Rechnung <strong>${esc(number)}</strong> über <strong>${esc(eur(Number(inv.total_amount_cents)))}</strong> für ${what} (${esc(String(inv.lines?.[0]?.title ?? '').replace(/^(Personalvermittlung|Nachbesetzung): /, ''))}).</p>`,
+    ...(poFollows ? ['<p style="margin:0 0 12px 0;">Ihre Bestellnummer lag noch nicht vor; auf der Rechnung steht „Bestellnummer folgt“.</p>'] : []),
     `<p style="margin:0 0 12px 0;">Zahlbar bis ${esc(dateDe(due))}. Bei Fragen antworten Sie einfach auf diese Mail.</p>`,
   ].join('');
   const invoiceMail = (to: string) => ctx.mail({
@@ -345,26 +552,23 @@ export async function releaseInvoice(ctx: PlacementCtx, user: User, body: any) {
   return { ok: true, number, sent: result.sent, mailError: result.sent ? null : result.error ?? null };
 }
 
+/**
+ * Zahlung von Hand (Notweg, A2 ⋯). Der Normalfall ist der Kontoauszug (A6).
+ * Schreibt invoice_payments, setzt die Rechnung und – nur bei der
+ * Kundenrechnung – die Besetzung auf bezahlt und startet eine wartende
+ * Nachbesetzung (onInvoicePaid).
+ */
 export async function bookPayment(ctx: PlacementCtx, user: User, body: any) {
   await requireAdmin(ctx, user);
   const inv = await loadInvoice(ctx.db, body?.invoiceId);
-  must(['open', 'partially_paid', 'pending', 'overdue'].includes(inv.status), 'Für diese Rechnung ist keine Zahlung offen.', 'conflict');
   must(typeof body?.paidOn === 'string' && DATE.test(body.paidOn) && body.paidOn <= todayKey(ctx.now()), 'Bitte das Datum des Zahlungseingangs angeben.');
   const amount = Math.round(Number(body?.amountCents));
   must(Number.isFinite(amount) && amount > 0, 'Bitte den Betrag laut Konto angeben.');
-  const paidTotal = Number(inv.paid_amount_cents ?? 0) + amount;
-  const full = paidTotal >= Number(inv.total_amount_cents);
   const note = typeof body?.note === 'string' ? body.note.trim().slice(0, 1000) || null : null;
-  await ctx.db.from('invoices').update({ status: full ? 'paid' : 'partially_paid', paid_amount_cents: paidTotal, paid_at: full ? `${body.paidOn}T12:00:00Z` : null, payment_note: note }).eq('id', inv.id);
-  if (full) {
-    await ctx.db.from('placements').update({ invoice_state: 'paid', payment_status: 'paid', paid_at: `${body.paidOn}T12:00:00Z` }).eq('id', inv.placement_id);
-    const { data: p } = await ctx.db.from('placements').select('submission_id').eq('id', inv.placement_id).maybeSingle();
-    if (p) {
-      const { data: s } = await ctx.db.from('submissions').select('recruiter_id, candidate_id').eq('id', (p as any).submission_id).maybeSingle();
-      await notify(ctx, (s as any)?.recruiter_id, 'placement_paid', 'Kunde hat bezahlt', `Rechnung ${inv.invoice_number}. Tranche 1 folgt nach dem Antritt.`, 'placement', inv.placement_id);
-    }
-  }
-  return { ok: true, status: full ? 'paid' : 'partially_paid', paidTotal };
+  // Dynamisch: buchhaltung-kern importiert diese Datei (keine Ringabhängigkeit beim Laden)
+  const { applyInvoicePayment } = await import('./buchhaltung-kern.ts');
+  const r = await applyInvoicePayment(ctx, inv, { amountCents: amount, paidOn: body.paidOn, source: 'manual', note, actorId: user.id });
+  return { ok: true, status: r.status, paidTotal: r.paidTotalCents };
 }
 
 export async function invoiceFile(ctx: PlacementCtx, user: User, body: any) {

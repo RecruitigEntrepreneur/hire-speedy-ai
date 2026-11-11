@@ -12,7 +12,9 @@ import { callFunction } from '@/lib/interviewScheduling';
 export type ClientTaskKind =
   | 'review' | 'alternative' | 'expired_request' | 'feedback' | 'decide_unsure' | 'make_offer'
   | 'counter' | 'offer_overdue' | 'send_contract' | 'contract_signed_check' | 'docusign_sign'
-  | 'confirm_signature' | 'recruiter_question' | 'confirm_start' | 'invoice' | 'purchase_order';
+  | 'confirm_signature' | 'recruiter_question' | 'confirm_start' | 'invoice' | 'purchase_order'
+  // Umbau Nachbesetzung 11.11.2026 (K7, K8, J2, F3)
+  | 'start_check' | 'end_confirm' | 'research_position' | 'research_offer' | 'job_paused';
 
 export interface ClientTask {
   key: string;
@@ -26,7 +28,7 @@ export interface ClientTask {
   since: string;
   urgent: boolean;
   waitingWho: string | null;
-  ref: { interviewId?: string; offerId?: string; responseDue?: string; contractId?: string; placementId?: string; invoiceId?: string; notificationId?: string; questions?: string[]; signMode?: 'email' | 'embedded'; signerExternal?: boolean };
+  ref: { interviewId?: string; offerId?: string; responseDue?: string; contractId?: string; placementId?: string; invoiceId?: string; notificationId?: string; questions?: string[]; signMode?: 'email' | 'embedded'; signerExternal?: boolean; researchOfferId?: string; reportedOn?: string };
   note: string | null;
   /** Entscheidungshilfe (Fenster oben, Zeile auf der Seite „Aufgaben“) */
   context: TaskContext | null;
@@ -78,6 +80,10 @@ export interface ClientTaskList {
   done: ClientDoneItem[];
   counts: { urgent: number; total: number };
   news?: ClientNewsItem[];
+  /** F3 Stufe 1: Vorstellungen über der Grenze von 5 Werktagen (Sammelzeile) */
+  reminder?: { count: number; oldestWorkdays: number; text: string } | null;
+  /** HR sieht Rechnungen nur lesend; „Überwiesen melden“ nur mit Verwaltungsrecht */
+  billing?: { canManage: boolean; financeOnly: boolean };
 }
 
 const call = <T,>(action: string, body: Record<string, unknown> = {}, fallback?: string) => callFunction<T>('client-tasks', { action, ...body }, fallback);
@@ -148,6 +154,11 @@ export const TASK_ACTION: Record<ClientTaskKind, string> = {
   confirm_start: 'Bestätigen',
   invoice: 'Öffnen',
   purchase_order: 'Eintragen',
+  start_check: 'Stimmt',
+  end_confirm: 'Öffnen',
+  research_position: 'Bestätigen',
+  research_offer: 'Ansehen',
+  job_paused: 'Rückmeldungen geben',
 };
 
 /** Kurzes Etikett auf der Karte (wie beim Headhunter). */
@@ -168,6 +179,11 @@ export const TASK_CHIP: Record<ClientTaskKind, string> = {
   confirm_start: 'Antritt',
   invoice: 'Rechnung',
   purchase_order: 'Rechnung',
+  start_check: 'Antritt',
+  end_confirm: 'Antritt',
+  research_position: 'Nachbesetzung',
+  research_offer: 'Nachbesetzung',
+  job_paused: 'Stelle',
 };
 
 /** „seit 2 Tagen“, „seit 5 Std.“, „seit heute“ */

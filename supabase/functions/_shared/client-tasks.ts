@@ -3,6 +3,10 @@
 // bei anderen“ (Kandidat, Headhunter, Matchunt sind dran). Aufgaben schließen sich mit der
 // Handlung; nichts wird hier gespeichert außer dem Erledigt-Protokoll.
 //
+// Umbau 11.11.2026 (K1, K7, K8, J2, F3): Start bestätigen (Headhunter hat zuerst gemeldet),
+// Absage vor dem Start bestätigen, Position für die Nachbesetzung, Angebot Nachbesetzung,
+// Stelle ruht; Wartezeilen „Matchunt prüft Ihre Meldung bis …“ und „Nachbesetzung läuft seit …“.
+//
 // Reine Ableitung (deriveClientTasks) + Laden aus der Datenbank (loadClientTaskInput), damit
 // die Regeln ohne Datenbank testbar sind.
 
@@ -14,11 +18,14 @@ import { canUserActOnJob, getAccessibleJobIds } from './team-access.ts';
 import { dbFail, must, type ServiceCtx } from './interview-service.ts';
 import { BANK } from './billing-config.ts';
 import { billingOwnerOfJob, billingScope, canSeeInvoice } from './billing-access.ts';
+import { START_OBJECTION_WORKDAYS, addWorkdays } from './konditionen.ts';
 
 export type ClientTaskKind =
   | 'review' | 'alternative' | 'expired_request' | 'feedback' | 'decide_unsure' | 'make_offer'
   | 'counter' | 'offer_overdue' | 'send_contract' | 'contract_signed_check' | 'docusign_sign'
-  | 'confirm_signature' | 'recruiter_question' | 'confirm_start' | 'invoice' | 'purchase_order';
+  | 'confirm_signature' | 'recruiter_question' | 'confirm_start' | 'invoice' | 'purchase_order'
+  // Umbau 11.11.2026
+  | 'start_check' | 'end_confirm' | 'research_position' | 'research_offer' | 'job_paused';
 
 export interface ClientTask {
   /** stabil, z. B. feedback:<interviewId> – das Protokoll erkennt damit Erledigtes */
@@ -37,7 +44,7 @@ export interface ClientTask {
   urgent: boolean;
   /** wer wartet, für „Tessa wartet · 2 Tage“ */
   waitingWho: string | null;
-  ref: { interviewId?: string; offerId?: string; responseDue?: string; contractId?: string; placementId?: string; invoiceId?: string; notificationId?: string; questions?: string[]; signMode?: 'email' | 'embedded'; signerExternal?: boolean };
+  ref: { interviewId?: string; offerId?: string; responseDue?: string; contractId?: string; placementId?: string; invoiceId?: string; notificationId?: string; questions?: string[]; signMode?: 'email' | 'embedded'; signerExternal?: boolean; researchOfferId?: string; reportedOn?: string };
   /** Zusatz, z. B. „Frage an Marko gestellt“ – die Aufgabe bleibt trotzdem offen */
   note: string | null;
   /** Entscheidungshilfe: was der Kunde zum Entscheiden braucht (Fenster oben, Zeile auf der Seite) */
@@ -131,6 +138,30 @@ export interface ClientTaskInput {
   poRequiredJobs?: string[];
   /** Standard-Kostenstelle je Stelle (Rechnungsdaten des Kunden) */
   defaultCostCenter?: Record<string, string>;
+  /** Fälle zu Besetzungen (continuity_claims) */
+  claims?: any[];
+  /** Angebote einer Nachbesetzung bei Core (research_offers) */
+  researchOffers?: any[];
+}
+
+/** Rückmeldung zu einer Vorstellung binnen 5 Werktagen (Rahmenvertrag § 7 Abs. 2, F3 Stufe 1). */
+export const REVIEW_WORKDAYS = 5;
+/** Werktage, in denen Matchunt eine Meldung prüft (wie CASE_REVIEW_WORKDAYS in besetzung-service.ts). */
+const CASE_REVIEW_WORKDAYS = 3;
+const CLIENT_SPHERE = ['offer_withdrawn', 'position_changed'];
+
+/** Werktage (Mo–Fr) seit einem Zeitpunkt bis heute (Berlin). */
+export function workdaysSince(isoStr: string | null | undefined, now: number): number {
+  if (!isoStr || Number.isNaN(Date.parse(isoStr))) return 0;
+  const end = berlinDateKey(now);
+  const d = new Date(`${berlinDateKey(Date.parse(isoStr))}T12:00:00Z`);
+  let n = 0;
+  for (let i = 0; i < 400 && d.toISOString().slice(0, 10) < end; i++) {
+    d.setUTCDate(d.getUTCDate() + 1);
+    const wd = d.getUTCDay();
+    if (wd !== 0 && wd !== 6) n += 1;
+  }
+  return n;
 }
 
 const DAY = 86400000;
@@ -151,7 +182,7 @@ const euro = (n: number | null | undefined) => (n == null ? '' : `${new Intl.Num
 const euroCents = (c: number | null | undefined) => (c == null ? '' : `${new Intl.NumberFormat('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(c / 100)} €`);
 const first = (name: string) => name.split(/\s+/)[0];
 
-function parseFeedback(raw: unknown): { way: string | null; at: number; text: string | null; missing: string | null } {
+function parseFeedback(raw: unknown): { way: string | null; at: number; text: string | null; missing: string | null; question: string | null } {
   if (!raw) return { way: null, at: NaN, text: null, missing: null, question: null };
   let v: any = raw;
   if (typeof raw === 'string') {
@@ -277,7 +308,10 @@ function offerTerms(o: any): string {
   return [`${euro(o.salary_offered)}${o.variable_salary ? ` + ${euro(o.variable_salary)}` : ''}`, o.start_date ? `Start ${dateDe(o.start_date)}` : null].filter(Boolean).join(' · ');
 }
 
-export function deriveClientTasks(input: ClientTaskInput): { tasks: ClientTask[]; waiting: WaitingItem[]; news: NewsItem[] } {
+/** F3 Stufe 1: wie viele Vorstellungen über der Grenze warten (für eine Sammelzeile). */
+export interface ReviewReminder { count: number; oldestWorkdays: number; text: string }
+
+export function deriveClientTasks(input: ClientTaskInput): { tasks: ClientTask[]; waiting: WaitingItem[]; news: NewsItem[]; reminder: ReviewReminder | null } {
   const { now } = input;
   const jobById = new Map(input.jobs.map((j) => [j.id, j]));
   const candById = new Map(input.candidates.map((c) => [c.id, c]));
@@ -285,6 +319,8 @@ export function deriveClientTasks(input: ClientTaskInput): { tasks: ClientTask[]
   const doneKeys = new Set(input.log.map((l) => l.task_key));
   const tasks: ClientTask[] = [];
   const waiting: WaitingItem[] = [];
+  /** Werktage je überfälliger Vorstellung (F3 Stufe 1) */
+  const lateReviews: number[] = [];
 
   const by = <T,>(rows: T[], key: (r: T) => string) => {
     const m = new Map<string, T[]>();
@@ -385,10 +421,50 @@ export function deriveClientTasks(input: ClientTaskInput): { tasks: ClientTask[]
     if (pl) {
       const startKey = pl.first_working_day ?? pl.start_date;
       const startMs = startKey ? Date.parse(`${String(startKey).slice(0, 10)}T00:00:00Z`) : NaN;
-      if (pl.placement_state === 'agreed' && !pl.start_confirmed_at && !pl.non_start_reported_at && !Number.isNaN(startMs)) {
-        if (startMs <= now) {
+      const endKind = pl.non_start_reported_at ? 'non_start' : pl.departure_reported_at ? 'departure' : null;
+      const fixed = !!pl.start_fixed_at || pl.placement_state !== 'agreed';
+      const reporter = pl.start_reported_by ? (recName.get(pl.start_reported_by) ?? hh) : hh;
+      const reporterFirst = first(reporter);
+      const continuity = Number(pl.pricing_snapshot?.continuityDays) > 0 && !pl.replaces_placement_id;
+      // Name im Satz: Vorname nach Freigabe, sonst das Kürzel
+      const nm = unlocked && cand?.full_name ? first(cand.full_name) : who;
+      if (!fixed && !endKind && !pl.start_confirmed_at) {
+        if (pl.start_report_kind === 'started' && pl.start_reported_at && !pl.start_contested_at) {
+          // K7: Headhunter hat zuerst gemeldet → Gegenprobe; ohne Widerspruch nach 3 Werktagen fest
+          const until = addWorkdays(berlinDateKey(t(pl.start_reported_at)), START_OBJECTION_WORKDAYS);
+          const title = unlocked && cand?.full_name ? `${genitive(nm)} Start bestätigen` : `Start von ${who} bestätigen`;
+          push({ key: `start-check:${pl.id}`, kind: 'start_check', since: pl.start_reported_at, urgent: false, waitingWho: null,
+            title, detail: `${reporter} meldet: angefangen am ${dateDe(pl.start_reported_on)}`, ref: { placementId: pl.id, reportedOn: pl.start_reported_on ?? undefined },
+            context: ctxOf({
+              ask: title,
+              facts: [
+                ...fact('Gemeldet', `${reporter}: angefangen am ${dateDe(pl.start_reported_on)}`),
+                ...fact('Laut Vertrag', startKey ? dateDe(startKey) : null),
+              ],
+              line: [`${reporterFirst} meldet: angefangen am ${dateDe(pl.start_reported_on)}`],
+              foot: `Ohne Antwort gilt es am ${dateDe(until)} als bestätigt.`,
+            }) });
+        } else if (pl.start_report_kind === 'started' && pl.start_contested_at) {
+          wait({ key: `start-contested:${pl.id}`, by: 'matchunt', title: `Matchunt klärt den Start von ${nm}`, detail: `${reporterFirst} meldet „angefangen“, Sie sehen es anders` });
+        } else if (pl.start_report_kind === 'not_started') {
+          // K8 (2): Headhunter meldet die Absage zuerst → Kunde bestätigt über „Besetzung endet“ (K5 mit „Nein“)
+          push({ key: `end-confirm:${pl.id}`, kind: 'end_confirm', since: pl.start_reported_at ?? iso(now), urgent: true, waitingWho: null,
+            title: `${reporterFirst} meldet: ${nm} hat vor dem Start abgesagt`,
+            detail: continuity ? 'Bitte bestätigen, dann prüft Matchunt die Nachbesetzung' : 'Bitte bestätigen, dann meldet sich Matchunt',
+            ref: { placementId: pl.id },
+            context: ctxOf({
+              ask: `${reporterFirst} meldet: ${nm} hat vor dem Start abgesagt`,
+              facts: [
+                ...fact('Erster Tag laut Vertrag', startKey ? dateDe(startKey) : null),
+                ...fact('Gemeldet', pl.start_reported_at ? `${reporter} am ${formatBerlinDateShort(pl.start_reported_at)}` : null),
+              ],
+              line: [continuity ? 'Bitte bestätigen, dann prüft Matchunt die Nachbesetzung' : 'Bitte bestätigen'],
+              quote: pl.start_contest_note ? { by: reporter, text: clip(pl.start_contest_note) } : null,
+              foot: 'Mit „Bestätigen“ öffnet sich die Meldung „Besetzung endet“.',
+            }) });
+        } else if (!Number.isNaN(startMs) && startMs <= now) {
           const probation = Number(accepted?.probation_months);
-          const pkg = pl.package_key ? cap(String(pl.package_key)) : null;
+          const pkg = pl.package_key ? cap(String(pl.package_key).replace(/_/g, ' ')) : null;
           push({ key: `start:${pl.id}`, kind: 'confirm_start', since: iso(startMs), urgent: now - startMs > 3 * DAY, waitingWho: hh,
             title: `Hat ${nameIn} angefangen?`, detail: `Erster Arbeitstag laut Vertrag: ${dateDe(startKey)}`, ref: { placementId: pl.id },
             context: ctxOf({
@@ -396,34 +472,92 @@ export function deriveClientTasks(input: ClientTaskInput): { tasks: ClientTask[]
               facts: [
                 ...fact('Erster Tag', `${dateDe(startKey)} · ${inDays(daysTo(startKey, now))}`),
                 ...fact('Probezeit', Number.isFinite(probation) && probation > 0 ? `${probation} Monate · bis ${dateDe(plusMonthsKey(String(startKey), probation))}` : null),
-                // Continuity nur mit Continuity-Paket (Core hat keine; ältere Einstellungen tragen teils ein Fristende)
-                ...fact('Continuity', pl.continuity_end_date && Number(pl.pricing_snapshot?.continuityDays) > 0 ? `${pkg ? `${pkg} · ` : ''}bis ${dateDe(pl.continuity_end_date)}` : null),
+                // Nachbesetzung nur mit Continuity-Paket (Core hat keine; ältere Einstellungen tragen teils ein Fristende)
+                ...fact('Nachbesetzung möglich', pl.continuity_end_date && continuity ? `${pkg ? `${pkg} · ` : ''}bis ${dateDe(pl.continuity_end_date)}` : null),
               ],
               line: [`Start ${dateDe(startKey)}`, Number.isFinite(probation) && probation > 0 ? `Probezeit bis ${dateDe(plusMonthsKey(String(startKey), probation))}` : null].filter(Boolean) as string[],
               foot: `${hhFirst} erfährt Ihre Antwort sofort.`,
             }) });
-        } else {
-          wait({ key: `start-wait:${pl.id}`, by: 'date', title: `Start am ${dateDe(startKey)}`, detail: `${hhFirst} begleitet ${name} bis zum ersten Tag` });
+        } else if (!Number.isNaN(startMs)) {
+          wait({ key: `start-wait:${pl.id}`, by: 'date', title: `Start am ${dateDe(startKey)}`,
+            detail: pl.start_report_kind === 'later' ? `von ${reporterFirst} verschoben · ${hhFirst} begleitet ${name} bis zum ersten Tag` : `${hhFirst} begleitet ${name} bis zum ersten Tag` });
         }
-      } else if (pl.non_start_reported_at) {
-        wait({ key: `nonstart:${pl.id}`, by: 'matchunt', title: 'Nichtantritt gemeldet', detail: 'Matchunt prüft den Fall und meldet sich' });
       }
-      // Bestellnummer für die Rechnung (Etappe 1, 25.10.2026): nur, solange die Rechnung noch nicht gestellt ist
-      const released = input.invoices.some((i: any) => i.placement_id === pl.id && i.status !== 'draft');
-      if ((input.poRequiredJobs ?? []).includes(s.job_id) && !pl.purchase_order && !pl.non_start_reported_at && !released) {
-        const createdMs = t(pl.created_at);
-        const fee = pl.client_fee_cents != null ? euroCents(Number(pl.client_fee_cents)) : null;
-        const costCenter = pl.cost_center ?? input.defaultCostCenter?.[s.job_id] ?? null;
-        push({ key: `po:${pl.id}`, kind: 'purchase_order', since: iso(createdMs || now), urgent: now - createdMs > 3 * DAY, waitingWho: null,
-          title: 'Bestellnummer für die Rechnung angeben', detail: `${name} · ohne Bestellnummer geht die Rechnung nicht raus`, ref: { placementId: pl.id },
+
+      // Ende gemeldet: Matchunt prüft (Fall oder bei Core die Entscheidung über ein Angebot)
+      const claim = (input.claims ?? []).filter((c: any) => c.placement_id === pl.id).sort((a: any, b: any) => t(b.reported_at) - t(a.reported_at))[0] ?? null;
+      const offerRow = (input.researchOffers ?? []).find((o: any) => o.placement_id === pl.id) ?? null;
+      if (endKind) {
+        const reason = endKind === 'non_start' ? pl.non_start_reason : pl.departure_category;
+        const sphere = !!pl.client_sphere_at || !!claim?.client_sphere || CLIENT_SPHERE.includes(String(reason ?? ''));
+        const openCase = !!claim && ['submitted', 'in_review'].includes(claim.status);
+        const corePending = endKind === 'non_start' && !continuity && !pl.replaces_placement_id && !offerRow && !sphere && pl.placement_state !== 'cancelled';
+        if (openCase || corePending) {
+          const reportedAt = claim?.reported_at ?? pl.non_start_reported_at ?? pl.departure_reported_at;
+          wait({ key: `case:${pl.id}`, by: 'matchunt', title: `Matchunt prüft Ihre Meldung zu ${who}`, detail: `bis ${dateDe(addWorkdays(berlinDateKey(t(reportedAt)), CASE_REVIEW_WORKDAYS))}` });
+        }
+      }
+
+      // Nachbesetzung (K6, K8)
+      if (pl.research_state === 'awaiting_position') {
+        push({ key: `research-pos:${pl.id}`, kind: 'research_position', since: claim?.decided_at ?? offerRow?.answered_at ?? pl.non_start_reported_at ?? pl.departure_reported_at ?? iso(now), urgent: false, waitingWho: null,
+          title: 'Position für die Nachbesetzung bestätigen', detail: `${job.title ?? 'Ihre Stelle'} · für ${who}`, ref: { placementId: pl.id },
           context: ctxOf({
-            ask: `Bestellnummer für die Einstellung von ${nameIn}`,
+            ask: 'Position für die Nachbesetzung bestätigen',
+            facts: [
+              ...fact('Stelle', job.title ?? null),
+              ...fact('Für', who),
+              ...fact('Matchunt hat geprüft', claim?.decided_at ? formatBerlinDateShort(claim.decided_at) : null),
+            ],
+            line: [`für ${who}`],
+            why: 'Bestätigen Sie die Stelle so, wie sie ist, oder passen Sie sie vorher an. Danach schreiben wir sie für alle Headhunter neu aus.',
+            foot: 'Liegt das Gehalt höher, berechnen wir nur den Unterschied.',
+          }) });
+      } else if (pl.research_state === 'awaiting_payment') {
+        wait({ key: `research-pay:${pl.id}`, by: 'matchunt', title: `Nachbesetzung ${job.title ?? ''}`.trim(), detail: 'startet, sobald die Rechnung bezahlt ist' });
+      } else if (pl.research_state === 'running' || pl.research_state === 'paused') {
+        const rjobId = pl.research_job_id ?? s.job_id;
+        const rjob = jobById.get(rjobId);
+        const days = pl.research_started_at ? Math.max(0, Math.floor((now - t(pl.research_started_at)) / DAY)) : 0;
+        const n = (input.activations ?? []).filter((a: any) => a.job_id === rjobId && a.status === 'active').length;
+        const paused = pl.research_state === 'paused' || !!rjob?.cooperation_paused_at;
+        wait({ key: `research:${pl.id}`, by: 'recruiter', title: `Nachbesetzung ${job.title ?? ''}`.trim(),
+          detail: paused ? 'ruht gerade' : `${days === 0 ? 'läuft seit heute' : `läuft seit ${days} ${days === 1 ? 'Tag' : 'Tagen'}`} · ${n} ${n === 1 ? 'Headhunter sucht' : 'Headhunter suchen'}` });
+      }
+      // Angebot einer Nachbesetzung bei Core (J2): das Wort „Joker“ sieht der Kunde nie
+      if (offerRow && offerRow.decision === 'offer' && offerRow.status === 'open' && (!offerRow.valid_until || String(offerRow.valid_until) >= berlinDateKey(now))) {
+        const price = Number(offerRow.price_cents ?? 0);
+        push({ key: `research-offer:${offerRow.id}`, kind: 'research_offer', since: offerRow.decided_at ?? iso(now), urgent: false, waitingWho: null,
+          title: `${nm} hat nicht angefangen: unser Angebot`, detail: `Nachbesetzung für einmalig ${euroCents(price)} netto · gültig bis ${dateDe(offerRow.valid_until)}`,
+          ref: { placementId: pl.id, researchOfferId: offerRow.id },
+          context: ctxOf({
+            ask: 'Wir bieten Ihnen eine Nachbesetzung an',
+            facts: [
+              ...fact('Preis', `${euroCents(price)} netto, einmalig`),
+              ...fact('Angebot gültig bis', offerRow.valid_until ? dateDe(offerRow.valid_until) : null),
+            ],
+            line: [`einmalig ${euroCents(price)} netto`, offerRow.valid_until ? `gültig bis ${dateDe(offerRow.valid_until)}` : null].filter(Boolean) as string[],
+            why: `Wir schreiben die Stelle neu für alle Headhunter aus, bis sie besetzt ist. Sie zahlen dafür einmalig ${euroCents(price)} netto, kein neues Honorar.`,
+          }) });
+      }
+
+      // Bestellnummer für die Rechnung (K1, K8): nur, solange die Rechnung noch nicht gestellt ist.
+      // Fehlt sie nach 7 Tagen, stellt Matchunt die Rechnung mit „Bestellnummer folgt“.
+      const released = input.invoices.some((i: any) => i.placement_id === pl.id && i.status !== 'draft');
+      if ((input.poRequiredJobs ?? []).includes(s.job_id) && !pl.purchase_order && !endKind && !released) {
+        const createdMs = t(pl.created_at);
+        const fee = pl.client_fee_cents != null && Number(pl.client_fee_cents) > 0 ? euroCents(Number(pl.client_fee_cents)) : null;
+        const costCenter = pl.cost_center ?? input.defaultCostCenter?.[s.job_id] ?? null;
+        push({ key: `po:${pl.id}`, kind: 'purchase_order', since: iso(createdMs || now), urgent: false, waitingWho: null,
+          title: `Bestellnummer für ${who}`, detail: 'Ihre Buchhaltung braucht sie auf der Rechnung · nur, weil sie bei Ihnen Pflicht ist', ref: { placementId: pl.id },
+          context: ctxOf({
+            ask: `Bestellnummer für ${who}`,
             facts: [
               ...fact('Honorar', fee ? `${fee} netto` : null),
               ...fact('Kostenstelle', costCenter ?? 'keine hinterlegt'),
             ],
-            line: [fee ? `${fee} netto` : null, 'Bestellnummer ist bei Ihnen Pflicht'].filter(Boolean) as string[],
-            foot: 'Die Rechnung geht erst mit Bestellnummer raus. Ändern lässt sich das unter Rechnungen › Rechnungsdaten.',
+            line: ['Ihre Buchhaltung braucht sie auf der Rechnung', 'nur, weil sie bei Ihnen Pflicht ist'],
+            foot: 'Fehlt sie nach 7 Tagen, stellen wir die Rechnung mit „Bestellnummer folgt“. Die Pflicht ändern Sie unter Rechnungen › Rechnungsdaten.',
           }) });
       }
       continue;
@@ -651,19 +785,24 @@ export function deriveClientTasks(input: ClientTaskInput): { tasks: ClientTask[]
     const ivs = (ivBySub.get(s.id) ?? []).filter((i: any) => i.status !== 'superseded').sort((a: any, b: any) => t(b.created_at) - t(a.created_at));
     const latest = ivs[0] ?? null;
     if (!latest) {
-      // 1 Kandidat prüfen
+      // 1 Kandidat prüfen. F3 Stufe 1: über 5 Werktage (Rahmenvertrag § 7 Abs. 2) sagt die
+      // Aufgabe selbst, wie lange sie wartet – keine zweite Aufgabe daneben.
       const sub = t(s.submitted_at);
+      const waitedWd = workdaysSince(s.submitted_at, now);
+      const late = waitedWd > REVIEW_WORKDAYS;
+      if (late) lateReviews.push(waitedWd);
       push({ key: `review:${s.id}`, kind: 'review', since: s.submitted_at, urgent: now - sub > 2 * DAY, waitingWho: hh,
-        title: 'Kandidat prüfen', detail: `eingereicht von ${hh} am ${formatBerlinDateShort(s.submitted_at)}`, ref: {}, note: askNote,
+        title: 'Kandidat prüfen', detail: late ? `wartet seit ${waitedWd} Werktagen auf Ihre Rückmeldung` : `eingereicht von ${hh} am ${formatBerlinDateShort(s.submitted_at)}`, ref: {}, note: askNote,
         context: (() => {
           const pf = profile(s, cand, job);
           const o = others(job.id, s.id);
           const note = clip(s.recruiter_notes);
           return ctxOf({
             ask: `Wollen Sie ${unlocked && cand?.full_name ? first(cand.full_name) : who} kennenlernen?`,
-            facts: [...fact('Eingereicht', `${formatBerlinDateShort(s.submitted_at)} von ${hh}`), ...pf.facts], line: pf.line, chip: pf.chip,
+            facts: [...fact('Eingereicht', `${formatBerlinDateShort(s.submitted_at)} von ${hh}${late ? ` · wartet seit ${waitedWd} Werktagen` : ''}`), ...pf.facts], line: pf.line, chip: pf.chip,
             quote: note ? { by: hh, text: note } : null,
             why: o.iv || o.off ? `${o.text} – andere sind schon weiter` : o.text,
+            foot: late ? 'Die Headhunter brauchen Ihre Einschätzung, um gezielt weiterzusuchen.' : null,
           });
         })() });
       continue;
@@ -822,25 +961,32 @@ export function deriveClientTasks(input: ClientTaskInput): { tasks: ClientTask[]
     const icand = isub ? candById.get(isub.candidate_id) : null;
     const iname = isub && (isub.identity_unlocked || isub.identity_revealed) && icand?.full_name ? icand.full_name : null;
     const left = daysTo(inv.due_date, now);
-    const dueChip: TaskChip | null = left === null ? null : left < 0 ? { text: 'überfällig', tone: 'bad' } : left <= 3 ? { text: inDays(left), tone: 'warn' } : null;
-    const bank = BANK.iban ? [BANK.holder, `IBAN ${BANK.iban}`, BANK.bic ? `BIC ${BANK.bic}` : null].filter(Boolean).join(' · ') : null;
+    const overdue = left !== null && left < 0;
+    const paid = Number(inv.paid_amount_cents ?? 0);
+    const rest = Math.max(0, Number(inv.total_amount_cents ?? 0) - paid);
+    // Nur Überfälliges farbig (K9); kurz vor Fälligkeit ohne Etikett
+    const dueChip: TaskChip | null = overdue ? { text: 'überfällig', tone: 'bad' } : null;
+    const bank = BANK.iban && BANK.holder ? [BANK.holder, `IBAN ${BANK.iban}`, BANK.bic ? `BIC ${BANK.bic}` : null].filter(Boolean).join(' · ') : null;
     const invoiceCtx = ctxOf({
-      ask: `Rechnung ${inv.invoice_number ?? ''}`.trim(),
+      ask: `Rechnung ${inv.invoice_number ?? ''}${overdue ? ' ist überfällig' : ''}`.trim(),
       facts: [
         ...fact('Honorar', inv.amount_cents != null ? `${euroCents(inv.amount_cents)} netto` : null),
         ...fact(inv.reverse_charge ? 'USt.' : `USt. ${inv.vat_rate ?? 19} %`, inv.reverse_charge ? 'Steuerschuldnerschaft des Leistungsempfängers' : (inv.tax_amount_cents != null ? euroCents(inv.tax_amount_cents) : null)),
         ...fact('Gesamt', `${euroCents(inv.total_amount_cents)}${inv.due_date ? ` · fällig ${dateDe(inv.due_date)}` : ''}`, dueChip),
-        ...fact('Überweisen an', bank ?? 'Bankverbindung steht auf der Rechnung'),
+        ...fact('Bezahlt', paid > 0 ? euroCents(paid) : null),
+        ...fact('Noch offen', paid > 0 ? euroCents(rest) : null),
+        ...fact('Überweisen an', bank),
         ...fact('Verwendungszweck', inv.invoice_number ?? null),
       ],
-      line: [euroCents(inv.total_amount_cents), inv.due_date ? `fällig ${dateDe(inv.due_date)}` : null].filter(Boolean) as string[],
+      line: [paid > 0 ? `${euroCents(rest)} offen` : euroCents(inv.total_amount_cents), inv.due_date ? `${overdue ? 'fällig war' : 'fällig'} ${dateDe(inv.due_date)}` : null].filter(Boolean) as string[],
       chip: dueChip,
       why: [iname ? `für ${iname}` : null, job?.title ?? null, inv.issued_at ? `gestellt am ${formatBerlinDateShort(inv.issued_at)}` : null].filter(Boolean).join(' · ') || null,
     });
     tasks.push({
       key: `invoice:${inv.id}`, kind: 'invoice', submissionId: inv.submission_id ?? null, jobId: inv.job_id ?? null, jobTitle: job?.title ?? null,
-      who: inv.invoice_number ?? 'Rechnung', title: `Rechnung ${inv.invoice_number ?? ''} · ${euroCents(inv.total_amount_cents)}`.trim(),
-      detail: inv.due_date ? `fällig am ${dateDe(inv.due_date)}` : 'Honorar', since: inv.issued_at ?? inv.released_at,
+      who: iname ?? inv.invoice_number ?? 'Rechnung',
+      title: overdue ? `Rechnung ${inv.invoice_number ?? ''} ist überfällig` : `Rechnung ${inv.invoice_number ?? ''} · ${euroCents(rest)}`.trim(),
+      detail: overdue || paid > 0 ? `${euroCents(rest)} offen` : inv.due_date ? `fällig am ${dateDe(inv.due_date)}` : 'Honorar', since: inv.issued_at ?? inv.released_at,
       urgent: !Number.isNaN(dueMs) && dueMs - now < 3 * DAY, waitingWho: null, ref: { invoiceId: inv.id }, note: null, context: invoiceCtx,
     });
   }
@@ -877,9 +1023,35 @@ export function deriveClientTasks(input: ClientTaskInput): { tasks: ClientTask[]
     });
   }
 
+  // ---------------------------------------------------------------- Stelle ruht (F3 Stufe 4)
+  for (const job of input.jobs) {
+    if (!job.cooperation_paused_at) continue;
+    const key = `job-paused:${job.id}:${String(job.cooperation_paused_at).slice(0, 10)}`;
+    if (doneKeys.has(key)) continue;
+    const open = tasks.filter((x) => x.kind === 'review' && x.jobId === job.id).length;
+    const why = 'Wir haben die Suche angehalten, bis Sie die offenen Rückmeldungen gegeben haben. Danach geht es sofort weiter.';
+    tasks.push({
+      key, kind: 'job_paused', submissionId: null, jobId: job.id, jobTitle: job.title ?? null, who: job.title ?? 'Stelle',
+      title: `Ihre Stelle ${job.title ?? ''} ruht`.replace(/\s+/g, ' '), detail: why, since: job.cooperation_paused_at, urgent: true, waitingWho: null,
+      ref: {}, note: null,
+      context: ctxOf({
+        ask: `Ihre Stelle ${job.title ?? ''} ruht`.replace(/\s+/g, ' '),
+        facts: [...fact('Ruht seit', formatBerlinDateShort(job.cooperation_paused_at)), ...fact('Offene Rückmeldungen', open ? String(open) : null)],
+        line: [open ? `${open} ${open === 1 ? 'Rückmeldung' : 'Rückmeldungen'} offen` : 'Rückmeldungen offen'],
+        why,
+      }),
+    });
+  }
+
+  // F3 Stufe 1: „n Vorstellungen warten auf Ihre Rückmeldung“ (für eine Sammelzeile)
+  const reminder: ReviewReminder | null = lateReviews.length ? {
+    count: lateReviews.length, oldestWorkdays: Math.max(...lateReviews),
+    text: `${lateReviews.length === 1 ? '1 Vorstellung wartet' : `${lateReviews.length} Vorstellungen warten`} auf Ihre Rückmeldung · die älteste seit ${Math.max(...lateReviews)} Werktagen`,
+  } : null;
+
   // Jemand wartet zuerst, dann nach Alter
   tasks.sort((a, b) => (a.urgent === b.urgent ? t(a.since) - t(b.since) : a.urgent ? -1 : 1));
-  return { tasks, waiting, news: deriveNews(input, tasks) };
+  return { tasks, waiting, news: deriveNews(input, tasks), reminder };
 }
 
 /** Meilensteine für die Dashboard-Leiste; wer handeln muss, zuerst. */
@@ -953,7 +1125,7 @@ async function rowsIn(db: SupabaseClient, table: string, select: string, column:
 
 /** Alles, was die Ableitung braucht – nur für Stellen, die der Nutzer sehen darf. */
 export async function loadClientTaskInput(db: SupabaseClient, userId: string, jobIds: string[], now: number): Promise<ClientTaskInput & { doneRecent: any[] }> {
-  const jobs = await rowsIn(db, 'jobs', 'id, title, status, client_id, organization_id, salary_min, salary_max, fee_percentage, mandate_id', 'id', jobIds);
+  const jobs = await rowsIn(db, 'jobs', 'id, title, status, client_id, organization_id, salary_min, salary_max, fee_percentage, mandate_id, research_for_placement_id, research_since, cooperation_paused_at', 'id', jobIds);
   const submissions = await rowsIn(db, 'submissions', 'id, job_id, candidate_id, recruiter_id, stage, status, submitted_at, identity_unlocked, identity_revealed, recruiter_notes', 'job_id', jobIds);
   const subIds = submissions.map((s) => s.id);
   // Kandidatenfelder wie im Bewerberprofil (client_candidate_view); Bänder bildet die Ableitung
@@ -969,7 +1141,12 @@ export async function loadClientTaskInput(db: SupabaseClient, userId: string, jo
     rowsIn(db, 'recruiter_job_activations', 'job_id, recruiter_id, status, activated_at', 'job_id', jobIds).catch(() => []),
     rowsIn(db, 'commercial_mandates', 'id, pricing_snapshot', 'id', jobs.map((j) => j.mandate_id)).catch(() => []),
   ]);
-  const recruiterIds = [...submissions.map((s) => s.recruiter_id), ...activations.map((a: any) => a.recruiter_id)];
+  const recruiterIds = [...submissions.map((s) => s.recruiter_id), ...activations.map((a: any) => a.recruiter_id), ...placements.map((p: any) => p.start_reported_by)];
+  const placementIds = placements.map((p: any) => p.id);
+  const [claims, researchOffers] = await Promise.all([
+    rowsIn(db, 'continuity_claims', 'id, placement_id, status, kind, reported_at, decided_at, client_sphere', 'placement_id', placementIds).catch(() => []),
+    rowsIn(db, 'research_offers', 'id, placement_id, decision, status, price_cents, valid_until, decided_at, answered_at', 'placement_id', placementIds).catch(() => []),
+  ]);
   const signLinks = await rowsIn(db, 'employment_sign_links', 'contract_id, signer_role, sent_at, opened_at, signed_at, revoked_at, created_at', 'contract_id',
     contracts.filter((c: any) => c.signing_mode === 'embedded').map((c: any) => c.id)).catch(() => []);
   const [recruiters, partners, comments] = await Promise.all([
@@ -1025,6 +1202,7 @@ export async function loadClientTaskInput(db: SupabaseClient, userId: string, jo
     now, jobs, submissions, candidates, recruiters, interviews, offers, recommendations, contracts, placements,
     invoices: invoices.filter((i: any) => i.status !== 'draft'), questions: qs, messages: messages.filter((m: any) => jobIds.includes(m.job_id)),
     log: allLog, doneRecent, comments, activations, partners, questionSenders, feePct, userId, signLinks, poRequiredJobs, defaultCostCenter,
+    claims, researchOffers,
   };
 }
 
@@ -1081,8 +1259,13 @@ export async function clientTeamOf(db: SupabaseClient, jobId: string): Promise<{
 
 export async function listClientTasks(ctx: ServiceCtx, user: User, body: any) {
   const jobIds = await getAccessibleJobIds(ctx.db as any, user.id);
-  const input = await loadClientTaskInput(ctx.db, user.id, jobIds, ctx.now());
-  const { tasks, waiting, news } = deriveClientTasks(input);
+  const [input, scope] = await Promise.all([loadClientTaskInput(ctx.db, user.id, jobIds, ctx.now()), billingScope(ctx.db, user.id)]);
+  // Rechnungen sehen nur Inhaber, Admin, HR und die Buchhaltung (nicht Hiring Manager und Viewer)
+  input.invoices = input.invoices.filter((i: any) => canSeeInvoice(scope, i));
+  const derived = deriveClientTasks(input);
+  const tasks = derived.tasks.filter((x) => x.kind !== 'purchase_order' || scope.isAdmin || (!!x.jobId && scope.jobIds.includes(x.jobId)));
+  const waiting = derived.waiting.filter((w) => !w.key.startsWith('inv-paid:') || !w.jobId || scope.isAdmin || scope.jobIds.includes(w.jobId));
+  const news = derived.news;
   const sub = typeof body?.submissionId === 'string' && UUID.test(body.submissionId) ? body.submissionId : null;
   const pick = <T extends { submissionId: string | null }>(xs: T[]) => (sub ? xs.filter((x) => x.submissionId === sub) : xs);
   return {
@@ -1091,6 +1274,9 @@ export async function listClientTasks(ctx: ServiceCtx, user: User, body: any) {
     done: pick(input.doneRecent.map((l: any) => ({ key: l.task_key, kind: l.kind, submissionId: l.submission_id, jobId: l.job_id, label: l.label, answer: l.answer, doneAt: l.done_at, doneBy: l.done_by }))),
     counts: { urgent: tasks.filter((x) => x.urgent).length, total: tasks.length },
     news: sub ? news.filter((n) => n.submissionId === sub) : news,
+    reminder: sub ? null : derived.reminder,
+    // HR sieht Rechnungen nur lesend (K9); „Überwiesen melden“ nur mit Verwaltungsrecht
+    billing: { canManage: scope.canManage, financeOnly: scope.financeOnly },
   };
 }
 
@@ -1262,6 +1448,8 @@ async function loadInvoiceForClient(ctx: ServiceCtx, user: User, id: unknown) {
 
 export async function invoicePaid(ctx: ServiceCtx, user: User, body: any) {
   const inv = await loadInvoiceForClient(ctx, user, body?.invoiceId);
+  const scope = await billingScope(ctx.db, user.id);
+  must(scope.isAdmin || scope.canManage, 'Überweisungen melden Inhaber, Admins und die Buchhaltung.', 'not_allowed');
   must(['open', 'pending', 'partially_paid'].includes(inv.status), 'Diese Rechnung ist schon bezahlt oder storniert.', 'conflict');
   const paidOn = String(body?.paidOn ?? '');
   must(DATE.test(paidOn), 'Bitte das Überweisungsdatum angeben.');

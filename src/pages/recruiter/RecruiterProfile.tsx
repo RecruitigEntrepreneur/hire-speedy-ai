@@ -51,6 +51,9 @@ const MENU: { id: SectionId; label: string }[] = [
   { id: 'nachweise', label: 'Nachweise' },
 ];
 const pathOf = (id: SectionId) => (id === 'uebersicht' ? '/recruiter/profile' : `/recruiter/profile/${id}`);
+/** Verdienste › Abrechnungsdaten (H13); mit ?konto=1 öffnet sich gleich „Konto ändern“. */
+const ABRECHNUNG = '/recruiter/earnings?reiter=abrechnungsdaten';
+const ABRECHNUNG_KONTO = '/recruiter/earnings?reiter=abrechnungsdaten&konto=1';
 const TAX_STATUS: Record<string, string> = { regular: 'Regelbesteuerung', small_business: 'Kleinunternehmerregelung', foreign: 'Ausländischer Steuerstatus' };
 const AVATAR_BUCKET = 'recruiter-avatars';
 const EVIDENCE_BUCKET = 'recruiter-evidence';
@@ -214,17 +217,13 @@ export default function RecruiterProfile() {
   };
   // Beim Wechsel des Bereichs das Formular schließen. Steht vor dem Sprung unten, damit der gewinnt.
   useEffect(() => { setEditing(''); setUpload(null); setIncome(null); }, [active]);
-  // Aus dem Startkasten oder von „Als Nächstes“: Abrechnung gleich zum Ausfüllen öffnen.
+  // Aus dem Startkasten oder von „Als Nächstes“: Abrechnungsdaten liegen seit dem Umbau
+  // 11.11.2026 unter Verdienste › Abrechnungsdaten (H13), das Konto nur mit Code per Mail.
   useEffect(() => {
     const hash = location.hash.slice(1);
-    if (loading || active !== 'abrechnung' || (hash !== 'firmendaten' && hash !== 'bankverbindung')) return;
-    startBilling();
-    window.setTimeout(() => {
-      const el = document.getElementById(hash === 'bankverbindung' ? 'bank_iban' : 'company_name') as HTMLInputElement | null;
-      el?.scrollIntoView({ behavior: 'smooth', block: 'center' }); el?.focus();
-    }, 50);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- nur beim Ankommen mit Sprungmarke
-  }, [loading, active, location.hash]);
+    if (active !== 'abrechnung' || (hash !== 'firmendaten' && hash !== 'bankverbindung')) return;
+    navigate(hash === 'bankverbindung' ? ABRECHNUNG_KONTO : ABRECHNUNG, { replace: true });
+  }, [active, location.hash, navigate]);
 
   const fail = (title: string) => toast({ title, variant: 'destructive' });
   const focusBilling = (field: 'bank_iban' | 'company_name' | 'company_address' | 'tax_id') => {
@@ -387,8 +386,8 @@ export default function RecruiterProfile() {
   };
   const tasks: Task[] = [
     ...openBilling.map(s => s.id === 'bank'
-      ? { id: 'bankverbindung', title: 'Bankverbindung eintragen', why: 'Ohne Konto können wir deine erste Provision nicht überweisen.', action: 'Eintragen', tag: 'Auszahlung', to: '/recruiter/profile/abrechnung#bankverbindung' }
-      : { id: 'firmendaten', title: 'Firmendaten ergänzen', why: 'Firma, Anschrift und Steuerangaben brauchen wir für deine Gutschriften.', action: 'Ergänzen', tag: 'Auszahlung', to: '/recruiter/profile/abrechnung#firmendaten' }),
+      ? { id: 'bankverbindung', title: 'Bankverbindung eintragen', why: 'Ohne Konto können wir deine erste Provision nicht überweisen.', action: 'Eintragen', tag: 'Auszahlung', to: ABRECHNUNG_KONTO }
+      : { id: 'firmendaten', title: 'Firmendaten ergänzen', why: 'Firma, Anschrift und Steuerangaben brauchen wir für deine Gutschriften.', action: 'Ergänzen', tag: 'Auszahlung', to: ABRECHNUNG }),
     ...openProof.map(kind => ({ id: kind, title: proofTitle(kind), why: 'Verlangt dein Vertrag. Matchunt prüft jeden Nachweis.', action: kind === 'income' ? 'Abgeben' : 'Hochladen', tag: 'Vertrag', to: '/recruiter/profile/nachweise' })),
     ...(!terminseite.isLoading && !terminseite.zeile?.active ? [{ id: 'terminseite', title: 'Terminseite einrichten', why: 'Kandidaten aus deinen Beiträgen buchen direkt bei dir.', action: 'Einrichten', tag: 'LinkedIn', to: '/recruiter/profile/terminseite' }] : []),
   ];
@@ -513,25 +512,13 @@ export default function RecruiterProfile() {
 
   const missingWith = (textValue: string, field: Parameters<typeof focusBilling>[0]) => <span className="inline-flex flex-wrap items-center gap-2">
     <span className="text-warning">{textValue}</span>
-    <Button variant="outline" size="sm" className="h-7" onClick={() => focusBilling(field)}>Jetzt eintragen</Button>
+    <Button variant="outline" size="sm" className="h-7" onClick={() => navigate(field === 'bank_iban' ? ABRECHNUNG_KONTO : ABRECHNUNG)}>Jetzt eintragen</Button>
   </span>;
-  const billingPanel = <Panel title="Abrechnung" icon={Receipt} action={editButton('billing', startBilling)}>
-    <p className="text-sm text-muted-foreground">Für deine Gutschriften und Auszahlungen. Änderungen gehen automatisch an Matchunt.</p>
-    {editing === 'billing' ? <>
-      {fromContract && <p className="flex items-center gap-2 text-sm text-success"><Info className="h-4 w-4 shrink-0"/>Aus deinem Vertrag übernommen. Bitte prüfen und speichern.</p>}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field id="company_name" label="Firma"><Input id="company_name" value={billing.company_name} onChange={e => setBill('company_name', e.target.value)}/></Field>
-        <Field id="tax_id" label="USt-IdNr. / Steuernummer"><Input id="tax_id" value={billing.tax_id} onChange={e => setBill('tax_id', e.target.value)}/></Field>
-      </div>
-      <Field id="company_address" label="Anschrift"><Input id="company_address" value={billing.company_address} onChange={e => setBill('company_address', e.target.value)}/></Field>
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Field id="bank_account_holder" label="Kontoinhaber"><Input id="bank_account_holder" value={billing.bank_account_holder} placeholder={billing.company_name || 'wie auf dem Konto'} onChange={e => setBill('bank_account_holder', e.target.value)}/></Field>
-        <Field id="bank_iban" label="IBAN"><Input id="bank_iban" value={billing.bank_iban} placeholder="DE00 0000 0000 0000 0000 00" autoComplete="off" onChange={e => setBill('bank_iban', e.target.value.toUpperCase())} onBlur={() => setBill('bank_iban', formatIban(billing.bank_iban))}/></Field>
-        <Field id="bank_bic" label="BIC" hint="Optional"><Input id="bank_bic" value={billing.bank_bic} autoComplete="off" onChange={e => setBill('bank_bic', e.target.value.toUpperCase())}/></Field>
-      </div>
-      {errorLine}
-      {saveButtons('billing', () => void saveBilling())}
-    </> : <dl className="grid grid-cols-[minmax(110px,auto)_1fr] gap-x-6 gap-y-2">
+  // Abrechnung (Umbau 11.11.2026, H13): ändern nur noch unter Verdienste › Abrechnungsdaten,
+  // das Auszahlungskonto dort mit Code per Mail und 48 Stunden Wartezeit.
+  const billingPanel = <Panel title="Abrechnung" icon={Receipt} action={<Button variant="outline" size="sm" onClick={() => navigate(ABRECHNUNG)}>Abrechnungsdaten öffnen<ArrowRight className="ml-1.5 h-3.5 w-3.5"/></Button>}>
+    <p className="text-sm text-muted-foreground">Firma, Anschrift, Steuer und Auszahlungskonto pflegst du unter Verdienste › Abrechnungsdaten. Das Konto änderst du dort mit einem Code per Mail.</p>
+    <dl className="grid grid-cols-[minmax(110px,auto)_1fr] gap-x-6 gap-y-2">
       <Fact label="Firma" value={saved.billing.company_name || missingWith('fehlt', 'company_name')}/>
       <Fact label="Anschrift" value={saved.billing.company_address || missingWith('fehlt', 'company_address')}/>
       <Fact label="USt-IdNr. / Steuernummer" value={saved.billing.tax_id || missingWith('fehlt', 'tax_id')}/>
@@ -539,8 +526,8 @@ export default function RecruiterProfile() {
       {p?.legalForm && <Fact label="Rechtsform · Land" locked value={[p.legalForm, p.country].filter(Boolean).join(' · ')}/>}
       {taxLabel && <Fact label="Steuerstatus" locked value={taxLabel}/>}
       {creditNote && <Fact label="Gutschriftverfahren" locked value={creditNote}/>}
-    </dl>}
-    {editing !== 'billing' && p && <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Lock className="h-3 w-3"/>Aus deinem Vertrag. Für Änderungen antworte auf eine Mail von Matchunt.</p>}
+    </dl>
+    {p && <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Lock className="h-3 w-3"/>Mit Schloss: so im Vertrag. Aktuelle Angaben für Gutschriften stehen unter Verdienste › Abrechnungsdaten.</p>}
   </Panel>;
 
   const contractPanel = <Panel title="Vertrag" icon={FileCheck2}>

@@ -1,14 +1,18 @@
 // Einstellung und Rechnung (Paket 4a, 22.10.2026): Admin › Besetzungen (Fahrplan,
 // Rechnungen), Rechnung prüfen und freigeben, Zahlung buchen, PDF abrufen.
 // Seit Etappe 1 (25.10.2026) auch für Kunden: Seite „Besetzungen“ mit Meldungen
-// und Bereich „Rechnungen“ (Belege, Export, Rechnungsdaten).
+// und Bereich „Rechnungen“ (Belege, Export, Rechnungsdaten). Umbau 11.11.2026:
+// Antritt, „Besetzung endet“, Nachbesetzung und Angebot bei Core (K5–K7, J2/J3).
 // Logik in _shared/placement-service.ts, besetzung-service.ts, billing-service.ts.
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { json, preflight } from '../_shared/http.ts';
 import { serviceClient } from '../_shared/intake-core.ts';
 import { authUser, defaultCtx, interviewFailure, must } from '../_shared/interview-service.ts';
 import { adminOverview, bookPayment, invoiceFile, invoicePreview, placementCtx, releaseInvoice } from '../_shared/placement-service.ts';
-import { clientOverview, moveStart, nonStartDocument, reportDeparture, setPurchaseOrder } from '../_shared/besetzung-service.ts';
+import {
+  answerResearchOffer, clientOverview, confirmPosition, endDocument, endResearchForClient, moveStart, reopenJob, reportDeparture,
+  reportEndForClient, setPurchaseOrder, startAnswer,
+} from '../_shared/besetzung-service.ts';
 import { clientInvoices, invoiceFiles, updateBillingSettings } from '../_shared/billing-service.ts';
 
 serve(async (req) => {
@@ -28,7 +32,14 @@ serve(async (req) => {
       // Kunde: Besetzungen
       case 'client_overview': return json(await clientOverview(ctx, user));
       case 'move_start': return json(await moveStart(ctx, user, body));
-      case 'non_start_document': return json(await nonStartDocument(ctx, user, body));
+      case 'start_answer': return json(await startAnswer(ctx, user, body));
+      case 'report_end': return json(await reportEndForClient(ctx, user, body));
+      case 'end_document':
+      case 'non_start_document': return json(await endDocument(ctx, user, body));
+      case 'confirm_research_position': return json(await confirmPosition(ctx, user, body));
+      case 'end_research': return json(await endResearchForClient(ctx, user, body));
+      case 'answer_research_offer': return json(await answerResearchOffer(ctx, user, body));
+      case 'reopen_job': return json(await reopenJob(ctx, user, body));
       case 'report_departure': return json(await reportDeparture(ctx, user, body));
       case 'set_purchase_order': return json(await setPurchaseOrder(ctx, user, body));
       // Kunde: Rechnungen

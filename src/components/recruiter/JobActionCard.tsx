@@ -7,6 +7,8 @@ import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { Honorar } from './Honorar';
+import { useJobEarning, euroKurz } from './verdienste/useJobEarning';
+import { runningSince } from '../../../supabase/functions/_shared/abrechnung-view';
 
 interface JobActionCardProps {
   job: {
@@ -80,6 +82,8 @@ export function JobActionCard({
   const salaryRange = formatSalaryRange(job.salary_min, job.salary_max);
   const tagVerdienst = verdienstJeTag(job);
   const tagessatz = spezialistenSatz(job);
+  // Verdienst nach Paket und Fassung, mit „in 2 Teilen“ (H3) bzw. Nachbesetzung (H6), Umbau 11.11.2026
+  const { earning: plan } = useJobEarning(tagVerdienst ? null : job.id, job.salary_min, job.salary_max);
   const skills = (job.skills || []).slice(0, 3);
   const moreSkills = Math.max((job.skills?.length || 0) - 3, 0);
   const freshness = job.updated_at
@@ -88,6 +92,7 @@ export function JobActionCard({
   const urgent = job.hiring_urgency === 'urgent';
   const facts = [
     tagessatz ? `Contracting · ${tagessatz} / Tag` : salaryRange,
+    plan?.research ? `Nachbesetzung ${runningSince(plan.research.since, new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }))}` : null,
     ...skills,
   ].filter(Boolean) as string[];
 
@@ -108,9 +113,13 @@ export function JobActionCard({
     >
       {/* Zeile 1: Titel | Verdienst */}
       <div className="flex items-baseline justify-between gap-3">
-        <h3 className="min-w-0 text-[15px] font-medium leading-snug">{job.title}</h3>
+        <h3 className="min-w-0 text-[15px] font-medium leading-snug">
+          {plan?.research && <span className="mr-1.5 inline-block rounded border border-border px-1.5 align-middle text-[11px] font-normal text-muted-foreground">Nachbesetzung</span>}
+          {job.title}
+          {plan?.research?.own && <span className="text-sm font-normal text-muted-foreground"> · deine frühere Besetzung</span>}
+        </h3>
         <span className="shrink-0 text-[15px] font-semibold tabular-nums text-emerald-500">
-          <Honorar>{tagVerdienst ?? (earning ? `€${earning.toLocaleString('de-DE')}` : `${job.recruiter_fee_percentage} %`)}</Honorar>
+          <Honorar>{tagVerdienst ?? (plan ? `${plan.research ? '' : '≈ '}${euroKurz(plan.totalCents)}` : earning ? `€${earning.toLocaleString('de-DE')}` : `${job.recruiter_fee_percentage} %`)}</Honorar>
         </span>
       </div>
 
@@ -136,7 +145,7 @@ export function JobActionCard({
         </div>
         {/* Am Handy genügt der Betrag oben; Satz und Arbeitsmodell ab sm. */}
         <span className="hidden shrink-0 tabular-nums sm:inline">
-          {tagVerdienst ? 'je Einsatztag' : earning != null ? <Honorar>{`${job.recruiter_fee_percentage} % Honorar`}</Honorar> : null}
+          {tagVerdienst ? 'je Einsatztag' : plan ? plan.cardLine : earning != null ? <Honorar>{`${job.recruiter_fee_percentage} % Honorar`}</Honorar> : null}
         </span>
       </div>
 

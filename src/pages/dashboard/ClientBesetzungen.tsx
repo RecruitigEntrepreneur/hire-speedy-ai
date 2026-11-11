@@ -6,19 +6,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { useBesetzungen, type BesetzungGroup, type BesetzungItem } from '@/lib/besetzungApi';
-import { useClientTasks, type ClientTask } from '@/lib/clientTasksApi';
+import { useClientTasks } from '@/lib/clientTasksApi';
 import { BesetzungCard } from '@/components/besetzungen/BesetzungParts';
-import { BesetzungWindow } from '@/components/besetzungen/BesetzungWindow';
+import { BesetzungWindow, type BesetzungForm } from '@/components/besetzungen/BesetzungWindow';
 import { INTRO, dayMonth, eur } from '@/components/besetzungen/besetzungView';
 import { OfferTaskWindow } from '@/components/offers/OfferTaskWindow';
 import { ContractTaskWindow } from '@/components/contracts/ContractTaskWindow';
-import { ClientTaskWindow } from '@/components/client/tasks/ClientTaskWindow';
 
 /**
- * Kunden-Seite „Besetzungen“ (Etappe 2, 25.10.2026): ersetzt „Angebote“ und „Placements“.
- * Alles nach dem Interview in vier Reitern: Im Angebot · Bis zum Start · Im Haus ·
- * Abgeschlossen. Klick auf eine Karte öffnet das Fenster „Besetzung · Name“, bei einem
- * Angebot das vorhandene Angebots-Fenster. Rechnungen: eigener Bereich (Etappe 3).
+ * Kunden-Seite „Besetzungen“ (Etappe 2, 25.10.2026; Umbau Nachbesetzung 11.11.2026, K3):
+ * ersetzt „Angebote“ und „Placements“. Alles nach dem Interview in vier Reitern: Im Angebot ·
+ * Bis zum Start · Im Haus · Abgeschlossen. Klick auf eine Karte öffnet das Fenster
+ * „Besetzung · Name“, bei einem Angebot das vorhandene Angebots-Fenster.
+ * Adresse: ?besetzung=<submissionId> öffnet das Fenster, &melden=ende direkt „Besetzung endet“
+ * (Aufgabe „… hat vor dem Start abgesagt“). Rechnungen: eigener Bereich.
  */
 
 const TABS: { key: BesetzungGroup; label: string }[] = [
@@ -32,7 +33,7 @@ const EMPTY: Record<BesetzungGroup, string> = {
   angebot: 'Gerade läuft kein Angebot. Ein Angebot machen Sie im Bewerberprofil nach dem Interview.',
   start: 'Niemand zwischen Zusage und erstem Arbeitstag.',
   haus: 'Noch niemand im Haus, der über Matchunt kam.',
-  ab: 'Noch nichts abgeschlossen. Hier landen Besetzungen nach dem Continuity-Zeitraum bzw. 6 Monate nach Start, dazu Nichtantritte und Ausgeschiedene.',
+  ab: 'Noch nichts abgeschlossen. Hier landen Besetzungen nach der Nachbesetzungs-Frist bzw. 6 Monate nach Start und beendete Besetzungen.',
 };
 
 function Kpi({ label, value, sub, onClick }: { label: string; value: string; sub?: string | null; onClick?: () => void }) {
@@ -58,7 +59,7 @@ export default function ClientBesetzungen() {
   const [winFor, setWinFor] = useState<string | null>(null);
   const [offerFor, setOfferFor] = useState<string | null>(null);
   const [contractFor, setContractFor] = useState<string | null>(null);
-  const [startTask, setStartTask] = useState<ClientTask | null>(null);
+  const [initialForm, setInitialForm] = useState<BesetzungForm | null>(null);
 
   const items = useMemo(() => q.data?.items ?? [], [q.data]);
   const taskSubs = useMemo(() => new Set((tasks.data?.tasks ?? []).map((t) => t.submissionId).filter(Boolean) as string[]), [tasks.data]);
@@ -83,16 +84,20 @@ export default function ClientBesetzungen() {
   const tab: BesetzungGroup = asked && TABS.some((t) => t.key === asked) ? asked : fallback;
   const setTab = (key: BesetzungGroup) => { const next = new URLSearchParams(params); next.set('reiter', key); setParams(next, { replace: true }); };
 
-  // Direkt ins Fenster (Glocke, Mail): ?besetzung=<submissionId>
+  // Direkt ins Fenster (Glocke, Mail, Aufgabe): ?besetzung=<submissionId>[&melden=ende]
   useEffect(() => {
     const sub = params.get('besetzung');
     if (!sub || !q.data) return;
     const hit = q.data.items.find((i) => i.submissionId === sub);
-    if (hit) { if (hit.group === 'angebot') setOfferFor(sub); else setWinFor(sub); }
-    const next = new URLSearchParams(params); next.delete('besetzung'); if (hit) next.set('reiter', hit.group); setParams(next, { replace: true });
+    const melden = params.get('melden');
+    if (hit) {
+      if (hit.group === 'angebot') setOfferFor(sub);
+      else { setInitialForm(melden === 'ende' && hit.can?.endReport ? 'end' : null); setWinFor(sub); }
+    }
+    const next = new URLSearchParams(params); next.delete('besetzung'); next.delete('melden'); if (hit) next.set('reiter', hit.group); setParams(next, { replace: true });
   }, [params, q.data, setParams]);
 
-  const open = (i: BesetzungItem) => (i.group === 'angebot' ? setOfferFor(i.submissionId) : setWinFor(i.submissionId));
+  const open = (i: BesetzungItem) => { setInitialForm(null); if (i.group === 'angebot') setOfferFor(i.submissionId); else setWinFor(i.submissionId); };
   const current = items.find((i) => i.submissionId === winFor) ?? null;
   const list = filtered.filter((i) => i.group === tab);
   const k = q.data?.kpis;
@@ -102,7 +107,7 @@ export default function ClientBesetzungen() {
       <div className="mx-auto max-w-4xl space-y-5">
         <div>
           <h1 className="text-2xl font-bold">Besetzungen</h1>
-          <p className="text-sm text-muted-foreground">Alles nach dem Interview: Angebot, Zusage, Vertrag, Start, Continuity.</p>
+          <p className="text-sm text-muted-foreground">Alles nach dem Interview: Angebot, Zusage, Vertrag, Start, Nachbesetzung.</p>
         </div>
 
         {q.isLoading ? (
@@ -152,11 +157,14 @@ export default function ClientBesetzungen() {
       </div>
 
       <BesetzungWindow
-        item={current} open={!!current} onOpenChange={(o) => { if (!o) setWinFor(null); }}
+        item={current} open={!!current} initialForm={initialForm}
+        onOpenChange={(o) => { if (!o) { setWinFor(null); setInitialForm(null); } }}
         onContract={(sub) => { setWinFor(null); setContractFor(sub); }}
-        onStartCheck={(i) => {
-          const t = (tasks.data?.tasks ?? []).find((x) => x.key === `start:${i.placement?.id}`) ?? null;
-          if (t) { setWinFor(null); setStartTask(t); } else navigate(`/dashboard/aufgaben`);
+        onOpenSubmission={(sub) => {
+          const hit = items.find((i) => i.submissionId === sub);
+          setInitialForm(null);
+          setWinFor(sub);
+          if (hit) setTab(hit.group);
         }}
       />
       <OfferTaskWindow submissionId={offerFor} open={!!offerFor} onOpenChange={(o) => { if (!o) setOfferFor(null); }}
@@ -164,7 +172,6 @@ export default function ClientBesetzungen() {
         onReject={() => offerFor && navigate(`/dashboard/candidates/${offerFor}`, { state: { open: 'reject' } })}
         onContract={() => { const s = offerFor; setOfferFor(null); setContractFor(s); }} />
       <ContractTaskWindow submissionId={contractFor} open={!!contractFor} onOpenChange={(o) => { if (!o) setContractFor(null); }} />
-      <ClientTaskWindow task={startTask} open={!!startTask} onOpenChange={(o) => { if (!o) setStartTask(null); }} handlers={null} />
     </DashboardLayout>
   );
 }

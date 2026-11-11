@@ -117,6 +117,10 @@ export default function ClientAufgaben() {
               </div>
             )}
 
+            {/* Faire Zusammenarbeit, Stufe 1 (F3): Sammelhinweis, wenn Vorstellungen länger als 5 Werktage warten */}
+            {data?.reminder && (
+              <p className="rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">{data.reminder.text}</p>
+            )}
             {allTasks.length === 0 && (
               <div className="flex flex-col items-center rounded-xl border py-10 text-center">
                 <CheckCircle2 className="mb-2 h-8 w-8 text-emerald-500/70" />

@@ -7,27 +7,32 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { eurCents, type BillingSettings, type ClientInvoice } from '@/lib/billingApi';
+import { cn } from '@/lib/utils';
+import type { BillingSettings, ClientInvoice } from '@/lib/billingApi';
 import { clientTasksApi } from '@/lib/clientTasksApi';
 import { placementApi } from '@/lib/placementApi';
-import { InvoiceStatus, dateDe } from './InvoiceParts';
+import { dateDe, eurC, forLine, invoiceState, taxLine } from './invoiceView';
 
 /**
- * Beleg-Fenster (Etappe 3, 25.10.2026): Eckdaten, Empfänger, Positionen, Zahlung und
- * Verlauf einer Rechnung. Überweisung melden und Frage zur Rechnung wie in Aufgabe 15.
+ * Beleg-Fenster (Etappe 3, 25.10.2026; Umbau 11.11.2026, K10): Eckdaten, Empfänger,
+ * Positionen, Zahlungen mit Rest, Bankhinweis (nur, wenn die Bankverbindung hinterlegt ist)
+ * und Verlauf. Überweisung melden nur mit Verwaltungsrecht (HR liest nur).
+ * E-Rechnung (XML) kommt später (Bauplan 1.13), deshalb kein Knopf.
  */
 
 interface Props {
   invoice: ClientInvoice | null;
   settings: BillingSettings | null;
   financeOnly: boolean;
+  /** Inhaber, Admin, Buchhaltung; HR sieht nur */
+  canManage?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 const todayIso = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
 
-export function InvoiceWindow({ invoice, settings, financeOnly, open, onOpenChange }: Props) {
+export function InvoiceWindow({ invoice, settings, financeOnly, canManage = true, open, onOpenChange }: Props) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [form, setForm] = useState<'paid' | 'frage' | null>(null);
@@ -41,6 +46,7 @@ export function InvoiceWindow({ invoice, settings, financeOnly, open, onOpenChan
   const i = invoice;
   const line = i.lines[0];
   const details = (line?.details ?? []).filter((d) => !d.startsWith('Arbeitsvertrag geschlossen'));
+  const state = invoiceState(i);
   const run = async (work: () => Promise<string>) => {
     setBusy(true);
     try { setDone(await work()); queryClient.invalidateQueries({ queryKey: ['client-invoices'] }); queryClient.invalidateQueries({ queryKey: ['client-tasks'] }); }
@@ -57,12 +63,14 @@ export function InvoiceWindow({ invoice, settings, financeOnly, open, onOpenChan
   const r = i.recipient ?? {};
   const address = [r.street, r.city].filter(Boolean).join(' · ');
   const bank = settings?.bank;
+  const rest = i.open ? i.restCents : 0;
+  const payments = i.payments.length ? i.payments : i.paidAt ? [{ date: i.paidAt.slice(0, 10), amountCents: i.paidCents || i.totalCents, source: 'manual' }] : [];
 
   let body: React.ReactNode;
   if (done) {
     body = (
       <>
-        <div className="flex items-start gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/[0.06] p-3 text-sm">
+        <div className="flex items-start gap-2 rounded-lg border p-3 text-sm">
           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
           <div><p className="font-medium">Erledigt.</p><p className="text-muted-foreground">{done}</p></div>
         </div>
@@ -103,9 +111,14 @@ export function InvoiceWindow({ invoice, settings, financeOnly, open, onOpenChan
         <div className="grid grid-cols-2 gap-2">
           {fact('Rechnungsdatum', dateDe(i.issuedAt))}
           {fact('Fällig', i.dueDate ? `${dateDe(i.dueDate)}${settings ? ` · ${settings.paymentTermsDays} Tage` : ''}` : '–')}
-          {fact('Bestellnummer', i.purchaseOrder ?? '–')}
+          {fact('Bestellnummer', i.purchaseOrder ?? (i.poFollows ? 'folgt' : '–'))}
           {fact('Kostenstelle', i.costCenter ?? '–')}
         </div>
+        {(i.correctsNumber || i.cancelledByNumber) && (
+          <p className="text-sm text-muted-foreground">
+            {i.correctsNumber ? `Bezieht sich auf Rechnung ${i.correctsNumber}.` : ''}{i.correctsNumber && i.cancelledByNumber ? ' ' : ''}{i.cancelledByNumber ? `Storniert durch ${i.cancelledByNumber}.` : ''}
+          </p>
+        )}
         <div className="rounded-lg border p-2.5 text-sm">
           <p className="text-xs text-muted-foreground">Empfänger</p>
           <p>{r.name ?? settings?.name ?? '–'}</p>
@@ -114,34 +127,50 @@ export function InvoiceWindow({ invoice, settings, financeOnly, open, onOpenChan
         <div className="divide-y text-sm">
           <div className="flex justify-between gap-3 py-2">
             <div className="min-w-0"><p>{line?.title ?? 'Personalvermittlung'}</p>{details.map((d) => <p key={d} className="text-xs text-muted-foreground">{d}</p>)}</div>
-            <span className="shrink-0 tabular-nums">{eurCents(i.netCents)}</span>
+            <span className="shrink-0 tabular-nums">{eurC(i.netCents)}</span>
           </div>
           <div className="flex justify-between gap-3 py-2">
-            <span>{i.reverseCharge ? 'Steuerschuldnerschaft des Leistungsempfängers (Reverse Charge)' : `zzgl. ${i.vatRate ?? 19} % USt`}</span>
-            <span className="shrink-0 tabular-nums">{eurCents(i.vatCents)}</span>
+            <span>{taxLine(i)}</span>
+            <span className="shrink-0 tabular-nums">{eurC(i.vatCents)}</span>
           </div>
-          <div className="flex justify-between gap-3 py-2 font-semibold"><span>Gesamt</span><span className="tabular-nums">{eurCents(i.totalCents)}</span></div>
+          <div className="flex justify-between gap-3 py-2 font-semibold"><span>Gesamt</span><span className="tabular-nums">{eurC(i.totalCents)}</span></div>
         </div>
-        {i.open && (
+        {payments.length > 0 && (
+          <div>
+            <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Zahlungen</p>
+            <div className="divide-y text-sm">
+              {payments.map((p, n) => (
+                <div key={n} className="flex justify-between gap-3 py-1.5">
+                  <span>Überweisung eingegangen · {dateDe(p.date)}</span>
+                  <span className="shrink-0 tabular-nums">− {eurC(p.amountCents)}</span>
+                </div>
+              ))}
+              {i.open && <div className="flex justify-between gap-3 py-1.5 font-medium"><span>Noch offen</span><span className="tabular-nums">{eurC(rest)}</span></div>}
+            </div>
+          </div>
+        )}
+        {i.open && bank && (
           <div className="rounded-lg bg-muted/40 p-2.5 text-sm">
-            <p>Zahlung an {bank?.holder || 'Bluewater & Bridge GmbH'} · Verwendungszweck <span className="font-medium">{i.number}</span></p>
-            {bank ? <p className="text-xs text-muted-foreground">IBAN {bank.iban}{bank.bic ? ` · BIC ${bank.bic}` : ''}</p> : <p className="text-xs text-muted-foreground">Die Bankverbindung steht auf der Rechnung.</p>}
+            <p>Bitte überweisen Sie {eurC(rest)} an {bank.holder} · Verwendungszweck <span className="font-medium">{i.number}</span></p>
+            <p className="text-xs text-muted-foreground">IBAN {bank.iban}{bank.bic ? ` · BIC ${bank.bic}` : ''}</p>
           </div>
         )}
         <div className="flex flex-wrap gap-2">
-          {i.open && !i.reportedPaidOn && <Button size="sm" onClick={() => setForm('paid')}>Überwiesen melden</Button>}
+          {i.open && !i.reportedPaidOn && canManage && <Button size="sm" onClick={() => setForm('paid')}>Überwiesen melden</Button>}
           {i.hasPdf && <Button size="sm" variant="outline" onClick={() => void openPdf()}>PDF</Button>}
           <Button size="sm" variant="outline" onClick={() => setForm('frage')}>Frage zur Rechnung</Button>
           {!financeOnly && i.submissionId && <Button size="sm" variant="outline" onClick={() => { onOpenChange(false); navigate(`/dashboard/besetzungen?besetzung=${i.submissionId}`); }}>Zur Besetzung</Button>}
         </div>
-        <div>
-          <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Verlauf</p>
-          <ol className="divide-y text-sm">
-            <li className="flex justify-between gap-3 py-1.5"><span>Gestellt{i.sentTo ? ` und an ${i.sentTo} gesendet` : ''}</span><span className="shrink-0 text-xs text-muted-foreground">{dateDe(i.issuedAt)}</span></li>
-            {i.reportedPaidOn && <li className="flex justify-between gap-3 py-1.5"><span>Überweisung gemeldet, Matchunt prüft</span><span className="shrink-0 text-xs text-muted-foreground">{dateDe(i.reportedPaidOn)}</span></li>}
-            {i.paidAt && <li className="flex justify-between gap-3 py-1.5"><span>Zahlung eingegangen, gebucht von Matchunt</span><span className="shrink-0 text-xs text-muted-foreground">{dateDe(i.paidAt)}</span></li>}
-          </ol>
-        </div>
+        {i.events.length > 0 && (
+          <div>
+            <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Verlauf</p>
+            <ol className="divide-y text-sm">
+              {i.events.map((e, n) => (
+                <li key={n} className="flex justify-between gap-3 py-1.5"><span>{e.text}</span><span className="shrink-0 text-xs text-muted-foreground">{dateDe(e.at)}</span></li>
+              ))}
+            </ol>
+          </div>
+        )}
         <div className="flex justify-end border-t pt-3"><Button variant="ghost" onClick={() => onOpenChange(false)}>Schließen</Button></div>
       </>
     );
@@ -151,11 +180,11 @@ export function InvoiceWindow({ invoice, settings, financeOnly, open, onOpenChan
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader className="text-left">
-          <div className="flex flex-wrap items-center gap-2 pr-6">
-            <DialogTitle>Rechnung {i.number}</DialogTitle>
-            <InvoiceStatus invoice={i} />
-          </div>
-          <DialogDescription>{[i.candidateName, i.jobTitle].filter(Boolean).join(' · ') || 'Personalvermittlung'}</DialogDescription>
+          <DialogTitle className="pr-6">
+            Rechnung {i.number}
+            <span className={cn('font-normal', state.tone === 'bad' ? 'text-destructive' : 'text-muted-foreground')}> · {state.text}</span>
+          </DialogTitle>
+          <DialogDescription>{forLine(i)}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">{body}</div>
       </DialogContent>

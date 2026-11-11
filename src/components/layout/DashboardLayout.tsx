@@ -34,6 +34,7 @@ import {
   Link2,
   MessageSquareWarning,
   Trophy,
+  Handshake,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
@@ -123,7 +124,6 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
     { label: 'Talent Pool', href: '/recruiter/talent-pool', icon: <Database className="h-4 w-4" /> },
     { label: 'Matchunt Liga', href: '/recruiter/liga', icon: <Trophy className="h-4 w-4" /> },
     { label: 'Verdienste', href: '/recruiter/earnings', icon: <DollarSign className="h-4 w-4" /> },
-    { label: 'Auszahlungen', href: '/recruiter/payouts', icon: <Wallet className="h-4 w-4" /> },
     { label: 'Benachrichtigungen', href: '/recruiter/notifications', icon: <Activity className="h-4 w-4" /> },
     { label: 'Nachrichten', href: '/recruiter/messages', icon: <MessageSquare className="h-4 w-4" /> },
     { label: 'Profil', href: '/recruiter/profile', icon: <UserCheck className="h-4 w-4" /> },
@@ -145,6 +145,10 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
     { label: 'Interviews', href: '/admin/interviews', icon: <Calendar className="h-4 w-4" /> },
     { label: 'Besetzungen', href: '/admin/besetzungen', icon: <UserCheck className="h-4 w-4" /> },
     { label: 'Unterschriften', href: '/admin/vertraege', icon: <FileText className="h-4 w-4" /> },
+    // Pakete & Konditionen (A10, Umbau 11.11.2026): Fassungen, Stichtag, Zustimmungen
+    { label: 'Pakete & Konditionen', href: '/admin/pakete', icon: <Wallet className="h-4 w-4" /> },
+    // Faire Zusammenarbeit (F1): Kunden mit Signalen, Stufen 1–5
+    { label: 'Zusammenarbeit', href: '/admin/zusammenarbeit', icon: <Handshake className="h-4 w-4" /> },
     { label: 'Deal Health', href: '/admin/deal-health', icon: <Activity className="h-4 w-4" /> },
     { label: 'Analytics', href: '/admin/analytics', icon: <BarChart3 className="h-4 w-4" /> },
     { label: 'Matching Config', href: '/admin/matching-config', icon: <Target className="h-4 w-4" /> },
@@ -152,7 +156,6 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
     { label: 'Skill Synonyme', href: '/admin/skill-synonyms', icon: <Activity className="h-4 w-4" /> },
     { label: 'Activity', href: '/admin/activity', icon: <Activity className="h-4 w-4" /> },
     { label: 'Fraud', href: '/admin/fraud', icon: <AlertTriangle className="h-4 w-4" /> },
-    { label: 'Auszahlungen', href: '/admin/payouts', icon: <Wallet className="h-4 w-4" /> },
     { label: 'Outreach', href: '/admin/outreach', icon: <Mail className="h-4 w-4" /> },
   ];
 

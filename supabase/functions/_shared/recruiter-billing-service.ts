@@ -39,6 +39,11 @@ export async function saveBilling(db: SupabaseClient, user: User, input: unknown
   const { data: current, error } = await db.from('profiles').select('full_name,company_name,company_address,tax_id,bank_account_holder,bank_iban,bank_bic').eq('user_id', user.id).maybeSingle();
   dbError(error);
   must(current, 'Dein Profil wurde nicht gefunden.', 'not_found');
+  // Auszahlungskonto nur noch über Verdienste › Abrechnungsdaten mit Mail-Code und
+  // 48 Stunden Wartezeit (H13, Umbau 11.11.2026). Hier bleibt es, wie es ist.
+  const bank = cleanBilling(current);
+  must(next.bank_iban === bank.bank_iban && next.bank_bic === bank.bank_bic && next.bank_account_holder === bank.bank_account_holder,
+    'Dein Auszahlungskonto änderst du unter Verdienste › Abrechnungsdaten, geschützt mit einem Code per Mail.', 'conflict');
   const changes = billingChanges(current, next);
   if (!changes.length) return { saved: true, changed: [] as string[] };
   const { error: writeError } = await db.from('profiles').update(next).eq('user_id', user.id);

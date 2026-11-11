@@ -51,11 +51,16 @@ export function NotificationBell() {
           ? `/recruiter/interviews?interview=${notification.related_id}`
           : `/dashboard/interviews`;
       case "placement":
+        // Buchhaltung (11.11.2026): direkt zur Besetzung (Verdienste-Fenster bzw. Admin-Fahrplan)
         return role === "recruiter"
-          ? `/recruiter/earnings`
-          : `/dashboard/besetzungen`;
+          ? `/recruiter/earnings?besetzung=${notification.related_id}`
+          : role === "admin"
+            ? `/admin/besetzungen?reiter=faelle`
+            : `/dashboard/besetzungen`;
+      case "invoice":
+        return role === "admin" ? `/admin/besetzungen?reiter=rechnungen` : `/dashboard/rechnungen?beleg=${notification.related_id}`;
       case "payout":
-        return `/recruiter/payouts`;
+        return `/recruiter/earnings?reiter=gutschriften`;
       case "client_company":
         // Firma beantragt (an Matchunt) bzw. entschieden (an den Kunden)
         return role === "admin"

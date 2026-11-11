@@ -22,6 +22,8 @@ import { TaskContextBlock } from './ClientTaskParts';
  * darunter die Felder der gewählten Antwort. Antworten mit eigenem Fenster (Interview
  * anfragen, Angebot, Vertrag, Absage) übergeben an das bekannte Fenster im Profil.
  * Kein Aufschieben (Entscheidung 23.10.); Gründe bei Abbruch Pflicht.
+ * Umbau 11.11.2026: Antritt (K7), Absage vor dem Start (K8 → K5 „Besetzung endet“),
+ * Position für die Nachbesetzung, Angebot Nachbesetzung (J2), Stelle ruht (F3).
  */
 
 /** Was das Profil für Antworten mit eigenem Fenster bereitstellt. */
@@ -33,7 +35,7 @@ export interface TaskHandlers {
   contract: (open: ContractOpen) => void;
 }
 
-type Field = 'none' | 'reason' | 'date' | 'text' | 'colleague' | 'nonstart' | 'po';
+type Field = 'none' | 'reason' | 'date' | 'text' | 'colleague' | 'po';
 
 interface Option {
   key: string;
@@ -48,8 +50,8 @@ interface Option {
   check?: (v: Values) => string | null;
   /** Satz nach dem Erledigen */
   doneText?: string;
-  /** 'done' = erledigt (Fenster schreibt das Protokoll), 'logged' = erledigt (Server hat protokolliert), 'handoff' = anderes Fenster übernimmt */
-  run: (v: Values) => Promise<'done' | 'logged' | 'handoff'>;
+  /** 'done' = erledigt (Fenster schreibt das Protokoll), 'logged' = erledigt (Server hat protokolliert), 'handoff' = anderes Fenster übernimmt; { logged } = erledigt mit eigenem Satz */
+  run: (v: Values) => Promise<'done' | 'logged' | 'handoff' | { logged: string }>;
 }
 
 interface Values { reason: string; date: string; text: string; colleague: string; cost: string }
@@ -62,18 +64,18 @@ const OFFER_WITHDRAW = [
   { key: 'Keine Rückmeldung', label: 'keine Rückmeldung' }, { key: 'Anderer Kandidat', label: 'anderer Kandidat' },
   { key: 'Budget', label: 'Budget' }, { key: 'Anderer Grund', label: 'anderer Grund' },
 ];
-const NON_START = [
-  { key: 'not_started', label: 'nicht erschienen' }, { key: 'counter_offer', label: 'Gegenangebot angenommen' },
-  { key: 'other_job', label: 'andere Stelle angetreten' }, { key: 'personal', label: 'persönliche Gründe' }, { key: 'other', label: 'anderer Grund' },
-];
+/** Wie NachbesetzungPanel: Kunde ist zum Anpassen der Stelle gegangen */
+const markAdjusted = (placementId: string) => { try { sessionStorage.setItem(`matchunt:nachbesetzung-angepasst:${placementId}`, '1'); } catch { /* nur Komfort */ } };
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const plusDays = (d: number) => new Date(Date.now() + d * 86400000).toISOString().slice(0, 10);
 /** Neue Antwortfrist: 3 Tage ab heute, oder ab der Frist, wenn sie noch läuft */
 const nextDue = (due?: string) => (due && due > plusDays(0) ? new Date(Date.parse(`${due}T12:00:00Z`) + 3 * 86400000).toISOString().slice(0, 10) : plusDays(3));
 
-function optionsFor(t: ClientTask, h: TaskHandlers | null, extra: { recruiter: string }): Option[] {
+function optionsFor(t: ClientTask, h: TaskHandlers | null, extra: { recruiter: string; navigate: (to: string) => void; canManageBilling: boolean }): Option[] {
   const hh = extra.recruiter;
+  const go = (to: string): Option['run'] => async () => { extra.navigate(to); return 'handoff'; };
+  const besetzung = (melden?: string) => `/dashboard/besetzungen?besetzung=${t.submissionId ?? ''}${melden ? `&melden=${melden}` : ''}`;
   const handoff = (fn: () => void): Option['run'] => async () => { fn(); return 'handoff'; };
   const needH = (fn: (x: TaskHandlers) => void): Option['run'] => async () => { if (h) fn(h); return 'handoff'; };
   const sid = t.submissionId ?? '';
@@ -186,18 +188,59 @@ function optionsFor(t: ClientTask, h: TaskHandlers | null, extra: { recruiter: s
           run: async (v) => { const r = await clientTasksApi.forwardQuestion(t.ref.notificationId!, v.colleague); toast.success(`An ${r.to} weitergegeben.`); return 'logged'; } },
       ];
     case 'confirm_start':
+      // K7: Kunde meldet zuerst. „Hat nicht angefangen“ öffnet „Besetzung endet“ mit „Nein“.
       return [
-        { key: 'ja', label: 'Ja, gestartet', cta: 'Bestätigen', doneText: 'Antritt bestätigt. Der Headhunter ist informiert.', run: async () => { await clientTasksApi.confirmStart({ placementId: t.ref.placementId!, way: 'started' }); return 'logged'; } },
-        { key: 'spaeter', label: 'Später gestartet', cta: 'Datum speichern', doneText: 'Neuer erster Arbeitstag gespeichert.', field: 'date', check: (v) => (v.date ? null : 'Bitte das Datum des ersten Arbeitstags wählen.'),
-          run: async (v) => { await clientTasksApi.confirmStart({ placementId: t.ref.placementId!, way: 'later', startedOn: v.date }); return 'logged'; } },
-        { key: 'nein', label: 'Nicht angetreten', cta: 'Nichtantritt melden', doneText: 'Nichtantritt gemeldet. Matchunt prüft den Fall und meldet sich.', field: 'nonstart', hint: 'Matchunt prüft den Fall nach dem Vertrag (Nichtantritt).', check: (v) => (v.reason ? null : 'Bitte einen Grund wählen.'),
-          run: async (v) => { await clientTasksApi.confirmStart({ placementId: t.ref.placementId!, way: 'not_started', reason: v.reason, note: v.text.trim() || undefined }); return 'logged'; } },
+        { key: 'ja', label: 'Ja, hat angefangen', cta: 'Bestätigen', doneText: 'Antritt bestätigt. Der Headhunter ist informiert.',
+          run: async () => { await besetzungApi.startAnswer({ placementId: t.ref.placementId!, way: 'started' }); return 'logged'; } },
+        { key: 'spaeter', label: 'Fängt später an', cta: 'Datum speichern', doneText: 'Neuer erster Arbeitstag gespeichert. Der Headhunter ist informiert.', field: 'date',
+          check: (v) => (v.date && v.date > todayIso() ? null : 'Bitte den neuen ersten Arbeitstag wählen (ab morgen).'),
+          run: async (v) => { await besetzungApi.startAnswer({ placementId: t.ref.placementId!, way: 'later', startDate: v.date }); return 'logged'; } },
+        { key: 'nein', label: 'Hat nicht angefangen', cta: 'Weiter zur Meldung', hint: 'Öffnet „Besetzung endet“.', run: go(besetzung('ende')) },
+      ];
+    case 'start_check':
+      // K7: Headhunter hat zuerst gemeldet; ohne Antwort gilt es nach 3 Werktagen als bestätigt
+      return [
+        { key: 'ja', label: 'Stimmt', cta: 'Bestätigen', doneText: 'Bestätigt. Der Headhunter ist informiert.',
+          run: async () => { await besetzungApi.startAnswer({ placementId: t.ref.placementId!, way: 'agree' }); return 'logged'; } },
+        { key: 'nein', label: 'Stimmt so nicht', cta: 'Senden', field: 'text', hint: 'Matchunt klärt das mit dem Headhunter und meldet sich.',
+          doneText: 'Gesendet. Matchunt klärt das mit dem Headhunter und meldet sich.', check: (v) => (v.text.trim() ? null : 'Bitte kurz schreiben, was nicht stimmt.'),
+          run: async (v) => { await besetzungApi.startAnswer({ placementId: t.ref.placementId!, way: 'disagree', note: v.text.trim() }); return 'logged'; } },
+      ];
+    case 'end_confirm':
+      return [
+        { key: 'ja', label: 'Bestätigen', cta: 'Weiter zur Meldung', hint: 'Öffnet „Besetzung endet“ mit „Nein“. Danach prüft Matchunt.', run: go(besetzung('ende')) },
+      ];
+    case 'research_position':
+      return [
+        { key: 'so', label: 'Stelle so bestätigen', cta: 'Bestätigen', hint: 'Liegt das Gehalt höher, berechnen wir nur den Unterschied.',
+          run: async () => {
+            const r = await besetzungApi.confirmPosition(t.ref.placementId!, false);
+            return { logged: r.state === 'running' ? 'Bestätigt. Ihre Stelle ist jetzt für alle Headhunter neu ausgeschrieben.' : 'Bestätigt. Sobald die Rechnung bezahlt ist, schreiben wir die Stelle für alle Headhunter neu aus.' };
+          } },
+        { key: 'anpassen', label: 'Stelle anpassen', cta: 'Zur Stelle', hint: 'Danach bestätigen Sie die Stelle im Fenster der Besetzung.',
+          run: async () => { if (t.ref.placementId) markAdjusted(t.ref.placementId); extra.navigate(`/dashboard/jobs/${t.jobId ?? ''}`); return 'handoff'; } },
+      ];
+    case 'research_offer':
+      return [
+        { key: 'ja', label: 'Annehmen', cta: 'Annehmen',
+          run: async () => {
+            const r = await besetzungApi.answerOffer(t.ref.placementId!, true);
+            return { logged: r.state === 'running' ? 'Angenommen. Ihre Stelle ist jetzt für alle Headhunter neu ausgeschrieben.' : 'Angenommen. Sobald die Rechnung bezahlt ist, schreiben wir die Stelle für alle Headhunter neu aus.' };
+          } },
+        { key: 'nein', label: 'Nein, danke', cta: 'Antwort senden', doneText: 'Gemeldet, danke. Im Fenster der Besetzung können Sie die Stelle wieder öffnen.',
+          run: async () => { await besetzungApi.answerOffer(t.ref.placementId!, false); return 'logged'; } },
+        { key: 'ansehen', label: 'Besetzung ansehen', cta: 'Öffnen', run: go(besetzung()) },
+      ];
+    case 'job_paused':
+      return [
+        { key: 'geben', label: 'Rückmeldungen geben', cta: 'Zu den Vorstellungen', run: go(`/dashboard/candidates?job=${t.jobId ?? ''}&tab=neu`) },
       ];
     case 'invoice':
       return [
         { key: 'pdf', label: 'Rechnung ansehen', cta: 'PDF öffnen', run: async () => { const { url } = await placementApi.file(t.ref.invoiceId!); window.open(url, '_blank', 'noopener'); return 'handoff'; } },
-        { key: 'bezahlt', label: 'Ist überwiesen', cta: 'Überweisung melden', doneText: 'Überweisung gemeldet. Matchunt prüft den Zahlungseingang.', field: 'date', hint: 'Matchunt prüft den Zahlungseingang; erledigt ist die Aufgabe, sobald er gebucht ist.',
-          check: (v) => (v.date ? null : 'Bitte das Überweisungsdatum wählen.'), run: async (v) => { await clientTasksApi.invoicePaid(t.ref.invoiceId!, v.date); return 'logged'; } },
+        // HR sieht Rechnungen nur lesend
+        ...(extra.canManageBilling ? [{ key: 'bezahlt', label: 'Ist überwiesen', cta: 'Überweisung melden', doneText: 'Überweisung gemeldet. Matchunt prüft den Zahlungseingang.', field: 'date' as const, hint: 'Matchunt prüft den Zahlungseingang; erledigt ist die Aufgabe, sobald er gebucht ist.',
+          check: (v: Values) => (v.date ? null : 'Bitte das Überweisungsdatum wählen.'), run: async (v: Values) => { await clientTasksApi.invoicePaid(t.ref.invoiceId!, v.date); return 'logged' as const; } }] : []),
         { key: 'frage', label: 'Frage zur Rechnung', cta: 'Frage senden', field: 'text', check: (v) => (v.text.trim().length >= 3 ? null : 'Bitte die Frage schreiben.'),
           run: async (v) => { await clientTasksApi.invoiceQuestion(t.ref.invoiceId!, v.text.trim()); toast.success('Frage an Matchunt gesendet.'); return 'handoff'; } },
       ];
@@ -225,7 +268,8 @@ export function ClientTaskWindow({ task, open, onOpenChange, handlers, recruiter
   const queryClient = useQueryClient();
   const all = useClientTasks();
   const hh = (recruiterName ?? 'Headhunter').split(' ')[0];
-  const options = useMemo(() => (task ? optionsFor(task, handlers, { recruiter: hh }) : []), [task, handlers, hh]);
+  const canManageBilling = all.data?.billing?.canManage ?? true;
+  const options = useMemo(() => (task ? optionsFor(task, handlers, { recruiter: hh, navigate, canManageBilling }) : []), [task, handlers, hh, navigate, canManageBilling]);
   const [choice, setChoice] = useState<string>('');
   const [values, setValues] = useState<Values>({ reason: '', date: '', text: '', colleague: '', cost: '' });
   const [error, setError] = useState<string | null>(null);
@@ -262,7 +306,9 @@ export function ClientTaskWindow({ task, open, onOpenChange, handlers, recruiter
     setError(null);
     try {
       const r = await opt.run(values);
-      if (r === 'done' || r === 'logged') {
+      if (typeof r === 'object') {
+        setDone(r.logged);
+      } else if (r === 'done' || r === 'logged') {
         if (r === 'done') await clientTasksApi.logDone(task, `${task.title}: ${opt.label}`, values.reason || undefined).catch(() => undefined);
         setDone(opt.doneText ?? `${opt.label}.`);
       } else {
@@ -272,6 +318,7 @@ export function ClientTaskWindow({ task, open, onOpenChange, handlers, recruiter
       queryClient.invalidateQueries({ queryKey: ['submission-state'] });
       queryClient.invalidateQueries({ queryKey: ['contract'] });
       queryClient.invalidateQueries({ queryKey: ['bewerber'] });
+      queryClient.invalidateQueries({ queryKey: ['besetzungen'] });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Das hat nicht geklappt.');
     } finally {
@@ -327,23 +374,12 @@ export function ClientTaskWindow({ task, open, onOpenChange, handlers, recruiter
                 ))}
               </div>
             )}
-            {opt?.field === 'nonstart' && (
-              <div className="space-y-2">
-                <div className="flex flex-wrap gap-1.5">
-                  <span className="w-full text-xs text-muted-foreground">Grund (Pflicht)</span>
-                  {NON_START.map((r) => (
-                    <Button key={r.key} type="button" size="sm" variant={values.reason === r.key ? 'secondary' : 'outline'} className="h-7 text-xs" onClick={() => setValues((v) => ({ ...v, reason: r.key }))}>{r.label}</Button>
-                  ))}
-                </div>
-                <Textarea rows={2} placeholder="Was ist passiert? (optional)" value={values.text} onChange={(e) => setValues((v) => ({ ...v, text: e.target.value }))} />
-              </div>
-            )}
             {opt?.field === 'date' && (
-              <label className="block text-sm"><span className="text-muted-foreground">{task.kind === 'invoice' ? 'Überwiesen am' : task.kind === 'confirm_start' ? 'Erster Arbeitstag' : 'Neue Frist'}</span>
+              <label className="block text-sm"><span className="text-muted-foreground">{task.kind === 'invoice' ? 'Überwiesen am' : task.kind === 'confirm_start' ? 'Neuer erster Arbeitstag' : 'Neue Frist'}</span>
                 <Input type="date" className="mt-1 h-9 w-48" value={values.date} onChange={(e) => setValues((v) => ({ ...v, date: e.target.value }))} /></label>
             )}
             {opt?.field === 'text' && (
-              <Textarea rows={task.kind === 'recruiter_question' ? 4 : 2} placeholder={task.kind === 'counter' ? 'z. B. Mehr ist im Budget nicht drin, dafür Start flexibel.' : task.kind === 'invoice' ? 'Ihre Frage an Matchunt …' : 'Ihre Antwort …'}
+              <Textarea rows={task.kind === 'recruiter_question' ? 4 : 2} placeholder={task.kind === 'counter' ? 'z. B. Mehr ist im Budget nicht drin, dafür Start flexibel.' : task.kind === 'invoice' ? 'Ihre Frage an Matchunt …' : task.kind === 'start_check' ? 'Was stimmt nicht? z. B. fängt erst am 15. an' : 'Ihre Antwort …'}
                 value={values.text} onChange={(e) => setValues((v) => ({ ...v, text: e.target.value }))} />
             )}
             {opt?.field === 'po' && (

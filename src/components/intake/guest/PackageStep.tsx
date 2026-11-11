@@ -22,7 +22,33 @@ import { FileCheck2 } from 'lucide-react';
  * Bruttojahreszielgehalt aus dem unterzeichneten Arbeitsvertrag — eine Zahl
  * auf Basis der Gehaltsangabe aus der Aufnahme würde später fast immer
  * abweichen. Ein Prozentsatz stimmt in jedem Fall.
+ *
+ * Kartentexte seit 11.11.2026 (K2, Bauplan Abschnitt 4): Nachbesetzung statt
+ * „erneuter Suchlauf“, keine Suchtage, bei Core kein Negativ-Satz. Dieselben
+ * Texte stehen im Datenblatt des Rahmenvertrags.
  */
+
+/** K2: Kartentexte je Paket (gehen den Texten aus der Datenbank vor). */
+const CORE_BULLETS = [
+  'Geprüfte Headhunter suchen für Ihre Stelle',
+  'Anonyme Vorstellung: erst das Können, dann der Name',
+  'Ihr Headhunter begleitet bis zum ersten Arbeitstag',
+  'Honorar erst mit dem unterschriebenen Arbeitsvertrag',
+];
+const continuityBullets = (days: number) => [
+  'Nachbesetzung inklusive, ohne neues Honorar',
+  `Geschützt ab Unterschrift bis ${days} Tage nach Arbeitsbeginn`,
+  'Wir suchen, bis die Stelle wieder besetzt ist',
+  'Ersatzsuche mit allen Headhuntern im Netzwerk',
+];
+const PACKAGE_CARD: Record<IntakePackage['key'], { short: string; head: string; bullets: string[] }> = {
+  core: { short: 'Core', head: 'Das ist enthalten', bullets: CORE_BULLETS },
+  continuity_90: { short: 'Continuity 90', head: 'Alles aus Core, dazu', bullets: continuityBullets(90) },
+  continuity_180: { short: 'Continuity 180', head: 'Alles aus Core, dazu', bullets: continuityBullets(180) },
+};
+
+/** K2: Kasten unter den Karten. */
+const NACHBESETZUNG_WANN = 'Endet die Besetzung zwischen der Unterschrift des Arbeitsvertrags und dem 90. bzw. 180. Tag nach dem ersten Arbeitstag, schreiben wir Ihre Stelle ohne neues Honorar neu für alle Headhunter aus. Das gilt, wenn der Grund nicht bei Ihnen liegt, etwa wenn die Person selbst kündigt oder Sie sich wegen ihrer Leistung oder ihres Verhaltens trennen. Eine Nachbesetzung gibt es je eingestellter Person einmal. Melden Sie es binnen 14 Tagen. Die Suche startet, sobald die Rechnung bezahlt ist.';
 
 interface Props {
   load: () => Promise<IntakePackageOffer | IntakeFailure>;
@@ -100,9 +126,9 @@ export function PackageStep({ load, onSelect, onNext, onTerms }: Props) {
                   <Badge variant="secondary" className="ml-2">{rv.fee_percent} %</Badge>
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {rv.fee_percent} % des Bruttojahreszielgehalts, fällig nur im Erfolgsfall
+                  {rv.fee_percent} % des Bruttojahreszielgehalts, erst mit dem unterschriebenen Arbeitsvertrag
                   {rv.continuity_days
-                    ? `. Erneuter Suchlauf, wenn die Besetzung in den ersten ${rv.continuity_days} Tagen ausscheidet.`
+                    ? `. Nachbesetzung inklusive, ohne neues Honorar: geschützt ab Unterschrift bis ${rv.continuity_days} Tage nach Arbeitsbeginn.`
                     : '.'}
                 </p>
                 <p className="mt-2 text-xs text-muted-foreground">
@@ -137,8 +163,8 @@ export function PackageStep({ load, onSelect, onNext, onTerms }: Props) {
       <div className="space-y-2">
         <h2 className="text-xl font-semibold">Wie möchten Sie zusammenarbeiten?</h2>
         <p className="text-sm text-muted-foreground">
-          Alle drei Pakete sind reine Erfolgshonorare: Sie zahlen nur, wenn wir besetzen.
-          Kein Retainer, keine Fixkosten, keine Vorabkosten.
+          Alle Pakete sind reine Erfolgshonorare: Sie zahlen erst, wenn der Arbeitsvertrag
+          unterschrieben ist. Kein Retainer, keine Fixkosten.
         </p>
       </div>
 
@@ -154,6 +180,13 @@ export function PackageStep({ load, onSelect, onNext, onTerms }: Props) {
           />
         ))}
       </div>
+
+      {offer.packages.some((p) => p.key !== 'core') && (
+        <div className="rounded-lg border bg-muted/30 p-4 text-sm">
+          <p className="font-medium">Wann greift die Nachbesetzung?</p>
+          <p className="mt-1 text-muted-foreground">{NACHBESETZUNG_WANN}</p>
+        </div>
+      )}
 
       <Card className="border-dashed">
         <CardContent className="flex gap-3 pt-6 text-sm text-muted-foreground">
@@ -178,36 +211,35 @@ function PackageCard({
 }: {
   pkg: IntakePackage; selected: boolean; busy: boolean; anyBusy: boolean; onSelect: () => void;
 }) {
+  const card = PACKAGE_CARD[pkg.key] ?? null;
+  const bullets = card?.bullets ?? pkg.bullets;
   return (
     <Card className={selected ? 'border-primary ring-1 ring-primary' : undefined}>
       <CardContent className="flex h-full flex-col gap-4 pt-6">
         <div className="space-y-1">
           <div className="flex items-start justify-between gap-2">
-            <h3 className="font-semibold leading-tight">{pkg.name}</h3>
+            <h3 className="font-semibold leading-tight">{card?.short ?? pkg.name}</h3>
             {selected && <Badge className="shrink-0">Gewählt</Badge>}
           </div>
-          <p className="text-sm text-muted-foreground">{pkg.summary}</p>
+          {!card && <p className="text-sm text-muted-foreground">{pkg.summary}</p>}
         </div>
 
         <div>
           <div className="text-3xl font-semibold tabular-nums">{pkg.fee_percent} %</div>
-          <p className="text-xs text-muted-foreground">des Bruttojahreszielgehalts</p>
+          <p className="text-xs text-muted-foreground">vom Bruttojahreszielgehalt</p>
         </div>
 
-        <ul className="flex-1 space-y-2 text-sm">
-          {pkg.bullets.map((b, i) => (
-            <li key={i} className="flex gap-2">
-              <Check className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-              <span>{b}</span>
-            </li>
-          ))}
-        </ul>
-
-        {pkg.continuity_days && (
-          <p className="text-xs text-muted-foreground">
-            Meldung eines Ausscheidens innerhalb von {pkg.claim_notice_days} Tagen ab Kenntnis.
-          </p>
-        )}
+        <div className="flex-1 space-y-2">
+          {card && <p className="text-xs font-medium text-muted-foreground">{card.head}</p>}
+          <ul className="space-y-2 text-sm">
+            {bullets.map((b, i) => (
+              <li key={i} className="flex gap-2">
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <span>{b}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
 
         <Button
           variant={selected ? 'secondary' : 'default'}
@@ -216,7 +248,7 @@ function PackageCard({
           onClick={onSelect}
         >
           {busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Wird gespeichert …</>
-                : selected ? 'Ausgewählt' : 'Dieses Paket wählen'}
+                : selected ? 'Ausgewählt' : `${card?.short ?? pkg.name} wählen`}
         </Button>
       </CardContent>
     </Card>

@@ -8,6 +8,8 @@ import { FirmenLogo } from '@/components/company/FirmenLogo';
 import { cn } from '@/lib/utils';
 import { spezialistenSatz, verdienstJeTag } from '@/lib/recruiterContracting';
 import { Honorar } from './Honorar';
+import { useJobEarning, euroKurz } from './verdienste/useJobEarning';
+import { runningSince } from '../../../supabase/functions/_shared/abrechnung-view';
 
 interface JobPreviewPanelProps {
   job: {
@@ -115,6 +117,8 @@ export function JobPreviewPanel({
   const [descExpanded, setDescExpanded] = useState(false);
   const urgent = job.hiring_urgency === 'urgent';
   const tagVerdienst = verdienstJeTag(job);
+  // Verdienst nach Paket und Fassung (H3/H6, Umbau 11.11.2026); ohne Konditionen wie bisher
+  const { earning: plan } = useJobEarning(tagVerdienst ? null : job.id, job.salary_min, job.salary_max);
   const pauseText = pausedUntil
     ? `Pausiert bis ${new Date(pausedUntil).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}`
     : null;
@@ -131,6 +135,7 @@ export function JobPreviewPanel({
 
           <div className="min-w-0 flex-1">
             <Link to={`/recruiter/jobs/${job.id}`} className="text-base font-semibold leading-snug transition-colors hover:text-primary">
+              {plan?.research && <span className="mr-1.5 inline-block rounded border border-border px-1.5 align-middle text-[11px] font-normal text-muted-foreground">Nachbesetzung</span>}
               {job.title}
             </Link>
             <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground">
@@ -194,10 +199,18 @@ export function JobPreviewPanel({
           ) : (
             <>
               <Fakt label="Dein Verdienst">
-                <span className="text-emerald-500">
-                  <Honorar>{earning ? `€${earning.toLocaleString('de-DE')} (${job.recruiter_fee_percentage} %)` : `${job.recruiter_fee_percentage} % vom Jahresgehalt`}</Honorar>
-                </span>
+                {plan ? (
+                  <>
+                    <span className="text-emerald-500"><Honorar>{plan.research ? euroKurz(plan.totalCents) : `${euroKurz(plan.totalCents)} (${plan.pct.toLocaleString('de-DE')} %)`}</Honorar></span>
+                    <span className="block text-xs font-normal"><Honorar>{plan.line}</Honorar></span>
+                  </>
+                ) : (
+                  <span className="text-emerald-500">
+                    <Honorar>{earning ? `€${earning.toLocaleString('de-DE')} (${job.recruiter_fee_percentage} %)` : `${job.recruiter_fee_percentage} % vom Jahresgehalt`}</Honorar>
+                  </span>
+                )}
               </Fakt>
+              {plan?.research && <p className="border-b border-border py-2.5 text-xs text-muted-foreground">{plan.research.note} Nachbesetzung {runningSince(plan.research.since, new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }))}.{plan.research.own ? ' Deine frühere Besetzung.' : ''}</p>}
               <Fakt label="Gehalt">{formatSalaryShort(job.salary_min, job.salary_max)}</Fakt>
             </>
           )}

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Banknote, Building2, Calculator, CalendarRange, Check, ChevronRight, ClipboardList, Clock, Copy, Eye, Factory, FileText, IdCard, Linkedin, ListChecks, LockKeyhole, LockKeyholeOpen, Mail, Megaphone, Phone, Plus, Share2, TrendingUp, Users, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, Banknote, Building2, Calculator, CalendarRange, Check, ChevronRight, ClipboardList, Clock, Copy, Eye, Factory, FileText, Flag, IdCard, Linkedin, ListChecks, LockKeyhole, LockKeyholeOpen, Mail, Megaphone, Phone, Plus, Share2, TrendingUp, Users, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -26,6 +26,8 @@ import { useQuery } from '@tanstack/react-query';
 import { BeitragsFenster } from './linkedin/BeitragsFenster';
 import { ErstgespraecheAbschnitt, useErstgespraeche } from './termin/Erstgespraeche';
 import { beitragsStand } from '@/lib/terminApi';
+import { useJobTerms } from '@/lib/abrechnungApi';
+import { KundeMeldenDialog } from './verdienste/KundeMeldenDialog';
 
 export interface WorkspaceJob extends BriefingJob {
   id: string;
@@ -104,6 +106,9 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
   const [showAccess, setShowAccess] = useState(false);
   const [fragenOffen, setFragenOffen] = useState(false);
   const [firmaOffen, setFirmaOffen] = useState(false);
+  // F2 „Kunde melden“ (Umbau 11.11.2026): anonym gegenüber dem Kunden, danach „Gemeldet am …“
+  const [meldenOffen, setMeldenOffen] = useState(false);
+  const gemeldetAm = useJobTerms(job.id).data?.reportedAt ?? null;
   const fakten = kopfFakten(job);
   // Die ganze Kandidatenfassung mit „So läuft es ab“ und dem Headhunter als Ansprechperson.
   const kontakt = useRecruiterKontakt();
@@ -170,6 +175,9 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
     {tab !== 'beschreibung' && <Kachel icon={ListChecks} titel="Gesprächsleitfaden" onClick={() => setShowGuide(true)} />}
     <Kachel icon={IdCard} titel="Anonymes Exposé" onClick={onExpose} />
     <Kachel icon={Calculator} titel="Verdienst berechnen" onClick={() => setShowEarning(true)} />
+    {(kannPosten || submissionCount > 0 || gemeldetAm) && <Kachel icon={Flag} titel="Kunde melden"
+      hinweis={gemeldetAm ? `Gemeldet am ${new Date(gemeldetAm).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' })} · Matchunt kümmert sich` : 'anonym, Matchunt kümmert sich'}
+      onClick={() => setMeldenOffen(true)} />}
   </Gruppe>;
 
   return <div className="mx-auto max-w-[1440px] space-y-7 pb-24 min-[1180px]:pb-8">
@@ -208,7 +216,7 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
           </ul>}
         </div>
         <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:min-w-[15rem]">
-          <HeroEarning job={job} />
+          <HeroEarning job={job} onDetails={() => setShowEarning(true)} />
           {/* Unter 1180 px steht der Knopf in der Leiste unten, nicht doppelt. */}
           <div className="hidden gap-2 min-[1180px]:flex">
             <div className="min-w-0 flex-1 [&_button]:w-full">{heroAction ?? <Button size="lg" onClick={onSubmit}><Plus />Vorstellung vorbereiten</Button>}</div>
@@ -311,7 +319,8 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
 
     <GespraechsleitfadenSheet open={showGuide} onOpenChange={setShowGuide} jobTitle={job.title} anruf={briefing.anruf} muss={criteria.required} hinterlegt={screening} />
     {kannPosten && <BeitragsFenster open={beitragOffen} onOpenChange={setBeitragOffen} job={job} />}
+    <KundeMeldenDialog open={meldenOffen} onOpenChange={setMeldenOffen} jobId={job.id} jobTitle={job.title} />
     <Dialog open={showAccess} onOpenChange={setShowAccess}><DialogContent><DialogHeader><DialogTitle>Unternehmensfreigabe</DialogTitle><DialogDescription>Die vorhandenen Freigabestufen dieses Mandats.</DialogDescription></DialogHeader><ol className="list-decimal space-y-4 pl-5 text-sm leading-7"><li>Anonyme Stellenbeschreibung und Briefing für die erste Einschätzung.</li><li>Der Firmenname erscheint, sobald du „Ich suche“ drückst. Der Kunde sieht dann auch dich.</li><li>Nach Interviewbestätigung werden weitere Firmeninformationen zugänglich.</li></ol><p className="text-sm text-muted-foreground">Aktueller Status: {fullAccess ? 'Voller Zugriff' : companyRevealed ? 'Firma freigegeben' : 'Firma anonym'}. </p></DialogContent></Dialog>
-    <Dialog open={showEarning} onOpenChange={setShowEarning}><DialogContent className="max-w-md"><DialogHeader><DialogTitle>Verdienst berechnen</DialogTitle><DialogDescription>{job.title} · so rechnet sich deine Provision.</DialogDescription></DialogHeader>{job.employment_type === 'freelance' ? <ContractingKonditionen job={job} /> : <FeeCalculatorCard feePercentage={job.recruiter_fee_percentage ?? null} salaryMin={job.salary_min ?? null} salaryMax={job.salary_max ?? null} />}</DialogContent></Dialog>
+    <Dialog open={showEarning} onOpenChange={setShowEarning}><DialogContent className="max-w-md"><DialogHeader><DialogTitle>Verdienst berechnen</DialogTitle><DialogDescription>{job.title} · so rechnet sich deine Provision.</DialogDescription></DialogHeader>{job.employment_type === 'freelance' ? <ContractingKonditionen job={job} /> : <FeeCalculatorCard jobId={job.id} feePercentage={job.recruiter_fee_percentage ?? null} salaryMin={job.salary_min ?? null} salaryMax={job.salary_max ?? null} />}</DialogContent></Dialog>
   </div>;
 }

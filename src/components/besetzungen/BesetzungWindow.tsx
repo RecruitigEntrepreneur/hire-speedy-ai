@@ -7,21 +7,21 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { cn } from '@/lib/utils';
-import { besetzungApi, DEPARTURE_GROUPS, fileToBase64, type BesetzungItem, type DepartureOutcome } from '@/lib/besetzungApi';
-import { clientTasksApi } from '@/lib/clientTasksApi';
+import { besetzungApi, fileToBase64, type BesetzungItem } from '@/lib/besetzungApi';
 import { contractApi } from '@/lib/contractApi';
-import { dateDe, factsOf, first, statusOf, stepsOf, todayKey } from './besetzungView';
+import { actionsOf, dateDe, factsOf, first, genitive, researchPanel, statusOf, stepsOf, titleOf, todayKey, type ActionKey } from './besetzungView';
 import { FactGrid, StatusPill, StepRow } from './BesetzungParts';
+import { BesetzungEndForm } from './BesetzungEndForm';
+import { NachbesetzungPanel } from './NachbesetzungPanel';
 
 /**
- * Fenster „Besetzung · Name“ (Etappe 2, 25.10.2026): Schritte, Eckdaten, Aktionen und
- * Verlauf einer Besetzung. Meldungen direkt hier (Start verschoben, tritt nicht an samt
- * Erklärung, ausgeschieden, Bestellnummer); Vertrag und „Hat angefangen?“ öffnen die
- * vorhandenen Fenster.
+ * Fenster „Besetzung · Name“ (Etappe 2, 25.10.2026; Umbau 11.11.2026, K4–K7, J2/J3):
+ * Schritte, Stand der Nachbesetzung, Eckdaten, Knöpfe je Phase und Verlauf. Meldungen direkt
+ * hier: Start verschoben, Antritt (K7), Besetzung endet (K5), Bestellnummer („ergänzen“).
+ * Der Arbeitsvertrag öffnet das vorhandene Fenster.
  */
 
-type Form = 'move' | 'nicht' | 'doc' | 'po' | 'aus';
+export type BesetzungForm = 'move' | 'start' | 'check' | 'end' | 'po' | 'doc';
 
 interface Props {
   item: BesetzungItem | null;
@@ -29,56 +29,45 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   /** Vorhandenes Vertrags-Fenster */
   onContract: (submissionId: string) => void;
-  /** Vorhandenes Aufgaben-Fenster „Hat angefangen?“ */
-  onStartCheck: (item: BesetzungItem) => void;
+  /** Andere Besetzung öffnen (Ersatz gefunden) */
+  onOpenSubmission?: (submissionId: string) => void;
+  /** Direkt in eine Meldung, z. B. „end“ aus der Aufgabe „… hat vor dem Start abgesagt“ */
+  initialForm?: BesetzungForm | null;
 }
 
-const NON_START = [
-  { key: 'not_started', label: 'nicht erschienen' }, { key: 'counter_offer', label: 'Gegenangebot angenommen' },
-  { key: 'other_job', label: 'andere Stelle angetreten' }, { key: 'personal', label: 'persönliche Gründe' }, { key: 'other', label: 'anderer Grund' },
-];
 const ACCEPT = '.pdf,.png,.jpg,.jpeg,.eml,.msg';
+const tomorrow = () => new Date(Date.parse(`${todayKey()}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
 
-const DEPARTURE_DONE: Record<DepartureOutcome, string> = {
-  claim: 'Gemeldet. Matchunt prüft den Fall. Danach bestätigen Sie die Stelle, und die erneute Suche startet.',
-  no_continuity: 'Gemeldet. Der Headhunter und Matchunt sind informiert. Mit Core gibt es keine erneute Suche.',
-  excluded: 'Gemeldet. Bei diesem Grund gibt es keine erneute Suche (Rahmenvertrag § 9 Abs. 4). Der Headhunter und Matchunt sind informiert.',
-  outside: 'Gemeldet. Das Ausscheiden liegt nach dem Continuity-Zeitraum, eine erneute Suche ist nicht vorgesehen.',
-  late: 'Gemeldet. Die Meldefrist war schon abgelaufen. Matchunt meldet sich bei Ihnen.',
-};
-
-export function BesetzungWindow({ item, open, onOpenChange, onContract, onStartCheck }: Props) {
+export function BesetzungWindow({ item, open, onOpenChange, onContract, onOpenSubmission, initialForm = null }: Props) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [form, setForm] = useState<Form | null>(null);
+  const [form, setForm] = useState<BesetzungForm | null>(null);
+  const [endPreset, setEndPreset] = useState<boolean | null>(null);
   const [done, setDone] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [choice, setChoice] = useState('');
   const [date, setDate] = useState('');
   const [note, setNote] = useState('');
-  const [reason, setReason] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [po, setPo] = useState('');
   const [cost, setCost] = useState('');
-  const [eventOn, setEventOn] = useState('');
-  const [lastDay, setLastDay] = useState('');
-  const [knownOn, setKnownOn] = useState('');
 
   useEffect(() => {
     if (!open) return;
-    setForm(null); setDone(null); setDate(''); setNote(''); setReason(''); setFile(null);
+    setForm(initialForm); setEndPreset(initialForm === 'end' ? false : null); setDone(null); setChoice(''); setDate(''); setNote(''); setFile(null);
     setPo(item?.placement?.purchaseOrder ?? ''); setCost(item?.placement?.costCenter ?? '');
-    setEventOn(''); setLastDay(''); setKnownOn('');
-  }, [open, item?.submissionId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, item?.submissionId, initialForm]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!item) return null;
   const p = item.placement;
   const who = first(item.name);
   const hh = item.recruiterName?.split(' ')[0] ?? 'Der Headhunter';
   const status = statusOf(item);
-  const startPassed = !!p && p.state === 'agreed' && !!p.startDate && p.startDate <= todayKey();
+  const panel = researchPanel(item);
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['besetzungen'] });
     queryClient.invalidateQueries({ queryKey: ['client-tasks'] });
+    queryClient.invalidateQueries({ queryKey: ['client-invoices'] });
   };
   const run = async (work: () => Promise<string>) => {
     setBusy(true);
@@ -90,138 +79,178 @@ export function BesetzungWindow({ item, open, onOpenChange, onContract, onStartC
     try { const { url } = await load(); window.open(url, '_blank', 'noopener'); }
     catch (e) { toast.error(e instanceof Error ? e.message : 'Das PDF ist gerade nicht abrufbar.'); }
   };
-  const upload = async (placementId: string, f: File) => besetzungApi.nonStartDocument(placementId, f.name, await fileToBase64(f));
+  const go = (to: string) => { onOpenChange(false); navigate(to); };
+  const openEnd = (preset: boolean | null) => { setEndPreset(preset); setForm('end'); };
 
-  // Aktionen je Stand
-  type Act = { label: string; run: () => void; primary?: boolean };
-  const acts: Act[] = [];
-  if (item.group === 'start' && !p) acts.push({ label: item.contract && item.contract.status !== 'preparing' ? 'Arbeitsvertrag öffnen' : 'Arbeitsvertrag schicken', run: () => onContract(item.submissionId), primary: true });
-  if (item.group === 'start' && p && startPassed) acts.push({ label: 'Hat angefangen?', run: () => onStartCheck(item), primary: true });
-  if (p && item.can?.moveStart && !startPassed) acts.push({ label: 'Start verschoben melden', run: () => setForm('move') });
-  if (p && item.can?.nonStart && !startPassed) acts.push({ label: 'Tritt nicht an', run: () => setForm('nicht') });
-  if (p && item.can?.nonStartDocument) acts.push({ label: 'Erklärung nachreichen', run: () => setForm('doc'), primary: true });
-  if (p && item.can?.departure) acts.push({ label: 'Ausgeschieden melden', run: () => setForm('aus') });
-  if (p && (!item.invoice?.number || item.invoice.status === 'draft') && !p.nonStartReportedAt) acts.push({ label: p.purchaseOrder ? 'Bestellnummer ändern' : 'Bestellnummer angeben', run: () => setForm('po') });
-  if (item.contract?.status === 'final') acts.push({ label: 'Vertrag (PDF)', run: () => void openPdf(() => contractApi.document(item.submissionId)) });
-  if (item.invoice?.number && item.invoice.status !== 'draft') acts.push({ label: 'Rechnung ansehen', run: () => { onOpenChange(false); navigate(`/dashboard/rechnungen?beleg=${item.invoice!.id}`); } });
-  acts.push({ label: 'Bewerberprofil', run: () => { onOpenChange(false); navigate(`/dashboard/candidates/${item.submissionId}`); } });
+  // Knöpfe je Phase (K4)
+  const LABEL: Record<ActionKey, string> = {
+    contract: item.contract && item.contract.status !== 'preparing' ? 'Arbeitsvertrag öffnen' : 'Arbeitsvertrag schicken',
+    startCheck: `Hat ${who} angefangen?`,
+    startConfirm: p?.startReport && !who.startsWith('PR-') ? `${genitive(who)} Start bestätigen` : 'Start bestätigen',
+    endConfirm: 'Absage bestätigen',
+    moveStart: 'Start verschoben',
+    endReport: 'Besetzung endet',
+    contractPdf: 'Vertrag (PDF)',
+    invoice: 'Rechnung ansehen',
+    researchInvoice: 'Rechnung zur Nachbesetzung',
+    profile: 'Bewerberprofil',
+    endDocument: 'Unterlage nachreichen',
+  };
+  const RUN: Record<ActionKey, () => void> = {
+    contract: () => onContract(item.submissionId),
+    startCheck: () => setForm('start'),
+    startConfirm: () => { setChoice('agree'); setForm('check'); },
+    endConfirm: () => openEnd(false),
+    moveStart: () => setForm('move'),
+    endReport: () => openEnd(null),
+    contractPdf: () => void openPdf(() => contractApi.document(item.submissionId)),
+    invoice: () => go(`/dashboard/rechnungen?beleg=${item.invoice!.id}`),
+    researchInvoice: () => go(`/dashboard/rechnungen?beleg=${p!.researchInvoice!.id}`),
+    profile: () => go(`/dashboard/candidates/${item.submissionId}`),
+    endDocument: () => setForm('doc'),
+  };
+  const acts = actionsOf(item);
+  const primary = (k: ActionKey) => ['contract', 'startCheck', 'startConfirm', 'endConfirm'].includes(k);
 
-  const continuity = !!item.package.continuityDays;
-  const field = (label: string, el: React.ReactNode) => <label className="block text-sm"><span className="text-muted-foreground">{label}</span><div className="mt-1">{el}</div></label>;
+  const field = (label: string, el: React.ReactNode) => <label className="block text-sm"><span className="text-xs text-muted-foreground">{label}</span><div className="mt-1">{el}</div></label>;
   const footer = (cta: string, ok: boolean, submit: () => void) => (
     <div className="flex justify-end gap-2 border-t pt-3">
       <Button variant="ghost" onClick={() => setForm(null)}>Abbrechen</Button>
       <Button disabled={busy || !ok} onClick={submit}>{busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}{cta}</Button>
     </div>
   );
-  const fileField = (optional: boolean) => (
-    <label className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground hover:bg-muted/40">
-      <Upload className="h-4 w-4" />
-      <span className="flex-1 truncate">{file ? file.name : `Erklärung von ${who} hochladen (PDF, Bild, Mail · bis 5 MB)${optional ? ' · auch später möglich' : ''}`}</span>
-      <input type="file" accept={ACCEPT} className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-    </label>
+  const chip = (key: string, text: string) => (
+    <Button key={key} type="button" size="sm" variant={choice === key ? 'secondary' : 'outline'} className={choice === key ? 'h-7 rounded-full text-xs ring-1 ring-foreground/30' : 'h-7 rounded-full text-xs'} onClick={() => { setChoice(key); setDate(''); }}>{text}</Button>
   );
 
   let body: React.ReactNode;
   if (done) {
     body = (
       <>
-        <div className="flex items-start gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/[0.06] p-3 text-sm">
+        <div className="flex items-start gap-2 rounded-lg border p-3 text-sm">
           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
           <div><p className="font-medium">Erledigt.</p><p className="text-muted-foreground">{done}</p></div>
         </div>
-        <div className="flex justify-end border-t pt-3"><Button variant="ghost" onClick={() => onOpenChange(false)}>Schließen</Button></div>
+        <div className="flex justify-end gap-2 border-t pt-3">
+          <Button variant="ghost" onClick={() => { setDone(null); setForm(null); }}>Zurück zur Besetzung</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Schließen</Button>
+        </div>
       </>
+    );
+  } else if (form === 'end' && p) {
+    body = <BesetzungEndForm item={item} preset={endPreset} onCancel={() => setForm(null)} onDone={(text) => { setDone(text); refresh(); }} />;
+  } else if (form === 'start' && p) {
+    // K7: Kunde meldet zuerst
+    body = (
+      <div className="space-y-3">
+        <div>
+          <p className="text-sm font-medium">Hat {who} angefangen?</p>
+          <p className="text-xs text-muted-foreground">Erster Arbeitstag laut Vertrag: {dateDe(p.startDate)}</p>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {chip('started', 'Ja, hat angefangen')}
+          {chip('later', 'Fängt später an')}
+          <Button type="button" size="sm" variant="outline" className="h-7 rounded-full text-xs" onClick={() => openEnd(false)}>Hat nicht angefangen</Button>
+        </div>
+        {choice === 'started' && field('Erster Arbeitstag', <Input type="date" max={todayKey()} className="h-9 w-48" value={date || p.startDate || ''} onChange={(e) => setDate(e.target.value)} />)}
+        {choice === 'later' && (
+          <>
+            {field('Neuer erster Arbeitstag', <Input type="date" min={tomorrow()} className="h-9 w-48" value={date} onChange={(e) => setDate(e.target.value)} />)}
+            <Textarea rows={2} placeholder="Grund in einem Satz (freiwillig)" value={note} onChange={(e) => setNote(e.target.value)} />
+          </>
+        )}
+        <p className="text-xs text-muted-foreground">{hh} erfährt Ihre Antwort sofort.</p>
+        {footer(choice === 'later' ? 'Speichern' : 'Bestätigen', choice === 'started' || (choice === 'later' && !!date), () => run(async () => {
+          if (choice === 'started') {
+            await besetzungApi.startAnswer({ placementId: p.id, way: 'started', startedOn: date || p.startDate || undefined });
+            return `Bestätigt: ${who} hat angefangen. ${hh} ist informiert.`;
+          }
+          await besetzungApi.startAnswer({ placementId: p.id, way: 'later', startDate: date, note: note.trim() || undefined });
+          return `Gespeichert. Neuer erster Arbeitstag: ${dateDe(date)}.`;
+        }))}
+      </div>
+    );
+  } else if (form === 'check' && p?.startReport) {
+    // K7: Headhunter hat zuerst gemeldet
+    const sr = p.startReport;
+    body = (
+      <div className="space-y-3">
+        <div>
+          <p className="text-sm font-medium">{who.startsWith('PR-') ? `Start von ${who} bestätigen` : `${genitive(who)} Start bestätigen`}</p>
+          <p className="text-xs text-muted-foreground">{sr.byName ?? hh} meldet: angefangen am {dateDe(sr.on)}</p>
+        </div>
+        <div className="flex flex-wrap gap-1.5">{chip('agree', 'Stimmt')}{chip('disagree', 'Stimmt so nicht')}</div>
+        {choice === 'disagree' && <Textarea rows={2} placeholder="Was stimmt nicht? z. B. fängt erst am 15. an" value={note} onChange={(e) => setNote(e.target.value)} />}
+        {sr.fixesOn && <p className="text-xs text-muted-foreground">Ohne Antwort gilt es am {dateDe(sr.fixesOn)} als bestätigt.</p>}
+        {footer(choice === 'disagree' ? 'Senden' : 'Bestätigen', choice === 'agree' || (choice === 'disagree' && note.trim().length > 0), () => run(async () => {
+          await besetzungApi.startAnswer({ placementId: p.id, way: choice === 'agree' ? 'agree' : 'disagree', note: note.trim() || undefined });
+          return choice === 'agree' ? `Bestätigt: ${who} hat angefangen.` : 'Gesendet. Matchunt klärt das mit dem Headhunter und meldet sich.';
+        }))}
+      </div>
     );
   } else if (form === 'move' && p) {
     body = (
       <div className="space-y-3">
         <p className="text-sm font-medium">Start von {who} verschoben</p>
         {field('Neuer erster Arbeitstag', <Input type="date" min={todayKey()} className="h-9 w-48" value={date} onChange={(e) => setDate(e.target.value)} />)}
-        <Textarea rows={2} placeholder="Grund in einem Satz (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
-        <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">Eine Verschiebung ist zu melden (Rahmenvertrag § 10 Abs. 2). Die Rechnung bleibt so fällig wie gestellt (§ 8 Abs. 6). {hh} und Matchunt werden informiert.</p>
+        <Textarea rows={2} placeholder="Grund in einem Satz (freiwillig)" value={note} onChange={(e) => setNote(e.target.value)} />
+        <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">Eine Verschiebung ist zu melden (Rahmenvertrag § 10 Abs. 2). Die Rechnung bleibt so fällig wie gestellt. {hh} und Matchunt werden informiert.</p>
         {footer('Melden', !!date, () => run(async () => { const r = await besetzungApi.moveStart(p.id, date, note.trim()); return `Gemeldet. Neuer erster Arbeitstag: ${dateDe(r.startDate)}.`; }))}
-      </div>
-    );
-  } else if (form === 'nicht' && p) {
-    body = (
-      <div className="space-y-3">
-        <p className="text-sm font-medium">{who} tritt nicht an</p>
-        <div className="flex flex-wrap gap-1.5">
-          <span className="w-full text-xs text-muted-foreground">Grund (Pflicht)</span>
-          {NON_START.map((r) => <Button key={r.key} type="button" size="sm" variant={reason === r.key ? 'secondary' : 'outline'} className="h-7 text-xs" onClick={() => setReason(r.key)}>{r.label}</Button>)}
-        </div>
-        <Textarea rows={2} placeholder="Was ist passiert? (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
-        {fileField(true)}
-        <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-          {continuity ? 'Mit Continuity wählen Sie zwischen Erstattung und erneuter Suche.' : 'Ein noch nicht gezahltes Honorar entfällt, ein gezahltes wird erstattet.'} Voraussetzung: Meldung binnen 14 Tagen ab Kenntnis, spätestens 14 Tage nach dem {dateDe(p.startDate)}, mit Erklärung der Person (Rahmenvertrag § 8 Abs. 8).
-        </p>
-        {footer('Nichtantritt melden', !!reason, () => run(async () => {
-          await clientTasksApi.confirmStart({ placementId: p.id, way: 'not_started', reason, note: note.trim() || undefined });
-          if (file) { await upload(p.id, file); return 'Gemeldet, mit Erklärung. Matchunt prüft den Fall und meldet sich.'; }
-          return 'Gemeldet. Matchunt prüft den Fall. Die Erklärung können Sie über „Erklärung nachreichen“ hochladen.';
-        }))}
       </div>
     );
   } else if (form === 'doc' && p) {
     body = (
       <div className="space-y-3">
-        <p className="text-sm font-medium">Erklärung von {who} nachreichen</p>
-        {fileField(false)}
-        <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">Die Erklärung der Person gehört zur Meldung des Nichtantritts (Rahmenvertrag § 8 Abs. 8). Es reicht eine Mail oder ein Foto des Schreibens.</p>
-        {footer('Hochladen', !!file, () => run(async () => { await upload(p.id, file!); return 'Hochgeladen. Matchunt hat die Erklärung.'; }))}
+        <p className="text-sm font-medium">Unterlage nachreichen</p>
+        <label className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground hover:bg-muted/40">
+          <Upload className="h-4 w-4" />
+          <span className="flex-1 truncate">{file ? file.name : `Kündigung, Absage oder Nachricht von ${who} (PDF, Bild, Mail · bis 5 MB)`}</span>
+          <input type="file" accept={ACCEPT} className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+        </label>
+        {footer('Hochladen', !!file, () => run(async () => { await besetzungApi.endDocument(p.id, file!.name, await fileToBase64(file!)); return 'Hochgeladen. Matchunt hat die Unterlage.'; }))}
       </div>
     );
   } else if (form === 'po' && p) {
     body = (
       <div className="space-y-3">
-        <p className="text-sm font-medium">Bestellnummer für die Rechnung</p>
+        <p className="text-sm font-medium">Bestellnummer ergänzen</p>
         <div className="grid gap-3 sm:grid-cols-2">
           {field('Bestellnummer', <Input className="h-9" placeholder="z. B. 4500-1182" value={po} onChange={(e) => setPo(e.target.value)} />)}
-          {field('Kostenstelle (optional)', <Input className="h-9" placeholder="z. B. 4100" value={cost} onChange={(e) => setCost(e.target.value)} />)}
+          {field('Kostenstelle (freiwillig)', <Input className="h-9" placeholder="z. B. 410" value={cost} onChange={(e) => setCost(e.target.value)} />)}
         </div>
-        <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">Steht auf der Rechnung. Ist sie bei Ihnen Pflicht, gibt Matchunt die Rechnung erst danach frei.</p>
+        <p className="text-xs text-muted-foreground">Steht auf der Rechnung. Ändern lässt sie sich, bis die Rechnung gestellt ist.</p>
         {footer('Speichern', !!(po.trim() || cost.trim()), () => run(async () => { await besetzungApi.setPurchaseOrder(p.id, po.trim(), cost.trim()); return 'Gespeichert. Die Nummer steht auf der Rechnung.'; }))}
-      </div>
-    );
-  } else if (form === 'aus' && p) {
-    body = (
-      <div className="space-y-3">
-        <p className="text-sm font-medium">{who} ist ausgeschieden</p>
-        {DEPARTURE_GROUPS.map((g) => (
-          <div key={g.title} className="flex flex-wrap gap-1.5">
-            <span className="w-full text-xs text-muted-foreground">{g.title}</span>
-            {g.items.map((c) => <Button key={c.key} type="button" size="sm" variant={reason === c.key ? 'secondary' : 'outline'} className="h-7 text-xs" onClick={() => setReason(c.key)}>{c.label}</Button>)}
-          </div>
-        ))}
-        <div className="grid gap-3 sm:grid-cols-3">
-          {field('Kündigung zugegangen bzw. Aufhebung am', <Input type="date" max={todayKey()} className="h-9" value={eventOn} onChange={(e) => { setEventOn(e.target.value); if (!knownOn) setKnownOn(e.target.value); }} />)}
-          {field('Letzter Arbeitstag', <Input type="date" className="h-9" value={lastDay} onChange={(e) => setLastDay(e.target.value)} />)}
-          {field('Davon erfahren am', <Input type="date" max={todayKey()} className="h-9" value={knownOn} onChange={(e) => setKnownOn(e.target.value)} />)}
-        </div>
-        <Textarea rows={2} placeholder="Grund in einem Satz (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
-        <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-          {continuity
-            ? `${item.package.name}: Matchunt sucht einmal erneut für dieselbe Stelle, ohne weiteres Honorar, wenn der Grund nicht auf Ihrer Seite liegt, also etwa nicht betriebsbedingt (Rahmenvertrag § 9 Abs. 4). Melden binnen 14 Tagen ab Kenntnis, spätestens am ${dateDe(p.reportUntil)}.`
-            : `${who} ist im Paket Core: keine erneute Suche. Die Meldung informiert ${hh} und Matchunt.`}
-        </p>
-        {footer('Melden', !!(reason && eventOn && lastDay && knownOn), () => run(async () => {
-          const r = await besetzungApi.reportDeparture({ placementId: p.id, category: reason, eventOn, lastDay, knownOn, note: note.trim() });
-          return DEPARTURE_DONE[r.outcome];
-        }))}
       </div>
     );
   } else {
     body = (
       <>
-        <StepRow steps={stepsOf(item)} />
-        <FactGrid facts={factsOf(item)} />
-        {p && item.group === 'start' && !startPassed && (
+        <div>
+          <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Schritte</p>
+          <StepRow steps={stepsOf(item)} />
+        </div>
+        {panel && (
+          <NachbesetzungPanel item={item} panel={panel} busy={busy} run={(w) => void run(w)}
+            onEditJob={(jobId) => go(`/dashboard/jobs/${jobId}`)}
+            onSubmissions={(jobId) => go(`/dashboard/candidates?job=${jobId}&tab=neu`)}
+            onInvoice={(id) => go(`/dashboard/rechnungen?beleg=${id}`)}
+            onOpenSubmission={(sub) => { if (onOpenSubmission) onOpenSubmission(sub); else go(`/dashboard/besetzungen?besetzung=${sub}`); }} />
+        )}
+        <div>
+          <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Eckdaten</p>
+          <FactGrid facts={factsOf(item)} onAction={(a) => { if (a === 'po') setForm('po'); }} />
+        </div>
+        {p && item.group === 'start' && !p.end && !p.startFixedAt && (
           <p className="text-xs text-muted-foreground">{hh} hält Kontakt zu {who} bis zum ersten Tag.</p>
         )}
-        <div className="flex flex-wrap gap-2">
-          {acts.map((a) => <Button key={a.label} size="sm" variant={a.primary ? 'default' : 'outline'} onClick={a.run}>{a.label}</Button>)}
-        </div>
+        {acts.length > 0 && (
+          <div>
+            <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Aktionen</p>
+            <div className="flex flex-wrap gap-2">
+              {acts.map((k) => <Button key={k} size="sm" variant={primary(k) ? 'default' : 'outline'} onClick={RUN[k]}>{LABEL[k]}</Button>)}
+            </div>
+          </div>
+        )}
         {item.events.length > 0 && (
           <div>
             <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Verlauf</p>
@@ -242,12 +271,12 @@ export function BesetzungWindow({ item, open, onOpenChange, onContract, onStartC
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader className="text-left">
           <div className="flex flex-wrap items-center gap-2 pr-6">
-            <DialogTitle>Besetzung · {item.name}</DialogTitle>
+            <DialogTitle>Besetzung · {titleOf(item)}</DialogTitle>
             <StatusPill text={status.text} tone={status.tone} />
           </div>
           <DialogDescription>{item.jobTitle}{item.recruiterName ? ` · über ${item.recruiterName}` : ''}</DialogDescription>
         </DialogHeader>
-        <div className={cn('space-y-4')}>{body}</div>
+        <div className="space-y-4">{body}</div>
       </DialogContent>
     </Dialog>
   );

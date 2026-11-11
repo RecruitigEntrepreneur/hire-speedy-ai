@@ -19,6 +19,8 @@ import { usePoolFit } from '@/hooks/usePoolFit';
 import { Badge } from '@/components/ui/badge';
 import { ClientQuestionFlow } from './search/ClientQuestionFlow';
 import { Honorar } from './Honorar';
+import { useQuery } from '@tanstack/react-query';
+import { useJobEarning, euroKurz } from './verdienste/useJobEarning';
 
 interface MiniCandidate {
   id: string;
@@ -37,6 +39,9 @@ interface ActivationConfirmDialogProps {
   earning: number | null;
   /** Contracting: Verdienst je Einsatztag, z. B. "44–110 €" -- ersetzt den Verdienst. */
   earningPerDay?: string | null;
+  /** Gehaltsspanne für „8.250 € bei Antritt, Rest nach 90 Tagen“ (H3); fehlt sie, liest das Fenster sie selbst. */
+  salaryMin?: number | null;
+  salaryMax?: number | null;
   hiringUrgency: string | null;
   /** Offene Suchen ohne Einreichung / Plätze */
   activeCount: number;
@@ -61,6 +66,8 @@ export function ActivationConfirmDialog({
   anonymousLabel,
   earning,
   earningPerDay,
+  salaryMin,
+  salaryMax,
   hiringUrgency,
   activeCount,
   maxSlots,
@@ -80,6 +87,18 @@ export function ActivationConfirmDialog({
   const [clientInfo, setClientInfo] = useState<string | null>(null);
 
   const isUrgent = hiringUrgency === 'urgent';
+  // Verdienst nach Paket und Fassung, mit der Zeile „… bei Antritt, Rest nach 90 Tagen“ (H3, Umbau 11.11.2026)
+  const ownSalary = salaryMin === undefined && salaryMax === undefined;
+  const gehalt = useQuery({
+    queryKey: ['job-gehalt', jobId],
+    enabled: open && !earningPerDay && ownSalary,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data } = await supabase.from('recruiter_jobs_view').select('salary_min, salary_max').eq('id', jobId).maybeSingle();
+      return (data ?? null) as { salary_min: number | null; salary_max: number | null } | null;
+    },
+  });
+  const { earning: plan } = useJobEarning(open && !earningPerDay ? jobId : null, ownSalary ? gehalt.data?.salary_min : salaryMin, ownSalary ? gehalt.data?.salary_max : salaryMax);
 
   // Nur Kandidaten, die laut Matching passen (14.10.2026) – nicht einfach die neuesten.
   useEffect(() => {
@@ -184,7 +203,14 @@ export function ActivationConfirmDialog({
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5">{anonymousLabel}</p>
                     </div>
-                    {(earningPerDay || earning !== null) && (
+                    {!earningPerDay && plan ? (
+                      <div className="shrink-0 text-right">
+                        <p className="text-sm font-bold tabular-nums text-emerald-500">
+                          <Honorar>{`${plan.research ? '' : '≈ '}${euroKurz(plan.totalCents)}`}</Honorar>
+                        </p>
+                        <p className="text-[10px] text-foreground"><Honorar>{plan.line}</Honorar></p>
+                      </div>
+                    ) : (earningPerDay || earning !== null) && (
                       <div className="shrink-0 text-right">
                         <p className="text-sm font-bold tabular-nums text-emerald-500">
                           <Honorar>{earningPerDay ?? `≈ €${earning!.toLocaleString('de-DE')}`}</Honorar>

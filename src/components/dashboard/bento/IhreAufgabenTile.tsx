@@ -22,6 +22,7 @@ export function IhreAufgabenTile() {
         </div>
       ) : (
         <div className="space-y-0.5">
+          {data?.reminder && <p className="px-2.5 pb-1 text-xs text-muted-foreground">{data.reminder.text}</p>}
           {tasks.slice(0, 5).map((t) => <TaskRow key={t.key} task={t} compact onOpen={(x) => navigate(taskHref(x))} />)}
           {(data?.waiting.length ?? 0) > 0 && <p className="px-2.5 pt-1 text-xs text-muted-foreground">Läuft bei anderen: {data!.waiting.length}</p>}
         </div>

@@ -5,6 +5,8 @@ import { briefingText, getRecruiterCriteria } from '@/lib/recruiterBriefing';
 import { recruiterFeeRange } from '@/lib/recruiterFee';
 import { verdienstJeTag } from '@/lib/recruiterContracting';
 import { Honorar } from './Honorar';
+import { useJobEarning } from './verdienste/useJobEarning';
+import { eur0 } from '../../../supabase/functions/_shared/abrechnung-view';
 
 const EURO = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 const keyOf = (v: string) => v.trim().toLocaleLowerCase('de-DE');
@@ -12,10 +14,25 @@ const keyOf = (v: string) => v.trim().toLocaleLowerCase('de-DE');
 /**
  * Der Verdienst neben dem Titel: die Mitte des Bandes (wie in der früheren
  * Verdienst-Karte), bei Contracting der Verdienst je Einsatztag.
+ * Seit 11.11.2026 (H4/H6) mit der Zeile „8.250 € bei Antritt · 16.500 € nach 90 Tagen“
+ * bzw. bei einer Nachbesetzung „in einem Teil …“; ein Klick öffnet „Verdienst berechnen“.
  * Keine `dark:`-Klassen: die Tailwind-Konfiguration kehrt sie hier um.
  */
-export function HeroEarning({ job }: { job: WorkspaceJob }) {
+export function HeroEarning({ job, onDetails }: { job: WorkspaceJob; onDetails?: () => void }) {
   const jeTag = job.employment_type === 'freelance' ? verdienstJeTag(job) : null;
+  const { earning: plan } = useJobEarning(jeTag ? null : job.id, job.salary_min ?? null, job.salary_max ?? null);
+  if (plan) {
+    return (
+      <div>
+        <p className="text-xs text-muted-foreground">Dein Verdienst</p>
+        <p className="mt-1 text-2xl font-semibold leading-none tracking-tight tabular-nums text-emerald-500"><Honorar>{eur0(plan.totalCents)}</Honorar></p>
+        {onDetails
+          ? <button type="button" onClick={onDetails} className="mt-1 text-left text-xs text-muted-foreground underline decoration-dotted underline-offset-4 hover:text-foreground"><Honorar>{plan.detail}</Honorar></button>
+          : <p className="mt-1 text-xs text-muted-foreground"><Honorar>{plan.detail}</Honorar></p>}
+        {plan.research && <p className="mt-1 max-w-[18rem] text-xs text-muted-foreground">{plan.research.note}</p>}
+      </div>
+    );
+  }
   const range = jeTag ? null : recruiterFeeRange(job.recruiter_fee_percentage ?? null, job.salary_min ?? null, job.salary_max ?? null);
   const mitte = range == null ? null
     : range.min != null && range.max != null ? Math.round((range.min + range.max) / 2)

@@ -38,7 +38,6 @@ import RecruiterNotifications from "./pages/recruiter/RecruiterNotifications";
 import RecruiterMessages from "./pages/recruiter/RecruiterMessages";
 import RecruiterProfile from "./pages/recruiter/RecruiterProfile";
 import RecruiterLiga from "./pages/recruiter/RecruiterLiga";
-import RecruiterPayouts from "./pages/recruiter/RecruiterPayouts";
 import RecruiterDataPrivacy from "./pages/recruiter/RecruiterDataPrivacy";
 import RecruiterHeute from "./pages/recruiter/RecruiterHeute";
 import RecruiterInterviews from "./pages/recruiter/RecruiterInterviews";
@@ -67,8 +66,9 @@ import AdminCandidates from "./pages/admin/AdminCandidates";
 import AdminInterviews from "./pages/admin/AdminInterviews";
 import AdminVertraege from "./pages/admin/AdminVertraege";
 import AdminBesetzungen from "./pages/admin/AdminBesetzungen";
+import AdminPaketeKonditionen from "./pages/admin/AdminPaketeKonditionen";
+import AdminZusammenarbeit from "./pages/admin/AdminZusammenarbeit";
 import AdminActivity from "./pages/admin/AdminActivity";
-import AdminPayoutApproval from "./pages/admin/AdminPayoutApproval";
 import AdminFraud from "./pages/admin/AdminFraud";
 import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import AdminDealHealth from "./pages/admin/AdminDealHealth";
@@ -374,11 +374,8 @@ function AppRoutes() {
           <RecruiterLiga />
         </ProtectedRoute>
       } />
-      <Route path="/recruiter/payouts" element={
-        <ProtectedRoute allowedRoles={['recruiter']}>
-          <RecruiterPayouts />
-        </ProtectedRoute>
-      } />
+      {/* Auszahlungen laufen über Gutschriften (Umbau 11.11.2026): Verdienste › Gutschriften */}
+      <Route path="/recruiter/payouts" element={<Navigate to="/recruiter/earnings?reiter=gutschriften" replace />} />
       <Route path="/recruiter/privacy" element={
         <ProtectedRoute allowedRoles={['recruiter']}>
           <RecruiterDataPrivacy />
@@ -459,16 +456,29 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       <Route path="/admin/payments" element={<Navigate to="/admin/besetzungen" replace />} />
+      {/* Buchhaltung (Umbau 11.11.2026): Pakete & Konditionen (A10), faire Zusammenarbeit je Kunde (F1) */}
+      <Route path="/admin/pakete" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <AdminPaketeKonditionen />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/zusammenarbeit" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <AdminZusammenarbeit />
+        </ProtectedRoute>
+      } />
+      <Route path="/admin/zusammenarbeit/:ownerId" element={
+        <ProtectedRoute allowedRoles={['admin']}>
+          <AdminZusammenarbeit />
+        </ProtectedRoute>
+      } />
       <Route path="/admin/activity" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <AdminActivity />
         </ProtectedRoute>
       } />
-      <Route path="/admin/payouts" element={
-        <ProtectedRoute allowedRoles={['admin']}>
-          <AdminPayoutApproval />
-        </ProtectedRoute>
-      } />
+      {/* Stripe-Auszahlungen stillgelegt (Umbau 11.11.2026): Besetzungen › Gutschriften */}
+      <Route path="/admin/payouts" element={<Navigate to="/admin/besetzungen?reiter=gutschriften" replace />} />
       <Route path="/admin/fraud" element={
         <ProtectedRoute allowedRoles={['admin']}>
           <AdminFraud />

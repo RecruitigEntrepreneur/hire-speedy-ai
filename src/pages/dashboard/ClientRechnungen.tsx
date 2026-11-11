@@ -5,16 +5,17 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { eurCents, useClientInvoices, type ClientInvoice } from '@/lib/billingApi';
-import { InvoiceHeader, InvoiceRow, dateDe } from '@/components/rechnungen/InvoiceParts';
+import { InvoiceHeader, InvoiceRow } from '@/components/rechnungen/InvoiceParts';
+import { dateDe, isCorrection, kpiSubs } from '@/components/rechnungen/invoiceView';
 import { InvoiceWindow } from '@/components/rechnungen/InvoiceWindow';
 import { InvoiceExport } from '@/components/rechnungen/InvoiceExport';
 import { BillingSettingsForm } from '@/components/rechnungen/BillingSettingsForm';
 
 /**
- * Kunden-Bereich „Rechnungen“ (Etappe 3, 25.10.2026): eigener Menüpunkt für eine
- * ordentliche Abrechnung und die Buchhaltung. Reiter Offene Posten · Alle Belege ·
- * Zahlungen · Export · Rechnungsdaten; Klick auf einen Beleg öffnet das Beleg-Fenster.
- * Ersetzt die alte Seite „Abrechnung“ (/dashboard/billing).
+ * Kunden-Bereich „Rechnungen“ (Etappe 3, 25.10.2026; Umbau 11.11.2026, K9–K12): eigener
+ * Menüpunkt für eine ordentliche Abrechnung und die Buchhaltung. Reiter Offene Posten ·
+ * Alle Belege · Zahlungen · Export · Rechnungsdaten; Klick auf einen Beleg öffnet das
+ * Beleg-Fenster. Ruhig: keine Farbpillen, nur Überfälliges farbig, Teilzahlungen sichtbar.
  */
 
 type Tab = 'op' | 'alle' | 'zahl' | 'exp' | 'daten';
@@ -29,7 +30,6 @@ function Kpi({ label, value, sub, tone }: { label: string; value: string; sub?: 
   );
 }
 
-const CREDIT_TYPES = ['credit_note', 'cancellation'];
 
 export default function ClientRechnungen() {
   const [params, setParams] = useSearchParams();
@@ -43,6 +43,7 @@ export default function ClientRechnungen() {
   const open = invoices.filter((i) => i.open).sort((a, b) => String(a.dueDate ?? '').localeCompare(String(b.dueDate ?? '')));
   const years = useMemo(() => [...new Set(invoices.map((i) => String(i.issuedAt ?? '').slice(0, 4)).filter(Boolean))].sort().reverse(), [invoices]);
   const reported = invoices.filter((i) => i.open && i.reportedPaidOn);
+  const subs = d ? kpiSubs(d) : null;
   const tab = ((params.get('reiter') as Tab) || 'op');
   const setTab = (t: Tab) => { const next = new URLSearchParams(params); next.set('reiter', t); setParams(next, { replace: true }); };
 
@@ -90,9 +91,9 @@ export default function ClientRechnungen() {
         ) : (
           <>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              <Kpi label="Offen" value={eurCents(d.totals.openCents)} sub={d.totals.openCount ? `${d.totals.openCount === 1 ? '1 Beleg' : `${d.totals.openCount} Belege`}${d.totals.nextDue ? ` · fällig ${dateDe(d.totals.nextDue)}` : ''}` : 'nichts offen'} />
-              <Kpi label="Überfällig" value={eurCents(d.totals.overdueCents)} tone={d.totals.overdueCents ? 'bad' : undefined} />
-              <Kpi label={`Bezahlt ${new Date().getFullYear()}`} value={eurCents(d.totals.paidYearCents)} sub={d.payments.length ? null : 'noch keine Zahlung'} />
+              <Kpi label="Offen" value={eurCents(d.totals.openCents)} sub={subs?.open} />
+              <Kpi label="Überfällig" value={eurCents(d.totals.overdueCents)} tone={d.totals.overdueCents ? 'bad' : undefined} sub={subs?.overdue} />
+              <Kpi label={`Bezahlt ${new Date().getFullYear()}`} value={eurCents(d.totals.paidYearCents)} sub={subs?.paid} />
             </div>
 
             {missingAddress && (
@@ -125,12 +126,12 @@ export default function ClientRechnungen() {
                     <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Nummer, Name, Bestellnummer" className="h-8 pl-8 text-sm" aria-label="Suchen" />
                   </div>
                 </div>
-                {list(filtered(invoices.filter((i) => !CREDIT_TYPES.includes(i.type))), search ? 'Nichts gefunden.' : 'Noch keine Rechnungen. Rechnungen entstehen mit einer Einstellung.')}
+                {list(filtered(invoices.filter((i) => !isCorrection(i))), search ? 'Nichts gefunden.' : 'Noch keine Rechnungen. Rechnungen entstehen mit einer Einstellung.')}
                 <div className="rounded-xl border p-4">
-                  <p className="text-sm font-medium">Gutschriften und Korrekturen ({invoices.filter((i) => CREDIT_TYPES.includes(i.type)).length})</p>
-                  {invoices.some((i) => CREDIT_TYPES.includes(i.type))
-                    ? <div className="mt-2">{list(filtered(invoices.filter((i) => CREDIT_TYPES.includes(i.type))), 'Nichts gefunden.')}</div>
-                    : <p className="text-sm text-muted-foreground">Erscheinen hier mit Bezug zur Rechnung, z. B. Erstattung bei Nichtantritt oder 25 % nach erfolgloser erneuter Suche. Eine Korrektur storniert die alte Rechnung sichtbar.</p>}
+                  <p className="text-sm font-medium">Korrekturen ({invoices.filter(isCorrection).length})</p>
+                  {invoices.some(isCorrection)
+                    ? <div className="mt-2">{list(filtered(invoices.filter(isCorrection)), 'Nichts gefunden.')}</div>
+                    : <p className="text-sm text-muted-foreground">Erscheinen hier mit Bezug zur Rechnung, z. B. eine Korrektur. Sie storniert die alte Rechnung sichtbar.</p>}
                 </div>
               </div>
             )}
@@ -144,12 +145,12 @@ export default function ClientRechnungen() {
                     {reported.map((i) => (
                       <button key={`r-${i.id}`} type="button" onClick={() => setWinId(i.id)} className="flex w-full justify-between gap-3 px-4 py-2.5 text-left hover:bg-muted/40">
                         <span>{dateDe(i.reportedPaidOn)} · {i.number} · <span className="text-muted-foreground">von Ihnen gemeldet, Matchunt prüft</span></span>
-                        <span className="tabular-nums">{eurCents(i.totalCents)}</span>
+                        <span className="tabular-nums">{eurCents(i.restCents || i.totalCents)}</span>
                       </button>
                     ))}
                     {d.payments.map((p) => (
-                      <button key={`p-${p.invoiceId}`} type="button" onClick={() => setWinId(p.invoiceId)} className="flex w-full justify-between gap-3 px-4 py-2.5 text-left hover:bg-muted/40">
-                        <span>{dateDe(p.date)} · {p.number} · <span className="text-muted-foreground">gebucht von Matchunt</span></span>
+                      <button key={`p-${p.key}`} type="button" onClick={() => setWinId(p.invoiceId)} className="flex w-full justify-between gap-3 px-4 py-2.5 text-left hover:bg-muted/40">
+                        <span>{dateDe(p.date)} · {p.number}{p.partial ? ' · Teilzahlung' : ''}</span>
                         <span className="tabular-nums">{eurCents(p.amountCents)}</span>
                       </button>
                     ))}
@@ -164,7 +165,7 @@ export default function ClientRechnungen() {
           </>
         )}
       </div>
-      <InvoiceWindow invoice={current} settings={s ?? null} financeOnly={!!d?.financeOnly} open={!!current} onOpenChange={(o) => { if (!o) setWinId(null); }} />
+      <InvoiceWindow invoice={current} settings={s ?? null} financeOnly={!!d?.financeOnly} canManage={!!d?.canManage} open={!!current} onOpenChange={(o) => { if (!o) setWinId(null); }} />
     </DashboardLayout>
   );
 }

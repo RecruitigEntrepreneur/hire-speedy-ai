@@ -472,3 +472,12 @@ verify_jwt = false
 # Stand des Arbeitsvertrags für den Kandidaten (29.10.2026): Seite ohne Konto, der persönliche Link ist der Zugang.
 [functions.contract-status]
 verify_jwt = false
+
+[functions.buchhaltung-taeglich]
+verify_jwt = false
+
+[functions.abrechnung]
+verify_jwt = true
+
+[functions.buchhaltung]
+verify_jwt = true

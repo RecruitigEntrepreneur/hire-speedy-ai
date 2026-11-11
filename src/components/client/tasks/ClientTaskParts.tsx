@@ -1,5 +1,5 @@
 import { Fragment } from 'react';
-import { CalendarClock, CheckCircle2, Clock, FileSignature, FileText, Gift, HelpCircle, MessageSquare, Receipt, UserCheck, Users, type LucideIcon } from 'lucide-react';
+import { CalendarClock, CheckCircle2, Clock, FileSignature, FileText, Gift, HelpCircle, MessageSquare, PauseCircle, Receipt, RefreshCw, UserCheck, UserX, Users, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -17,6 +17,7 @@ export const TASK_ICON: Record<ClientTaskKind, LucideIcon> = {
   review: Users, alternative: CalendarClock, expired_request: CalendarClock, feedback: MessageSquare, decide_unsure: HelpCircle,
   make_offer: Gift, counter: Gift, offer_overdue: Clock, send_contract: FileText, contract_signed_check: FileText,
   docusign_sign: FileSignature, confirm_signature: FileSignature, recruiter_question: HelpCircle, confirm_start: UserCheck, invoice: Receipt, purchase_order: Receipt,
+  start_check: UserCheck, end_confirm: UserX, research_position: RefreshCw, research_offer: RefreshCw, job_paused: PauseCircle,
 };
 
 /** Etikett „im Budget“ / „am oberen Rand“ / „überfällig“ */

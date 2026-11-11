@@ -30,10 +30,13 @@ import { ContractWindow } from '@/components/contracts/ContractWindow';
 import { Honorar } from '@/components/recruiter/Honorar';
 import { vorbereitenTexte } from '@/lib/kandidatVorbereiten';
 import { VorbereitenFenster } from './VorbereitenFenster';
+// Antritt und Halbzeit (H7, Umbau 11.11.2026): Systemaufgaben aus dem täglichen Lauf, eigenes Fenster
+import { StartAufgabeFenster, type StartAufgabe } from '@/components/recruiter/verdienste/StartAufgabeFenster';
+import { startTaskKind } from '../../../../supabase/functions/_shared/abrechnung-view';
 
 export const DAY_MS = 86_400_000;
 
-export type Kind = 'call' | 'called' | 'followup' | 'debrief' | 'done' | 'akte' | 'client' | 'candidate' | 'offer' | 'recommend' | 'contract' | 'prep' | 'frage';
+export type Kind = 'call' | 'called' | 'followup' | 'debrief' | 'done' | 'akte' | 'client' | 'candidate' | 'offer' | 'recommend' | 'contract' | 'prep' | 'frage' | 'start';
 
 export interface Guide {
   pill: string;
@@ -314,6 +317,20 @@ export function buildGuide(item: UnifiedTaskItem): Guide {
       reachedOptions: ['Informiert', 'Will andere Stellen', 'Kein Interesse mehr'],
     };
   }
+  // Erster Arbeitstag und Halbzeit der Garantie (H7): Fenster mit den Antworten
+  const startKind = item.itemType === 'task' ? startTaskKind(item.title) : null;
+  if (startKind) {
+    return {
+      pill: startKind === 'start' ? 'Erster Arbeitstag' : 'Halbzeit',
+      advice: item.title,
+      facts: [item.description ?? ''].filter(Boolean),
+      consequence: null,
+      steps: [{ text: startKind === 'start' ? `${first} kurz anrufen, dann melden.` : 'Kurz einschätzen. Der Kunde sieht davon nichts.' }],
+      goal: startKind === 'start' ? 'Antritt gemeldet' : 'Eingeschätzt',
+      primary: { label: startKind === 'start' ? 'Antritt melden' : 'Einschätzen', kind: 'start' },
+      reachedOptions: [],
+    };
+  }
   if (item.itemType === 'task') {
     // Eigene Erinnerung (29.10.2026): oben steht, was zu tun ist, die Notiz im Grund
     const due = item.dueAt ? new Date(item.dueAt) : null;
@@ -404,9 +421,17 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
   const [frageFor, setFrageFor] = useState<string | null>(null);
   const [contractFor, setContractFor] = useState<string | null>(null);
   const [prepItem, setPrepItem] = useState<UnifiedTaskItem | null>(null);
+  const [startTask, setStartTask] = useState<StartAufgabe | null>(null);
+  const openStart = (it: UnifiedTaskItem) => {
+    const kind = it.itemType === 'task' ? startTaskKind(it.title) : null;
+    if (!kind) return false;
+    setStartTask({ kind, taskId: it.itemId, phone: it.candidatePhone });
+    return true;
+  };
   /** Aufgaben mit eigenem Fenster direkt öffnen; true = erledigt. */
   const openOwnWindow = (it: UnifiedTaskItem) => {
     if (it.prep) { setPrepItem(it); return true; }
+    if (openStart(it)) return true;
     if (it.taskCategory === 'interview_debrief_due') { setNach({ target: nachTargetFromItem(it), item: it }); return true; }
     if (it.taskCategory === 'offer_deliver' && it.submissionId) { setOfferFor(it.submissionId); return true; }
     if (it.taskCategory === 'recommendation_due' && it.submissionId) { setRecFor(it.submissionId); return true; }
@@ -447,6 +472,9 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
         return;
       case 'prep':
         setPrepItem(item);
+        return;
+      case 'start':
+        openStart(item);
         return;
       case 'call':
         if (item.candidatePhone) window.location.href = `tel:${item.candidatePhone}`;
@@ -553,7 +581,8 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
 
   /** Öffnet das Fenster der Person, zu der die Aufgabe gehört. */
   const openItem = (itemId: string) => {
-    const it = /^(derived-(debrief|offer|recommend|contract)|prep)-/.test(itemId) ? allItems.find(i => i.itemId === itemId) : null;
+    const it = /^(derived-(debrief|offer|recommend|contract)|prep)-/.test(itemId) ? allItems.find(i => i.itemId === itemId)
+      : allItems.find(i => i.itemId === itemId && i.itemType === 'task' && !!startTaskKind(i.title)) ?? null;
     if (it && openOwnWindow(it)) return true;
     const g = groups.find(x => x.primary.itemId === itemId || x.others.some(o => o.itemId === itemId));
     if (g) openGroupKey(g.key);
@@ -607,6 +636,7 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
         onLater={contractItem ? until => { setContractFor(null); later(contractItem, until); } : undefined}
       />
       <VorbereitenFenster item={prepItem} onClose={() => setPrepItem(null)} onChanged={() => { refetch(); notifyTasksChanged(); }} />
+      <StartAufgabeFenster task={startTask} onClose={() => setStartTask(null)} onDone={() => { refetch(); notifyTasksChanged(); }} />
     </>
   );
 

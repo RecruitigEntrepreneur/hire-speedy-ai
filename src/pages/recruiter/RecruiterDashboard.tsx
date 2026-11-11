@@ -57,6 +57,8 @@ import { de } from 'date-fns/locale';
 import { isMissingColumnError } from '@/lib/intakeCapture';
 import { verdienstJeTag } from '@/lib/recruiterContracting';
 import { Honorar } from '@/components/recruiter/Honorar';
+import { ErhaltenKachel, ErhaltenZeile } from '@/components/recruiter/verdienste/ErhaltenKachel';
+import { KonditionenHinweis } from '@/components/recruiter/verdienste/KonditionenHinweis';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -507,6 +509,9 @@ export default function RecruiterDashboard() {
           </CardContent>
         </Card>
 
+        {/* H1: Hinweis auf neue Konditionen, bis zugestimmt ist (nur mit Stichtag) */}
+        <KonditionenHinweis />
+
         <LigaDashboardCard />
         <LigaAwardDialog />
 
@@ -727,12 +732,8 @@ export default function RecruiterDashboard() {
                     Gewichtet nach Pipeline-Stage: Eingereicht 10%, In Prüfung 20%, Interview 40%, Angebot 75%
                   </TooltipContent>
                 </Tooltip>
-                {stats.earnings > 0 && (
-                  <div className="flex items-center justify-between text-sm pt-1 border-t border-border/30">
-                    <span className="text-muted-foreground">Verdient</span>
-                    <span className="font-semibold"><Honorar>{formatEuroFull(stats.earnings)}</Honorar></span>
-                  </div>
-                )}
+                {/* „Erhalten“ statt „Verdient“ (H1, Umbau 11.11.2026): nur, was als Gutschrift ausgezahlt ist */}
+                <ErhaltenZeile />
               </div>
 
               {/* Interviews inside Pipeline cell */}
@@ -877,13 +878,7 @@ export default function RecruiterDashboard() {
                   </div>
                   <p className="text-xl font-bold">{stats.activeSubmissions}</p>
                 </div>
-                <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Euro className="h-3.5 w-3.5 text-emerald-600" />
-                    <span className="text-xs text-emerald-600">Verdient</span>
-                  </div>
-                  <p className="text-xl font-bold text-emerald-600"><Honorar>{formatEuroFull(stats.earnings)}</Honorar></p>
-                </div>
+                <ErhaltenKachel />
               </div>
 
               <div className="space-y-2">
@@ -916,7 +911,7 @@ export default function RecruiterDashboard() {
                 >
                   <Link to="/recruiter/earnings">
                     <Euro className="mr-2 h-3.5 w-3.5" />
-                    Verdienste & Auszahlungen
+                    Verdienste
                     <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
                   </Link>
                 </Button>
