@@ -5,7 +5,7 @@
 - [x] Alle neun Functions erfolgreich deployt: offer, offer-answer, placement, process-rejection, contract-followups, contract-sign, contract-status, employment-contract, employment-docusign-webhook; Einstellungen laut config.toml.
 - [x] Keine Migration, Code- oder Secret-Änderung; Journal unverändert bei 0055_fuehrung_beides.
 - [x] Sicherheitsprüfung aktualisiert: sieben kritische Befunde, 13 Warnungen, ein Hinweis; kein aktuelles Vorschau-Buildsignal verfügbar.
-- [ ] Publish wartet auf Nutzerentscheidung zu den sieben kritischen Sicherheitsbefunden.
+- [x] Nutzerentscheidung: Jetzt veröffentlichen trotz sieben kritischer Sicherheitsbefunde; Publish wird angefordert, Abschluss noch unbestätigt.
 
 ## Auftrag 43 (06.11.2026)
 - [x] GitHub main mit Arbeitskopie abgeglichen: 61f35dd, enthält d6f12b1.
