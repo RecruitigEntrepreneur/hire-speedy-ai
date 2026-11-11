@@ -1,5 +1,12 @@
 # Roadmap
 
+## Auftrag 45 (11.11.2026) — Einsatz anfragen
+- [x] Arbeitskopie und GitHub main identisch: 76a6fda; offer enthält einsatz_anfragen.
+- [x] Alle neun Functions erfolgreich deployt: offer, offer-answer, placement, process-rejection, contract-followups, contract-sign, contract-status, employment-contract, employment-docusign-webhook; Einstellungen laut config.toml.
+- [x] Keine Migration, Code- oder Secret-Änderung; Journal unverändert bei 0055_fuehrung_beides.
+- [x] Sicherheitsprüfung aktualisiert: sieben kritische Befunde, 13 Warnungen, ein Hinweis; kein aktuelles Vorschau-Buildsignal verfügbar.
+- [ ] Publish wartet auf Nutzerentscheidung zu den sieben kritischen Sicherheitsbefunden.
+
 ## Auftrag 43 (06.11.2026)
 - [x] GitHub main mit Arbeitskopie abgeglichen: 61f35dd, enthält d6f12b1.
 - [x] Alle 19 beauftragten Functions erfolgreich deployt; verify_jwt laut config.toml, Vorschau build OK.
