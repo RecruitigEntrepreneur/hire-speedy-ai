@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { minutenOhneAnzeige } from '@/components/intake/guest/etappenZeit';
 import { CaptureStep } from '@/components/intake/guest/CaptureStep';
 import { SubmitStep } from '@/components/dashboard/intake/SubmitStep';
 import { contractingUnterRahmen, useClientIntake } from '@/hooks/useClientIntake';
@@ -298,11 +299,6 @@ export default function ClientIntake() {
                 })}
             </ol>
             )}
-            {step === 'capture' && (
-              <span className="text-xs text-muted-foreground">
-                {saving ? 'Speichert …' : saveError ? <span className="text-destructive">{saveError}</span> : lastSavedAt ? 'Gespeichert' : ''}
-              </span>
-            )}
           </div>
 
           <div className={cn('flex-1 overflow-y-auto', step === 'done' ? 'p-6' : 'px-4 py-5 md:px-6')}>
@@ -333,7 +329,9 @@ export default function ClientIntake() {
             )}
 
             {intake.doppelt && step === 'capture' && (
-          <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm">
+          /* Der Hinweis schwebt, statt die Seite beim Tippen nach unten zu
+             schieben -- sonst traf der naechste Klick daneben (Durchklick 04.11.2026). */
+          <div className="fixed left-1/2 top-3 z-50 flex w-[min(42rem,calc(100vw-2rem))] -translate-x-1/2 flex-wrap items-center gap-2 rounded-lg border border-amber-500/30 bg-background px-3 py-2 text-sm shadow-lg">
             <span>
               Sie haben bereits einen Entwurf „{title}“ vom{' '}
               {new Date(intake.doppelt.updated_at).toLocaleDateString('de-DE')}.
@@ -389,7 +387,7 @@ export default function ClientIntake() {
                 onNext={goSubmit}
                 onResumeLater={later}
                 nextLabel={hasFramework || needsInternalApproval || isContracting ? 'Weiter zum Einreichen' : 'Weiter zum Paket'}
-                entrySub="Meist in drei bis fünf Minuten. Ihre Angaben werden fortlaufend gespeichert."
+                entrySub={`Ohne Anzeige etwa ${minutenOhneAnzeige('full-time')} Minuten, mit Anzeige weniger. Alles wird fortlaufend gespeichert.`}
                 entryExtras={entryExtras}
                 autoBuildText={seed.seedText ?? null}
                 autoBuildFile={seed.seedFile ?? null}
@@ -398,6 +396,7 @@ export default function ClientIntake() {
             firmen={intake.firmen}
             firmaId={intake.firmaId}
             onFirma={intake.waehleFirma}
+            speicherStand={saving ? 'Speichert …' : saveError ? <span className="text-destructive">{saveError}</span> : lastSavedAt ? '✓ Gespeichert' : null}
               />
             )}
 

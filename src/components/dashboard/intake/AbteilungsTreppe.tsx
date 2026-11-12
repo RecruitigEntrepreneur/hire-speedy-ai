@@ -1,4 +1,4 @@
-import { useEffect, useState, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { Check, Minus, Plus } from 'lucide-react';
@@ -96,14 +96,22 @@ interface Props {
   laedtVorschlaege?: boolean;
   /** Wird gerufen, sobald Rollen oder Schnittstellen offen stehen. */
   onVorschlaegeNoetig?: () => void;
+  /**
+   * Etappen-Ansicht (J12): keine eigenen "Weiter"-Knoepfe. Jede Stufe
+   * bleibt offen stehen, die naechste erscheint darunter, sobald die davor
+   * beantwortet ist; Zahlen gelten beim Verlassen des Felds. Ohne Angabe:
+   * alles wie bisher.
+   */
+  ohneWeiter?: boolean;
 }
 
 export function AbteilungsTreppe({
   wert, quelle, onSet, onConfirm,
-  rollenVorschlaege = [], schnittstellenVorschlaege = [], laedtVorschlaege, onVorschlaegeNoetig,
+  rollenVorschlaege = [], schnittstellenVorschlaege = [], laedtVorschlaege, onVorschlaegeNoetig, ohneWeiter = false,
 }: Props) {
   const a: Abteilungsaufbau = istAufbau(wert) ? wert : {};
   const [bearbeite, setBearbeite] = useState<AufbauSchritt | null>(null);
+  const box = useRef<HTMLDivElement>(null);
   const offen = bearbeite ?? naechsterSchritt(a);
   const schritte = aufbauSchritte(a);
 
@@ -119,6 +127,57 @@ export function AbteilungsTreppe({
 
   const rest = offen ? schritte.filter((s) => s !== offen && !schrittBeantwortet(a, s)).length : 0;
   const hinweis = quelle && quelle !== 'answer' ? QUELLE[quelle] : null;
+
+  if (ohneWeiter) {
+    // Alle beantworteten Stufen bleiben als Frage stehen, dazu die erste offene.
+    const setzeUndWeiter = (neu: Abteilungsaufbau) => {
+      const vorher = box.current?.querySelectorAll('[data-stufe]').length ?? 0;
+      onSet(aufbauBereinigt(neu));
+      // Erscheint eine neue Folgefrage, bekommt sie den Fokus -- sonst
+      // sprang Tab nach einer Zahl auf "Zurueck" (Durchklick 04.11.2026).
+      window.setTimeout(() => {
+        const stufen = box.current?.querySelectorAll<HTMLElement>('[data-stufe]');
+        if (!stufen || stufen.length <= vorher) return;
+        const ziel = stufen[stufen.length - 1].querySelector<HTMLElement>('input, button');
+        const imFeld = box.current?.contains(document.activeElement);
+        if (ziel && !imFeld) ziel.focus({ preventScroll: true });
+      }, 60);
+    };
+    const sichtbar: AufbauSchritt[] = [];
+    for (const s of schritte) {
+      sichtbar.push(s);
+      if (!schrittBeantwortet(a, s)) break;
+    }
+    return (
+      <div ref={box} className="space-y-4 text-xs">
+        {sichtbar.map((s) => (
+          <div key={`${a.einbindung ?? ''}-${s}`} data-stufe={s}>
+            <Stufe
+              schritt={s}
+              a={a}
+              frage={frageFuer(s, a)}
+              onFertig={setzeUndWeiter}
+              rollenVorschlaege={rollenVorschlaege}
+              schnittstellenVorschlaege={schnittstellenVorschlaege.length ? schnittstellenVorschlaege : SCHNITTSTELLEN_STANDARD}
+              laedt={laedtVorschlaege}
+              ohneWeiter
+            />
+          </div>
+        ))}
+        {!a.einbindung && <p className="text-[11px] text-muted-foreground">Je nach Antwort 2–4 kurze Folgefragen</p>}
+        {hinweis && (
+          <p className="flex flex-wrap items-center gap-x-2 text-[10px] text-amber-600">
+            {hinweis}
+            {onConfirm && quelle === 'ad' && (
+              <button type="button" onClick={onConfirm} className="rounded border border-amber-500/40 px-1.5 py-px font-medium hover:bg-amber-500/10">
+                ✓ stimmt
+              </button>
+            )}
+          </p>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="text-xs">
@@ -199,7 +258,7 @@ const chipKlasse = (an: boolean) =>
   );
 
 function Stufe({
-  schritt, a, frage, onFertig, rollenVorschlaege, schnittstellenVorschlaege, laedt,
+  schritt, a, frage, onFertig, rollenVorschlaege, schnittstellenVorschlaege, laedt, ohneWeiter = false,
 }: {
   schritt: AufbauSchritt;
   a: Abteilungsaufbau;
@@ -208,14 +267,23 @@ function Stufe({
   rollenVorschlaege: string[];
   schnittstellenVorschlaege: string[];
   laedt?: boolean;
+  /** Ohne eigenes "Weiter": Zahlen beim Verlassen, Auswahl sofort uebernehmen. */
+  ohneWeiter?: boolean;
 }) {
   const [zahl, setZahl] = useState<string>(() => {
     const v = schritt === 'abteilung' ? a.abteilung?.groesse : (a as Record<string, unknown>)[schritt];
     return typeof v === 'number' ? String(v) : '';
   });
   const [name, setName] = useState(a.abteilung?.name ?? '');
-  const [rollen, setRollen] = useState<Rollenzahl[]>(a.rollen ?? []);
-  const [auswahl, setAuswahl] = useState<string[]>(a.schnittstellen ?? []);
+  const [rollenLokal, setRollenLokal] = useState<Rollenzahl[]>(a.rollen ?? []);
+  const [auswahlLokal, setAuswahlLokal] = useState<string[]>(a.schnittstellen ?? []);
+  // Ohne "Weiter" gilt jede Aenderung sofort -- dann ist der Entwurf die Quelle.
+  const rollen = ohneWeiter ? (a.rollen ?? []) : rollenLokal;
+  const auswahl = ohneWeiter ? (a.schnittstellen ?? []) : auswahlLokal;
+  const setRollen = (f: (l: Rollenzahl[]) => Rollenzahl[]) =>
+    ohneWeiter ? onFertig({ ...a, rollen: f(a.rollen ?? []) }) : setRollenLokal(f);
+  const setAuswahl = (f: (l: string[]) => string[]) =>
+    ohneWeiter ? onFertig({ ...a, schnittstellen: f(a.schnittstellen ?? []) }) : setAuswahlLokal(f);
   const [eigene, setEigene] = useState('');
   const [fehler, setFehler] = useState('');
 
@@ -228,9 +296,9 @@ function Stufe({
     return n;
   };
 
-  const kopf = <p className="mb-2 text-xs font-medium text-foreground">{frage}</p>;
+  const kopf = <p className={cn('mb-2 font-medium text-foreground', ohneWeiter ? 'text-sm' : 'text-xs')}>{frage}</p>;
   const fehlerZeile = fehler && <p className="mt-1 text-[11px] text-destructive">{fehler}</p>;
-  const weiter = (onClick: () => void) => (
+  const weiter = (onClick: () => void) => (ohneWeiter ? null :
     <button
       type="button"
       onClick={onClick}
@@ -300,9 +368,10 @@ function Stufe({
         {kopf}
         <div className="flex items-center gap-2">
           <Input
-            type="number" min={1} step={1} value={zahl} autoFocus
+            type="number" min={1} step={1} value={zahl} autoFocus={!ohneWeiter}
             onChange={(e) => { setZahl(e.target.value); setFehler(''); }}
             onKeyDown={enter(fertig)}
+            onBlur={ohneWeiter ? () => { if (zahl.trim()) fertig(); } : undefined}
             className="h-8 w-20 text-xs"
           />
           <span className="text-muted-foreground">{EINHEIT[schritt]![1]}</span>
@@ -325,13 +394,15 @@ function Stufe({
           <Input
             value={name} placeholder="z. B. Rechnungswesen"
             onChange={(e) => setName(e.target.value)}
-            className="h-8 w-48 text-xs"
+            onBlur={ohneWeiter ? () => { if (zahl.trim()) fertig(); } : undefined}
+            className={cn('h-8 text-xs', ohneWeiter ? 'w-full sm:w-96' : 'w-48')}
           />
           <span className="text-muted-foreground">mit</span>
           <Input
             type="number" min={1} step={1} value={zahl}
             onChange={(e) => { setZahl(e.target.value); setFehler(''); }}
             onKeyDown={enter(fertig)}
+            onBlur={ohneWeiter ? () => { if (zahl.trim()) fertig(); } : undefined}
             className="h-8 w-20 text-xs"
           />
           <span className="text-muted-foreground">Personen</span>
@@ -350,10 +421,15 @@ function Stufe({
         : l.some((x) => x.rolle === r)
           ? l.map((x) => (x.rolle === r ? { ...x, anzahl: n } : x))
           : [...l, { rolle: r, anzahl: n }]));
-    const alle = [...new Set([...rollen.map((x) => x.rolle), ...rollenVorschlaege])];
+    const alle = ohneWeiter
+      ? [...new Set([...rollenVorschlaege, ...rollen.map((x) => x.rolle)])]
+      : [...new Set([...rollen.map((x) => x.rolle), ...rollenVorschlaege])];
+    // Ohne "Weiter": die erste Rolle uebernimmt die schon genannte Zahl
+    // (6 gefuehrte Personen -> "6 Servicetechniker" statt "1").
+    const startZahl = ohneWeiter && rollen.length === 0 ? Math.max(1, a.fuehrt ?? a.team ?? 1) : 1;
     const dazu = () => {
       const r = eigene.trim();
-      if (r) { setAnzahl(r, Math.max(1, anzahl(r))); setEigene(''); }
+      if (r) { setAnzahl(r, Math.max(startZahl, anzahl(r))); setEigene(''); }
     };
     return (
       <>
@@ -372,7 +448,7 @@ function Stufe({
                 </button>
               </span>
             ) : (
-              <button key={r} type="button" className={chipKlasse(false)} onClick={() => setAnzahl(r, 1)}>
+              <button key={r} type="button" className={chipKlasse(false)} onClick={() => setAnzahl(r, startZahl)}>
                 + {r}
               </button>
             );
@@ -389,14 +465,16 @@ function Stufe({
         </p>
         <div className="mt-2 flex items-center gap-3">
           {weiter(() => onFertig({ ...a, rollen }))}
-          {ueberspringen(() => onFertig({ ...a, rollen: [] }))}
+          {(!ohneWeiter || (rollen.length === 0 && !Array.isArray(a.rollen))) && ueberspringen(() => onFertig({ ...a, rollen: [] }))}
         </div>
       </>
     );
   }
 
   // schnittstellen
-  const alle = [...new Set([...auswahl, ...schnittstellenVorschlaege])];
+  const alle = ohneWeiter
+    ? [...new Set([...schnittstellenVorschlaege, ...auswahl])]
+    : [...new Set([...auswahl, ...schnittstellenVorschlaege])];
   const umschalten = (x: string) =>
     setAuswahl((l) => (l.includes(x) ? l.filter((y) => y !== x) : [...l, x]));
   const dazu = () => {
@@ -426,7 +504,7 @@ function Stufe({
       </p>
       <div className="mt-2 flex items-center gap-3">
         {weiter(() => onFertig({ ...a, schnittstellen: auswahl }))}
-        {ueberspringen(() => onFertig({ ...a, schnittstellen: [] }))}
+        {(!ohneWeiter || (auswahl.length === 0 && !Array.isArray(a.schnittstellen))) && ueberspringen(() => onFertig({ ...a, schnittstellen: [] }))}
       </div>
     </>
   );

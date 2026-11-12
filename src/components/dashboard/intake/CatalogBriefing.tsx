@@ -606,7 +606,7 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi,
 
 /* ------------------------------------------------------------------ */
 
-function SlotEingabe({
+export function SlotEingabe({
   slot, contract, wert, quelle, vorschlaege, onSet, onToggle, kiAus = false, laedt = false,
 }: {
   slot: BriefSlot;

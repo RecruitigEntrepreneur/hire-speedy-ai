@@ -3,7 +3,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import {
   bedingungGilt, hatWert, questionsAt, sizeBand,
-  frageKurz, slotChipWert, slotChips, slotLabel,
+  frageKurz, frageText, slotChipWert, slotChips, slotLabel,
   type BriefPlace, type BriefSlot, type Known,
 } from '@/lib/briefCatalog';
 import { Check } from 'lucide-react';
@@ -48,11 +48,23 @@ interface Props {
   /** "stimmt" an einem Wert aus der Anzeige -- bestaetigt ihn, wo er steht. */
   onConfirm?: (key: string) => void;
   aufbauVorschlaege?: AufbauVorschlaege;
+  /**
+   * Nur diese Fragen bzw. Zeilen (Schluessel einer Frage oder einer Zeile).
+   * Fuer die Etappen-Ansicht (Test), die einen Ort auf mehrere Schritte
+   * verteilt. Ohne Angabe: alles wie bisher.
+   */
+  nur?: string[];
+  /** Etappen-Ansicht: Treppe ohne eigenes "Weiter". */
+  treppeOhneWeiter?: boolean;
+  /** Etappen-Ansicht: Frage und Zeilen so gross wie die Gespraechsfragen. */
+  gross?: boolean;
 }
 
-export function CatalogFields({ place, known, onSet, contract, mustHaves = [], onConfirm, aufbauVorschlaege }: Props) {
+export function CatalogFields({ place, known, onSet, contract, mustHaves = [], onConfirm, aufbauVorschlaege, nur, treppeOhneWeiter = false, gross = false }: Props) {
+  const passt = (qKey: string, sKey?: string) => !nur || nur.includes(qKey) || (!!sKey && nur.includes(sKey));
   const fragen = questionsAt(place, contract).filter((q) =>
-    q.slots.some((s) => !s.only || s.only === contract),
+    q.slots.some((s) => !s.only || s.only === contract) &&
+    q.slots.some((s) => passt(q.key, s.key)),
   );
   if (fragen.length === 0) return null;
 
@@ -66,6 +78,7 @@ export function CatalogFields({ place, known, onSet, contract, mustHaves = [], o
             // Frueher eine fest verdrahtete Zweierliste -- jede weitere
             // Formularzeile im Katalog waere doppelt gerendert worden.
             !s.imFormular &&
+            passt(q.key, s.key) &&
             // Eine Stelle fuer die Bedingung, hier wie im Gespraech. Die
             // Fassung hier verglich zusaetzlich anders als die im Katalog
             // (`!== undefined` statt `hatWert`) -- zwei Wahrheiten darueber,
@@ -86,8 +99,8 @@ export function CatalogFields({ place, known, onSet, contract, mustHaves = [], o
           <div key={q.key}>
             {zeigeFrage && (
               /* Markos Wortlaut — als Beschriftung, nicht als Frage. */
-              <p className="mb-2 text-xs leading-snug text-muted-foreground">
-                {frageKurz(q, contract) ?? q.text}
+              <p className={gross ? 'mb-3 text-base font-semibold leading-snug text-foreground' : 'mb-2 text-xs leading-snug text-muted-foreground'}>
+                {gross ? frageText(q, contract) : frageKurz(q, contract) ?? q.text}
               </p>
             )}
             <div className="space-y-2.5">
@@ -109,10 +122,11 @@ export function CatalogFields({ place, known, onSet, contract, mustHaves = [], o
                       schnittstellenVorschlaege={aufbauVorschlaege?.schnittstellen}
                       laedtVorschlaege={aufbauVorschlaege?.laedt}
                       onVorschlaegeNoetig={aufbauVorschlaege?.holen}
+                      ohneWeiter={treppeOhneWeiter}
                     />
                   ) : (
                   <>
-                  <p className="mb-1 text-[11px] text-muted-foreground">
+                  <p className={gross ? (zeigeFrage ? 'mb-1.5 text-sm font-medium text-foreground' : 'mb-2 text-base font-semibold text-foreground') : 'mb-1 text-[11px] text-muted-foreground'}>
                     {slotLabel(s, contract)}
                     {!s.required && <span className="ml-1 text-[10px]">(optional)</span>}
                   </p>

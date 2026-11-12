@@ -81,7 +81,7 @@ function Section({ title, icon: Icon, children, className, tour }: { title: stri
  * eine Zahl dastand, und ohne Punkt schwer zu lesen (Durchklicken
  * 24.09.2026). Gespeichert wird weiter die nackte Zahl.
  */
-function EuroSpanne({ feld, von, bis, einheit, onVon, onBis }: {
+export function EuroSpanne({ feld, von, bis, einheit, onVon, onBis }: {
   feld: string;
   von: number | null | undefined;
   bis: number | null | undefined;
@@ -144,7 +144,7 @@ const QUELLE_ETIKETT: Record<SkillVorschlag['quelle'], string> = {
  * beantwortet "woran habe ich nicht gedacht", der andere "wie heisst das noch
  * mal bei euch".
  */
-function SkillList({
+export function SkillList({
   label, items, onRemove, onAdd, accent, vorschlaege = [],
 }: {
   label: string;

@@ -14,6 +14,7 @@ import { CatalogFields } from '@/components/dashboard/intake/CatalogFields';
 import { einzelneBezeichnungen } from '../../../../supabase/functions/_shared/abteilung';
 import { CollapsibleGroup } from './CollapsibleGroup';
 import { ContractKindStep, ContractKindDeclined } from './ContractKindStep';
+import { EtappenAnsicht } from './EtappenAnsicht';
 import {
   BRIEF_QUESTIONS, EMPTY_CATALOG_STATE, blockingGaps, completeness as katalogCompleteness, knownFromForm, nextQuestion,
   ungepruefte, slotLabel, slotChipWert, slotChips,
@@ -135,6 +136,13 @@ interface Props {
   firmen?: { id: string; name: string; verifiziert: boolean; haupt: boolean }[];
   firmaId?: string | null;
   onFirma?: (id: string) => void;
+  /**
+   * 'etappen' (Standard seit 11.11.2026) zeigt die Aufnahme Schritt fuer
+   * Schritt (EtappenAnsicht). 'bisher' ist die alte Seite mit allen Fragen.
+   */
+  ansicht?: 'bisher' | 'etappen';
+  /** Speicherstand fuer den Kopf der Etappen-Ansicht ("✓ Gespeichert"). */
+  speicherStand?: React.ReactNode;
 }
 
 /** Welcher Einstieg gerade zu sehen ist. */
@@ -148,7 +156,7 @@ export function CaptureStep({
   state, onState, companyDefaults, seedTitle, seedText, contactName,
   askAi, parseText, parseUrl, parsePdf, onNext, onResumeLater, company, onCompany, onEnrich,
   nextLabel = 'Weiter zu Ihren Kontaktdaten', entrySub, entryExtras, autoBuildText, autoBuildFile,
-  fertigesProfil = false, firmaFest = null, firmen = [], firmaId = null, onFirma,
+  fertigesProfil = false, firmaFest = null, firmen = [], firmaId = null, onFirma, ansicht = 'etappen', speicherStand,
 }: Props) {
   const [text, setText] = useState(seedText ?? autoBuildText ?? '');
   const [firmaWahlOffen, setFirmaWahlOffen] = useState(false);
@@ -167,6 +175,8 @@ export function CaptureStep({
   );
   const [building, setBuilding] = useState(false);
   const [aiNote, setAiNote] = useState<string | null>(null);
+  /** Das Lesen selbst ist gescheitert (nicht: Datei zu gross, keine Position erkannt). */
+  const [lesenGescheitert, setLesenGescheitert] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const briefingRef = useRef<HTMLDivElement>(null);
 
@@ -213,6 +223,7 @@ export function CaptureStep({
   const buildFrom = async (mode: 'text' | 'url' | 'pdf', file?: File, textOverride?: string) => {
     setBuilding(true);
     setAiNote(null);
+    setLesenGescheitert(false);
     const res =
       mode === 'url' ? await parseUrl(url.trim())
       : mode === 'pdf' ? await parsePdf(file!)
@@ -223,6 +234,7 @@ export function CaptureStep({
       // Kein Sackgassen-Fehler: der manuelle Weg steht daneben und wird hier
       // ausdrücklich angeboten. Ein Gast hat kein Dashboard zum Ausweichen.
       setAiNote(res.message);
+      setLesenGescheitert(true);
       return;
     }
     const parsed = (res as any)?.data;
@@ -310,9 +322,17 @@ export function CaptureStep({
   /** Ohne Vorlage weiter — mit dem, was der Link ohnehin schon weiß. */
   const startManual = (title?: string) => {
     const seed = (title ?? text).trim();
+    // Etappen: Ein eingefuegter Anzeigentext geht nicht verloren, wenn
+    // das Lesen scheitert -- er bleibt als Beschreibung im Entwurf.
+    const behalten = ansicht === 'etappen' && !title && seed.length > 120 ? seed : '';
+    // Aus einem langen Text: die erste Zeile mit (m/w/d) o. ae. ist der Titel (N4, 05.11.2026).
+    const titelZeile = behalten
+      ? behalten.split('\n').map((z) => z.trim()).find((z) => z.length <= 120 && /\([mwdxf]\s*\/\s*[mwdxf]/i.test(z)) ?? ''
+      : '';
     start({
       ...EMPTY_BUILT,
-      title: seed.length > 0 && seed.length <= 120 ? seed : '',
+      description: behalten,
+      title: seed.length > 0 && seed.length <= 120 ? seed : titelZeile,
       company_name: companyDefaults?.company_name ?? '',
       location: companyDefaults?.location ?? '',
       industry: companyDefaults?.industry ?? '',
@@ -858,6 +878,9 @@ export function CaptureStep({
             />
           )}
 
+          {/* Kann die Anzeige nicht gelesen werden, hat der Kasten darunter
+              beide Wege -- dann keine zweite, aehnliche Knopfreihe (N4, 05.11.2026). */}
+          {!(aiNote && lesenGescheitert && ansicht === 'etappen') && (
           <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="hero"
@@ -872,8 +895,24 @@ export function CaptureStep({
               Ohne Vorlage weiter
             </Button>
           </div>
+          )}
 
-          {aiNote && (
+          {aiNote && lesenGescheitert && ansicht === 'etappen' ? (
+            /* Etappen: Wireframe g -- erneut versuchen oder ohne
+               Anzeige weiter, der Text bleibt erhalten. */
+            <Alert>
+              <AlertDescription className="space-y-2 text-sm">
+                <p>Wir konnten die Anzeige gerade nicht lesen. Ihr Text bleibt gespeichert.</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" disabled={building} onClick={() => buildFrom(isUrl ? 'url' : 'text')}>
+                    {building ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    Noch einmal versuchen
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => startManual()}>Ohne Anzeige weiter</Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          ) : aiNote && (
             <Alert>
               <AlertDescription className="text-xs">
                 {aiNote}{' '}
@@ -1016,15 +1055,9 @@ export function CaptureStep({
   }
 
   // ---- Aufnahme -----------------------------------------------------------
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3" data-tour="intake.head">
-        <div>
-          {/* EIN Titel. Vorher stand er zweimal untereinander: hier als h2 und
-              120 px tiefer noch einmal als Eingabefeld in ProfileSections --
-              zwei Groessen, gleiches Gewicht, und aenderbar war die kleinere. */}
-          <h2 className="text-2xl font-bold tracking-tight">{built.title || 'Ihre Position'}</h2>
-          {firmaFest ? (
+  // Die Firmenzeile -- in beiden Ansichten dieselbe.
+  const firmaZeile = (
+firmaFest ? (
             /* Die Firma eines Kunden mit Konto steht HIER, nicht mehr als
                eigener Block zwischen Anforderungen und Rahmendaten
                (Durchklicken 24.09.2026, Variante A). Der Name stand in dieser
@@ -1118,7 +1151,18 @@ export function CaptureStep({
               {[company.company_legal_name || company.company_name, built.location]
                 .filter(Boolean).join(' · ') || 'Alles ist änderbar.'}
             </p>
-          )}
+          )
+  );
+
+  // Die Kopfzeile steht in beiden Ansichten gleich da.
+  const kopfzeile = (
+      <div className="flex flex-wrap items-end justify-between gap-3" data-tour="intake.head">
+        <div>
+          {/* EIN Titel. Vorher stand er zweimal untereinander: hier als h2 und
+              120 px tiefer noch einmal als Eingabefeld in ProfileSections --
+              zwei Groessen, gleiches Gewicht, und aenderbar war die kleinere. */}
+          <h2 className="text-2xl font-bold tracking-tight">{built.title || 'Ihre Position'}</h2>
+          {firmaZeile}
         </div>
         <div className="flex items-center gap-3">
           {/* Die gewaehlte Vertragsart, sichtbar und aenderbar. Ohne sie war
@@ -1152,6 +1196,44 @@ export function CaptureStep({
           </Button>
         </div>
       </div>
+  );
+
+  if (ansicht === 'etappen') {
+    return (
+      <EtappenAnsicht
+        state={state}
+        onState={onState}
+        firmaZeile={firmaZeile}
+        onVertragsart={() => setEntryMode('kind')}
+        onZurAuswahl={() => setEntryMode('reselect')}
+        speicherStand={speicherStand}
+        katalogKnown={katalogKnown}
+        setKatalog={setKatalog}
+        setKatalogVon={setKatalogVon}
+        bestaetige={bestaetige}
+        ausAnzeigeOffen={ausAnzeigeOffen}
+        aufbauVorschlaege={aufbauVorschlaege}
+        jobDraft={jobDraft}
+        askAi={askAi}
+        sperren={sperren}
+        weiter={weiter}
+        nextLabel={nextLabel}
+        onResumeLater={onResumeLater}
+        firmaFest={firmaFest}
+        company={company}
+        onCompany={onCompany}
+        onEnrich={onEnrich}
+        openQuestions={openQuestions}
+        answers={answers}
+        erfasst={erfasst}
+        feldGesamt={katalogFortschritt.feldGesamt}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {kopfzeile}
 
       {/* Was aus der Anzeige kam: EINE Zeile. Geprueft und geaendert wird am
           Feld selbst ("aus der Anzeige · stimmt"), nicht in einer zweiten Liste
