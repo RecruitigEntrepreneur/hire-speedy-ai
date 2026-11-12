@@ -1494,6 +1494,23 @@ Später, wenn Marko sie hat, als Secrets eintragen (ohne Code-Änderung): `BILLI
 
 ---
 
+## 47 — Kundenaufnahme in Etappen: Schritt für Schritt statt einer langen Seite (11.11.2026)
+
+Commit 324c371. **Keine Migration, keine Edge Function, nur Publish.** Erst nach Nr. 46.
+Die Aufnahme einer Position (Kunden-Dashboard und /start ohne Konto) zeigt dieselben Fragen jetzt Schritt für
+Schritt in vier Etappen mit einem einzigen „Weiter“. Fragen, Regeln und gespeicherte Daten sind unverändert.
+
+> 1. Aktuellen Stand von `main` übernehmen. Keine Migration ausführen, auch keine Datei, die noch nicht im Journal
+>    steht. Keine neuen Tabellen, keine Daten-Einfügungen, kein Cron, keine neuen Secrets, keine Edge Function deployen.
+> 2. Publish.
+> 3. Am Code nichts ändern. Falls etwas nicht durchläuft, alle Befunde gesammelt mit Grund melden. Am Ende melden,
+>    dass Publish durch ist.
+
+Danach: `drizzle/migrations/meta/_journal.json` prüfen, darf sich nicht ändern (letzter Eintrag
+`0056_buchhaltung_umbau`).
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über
