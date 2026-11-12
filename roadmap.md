@@ -1,5 +1,12 @@
 # Roadmap
 
+## Auftrag 47 (12.11.2026) — Kundenaufnahme in Etappen
+- [x] Arbeitskopie und GitHub main identisch: cce25e4, enthält 324c371 (EtappenAnsicht, CaptureStep, AbteilungsTreppe, ClientIntake u. a.).
+- [x] Keine Migration ausgeführt; Journal unverändert bei 0056_buchhaltung_umbau; keine Akademie-Dateien 20261022… angefasst.
+- [x] Keine Edge Function deployt, keine Secrets geändert, kein Anwendungscode geändert.
+- [x] Vorschau build OK (12.11.2026 17:06 UTC); frische Sicherheitsprüfung: sieben kritische Befunde, 13 Warnungen, ein Hinweis; Freigabe zur Veröffentlichung wie in den Aufträgen 45 und 46 erteilt.
+- [x] Publish für https://matchunt.ai angefordert und geprüft: ausgelieferte Seite trägt Commit-Kennung cce25e4, zugehöriger Programmteil lädt mit 200, die neuen Etappen-Texte (u. a. „Etappen der Aufnahme“) stecken im live ausgelieferten Code.
+
 ## Auftrag 46 (11.11.2026) — Buchhaltung und Nachbesetzung
 - [x] Aktuelles main 5df7f12 geprüft; Auftrag 46 aus LOVABLE_DB_PROMPTS.md: Buchhaltung-Umbau, nicht der ältere Wartezustand-Auftrag.
 - [x] Vorprüfung: alle 15 neuen Tabellen mit GRANT vor RLS; zwölf Functions und verify_jwt vorhanden; Journal endet bei 0055, keine Buchhaltung-Migration enthalten.
