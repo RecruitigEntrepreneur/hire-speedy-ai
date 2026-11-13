@@ -7,7 +7,7 @@
 - [x] Alle 69 angeforderten Functions erfolgreich mit unveränderten Einstellungen deployt; keine manuellen Code- oder Secret-Änderungen, Schema-Typen automatisch regeneriert; build OK.
 - [x] Sicherheitsprüfung: sieben bekannte kritische Befunde, 13 Warnungen und ein Hinweis.
 - [x] Nutzer hat „Jetzt veröffentlichen“ trotz sieben kritischer Bestandsbefunde gewählt.
-- [ ] Publish für https://matchunt.ai anfordern und Ergebnis melden.
+- [x] Publish für https://matchunt.ai erfolgreich angefordert; Abschluss noch unbestätigt, sieben kritische Bestandsbefunde laut Tool nicht blockierend.
 
 ## Auftrag 47 (12.11.2026) — Kundenaufnahme in Etappen
 - [x] Arbeitskopie und GitHub main identisch: cce25e4, enthält 324c371 (EtappenAnsicht, CaptureStep, AbteilungsTreppe, ClientIntake u. a.).
