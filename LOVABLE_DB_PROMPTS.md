@@ -1551,6 +1551,27 @@ Muttersprachler folgt).
 
 ---
 
+## 49 — Kundenaufnahme: PDF wie Text lesen, Werte aus der Anzeige mit Zitat, Stellenkopf (13.11.2026)
+
+Commits 294ad00 und 041bfc1. **Keine Migration, 3 Edge Functions, Publish.** Erst nach Nr. 48.
+Eine hochgeladene PDF wird jetzt wörtlich in Text verwandelt und vom selben Leser gelesen wie eingefügter Text
+(vorher ein alter Leser mit anderen Feldnamen: Arbeitsmodell immer „Hybrid“, Kultur erfunden). Werte aus der
+Anzeige tragen ein blaues Etikett mit Zitat beim Drüberfahren; neuer Stellenkopf in der Aufnahme.
+
+> 1. Aktuellen Stand von `main` übernehmen. Keine Migration ausführen, auch keine Datei, die noch nicht im Journal
+>    steht. Keine neuen Tabellen, keine Daten-Einfügungen, kein Cron, keine neuen Secrets.
+> 2. Genau diese 3 Edge Functions deployen (`verify_jwt` bleibt wie in `supabase/config.toml`): `parse-job-url`,
+>    `parse-job-pdf`, `intake-ai`. `parse-job-pdf` ruft mit `format: 'aufnahme'` intern `parse-job-url` auf;
+>    ohne `format` bleibt es wie bisher.
+> 3. Danach Publish. Reihenfolge: erst Functions, dann Publish.
+> 4. Am Code nichts ändern. Keine Function überspringen. Falls etwas nicht durchläuft, alle Befunde gesammelt mit
+>    Grund melden. Am Ende melden: welche Functions deployt sind und dass Publish durch ist.
+
+Danach: `drizzle/migrations/meta/_journal.json` prüfen, darf sich nicht ändern (letzter Eintrag
+`0057_mehrsprachigkeit`).
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über
