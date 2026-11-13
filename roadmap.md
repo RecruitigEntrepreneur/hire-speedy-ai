@@ -71,3 +71,9 @@
 - [ ] Outlook-Kalender: AADSTS7000215 — in Azure der Secret-*Wert* (nicht die Secret-ID) für MS_CLIENT_SECRET eintragen, dann Verbindung erneut starten
 - [ ] DocuSign läuft in der Demo-Umgebung; Produktivumgebung fehlt
 - [ ] marko.benko@freenet.de bleibt unangetastet; Gegenzeichnung marko.benko@bluewater-bridge.de (Danny Kostic) ausstehend
+
+## Auftrag 49 (13.11.2026) — Kundenaufnahme: PDF-Leser, Zitate, Stellenkopf
+- [x] Arbeitskopie auf main 5a2fa37 (enthält 294ad00 und 041bfc1); keine Migration (Journal bleibt bei 0057_mehrsprachigkeit), keine Secrets, kein Code.
+- [x] 3 Functions deployt: parse-job-url, parse-job-pdf (verify_jwt = true), intake-ai (verify_jwt = false) — Einstellungen wie in config.toml.
+- [x] Publish für https://matchunt.ai angefordert; Abschluss nicht bestätigt. 7 kritische Bestandsbefunde gemeldet, blockieren hier nicht.
+- [ ] Befund für Codex: TS2769 in supabase/functions/_shared/linkedin-api.ts:98:162 (Uint8Array nicht zuweisbar an BodyInit) — betrifft linkedin und linkedin-callback, nicht Teil dieses Auftrags.
