@@ -1524,7 +1524,9 @@ Ohne die Migration bleibt alles Deutsch wie bisher (alle Functions sind darauf a
 >    Keine andere Datei, die noch nicht im Journal steht. Inhalt: Spalte `language` an `profiles`,
 >    `recruiter_onboarding_cases` (dazu `source_key`), `intake_links`, `intake_drafts`; neue Tabelle
 >    `recruiter_public_links` (erst GRANT, dann RLS; Zugriff nur über Functions); Funktion
->    `recruiter_public_link_open` (SECURITY DEFINER mit search_path). Keine Daten-Einfügungen, kein BEGIN/COMMIT,
+>    `recruiter_public_link_open` (bewusst OHNE SECURITY DEFINER, mit `SET search_path = public`; EXECUTE nur für
+>    service_role, für PUBLIC/anon/authenticated entzogen; Aufruf nur aus der Function recruiter-onboarding).
+>    Die Migration so ausführen, wie sie in der Datei steht. Keine Daten-Einfügungen, kein BEGIN/COMMIT,
 >    kein Cron, keine Fremdschlüssel auf `auth.users`.
 > 3. Diese 69 Edge Functions deployen (keine neuen, nur geänderte; `verify_jwt` bleibt wie in `supabase/config.toml`):
 >    abrechnung, buchhaltung, buchhaltung-taeglich, calendar-connect, calendar-oauth-callback, client-candidate-cv,
