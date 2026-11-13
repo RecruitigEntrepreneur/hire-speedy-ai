@@ -1,5 +1,10 @@
 # Roadmap
 
+## Mehrsprachigkeit (13.11.2026)
+- [x] Aktuelles lokales main 6b072956 geprüft; Vorschau build OK; alle 69 angeforderten Function-Dateien vorhanden; Journal endet bei 0056_buchhaltung_umbau.
+- [ ] Vor Ausführung angehalten: supabase/migrations/20261112120000_mehrsprachigkeit.sql:75–79 definiert recruiter_public_link_open ohne das im Auftrag verlangte SECURITY DEFINER; Korrektur oder Klärung durch den Nutzer/Codex erforderlich.
+- [ ] Ausschließlich die beauftragte Migration ausführen, danach alle 69 Functions deployen und Publish anfordern; bis zur Klärung nichts ausgeführt, Code und Secrets unverändert.
+
 ## Auftrag 47 (12.11.2026) — Kundenaufnahme in Etappen
 - [x] Arbeitskopie und GitHub main identisch: cce25e4, enthält 324c371 (EtappenAnsicht, CaptureStep, AbteilungsTreppe, ClientIntake u. a.).
 - [x] Keine Migration ausgeführt; Journal unverändert bei 0056_buchhaltung_umbau; keine Akademie-Dateien 20261022… angefasst.
