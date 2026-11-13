@@ -2,46 +2,48 @@ import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import { dayDe, euro, offerApi, overdue } from '@/lib/offerApi';
 import { offerStandLine, offerSummary } from './OfferBox';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Angebot im Bewerberprofil (24.10.2026, „Profil: nachsehen“): der Stand als ruhige Zeitleiste.
  * Gehandelt wird im Angebots-Fenster (Karte oben oder „Öffnen“).
  */
 export function OfferStand({ submissionId, onOpen, standShownElsewhere }: { submissionId: string; onOpen: () => void; standShownElsewhere?: boolean }) {
+  const { t } = useTranslation('offers');
   const q = useQuery({ queryKey: ['offer-context', submissionId], queryFn: () => offerApi.context(submissionId), staleTime: 15_000 });
   const o = q.data?.currentOffer;
   if (!o || o.status === 'superseded') return null;
-  const first = (q.data?.candidateName ?? '').split(' ')[0] || 'Der Kandidat';
-  const hhFirst = (q.data?.recruiterName?.trim() || 'Ihr Headhunter').split(' ')[0];
+  const first = (q.data?.candidateName ?? '').split(' ')[0] || t('client.theCandidate');
+  const hhFirst = (q.data?.recruiterName?.trim() || t('client.yourRecruiter')).split(' ')[0];
   const r = o.response;
   const late = overdue(o);
-  const openLink = <button type="button" className="ml-1 text-primary underline underline-offset-2" onClick={onOpen}>Öffnen</button>;
+  const openLink = <button type="button" className="ml-1 text-primary underline underline-offset-2" onClick={onOpen}>{t('client.standRows.open')}</button>;
 
   type Row = { state: 'done' | 'now' | 'bad'; text: React.ReactNode; when?: string | null };
-  const rows: Row[] = [{ state: 'done', text: <>Angebot {offerSummary(o)}{o.version > 1 ? ` · Version ${o.version}` : ''}{standShownElsewhere && openLink}</>, when: o.sentAt ? dayDe(o.sentAt) : null }];
+  const rows: Row[] = [{ state: 'done', text: <>{t('client.standRows.offer', { summary: offerSummary(o) })}{o.version > 1 ? t('client.version', { n: o.version }) : ''}{standShownElsewhere && openLink}</>, when: o.sentAt ? dayDe(o.sentAt) : null }];
   // Steht der Satz schon bei „Läuft bei anderen“, nicht ein zweites Mal
   if (standShownElsewhere) {
     // nur die Zeile mit dem Angebot
   } else if (o.status === 'countered') {
     const w = r?.wish;
-    const wish = [w?.salary ? `${euro(w.salary)} fix` : null, w?.startDate ? `Start ${dayDe(w.startDate)}` : null, w?.other ?? null].filter(Boolean).join(' · ');
-    rows.push({ state: 'now', text: <>{first} wünscht {wish || 'Änderungen'}{r?.reason ? <span className="text-muted-foreground"> · {hhFirst}: „{r.reason}“</span> : null}{openLink}</> });
+    const wish = [w?.salary ? t('client.box.wishFix', { amount: euro(w.salary) }) : null, w?.startDate ? t('client.box.wishStart', { date: dayDe(w.startDate) }) : null, w?.other ?? null].filter(Boolean).join(' · ');
+    rows.push({ state: 'now', text: <>{t('client.standRows.wishes', { first, wish: wish || t('client.box.changes') })}{r?.reason ? <span className="text-muted-foreground"> · {t('client.box.quote', { hh: hhFirst, text: r.reason })}</span> : null}{openLink}</> });
   } else if (o.status === 'considering') {
-    rows.push({ state: 'now', text: <>{first} überlegt noch{r?.until ? ` bis ${dayDe(r.until)}` : ''}{openLink}</> });
+    rows.push({ state: 'now', text: <>{r?.until ? t('client.box.consideringUntil', { first, date: dayDe(r.until) }) : t('client.box.considering', { first })}{openLink}</> });
   } else if (o.status === 'accept_reported') {
     rows.push({ state: 'now', text: <>{offerStandLine(o, first, hhFirst)}{openLink}</> });
   } else if (o.status === 'with_recruiter') {
     rows.push({ state: late ? 'bad' : 'now', text: <>{offerStandLine(o, first, hhFirst)}{openLink}</> });
-    if (r?.extension_asked) rows.push({ state: 'now', text: <>{hhFirst} bittet um mehr Zeit für {first}</> });
+    if (r?.extension_asked) rows.push({ state: 'now', text: <>{t('client.box.moreTime', { hh: hhFirst, first }).replace(/\.$/, '')}</> });
   } else if (o.status === 'declined') {
-    rows.push({ state: 'bad', text: <>{first} hat abgesagt{r?.reason ? `: „${r.reason}“` : ''}{openLink}</> });
+    rows.push({ state: 'bad', text: <>{r?.reason ? t('client.standRows.declinedReason', { first, reason: r.reason }) : t('client.standRows.declined', { first })}{openLink}</> });
   } else if (o.status === 'withdrawn') {
-    rows.push({ state: 'bad', text: <>Angebot zurückgezogen{openLink}</> });
+    rows.push({ state: 'bad', text: <>{t('client.box.offerWithdrawn')}{openLink}</> });
   }
 
   return (
     <div className="mt-3 rounded-lg border border-border/60 bg-card p-3 text-sm">
-      <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Angebot</p>
+      <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('client.standRows.title')}</p>
       <ol className="space-y-1">
         {rows.map((row, i) => (
           <li key={i} className="flex items-start gap-2">

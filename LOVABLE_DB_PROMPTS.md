@@ -1511,6 +1511,46 @@ Danach: `drizzle/migrations/meta/_journal.json` prüfen, darf sich nicht ändern
 
 ---
 
+## 48 — Mehrsprachigkeit: Plattform auf Deutsch, Englisch, Schwedisch, Norwegisch (13.11.2026)
+
+Commit folgt. Erst nach Nr. 47. **1 Migration, 69 Edge Functions, Publish.**
+Sprachmenü mit Fahnen (Deutsch, Deutsch (Österreich), Deutsch (Schweiz), English, Svenska, Norsk), Sprache am
+Profil, Einladungen und Kundenlinks mit Sprache, öffentlicher Headhunter-Link mit Kennung. Headhunter-Bereich,
+Kundenbereich, Seiten für Kandidaten, Mails und Benachrichtigungen kommen in der Sprache des Lesers.
+Ohne die Migration bleibt alles Deutsch wie bisher (alle Functions sind darauf ausgelegt).
+
+> 1. Aktuellen Stand von `main` übernehmen.
+> 2. Genau diese eine Migration über den Migrations-Flow ausführen: `supabase/migrations/20261112120000_mehrsprachigkeit.sql`.
+>    Keine andere Datei, die noch nicht im Journal steht. Inhalt: Spalte `language` an `profiles`,
+>    `recruiter_onboarding_cases` (dazu `source_key`), `intake_links`, `intake_drafts`; neue Tabelle
+>    `recruiter_public_links` (erst GRANT, dann RLS; Zugriff nur über Functions); Funktion
+>    `recruiter_public_link_open` (SECURITY DEFINER mit search_path). Keine Daten-Einfügungen, kein BEGIN/COMMIT,
+>    kein Cron, keine Fremdschlüssel auf `auth.users`.
+> 3. Diese 69 Edge Functions deployen (keine neuen, nur geänderte; `verify_jwt` bleibt wie in `supabase/config.toml`):
+>    abrechnung, buchhaltung, buchhaltung-taeglich, calendar-connect, calendar-oauth-callback, client-candidate-cv,
+>    client-login, client-question, client-tasks, company-decision-notify, contract-admin, contract-followups,
+>    contract-sign, contract-status, detect-candidate-conflicts, docusign-send, docusign-status, docusign-sync,
+>    docusign-webhook, employment-contract, employment-docusign-webhook, escalation-engine, fraud-detection,
+>    generate-interview-prep, generate-mandate-pdf, get-interview-by-token, intake-admin, intake-ai, intake-clarify,
+>    intake-draft, intake-forward, intake-link-admin, intake-packages, intake-questions, intake-resume, intake-start,
+>    intake-submit, intake-verify-email, interview-client-link, interview-reminders, interview-request, liga-weekly,
+>    linkedin, linkedin-callback, offer, offer-answer, organization-invite, partner-check, placement,
+>    process-candidate-import, process-interview-response, process-offer-response, process-rejection,
+>    process-talent-hub-action, product-feedback, recruiter-docusign-webhook, recruiter-evidence-reminder,
+>    recruiter-notify, recruiter-onboarding, recruiter-onboarding-admin, request-reference, schedule-interview,
+>    send-email, send-interview-invitation, send-offer, submission-notify, termin-einladung, termin-seite,
+>    verify-company.
+> 4. Danach Publish. Reihenfolge: erst Migration, dann Functions, dann Publish.
+> 5. Am Code nichts ändern. Keine Function überspringen. Falls etwas nicht durchläuft, alle Befunde gesammelt mit
+>    Grund melden. Am Ende melden: Migration gelaufen (Journal-Eintrag), welche Functions deployt sind, Publish durch.
+
+Danach: `drizzle/migrations/meta/_journal.json` prüfen (neuer Eintrag `…_mehrsprachigkeit` nach `0056_buchhaltung_umbau`).
+Live wählbar sind nach dem Publish alle sechs Einträge: Deutsch (auch Österreich/Schweiz), Englisch, Schwedisch
+und Norwegisch (`status: 'live'` in `src/i18n/languages.ts`, Entscheidung 13.11.2026: sofort live, Gegenlesen durch
+Muttersprachler folgt).
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über

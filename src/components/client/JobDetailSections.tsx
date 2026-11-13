@@ -44,12 +44,11 @@ import { InviteMemberDialog } from '@/components/organization/InviteMemberDialog
 import { useTeamData } from '@/hooks/useTeamData';
 import type { AgendaInterview } from '@/hooks/useClientInterviewAgenda';
 import { cn } from '@/lib/utils';
+import { fmtDayMonth, fmtTime, fmtWeekdayDayMonth } from '@/lib/localeFormat';
 
-const fmtTermin = (iso: string) =>
-  `${new Date(iso).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })}, ${new Date(iso).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`;
+const fmtTermin = (iso: string) => `${fmtWeekdayDayMonth(iso)}, ${fmtTime(iso)}`;
 
-const fmtTag = (iso: string) =>
-  new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+const fmtTag = (iso: string) => fmtDayMonth(iso);
 
 export interface JobAgendaSlice {
   feedbackDue: AgendaInterview[];

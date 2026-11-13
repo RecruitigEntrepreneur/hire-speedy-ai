@@ -3,6 +3,7 @@ import { preflight, json, fail, clientIp } from '../_shared/http.ts';
 import { hashKey } from '../_shared/tokens.ts';
 import { serviceClient, resolveDraft, touchDraft, logEvent } from '../_shared/intake-core.ts';
 import { getPublicAppUrl } from '../_shared/app-url.ts';
+import { callLanguage, rememberDraftLanguage, withIntakeLang } from '../_shared/intake-language.ts';
 
 /**
  * intake-packages — die drei Pakete zeigen und eines auswaehlen. Ohne Login.
@@ -51,7 +52,7 @@ function estimateBasisCents(built: Record<string, any> | null): number | null {
   return Math.round(mid * 100);
 }
 
-serve(async (req) => {
+serve(withIntakeLang(async (req) => {
   const pre = preflight(req);
   if (pre) return pre;
 
@@ -66,6 +67,8 @@ serve(async (req) => {
     const found = await resolveDraft(supabase, body?.draft_token);
     if (!found.ok) return fail(found.reason!, found.message!);
     const draft = found.draft!;
+    // Der Kunde hat im Menü eine Sprache gewählt: am Entwurf merken.
+    await rememberDraftLanguage(supabase, draft, callLanguage(body));
 
     // Die drei Pakete sind Festanstellung. Contracting hat eine feste
     // Kondition und keine Wahl (_shared/contracting-konditionen.ts).
@@ -211,4 +214,4 @@ serve(async (req) => {
     console.error('[intake-packages]', e);
     return fail('internal_error', 'Die Pakete konnten nicht geladen werden.');
   }
-});
+}, { success: true }));

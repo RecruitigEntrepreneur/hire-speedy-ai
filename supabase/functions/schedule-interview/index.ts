@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { notifyLang, tx } from "../_shared/notify-i18n.ts";
+import { intlLocale, type Lang } from "../_shared/i18n.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -230,12 +232,15 @@ async function selectSlot(supabase: any, params: {
     console.log('🔓 Full access granted for submission:', interview.submission_id);
   }
 
-  // Create notification for client
+  // Create notification for client (in seiner Sprache; Deutsch wie bisher)
+  const scl = await notifyLang(supabase, interview.submissions?.jobs?.client_id);
+  const sAt = new Date(selectedSlot.datetime).toLocaleString(intlLocale(scl));
+  const sName = interview.submissions?.candidates?.full_name;
   await supabase.from('notifications').insert({
     user_id: interview.submissions?.jobs?.client_id,
     type: 'interview_scheduled',
-    title: 'Interview bestätigt',
-    message: `Das Interview mit ${interview.submissions?.candidates?.full_name} wurde für ${new Date(selectedSlot.datetime).toLocaleString('de-DE')} bestätigt.`,
+    title: tx(scl, 'Interview bestätigt', 'Interview confirmed', 'Intervju bekräftad', 'Intervju bekreftet'),
+    message: tx(scl, `Das Interview mit ${sName} wurde für ${sAt} bestätigt.`, `The interview with ${sName} has been confirmed for ${sAt}.`, `Intervjun med ${sName} är bekräftad till ${sAt}.`, `Intervjuet med ${sName} er bekreftet til ${sAt}.`),
     related_type: 'interview',
     related_id: interview.id,
   });
@@ -361,11 +366,12 @@ async function reportNoShow(supabase: any, params: {
 
   if (interview) {
     // Notify admin
+    const nl = await notifyLang(supabase, interview.submissions?.recruiter_id);
     await supabase.from('notifications').insert({
       user_id: interview.submissions?.recruiter_id,
       type: 'interview_no_show',
-      title: 'No-Show gemeldet',
-      message: `Ein No-Show wurde für Interview ${interview_id} gemeldet (${no_show_by}).`,
+      title: tx(nl, 'No-Show gemeldet', 'No-show reported', 'Uteblivande anmält', 'Uteblivelse meldt'),
+      message: tx(nl, `Ein No-Show wurde für Interview ${interview_id} gemeldet (${no_show_by}).`, `A no-show was reported for interview ${interview_id} (${no_show_by}).`, `Ett uteblivande anmäldes för intervju ${interview_id} (${no_show_by}).`, `En uteblivelse ble meldt for intervju ${interview_id} (${no_show_by}).`),
       related_type: 'interview',
       related_id: interview_id,
     });
@@ -467,11 +473,14 @@ async function sendScheduleConfirmationEmail(supabase: any, interview: any, sche
   });
 
   // Create client notification
+  // Kunde und Headhunter je in ihrer Sprache (Datum nach Region, Zeitzone wie bisher)
+  const confirmedAt = (l: Lang) => l === 'de' ? dateStr : new Date(scheduledAt).toLocaleString(intlLocale(l), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const ccl = await notifyLang(supabase, clientId);
   await supabase.from('client_notifications').insert({
     client_id: clientId,
     notification_type: 'interview_confirmed',
-    title: 'Interview bestätigt',
-    message: `Interview mit ${candidate?.full_name} am ${dateStr}. Meeting-Link: ${meetingLink}`,
+    title: tx(ccl, 'Interview bestätigt', 'Interview confirmed', 'Intervju bekräftad', 'Intervju bekreftet'),
+    message: tx(ccl, `Interview mit ${candidate?.full_name} am ${confirmedAt(ccl)}. Meeting-Link: ${meetingLink}`, `Interview with ${candidate?.full_name} on ${confirmedAt(ccl)}. Meeting link: ${meetingLink}`, `Intervju med ${candidate?.full_name} ${confirmedAt(ccl)}. Möteslänk: ${meetingLink}`, `Intervju med ${candidate?.full_name} ${confirmedAt(ccl)}. Møtelenke: ${meetingLink}`),
     action_url: `/dashboard/interviews`,
     submission_id: interview.submission_id
   });
@@ -485,11 +494,13 @@ async function sendScheduleConfirmationEmail(supabase: any, interview: any, sche
     meeting_link: meetingLink
   });
 
+  const crl = await notifyLang(supabase, recruiterId);
+  const firmName = job?.company_name || tx(crl, 'Unternehmen', 'company', 'företaget', 'firmaet');
   await supabase.from('notifications').insert({
     user_id: recruiterId,
     type: 'interview_confirmed',
-    title: 'Interview bestätigt',
-    message: `${candidate?.full_name} hat Interview bei ${job?.company_name || 'Unternehmen'} am ${dateStr}`,
+    title: tx(crl, 'Interview bestätigt', 'Interview confirmed', 'Intervju bekräftad', 'Intervju bekreftet'),
+    message: tx(crl, `${candidate?.full_name} hat Interview bei ${firmName} am ${confirmedAt(crl)}`, `${candidate?.full_name} has an interview at ${firmName} on ${confirmedAt(crl)}`, `${candidate?.full_name} har intervju hos ${firmName} ${confirmedAt(crl)}`, `${candidate?.full_name} har intervju hos ${firmName} ${confirmedAt(crl)}`),
     related_type: 'interview',
     related_id: interview.id
   });
@@ -550,12 +561,18 @@ async function sendReminderEmail(supabase: any, interview: any, type: '24h' | '1
     scheduled_at: interview.scheduled_at,
   });
 
+  // Kunde und Headhunter je in ihrer Sprache
+  const remindIn = (l: Lang) => type === '24h' ? tx(l, 'in 24 Stunden', 'in 24 hours', 'om 24 timmar', 'om 24 timer') : tx(l, 'in 1 Stunde', 'in 1 hour', 'om 1 timme', 'om 1 time');
+  const remindAt = (l: Lang) => l === 'de' ? dateStr : new Date(interview.scheduled_at).toLocaleString(intlLocale(l), { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+  const rcl = await notifyLang(supabase, clientId);
+  const rrl = await notifyLang(supabase, recruiterId);
+
   // Client notification
   await supabase.from('client_notifications').insert({
     client_id: clientId,
     notification_type: 'interview_reminder',
-    title: `Erinnerung: Interview ${reminderText}`,
-    message: `Interview mit ${candidate?.full_name} am ${dateStr}`,
+    title: tx(rcl, `Erinnerung: Interview ${reminderText}`, `Reminder: interview ${remindIn(rcl)}`, `Påminnelse: intervju ${remindIn(rcl)}`, `Påminnelse: intervju ${remindIn(rcl)}`),
+    message: tx(rcl, `Interview mit ${candidate?.full_name} am ${dateStr}`, `Interview with ${candidate?.full_name} on ${remindAt(rcl)}`, `Intervju med ${candidate?.full_name} ${remindAt(rcl)}`, `Intervju med ${candidate?.full_name} ${remindAt(rcl)}`),
     action_url: `/dashboard/interviews`,
     submission_id: interview.submission_id
   });
@@ -564,8 +581,8 @@ async function sendReminderEmail(supabase: any, interview: any, type: '24h' | '1
   await supabase.from('notifications').insert({
     user_id: recruiterId,
     type: 'interview_reminder',
-    title: `Erinnerung: Interview ${reminderText}`,
-    message: `${candidate?.full_name} hat Interview ${reminderText}`,
+    title: tx(rrl, `Erinnerung: Interview ${reminderText}`, `Reminder: interview ${remindIn(rrl)}`, `Påminnelse: intervju ${remindIn(rrl)}`, `Påminnelse: intervju ${remindIn(rrl)}`),
+    message: tx(rrl, `${candidate?.full_name} hat Interview ${reminderText}`, `${candidate?.full_name} has an interview ${remindIn(rrl)}`, `${candidate?.full_name} har intervju ${remindIn(rrl)}`, `${candidate?.full_name} har intervju ${remindIn(rrl)}`),
     related_type: 'interview',
     related_id: interview.id
   });

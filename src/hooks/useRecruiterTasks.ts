@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
+import i18n from '@/i18n';
 
 export interface RecruiterTask {
   id: string;
@@ -59,7 +60,7 @@ export function useRecruiterTasks() {
       if (fetchError) throw fetchError;
       setTasks((data || []) as RecruiterTask[]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Fehler beim Laden der Aufgaben');
+      setError(err instanceof Error ? err.message : i18n.t('taskTexts:loadError'));
     } finally {
       setLoading(false);
     }

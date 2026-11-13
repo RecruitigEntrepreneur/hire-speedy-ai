@@ -5,6 +5,7 @@
 // („Jobhopper“) und nie etwas für den Kunden. Stationen älter als 10 Jahre
 // zählen für Fragen nicht (Datensparsamkeit, DSGVO Art. 5).
 
+import i18n from '@/i18n';
 import { isLeaderTitle } from '@/lib/roleFamily';
 
 export interface CareerStation {
@@ -86,6 +87,9 @@ export function startYearFromCvText(cvText: string | null | undefined, company: 
   return null;
 }
 
+/** Texte der Hinweise: candidateInterview:signals.<schlüssel>, beim Aufruf in der Sprache der Oberfläche. */
+const tx = (key: string, values?: Record<string, unknown>): string => i18n.t(`candidateInterview:signals.${key}`, values);
+
 export function careerSignals(input: CareerStation[], opts: { cvText?: string | null; today?: Date } = {}): CareerSignals {
   const today = opts.today ?? new Date();
   const stations: SignalStation[] = input
@@ -159,17 +163,18 @@ export function careerSignals(input: CareerStation[], opts: { cvText?: string | 
 
   const hooks: CareerHook[] = [];
   if (current && tenureYears != null && tenureYears >= 5) {
-    hooks.push({ key: 'tenure', field: 'why_now', context: `Aus dem Werdegang: seit ${current.start!.getFullYear()}, also ${tenureYears} Jahre bei ${current.company || 'derselben Firma'}` });
+    hooks.push({ key: 'tenure', field: 'why_now', context: tx('tenure', { year: current.start!.getFullYear(), years: tenureYears, company: current.company || tx('sameCompany') }) });
   }
   if (current && tenMonths != null && tenMonths < 12) {
-    hooks.push({ key: 'new_job', field: 'specific_incident', context: `Aus dem Werdegang: erst seit ${mmYYYY(current.start!)} bei ${current.company || 'der Firma'}. Was passt nicht?` });
+    hooks.push({ key: 'new_job', field: 'specific_incident', context: tx('newJob', { date: mmYYYY(current.start!), company: current.company || tx('theCompany') }) });
   }
   for (const s of shortStints.slice(0, 1)) {
     hooks.push({
       key: `short:${s.company}`,
       field: 'career_what_didnt_work',
-      context: `Aus dem Werdegang: bei ${s.company} nur ${s.months} Monate`,
-      question: `Warum endete es bei ${s.company} nach ${s.months} Monaten?`,
+      context: tx('shortContext', { company: s.company, months: s.months }),
+      question: tx('shortQuestion', { company: s.company, months: s.months }),
+      // Knöpfe sind gespeicherte Werte (deutsch); die Anzeige übersetzt term().
       chips: [`${s.company}: Stelle anders als beschrieben`, `${s.company}: Firma umstrukturiert`, `${s.company}: bessere Chance`, `${s.company}: Probezeit beendet`, 'Privat (kein Thema)'],
     });
   }
@@ -179,22 +184,22 @@ export function careerSignals(input: CareerStation[], opts: { cvText?: string | 
       // Intern (Begründung), nie für den Kunden; Gründe wie Krankheit oder Elternzeit
       // werden nicht erfasst, dafür gibt es „privat (kein Thema)“.
       field: 'recommendation_notes',
-      context: `Aus dem Werdegang: Lücke ${mmYYYY(g.from)} bis ${mmYYYY(g.to)}`,
-      question: `Was haben Sie von ${mmYYYY(g.from)} bis ${mmYYYY(g.to)} gemacht?`,
+      context: tx('gapContext', { from: mmYYYY(g.from), to: mmYYYY(g.to) }),
+      question: tx('gapQuestion', { from: mmYYYY(g.from), to: mmYYYY(g.to) }),
       chips: ['Lücke: Weiterbildung', 'Lücke: Auszeit', 'Lücke: selbstständig', 'Lücke: Stellensuche', 'Lücke: privat (kein Thema)'],
     });
   }
   for (const p of promotions.slice(0, 1)) {
-    hooks.push({ key: 'promotion', field: 'career_what_worked', context: `Aus dem Werdegang: nach ${p.months} Monaten zu „${p.title}“ bei ${p.company}` });
+    hooks.push({ key: 'promotion', field: 'career_what_worked', context: tx('promotion', { months: p.months, title: p.title, company: p.company }) });
   }
-  if (freelance) hooks.push({ key: 'freelance', field: 'change_motivation', context: 'Aus dem Werdegang: freiberufliche Phase in den letzten Jahren. Was spricht jetzt für die Festanstellung?' });
-  if (formerLeaderOnly) hooks.push({ key: 'lead_again', field: 'career_ultimate_goal', context: 'Aus dem Werdegang: früher mit Führung, heute ohne. Möchte die Person wieder führen?' });
+  if (freelance) hooks.push({ key: 'freelance', field: 'change_motivation', context: tx('freelance') });
+  if (formerLeaderOnly) hooks.push({ key: 'lead_again', field: 'career_ultimate_goal', context: tx('leadAgain') });
 
   return { stations: sorted, current, tenureYears, gaps, shortStints, promotions, freelance, formerLeaderOnly, hooks };
 }
 
 export const yearsLabel = (s: SignalStation) => {
   const from = s.start ? s.start.getFullYear() : '?';
-  const to = s.end ? s.end.getFullYear() : 'heute';
+  const to = s.end ? s.end.getFullYear() : i18n.t('candidateInterview:career.today');
   return from === to ? `${from}` : `${from} – ${to}`;
 };

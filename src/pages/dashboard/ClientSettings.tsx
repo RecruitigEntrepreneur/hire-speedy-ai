@@ -60,7 +60,8 @@ export default function ClientSettings() {
 
   const back = () => open(null);
   const a = vertrag.data?.agreement;
-  const contractStatus = !a ? null : a.status === 'active' ? 'Unterschrieben' : a.status === 'customer_signed' ? 'Gegenzeichnung folgt' : a.status === 'sent' ? 'Wartet auf Ihre Unterschrift' : 'In Vorbereitung';
+  // Schlüssel; die Übersicht zeigt ihn übersetzt (clientSettings:hub.contract.<key>).
+  const contractStatus = !a ? null : a.status === 'active' ? 'signed' : a.status === 'customer_signed' ? 'countersign' : a.status === 'sent' ? 'awaitingYou' : 'preparing';
 
   return (
     <DashboardLayout>

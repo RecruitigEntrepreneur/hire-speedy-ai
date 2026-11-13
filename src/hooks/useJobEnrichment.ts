@@ -1,3 +1,4 @@
+import i18n from '@/i18n';
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -72,18 +73,18 @@ export function useJobEnrichment() {
       
       // Show success with details
       const enrichedFields = [];
-      if (result.industry) enrichedFields.push('Industrie');
-      if (result.company_size_band) enrichedFields.push('Größe');
-      if (result.funding_stage) enrichedFields.push('Funding');
-      if (result.tech_environment.length > 0) enrichedFields.push(`${result.tech_environment.length} Tech-Skills`);
+      if (result.industry) enrichedFields.push(i18n.t('clientJobs:hooks.enrich.industry'));
+      if (result.company_size_band) enrichedFields.push(i18n.t('clientJobs:hooks.enrich.size'));
+      if (result.funding_stage) enrichedFields.push(i18n.t('clientJobs:hooks.enrich.funding'));
+      if (result.tech_environment.length > 0) enrichedFields.push(i18n.t('clientJobs:hooks.enrich.tech', { count: result.tech_environment.length }));
       
       if (enrichedFields.length > 0) {
-        toast.success(`Angereichert: ${enrichedFields.join(', ')}`);
+        toast.success(i18n.t('clientJobs:hooks.enriched', { fields: enrichedFields.join(', ') }));
       }
       
       return result;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Fehler bei der Anreicherung';
+      const errorMessage = err instanceof Error ? err.message : i18n.t('clientJobs:hooks.enrichFailed');
       setError(errorMessage);
       console.error('Job enrichment error:', err);
       // Don't show error toast - enrichment is optional

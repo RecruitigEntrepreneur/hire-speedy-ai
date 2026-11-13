@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -35,6 +36,7 @@ interface InterviewNotes {
 }
 
 export function QuickInterviewSummary({ candidateId, onViewDetails }: QuickInterviewSummaryProps) {
+  const { t } = useTranslation('candidateDetail');
   const [notes, setNotes] = useState<InterviewNotes | null>(null);
   const [loading, setLoading] = useState(true);
   const [showFreeText, setShowFreeText] = useState(false);
@@ -90,14 +92,14 @@ export function QuickInterviewSummary({ candidateId, onViewDetails }: QuickInter
         console.error('AI extraction error:', fnError);
         // Notes are saved even if AI fails
         toast({
-          title: 'Notizen gespeichert',
-          description: 'AI-Analyse konnte nicht durchgeführt werden, aber deine Notizen wurden gespeichert.',
+          title: t('quick.savedTitle'),
+          description: t('quick.savedNoAi'),
           variant: 'default',
         });
       } else {
         toast({
-          title: 'Notizen gespeichert & analysiert',
-          description: 'Die AI hat deine Notizen automatisch ausgewertet.',
+          title: t('quick.analyzedTitle'),
+          description: t('quick.analyzedText'),
         });
       }
 
@@ -115,8 +117,8 @@ export function QuickInterviewSummary({ candidateId, onViewDetails }: QuickInter
     } catch (error) {
       console.error('Error saving notes:', error);
       toast({
-        title: 'Fehler beim Speichern',
-        description: error instanceof Error ? error.message : 'Unbekannter Fehler',
+        title: t('quick.saveError'),
+        description: error instanceof Error ? error.message : t('quick.unknownError'),
         variant: 'destructive',
       });
     } finally {
@@ -130,7 +132,7 @@ export function QuickInterviewSummary({ candidateId, onViewDetails }: QuickInter
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <MessageSquare className="h-4 w-4" />
-            Interview-Erkenntnisse
+            {t('quick.title')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -148,17 +150,17 @@ export function QuickInterviewSummary({ candidateId, onViewDetails }: QuickInter
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <MessageSquare className="h-4 w-4 text-amber-600" />
-            Interview-Erkenntnisse
+            {t('quick.title')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {showFreeText ? (
             <>
               <p className="text-sm text-muted-foreground">
-                Trage deine Interview-Notizen ein. Die AI extrahiert automatisch Gehalt, Motivation und Verfügbarkeit.
+                {t('quick.intro')}
               </p>
               <Textarea
-                placeholder="z.B. Telefonat am 20.02. – will 90k, minimum 80k. Kündigung 3 Monate. Motivation: mehr Verantwortung. Sehr guter Eindruck, würde ich empfehlen."
+                placeholder={t('quick.placeholder')}
                 value={freeText}
                 onChange={(e) => setFreeText(e.target.value)}
                 rows={6}
@@ -181,10 +183,10 @@ export function QuickInterviewSummary({ candidateId, onViewDetails }: QuickInter
                   {saving ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Analysiere...
+                      {t('quick.analyzing')}
                     </>
                   ) : (
-                    'Speichern & Analysieren'
+                    t('quick.saveAnalyze')
                   )}
                 </Button>
               </div>
@@ -192,31 +194,31 @@ export function QuickInterviewSummary({ candidateId, onViewDetails }: QuickInter
           ) : (
             <>
               <p className="text-sm font-medium text-foreground">
-                Für ein vollständiges Exposé fehlen:
+                {t('quick.missingFor')}
               </p>
               <ul className="text-sm space-y-1.5">
                 <li className="flex items-center gap-2 text-muted-foreground">
                   <XCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                  Gehaltsvorstellung (Wunsch + Minimum)
+                  {t('quick.missSalary')}
                 </li>
                 <li className="flex items-center gap-2 text-muted-foreground">
                   <XCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                  Wechselmotivation
+                  {t('quick.missMotivation')}
                 </li>
                 <li className="flex items-center gap-2 text-muted-foreground">
                   <XCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                  Verfügbarkeit / Kündigungsfrist
+                  {t('quick.missAvailability')}
                 </li>
                 <li className="flex items-center gap-2 text-muted-foreground">
                   <XCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                  Deine Einschätzung & Empfehlung
+                  {t('quick.missAssessment')}
                 </li>
               </ul>
               <div className="flex gap-2 mt-2">
                 {onViewDetails && (
                   <Button size="sm" onClick={onViewDetails} className="flex-1">
                     <MessageSquare className="h-4 w-4 mr-2" />
-                    Interview starten
+                    {t('quick.startInterview')}
                   </Button>
                 )}
                 <Button
@@ -226,7 +228,7 @@ export function QuickInterviewSummary({ candidateId, onViewDetails }: QuickInter
                   className="flex-1"
                 >
                   <FileEdit className="h-4 w-4 mr-2" />
-                  Notizen eintragen
+                  {t('quick.enterNotes')}
                 </Button>
               </div>
             </>
@@ -241,7 +243,7 @@ export function QuickInterviewSummary({ candidateId, onViewDetails }: QuickInter
       return (
         <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
           <CheckCircle className="h-3 w-3 mr-1" />
-          Empfohlen
+          {t('quick.recommended')}
         </Badge>
       );
     }
@@ -249,14 +251,14 @@ export function QuickInterviewSummary({ candidateId, onViewDetails }: QuickInter
       return (
         <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
           <XCircle className="h-3 w-3 mr-1" />
-          Nicht empfohlen
+          {t('quick.notRecommended')}
         </Badge>
       );
     }
     return (
       <Badge variant="secondary">
         <HelpCircle className="h-3 w-3 mr-1" />
-        Ausstehend
+        {t('quick.pending')}
       </Badge>
     );
   };
@@ -272,7 +274,7 @@ export function QuickInterviewSummary({ candidateId, onViewDetails }: QuickInter
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm flex items-center gap-2">
             <MessageSquare className="h-4 w-4 text-primary" />
-            Interview-Erkenntnisse
+            {t('quick.title')}
           </CardTitle>
           {getRecommendationBadge()}
         </div>
@@ -280,7 +282,7 @@ export function QuickInterviewSummary({ candidateId, onViewDetails }: QuickInter
       <CardContent className="space-y-3 text-sm">
         {(notes.summary_motivation || notes.change_motivation) && (
           <div>
-            <p className="text-xs text-muted-foreground mb-0.5">Wechselmotivation</p>
+            <p className="text-xs text-muted-foreground mb-0.5">{t('quick.motivation')}</p>
             <p className="text-foreground">
               {truncate(notes.summary_motivation || notes.change_motivation, 120)}
             </p>
@@ -301,7 +303,7 @@ export function QuickInterviewSummary({ candidateId, onViewDetails }: QuickInter
 
         {notes.recommendation_notes && (
           <div className="pt-2 border-t">
-            <p className="text-xs text-muted-foreground mb-0.5">Recruiter-Notiz</p>
+            <p className="text-xs text-muted-foreground mb-0.5">{t('quick.recruiterNote')}</p>
             <p className="text-foreground italic">
               "{truncate(notes.recommendation_notes, 100)}"
             </p>
@@ -310,7 +312,7 @@ export function QuickInterviewSummary({ candidateId, onViewDetails }: QuickInter
 
         {onViewDetails && (
           <Button variant="ghost" size="sm" className="px-0 h-auto text-xs" onClick={onViewDetails}>
-            Vollständiges Interview ansehen
+            {t('quick.viewFull')}
             <ExternalLink className="h-3 w-3 ml-1" />
           </Button>
         )}

@@ -1,11 +1,14 @@
 import { useMemo, useState, type KeyboardEvent } from 'react';
+import { useTranslation } from 'react-i18next';
+import { intlLocale } from '@/i18n/languages';
+import { frageKurzT } from '@/lib/briefCatalogText';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { type BuiltJob, type FreelanceTerms, type JobType, type RevealSetup, REVEAL_TRIGGER_LABELS } from './types';
+import { type BuiltJob, type FreelanceTerms, type JobType, type RevealSetup } from './types';
 import { cn } from '@/lib/utils';
 import { frageNach, type Known as KatalogKnown } from '@/lib/briefCatalog';
 import { CatalogFields, type AufbauVorschlaege } from './CatalogFields';
@@ -28,11 +31,8 @@ export type FlexibilityMap = Record<string, Flexibility>;
  *   negotiable -> nice_to_haves
  *   flexible   -> trainable_skills    (Markos "was kann nachgeschult werden")
  */
-const STUFEN: { wert: Flexibility; label: string }[] = [
-  { wert: 'fix', label: 'unverzichtbar' },
-  { wert: 'negotiable', label: 'verhandelbar' },
-  { wert: 'flexible', label: 'lernbar' },
-];
+// Beschriftung über intake:shared.flex.<wert> (nicht als Text eingefroren).
+const STUFEN: Flexibility[] = ['fix', 'negotiable', 'flexible'];
 
 interface Props {
   type: JobType;
@@ -89,7 +89,8 @@ export function EuroSpanne({ feld, von, bis, einheit, onVon, onBis }: {
   onVon: (n: number | null) => void;
   onBis: (n: number | null) => void;
 }) {
-  const zeige = (n: number | null | undefined) => (n ? n.toLocaleString('de-DE') : '');
+  const { t, i18n } = useTranslation(['intake', 'intakeCatalog']);
+  const zeige = (n: number | null | undefined) => (n ? n.toLocaleString(intlLocale(i18n.language)) : '');
   const lies = (t: string) => {
     const ziffern = t.replace(/\D/g, '').slice(0, 7);
     return ziffern ? Number(ziffern) : null;
@@ -109,9 +110,9 @@ export function EuroSpanne({ feld, von, bis, einheit, onVon, onBis }: {
   );
   return (
     <div className="flex items-center gap-2">
-      {euro(von, onVon, 'von', feld)}
-      <span className="text-xs text-muted-foreground">bis</span>
-      {euro(bis, onBis, 'bis')}
+      {euro(von, onVon, t('profile.from'), feld)}
+      <span className="text-xs text-muted-foreground">{t('profile.to')}</span>
+      {euro(bis, onBis, t('profile.to'))}
       <span className="shrink-0 text-xs text-muted-foreground">{einheit}</span>
     </div>
   );
@@ -125,9 +126,10 @@ export interface SkillVorschlag {
   grund?: string;
 }
 
-const QUELLE_ETIKETT: Record<SkillVorschlag['quelle'], string> = {
-  ad: 'aus der Anzeige',
-  ai: 'Vorschlag',
+// Schlüssel in intake:profile, gelesen beim Rendern.
+const QUELLE_ETIKETT: Record<SkillVorschlag['quelle'], 'profile.sourceAd' | 'profile.sourceAi'> = {
+  ad: 'profile.sourceAd',
+  ai: 'profile.sourceAi',
 };
 
 /**
@@ -154,6 +156,7 @@ export function SkillList({
   accent?: boolean;
   vorschlaege?: SkillVorschlag[];
 }) {
+  const { t } = useTranslation(['intake', 'intakeCatalog']);
   const [draft, setDraft] = useState('');
   const [aktiv, setAktiv] = useState(-1);
   const [offen, setOffen] = useState(false);
@@ -197,7 +200,7 @@ export function SkillList({
         {items.map((s) => (
           <Badge key={s} variant={accent ? 'default' : 'secondary'} className="gap-1 pr-1">
             {s}
-            <button onClick={() => onRemove(s)} aria-label={`${s} entfernen`} className="rounded-full p-0.5 hover:bg-background/20">
+            <button onClick={() => onRemove(s)} aria-label={t('profile.removeItem', { name: s })} className="rounded-full p-0.5 hover:bg-background/20">
               <X className="h-3 w-3" />
             </button>
           </Badge>
@@ -210,14 +213,14 @@ export function SkillList({
             // Ohne Verzoegerung schliesst der Blur, bevor der Klick ankommt.
             onBlur={() => window.setTimeout(() => setOffen(false), 120)}
             onFocus={() => setOffen(true)}
-            placeholder="+ Skill"
+            placeholder={t('profile.skillPlaceholder')}
             className="h-7 w-36 text-xs"
             role="combobox"
             aria-expanded={zeigen}
             aria-autocomplete="list"
           />
           {draft.trim() && (
-            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => add()} aria-label="Skill hinzufügen">
+            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => add()} aria-label={t('profile.addSkill')}>
               <Plus className="h-3.5 w-3.5" />
             </Button>
           )}
@@ -245,7 +248,7 @@ export function SkillList({
                   >
                     <span className="min-w-0 flex-1 truncate">{v.wert}</span>
                     <span className="shrink-0 text-[10px] text-muted-foreground">
-                      {QUELLE_ETIKETT[v.quelle]}
+                      {t(QUELLE_ETIKETT[v.quelle])}
                     </span>
                   </button>
                 </li>
@@ -265,6 +268,7 @@ export function ProfileSections({
   type, built, onChange, freelance, onFreelanceChange, reveal, onRevealChange, flexibility, onFlexibilityChange,
   skillSuggestions, onDismissSuggestion, catalogKnown, onCatalogSet, onCatalogConfirm, aufbauVorschlaege,
 }: Props) {
+  const { t } = useTranslation(['intake', 'intakeCatalog']);
   const set = (patch: Partial<BuiltJob>) => onChange({ ...built, ...patch });
 
   // Nie vorschlagen, was schon dasteht -- das Modell weiss nicht immer, was
@@ -373,7 +377,7 @@ export function ProfileSections({
     <div className="rounded-xl border bg-card">
       <div className="border-b p-4 pb-3">
         <Badge variant="outline" className="mb-2 gap-1 text-xs">
-          <Sparkles className="h-3 w-3 text-primary" /> KI-Entwurf · alles editierbar
+          <Sparkles className="h-3 w-3 text-primary" /> {t('profile.aiDraft')}
         </Badge>
         {/* Kein zweiter Titel. Die Ueberschrift steht oben in CaptureStep;
             hier stand sie 120 px tiefer ein zweites Mal, fett und nur 2 px
@@ -385,36 +389,36 @@ export function ProfileSections({
           value={built.title}
           onChange={(e) => set({ title: e.target.value })}
           className="h-8 text-sm"
-          placeholder="Jobtitel"
+          placeholder={t('shared.jobTitle')}
         />
       </div>
 
-      <Section title="Eckdaten" icon={MapPin}>
+      <Section title={t('profile.keyFacts')} icon={MapPin}>
         <div className="grid grid-cols-2 gap-2">
-          <Input data-feld="location" value={built.location} onChange={(e) => set({ location: e.target.value })} placeholder="Standort" className="h-8 text-xs" />
+          <Input data-feld="location" value={built.location} onChange={(e) => set({ location: e.target.value })} placeholder={t('shared.location')} className="h-8 text-xs" />
           <Select value={built.remote_type || 'hybrid'} onValueChange={(v) => set({ remote_type: v })}>
             <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="remote">Remote</SelectItem>
-              <SelectItem value="hybrid">Hybrid</SelectItem>
-              <SelectItem value="onsite">Vor Ort</SelectItem>
+              <SelectItem value="remote">{t('shared.remote.remote')}</SelectItem>
+              <SelectItem value="hybrid">{t('shared.remote.hybrid')}</SelectItem>
+              <SelectItem value="onsite">{t('shared.remote.onsite')}</SelectItem>
             </SelectContent>
           </Select>
           <Select value={built.experience_level || 'mid'} onValueChange={(v) => set({ experience_level: v })}>
             <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="junior">Junior</SelectItem>
-              <SelectItem value="mid">Mid-Level</SelectItem>
-              <SelectItem value="senior">Senior</SelectItem>
-              <SelectItem value="lead">Lead</SelectItem>
+              <SelectItem value="junior">{t('shared.level.junior')}</SelectItem>
+              <SelectItem value="mid">{t('shared.level.mid')}</SelectItem>
+              <SelectItem value="senior">{t('shared.level.senior')}</SelectItem>
+              <SelectItem value="lead">{t('shared.level.lead')}</SelectItem>
             </SelectContent>
           </Select>
-          <Input value={built.industry} onChange={(e) => set({ industry: e.target.value })} placeholder="Branche" className="h-8 text-xs" />
+          <Input value={built.industry} onChange={(e) => set({ industry: e.target.value })} placeholder={t('shared.industry')} className="h-8 text-xs" />
         </div>
         {katalog('eckdaten')}
       </Section>
 
-      <Section title={isFreelance ? 'Konditionen (Contracting)' : 'Vergütung'} icon={Coins}>
+      <Section title={isFreelance ? t('profile.termsContracting') : t('profile.compensation')} icon={Coins}>
         {isFreelance ? (
           <div className="grid grid-cols-2 gap-2">
             <div className="col-span-2">
@@ -422,12 +426,12 @@ export function ProfileSections({
                   Vergütung des Spezialisten und die von Matchunt (Durchleitung,
                   Vertragswerk § 12 Abs. 4). „Tagessatz von/bis“ las sich wie
                   der Satz des Freelancers. */}
-              <p className="mb-1 text-[11px] text-muted-foreground">Ihr Budget je Tag (alles inklusive, zzgl. USt)</p>
+              <p className="mb-1 text-[11px] text-muted-foreground">{t('profile.budgetPerDay')}</p>
               <EuroSpanne
                 feld="day_rate_range"
                 von={freelance.dayRateMin}
                 bis={freelance.dayRateMax}
-                einheit="/ Tag"
+                einheit={t('profile.perDay')}
                 onVon={(n) => onFreelanceChange({ ...freelance, dayRateMin: n })}
                 onBis={(n) => onFreelanceChange({ ...freelance, dayRateMax: n })}
               />
@@ -436,7 +440,7 @@ export function ProfileSections({
               data-feld="contract_duration_months"
               value={freelance.durationMonths ?? ''}
               onChange={(e) => onFreelanceChange({ ...freelance, durationMonths: numOrNull(e.target.value) })}
-              placeholder="Dauer (Monate)"
+              placeholder={t('profile.duration')}
               inputMode="numeric"
               className="h-8 text-xs"
             />
@@ -445,11 +449,11 @@ export function ProfileSections({
               onValueChange={(v) => onFreelanceChange({ ...freelance, utilizationDaysPerWeek: Number(v) })}
             >
               <SelectTrigger data-feld="utilization_days_per_week" className="h-8 text-xs">
-                <SelectValue placeholder="Auslastung" />
+                <SelectValue placeholder={t('profile.utilization')} />
               </SelectTrigger>
               <SelectContent>
                 {[1, 2, 3, 4, 5].map((d) => (
-                  <SelectItem key={d} value={String(d)}>{d} Tage/Woche</SelectItem>
+                  <SelectItem key={d} value={String(d)}>{t('profile.daysPerWeek', { count: d })}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -460,17 +464,17 @@ export function ProfileSections({
                 onChange={(e) => onFreelanceChange({ ...freelance, extensionPossible: e.target.checked })}
                 className="h-3.5 w-3.5"
               />
-              Verlängerung möglich
+              {t('profile.extension')}
             </label>
           </div>
         ) : (
           <div>
-            <p className="mb-1 text-[11px] text-muted-foreground">Gehalt von / bis (brutto)</p>
+            <p className="mb-1 text-[11px] text-muted-foreground">{t('profile.salaryRange')}</p>
             <EuroSpanne
               feld="salary_range"
               von={built.salary_min}
               bis={built.salary_max}
-              einheit="/ Jahr"
+              einheit={t('profile.perYear')}
               onVon={(n) => set({ salary_min: n })}
               onBis={(n) => set({ salary_max: n })}
             />
@@ -496,12 +500,12 @@ export function ProfileSections({
         diese Wunschliste soll Markos Frage aufbrechen.
       */}
       <div data-feld="kriterien" tabIndex={-1} />
-      <Section title="Anforderungen" icon={Sparkles} tour="intake.criteria">
+      <Section title={t('profile.requirements')} icon={Sparkles} tour="intake.criteria">
         {/* Der Wortlaut kommt aus dem Katalog, nicht aus diesem Bauteil.
             Vorher stand Markos Frage hier als Literal im JSX -- zwei
             Wahrheiten fuer denselben Satz, und wer den Katalog aendert,
             aendert den Bildschirm nicht mit. */}
-        <p className="mb-3 text-sm">{frageSkills?.kurz}</p>
+        <p className="mb-3 text-sm">{frageSkills ? frageKurzT(frageSkills, type) : null}</p>
 
         <div className="mb-3 space-y-1.5">
           {kriterien.map((s) => {
@@ -510,7 +514,7 @@ export function ProfileSections({
               <div key={s} className="flex items-center gap-2">
                 <span className="min-w-0 flex-1 truncate text-sm">{s}</span>
                 <div className="flex shrink-0 gap-1">
-                  {STUFEN.map(({ wert, label }) => (
+                  {STUFEN.map((wert) => (
                     <button
                       key={wert}
                       type="button"
@@ -529,7 +533,7 @@ export function ProfileSections({
                           : 'border-input text-muted-foreground hover:bg-accent hover:text-foreground',
                       )}
                     >
-                      {label}
+                      {t(`shared.flex.${wert}`)}
                     </button>
                   ))}
                 </div>
@@ -544,7 +548,7 @@ export function ProfileSections({
                     delete rest[s];
                     onFlexibilityChange(rest);
                   }}
-                  aria-label={`${s} entfernen`}
+                  aria-label={t('profile.removeItem', { name: s })}
                   className="shrink-0 rounded-full p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
                 >
                   <X className="h-3 w-3" />
@@ -555,7 +559,7 @@ export function ProfileSections({
         </div>
 
         <SkillList
-          label="Kriterium hinzufügen"
+          label={t('profile.addCriterion')}
           // Leer, nicht die Kriterienliste: die steht schon darueber. `items`
           // rendert Badges -- gefuellt stuende jedes Kriterium zweimal da.
           // Doppelte fangt eingabeVorschlaege selbst ab.
@@ -570,7 +574,7 @@ export function ProfileSections({
             sich -- eine Liste unbegruendeter Woerter waere Raten. */}
         {vorschlaege.length > 0 && (
           <div className="mb-2 rounded-lg border border-dashed p-2.5">
-            <p className="mb-1.5 text-xs text-muted-foreground">Passt das auch? Ein Klick übernimmt es.</p>
+            <p className="mb-1.5 text-xs text-muted-foreground">{t('profile.suggestHint')}</p>
             <div className="flex flex-wrap gap-1.5">
               {vorschlaege.map((v) => (
                 <button
@@ -597,15 +601,14 @@ export function ProfileSections({
         {unverzichtbar.length >= 8 && (
           <p className="mb-2 flex items-start gap-1.5 text-xs text-warning">
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            {unverzichtbar.length} unverzichtbare Kriterien — ab 8 schrumpft der erreichbare
-            Markt erheblich. Welche zwei sind ehrlich verhandelbar?
+            {t('profile.tooManyFix', { n: unverzichtbar.length })}
           </p>
         )}
 
         <p className="text-xs text-muted-foreground">
-          {unverzichtbar.length} unverzichtbar · {verhandelbar.length} verhandelbar ·{' '}
-          {lernbar.length} lernbar
-          {unmarkiert.length > 0 && ` · ${unmarkiert.length} nicht eingestuft`}
+          {t(unmarkiert.length > 0 ? 'profile.countsUnrated' : 'profile.counts', {
+            fix: unverzichtbar.length, negotiable: verhandelbar.length, flexible: lernbar.length, unrated: unmarkiert.length,
+          })}
         </p>
         {/* KEIN katalog('skills') hier: die Zeilen must_have_criteria und
             trainable_skills beantwortet die Einstufung oben (unverzichtbar /

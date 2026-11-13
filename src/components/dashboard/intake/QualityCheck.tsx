@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Answers } from '../IntakeBriefing';
 import type { BuiltJob, FreelanceTerms, JobType } from './types';
 import { cn } from '@/lib/utils';
@@ -36,6 +37,7 @@ const AGG_PATTERN = /\balter\b|\bjung(e|er)?\b|männlich|weiblich|\bfrau(en)?\b|
  * Warnungen und die Hebel — die sind belegbar.
  */
 export function QualityCheck({ type, built, freelance, answers, openQuestions, revealDescriptor }: Props) {
+  const { t, i18n } = useTranslation(['intake', 'intakeCatalog']);
   const { warnings, levers } = useMemo(() => {
     const isFreelance = type === 'freelance';
     const warnings: string[] = [];
@@ -46,10 +48,10 @@ export function QualityCheck({ type, built, freelance, answers, openQuestions, r
     // ---- Konsistenz & Vollständigkeit -------------------------------------
     const onsiteAnswer = answerText(answers.onsite_days);
     if (built.remote_type === 'remote' && onsiteAnswer && !onsiteAnswer.startsWith('0')) {
-      warnings.push(`Widerspruch: Remote-Stelle, aber „${onsiteAnswer}" Bürotage im Briefing.`);
+      warnings.push(t('quality.warnRemoteOnsite', { days: onsiteAnswer }));
     }
     if (built.remote_type === 'onsite' && onsiteAnswer.startsWith('0')) {
-      warnings.push('Widerspruch: Vor-Ort-Stelle, aber 0 Bürotage im Briefing.');
+      warnings.push(t('quality.warnOnsiteZero'));
     }
     // Die drei Marktaussagen sind vorerst raus: "Budget wirkt niedrig fuer
     // Senior (unter 70k)", "Junior ueber 95k" und "der erreichbare Markt
@@ -60,13 +62,13 @@ export function QualityCheck({ type, built, freelance, answers, openQuestions, r
     // Der Hebel bleibt: viele Muss-Kriterien zu entschaerfen ist ein guter
     // Rat, auch ohne Zahl dahinter -- er behauptet nichts ueber den Markt.
     if (built.must_haves.length >= 8) {
-      levers.push({ text: '1–2 Muss-Kriterien auf „verhandelbar" setzen — vergrößert den Kandidatenkreis', feld: 'kriterien' });
+      levers.push({ text: t('quality.leverRelax'), feld: 'kriterien' });
     }
     if (AGG_PATTERN.test(answerText(answers.exclusion_criteria))) {
-      warnings.push('Ausschlusskriterien enthalten möglicherweise unzulässige (AGG-) Merkmale — bitte nur berufsbezogen formulieren.');
+      warnings.push(t('quality.warnAgg'));
     }
     if (!built.location && built.remote_type !== 'remote') {
-      warnings.push('Kein Standort angegeben, obwohl die Stelle nicht remote ist.');
+      warnings.push(t('quality.warnNoLocation'));
     }
 
     // ---- Score & Hebel ------------------------------------------------------
@@ -81,14 +83,15 @@ export function QualityCheck({ type, built, freelance, answers, openQuestions, r
     }
     if (built.must_haves.length > 0) profilePts += 20;
     if (revealDescriptor) profilePts += 20;
-    else levers.push({ text: 'Anonyme Firmenbeschreibung ergänzen' });
+    else levers.push({ text: t('quality.leverDescriptor') });
 
     for (const q of openQuestions.slice(0, 2)) {
       levers.push({ text: q.text.length > 60 ? q.text.slice(0, 57) + '…' : q.text, feld: q.id });
     }
 
     return { warnings, levers: levers.slice(0, 3) };
-  }, [type, built, freelance, answers, openQuestions, revealDescriptor]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [type, built, freelance, answers, openQuestions, revealDescriptor, t, i18n.language]);
 
   // Nichts zu sagen heisst nichts anzeigen. Vorher stand hier bei null Antworten
   // "Keine Auffälligkeiten — die Recruiter haben, was sie brauchen." — im
@@ -99,7 +102,7 @@ export function QualityCheck({ type, built, freelance, answers, openQuestions, r
     <div className="rounded-xl border bg-card p-4">
       <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
         <BadgeCheck className="h-4 w-4 text-muted-foreground" />
-        Vor der Übergabe
+        {t('quality.title')}
       </p>
 
       {warnings.map((w) => (
@@ -107,7 +110,7 @@ export function QualityCheck({ type, built, freelance, answers, openQuestions, r
           <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" /> {w}
         </p>
       ))}
-      {levers.length > 0 && <p className="mb-1 text-xs">Hilft den Headhuntern noch:</p>}
+      {levers.length > 0 && <p className="mb-1 text-xs">{t('quality.leversIntro')}</p>}
       {levers.map((l) => {
         const ziel = () => {
           const el = l.feld ? document.querySelector<HTMLElement>(`[data-feld="${l.feld}"]`) : null;
@@ -129,7 +132,7 @@ export function QualityCheck({ type, built, freelance, answers, openQuestions, r
         );
       })}
       <p className="mt-2 border-t pt-2 text-[11px] text-muted-foreground">
-        Nur Beratung — ändert nichts daran, ob Sie einreichen können.
+        {t('quality.note')}
       </p>
     </div>
   );

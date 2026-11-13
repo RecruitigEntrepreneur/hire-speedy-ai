@@ -7,6 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { dayDe, euro, offerApi, overdue, plusWorkdays, shortDe, whenDe, type OfferView } from '@/lib/offerApi';
+import i18n from '@/i18n';
+import { useTranslation } from 'react-i18next';
+
+// Texte der Kundenseite (offers:client), gelesen beim Aufruf (README Regel 7)
+const tc = (key: string, options?: Record<string, unknown>): string => i18n.t(`offers:client.${key}`, options);
 
 interface Props {
   submissionId: string;
@@ -20,7 +25,7 @@ interface Props {
 
 /** Kurzfassung eines Angebots: „150.000 € + 20.000 € · Start Fr 01.01.“ */
 export function offerSummary(o: OfferView): string {
-  return [`${euro(o.salary)}${o.variable ? ` + ${euro(o.variable)}` : ''}`, o.startDate ? `Start ${dayDe(o.startDate)}` : null].filter(Boolean).join(' · ');
+  return [o.variable ? tc('summaryVariable', { salary: euro(o.salary), variable: euro(o.variable) }) : euro(o.salary), o.startDate ? tc('summaryStart', { date: dayDe(o.startDate) }) : null].filter(Boolean).join(' · ');
 }
 
 /**
@@ -28,14 +33,14 @@ export function offerSummary(o: OfferView): string {
  * Der Kunde sieht, dass gesprochen wird, nicht worüber.
  */
 export function offerStandLine(o: OfferView, first: string, hhFirst: string, now = Date.now()): string {
-  const due = o.responseDue ? ` · Antwort bis ${dayDe(o.responseDue)}` : '';
-  if (o.status === 'accept_reported') return `${hhFirst} meldet eine Zusage · ${first} bestätigt gerade per Mail`;
-  if (overdue(o)) return `Antwortfrist abgelaufen (${dayDe(o.responseDue)})`;
+  const due = o.responseDue ? tc('stand.answerBy', { date: dayDe(o.responseDue) }) : '';
+  if (o.status === 'accept_reported') return tc('stand.acceptReported', { hh: hhFirst, first });
+  if (overdue(o)) return tc('stand.overdue', { date: dayDe(o.responseDue) });
   const c = o.candidate;
-  if (c?.callbackAt) return `${first} spricht gerade mit ${hhFirst}${due}`;
-  if (c?.mailDueAt && !c.mailSent) return `${hhFirst} ruft ${first} an, Mail an ${first} spätestens ${whenDe(c.mailDueAt, now)}${due}`;
-  if (c?.mailSent && c.mailSentAt) return `${first} hat das Angebot seit ${shortDe(c.mailSentAt, now)}${due}`;
-  return `Angebot liegt bei ${hhFirst}${due}`;
+  if (c?.callbackAt) return tc('stand.talking', { first, hh: hhFirst, due });
+  if (c?.mailDueAt && !c.mailSent) return tc('stand.calling', { hh: hhFirst, first, when: whenDe(c.mailDueAt, now), due });
+  if (c?.mailSent && c.mailSentAt) return tc('stand.hasOffer', { first, since: shortDe(c.mailSentAt, now), due });
+  return tc('stand.withRecruiter', { hh: hhFirst, due });
 }
 
 /**
@@ -43,6 +48,7 @@ export function offerStandLine(o: OfferView, first: string, hhFirst: string, now
  * Gegenwunsch, Zusage, Absage – jeweils mit genau den passenden Schritten.
  */
 export function OfferBox({ submissionId, onAdjust, onReject, onContract }: Props) {
+  useTranslation('offers');
   const queryClient = useQueryClient();
   const ctx = useQuery({ queryKey: ['offer-context', submissionId], queryFn: () => offerApi.context(submissionId), staleTime: 15_000 });
   const [busy, setBusy] = useState(false);
@@ -52,9 +58,9 @@ export function OfferBox({ submissionId, onAdjust, onReject, onContract }: Props
 
   const o = ctx.data?.currentOffer;
   if (!o || o.status === 'superseded') return null;
-  const hh = ctx.data?.recruiterName?.trim() || 'Ihr Headhunter';
+  const hh = ctx.data?.recruiterName?.trim() || tc('yourRecruiter');
   const hhFirst = hh.split(' ')[0];
-  const first = (ctx.data?.candidateName ?? '').split(' ')[0] || 'Der Kandidat';
+  const first = (ctx.data?.candidateName ?? '').split(' ')[0] || tc('theCandidate');
   const late = overdue(o);
 
   const run = async (work: () => Promise<unknown>, done: string) => {
@@ -67,7 +73,7 @@ export function OfferBox({ submissionId, onAdjust, onReject, onContract }: Props
       queryClient.invalidateQueries({ queryKey: ['submission-state'] });
       queryClient.invalidateQueries({ queryKey: ['bewerber'] });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Das hat nicht geklappt.');
+      toast.error(e instanceof Error ? e.message : i18n.t('offers:common.failed'));
     } finally {
       setBusy(false);
     }
@@ -85,37 +91,37 @@ export function OfferBox({ submissionId, onAdjust, onReject, onContract }: Props
       {o.status === 'accept_reported' && (
         <>
           <p className="font-medium">{offerStandLine(o, first, hhFirst)}</p>
-          <p className="text-muted-foreground">{offerSummary(o)}{o.version > 1 ? ` · Version ${o.version}` : ''}</p>
-          <p className="mt-1 text-muted-foreground">Sobald {first} bestätigt, schicken Sie den Arbeitsvertrag.</p>
+          <p className="text-muted-foreground">{offerSummary(o)}{o.version > 1 ? tc('version', { n: o.version }) : ''}</p>
+          <p className="mt-1 text-muted-foreground">{tc('box.thenContract', { first })}</p>
         </>
       )}
       {(o.status === 'with_recruiter' || o.status === 'considering') && (
         <>
           <p className="font-medium">
-            {!late && o.status === 'considering' ? `${first} überlegt noch${r?.until ? ` bis ${dayDe(r.until)}` : ''}` : offerStandLine(o, first, hhFirst)}
+            {!late && o.status === 'considering' ? (r?.until ? tc('box.consideringUntil', { first, date: dayDe(r.until) }) : tc('box.considering', { first })) : offerStandLine(o, first, hhFirst)}
           </p>
-          <p className="text-muted-foreground">{offerSummary(o)}{o.version > 1 ? ` · Version ${o.version}` : ''}</p>
-          {o.status === 'considering' && r?.note && <p className="mt-1 text-muted-foreground">{hhFirst}: „{r.note}“</p>}
-          {r?.client_keep && o.status === 'with_recruiter' && <p className="mt-1 text-muted-foreground">Sie bleiben bei Ihrem Angebot.</p>}
-          {r?.extension_asked && <p className="mt-1 text-muted-foreground">{hhFirst} bittet um mehr Zeit für {first}.</p>}
+          <p className="text-muted-foreground">{offerSummary(o)}{o.version > 1 ? tc('version', { n: o.version }) : ''}</p>
+          {o.status === 'considering' && r?.note && <p className="mt-1 text-muted-foreground">{tc('box.quote', { hh: hhFirst, text: r.note })}</p>}
+          {r?.client_keep && o.status === 'with_recruiter' && <p className="mt-1 text-muted-foreground">{tc('box.youKeep')}</p>}
+          {r?.extension_asked && <p className="mt-1 text-muted-foreground">{tc('box.moreTime', { hh: hhFirst, first })}</p>}
           {newDue !== null ? (
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Input type="date" value={newDue} onChange={(e) => setNewDue(e.target.value)} className="h-8 w-44" aria-label="Neue Antwortfrist" />
-              <Button size="sm" disabled={busy || !newDue} onClick={() => run(() => offerApi.extend(o.id, newDue), `Frist bis ${dayDe(newDue)} verlängert. ${first} bekommt sie per Mail, ${hhFirst} ist informiert.`)}>Speichern</Button>
-              <Button size="sm" variant="ghost" onClick={() => setNewDue(null)}>Abbrechen</Button>
+              <Input type="date" value={newDue} onChange={(e) => setNewDue(e.target.value)} className="h-8 w-44" aria-label={tc('box.newDeadline')} />
+              <Button size="sm" disabled={busy || !newDue} onClick={() => run(() => offerApi.extend(o.id, newDue), tc('box.extended', { date: dayDe(newDue), first, hh: hhFirst }))}>{i18n.t('taskDetail:common.save')}</Button>
+              <Button size="sm" variant="ghost" onClick={() => setNewDue(null)}>{i18n.t('offers:common.cancel')}</Button>
             </div>
           ) : confirmWithdraw ? (
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <span>Angebot wirklich zurückziehen?</span>
-              <Button size="sm" variant="destructive" disabled={busy} onClick={() => run(() => offerApi.withdraw(o.id), `Angebot zurückgezogen. ${hhFirst} ist informiert.`)}>Zurückziehen</Button>
-              <Button size="sm" variant="ghost" onClick={() => setConfirmWithdraw(false)}>Abbrechen</Button>
+              <span>{tc('box.withdrawQ')}</span>
+              <Button size="sm" variant="destructive" disabled={busy} onClick={() => run(() => offerApi.withdraw(o.id), tc('box.withdrawn', { hh: hhFirst }))}>{tc('box.withdraw')}</Button>
+              <Button size="sm" variant="ghost" onClick={() => setConfirmWithdraw(false)}>{i18n.t('offers:common.cancel')}</Button>
             </div>
           ) : (
             <div className="mt-2 flex flex-wrap gap-2">
-              {(late || r?.extension_asked) && <Button size="sm" onClick={() => setNewDue(plusWorkdays(3, late ? undefined : new Date(`${o.responseDue}T12:00:00`)))}>Frist verlängern</Button>}
-              <Button size="sm" variant="outline" onClick={onAdjust}>Ändern</Button>
-              {!late && !r?.extension_asked && <Button size="sm" variant="ghost" onClick={() => setNewDue(plusWorkdays(3, new Date(`${o.responseDue}T12:00:00`)))}>Frist verlängern</Button>}
-              <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={() => setConfirmWithdraw(true)}>Zurückziehen</Button>
+              {(late || r?.extension_asked) && <Button size="sm" onClick={() => setNewDue(plusWorkdays(3, late ? undefined : new Date(`${o.responseDue}T12:00:00`)))}>{tc('box.extend')}</Button>}
+              <Button size="sm" variant="outline" onClick={onAdjust}>{tc('box.change')}</Button>
+              {!late && !r?.extension_asked && <Button size="sm" variant="ghost" onClick={() => setNewDue(plusWorkdays(3, new Date(`${o.responseDue}T12:00:00`)))}>{tc('box.extend')}</Button>}
+              <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={() => setConfirmWithdraw(true)}>{tc('box.withdraw')}</Button>
             </div>
           )}
         </>
@@ -124,22 +130,22 @@ export function OfferBox({ submissionId, onAdjust, onReject, onContract }: Props
       {o.status === 'countered' && (
         <>
           <p className="font-medium">
-            {first} wünscht {[r?.wish?.salary && `${euro(r.wish.salary)} fix statt ${euro(o.salary)}`, r?.wish?.variable && `${euro(r.wish.variable)} variabel`, r?.wish?.startDate && `Start ${dayDe(r.wish.startDate)}`, r?.wish?.other].filter(Boolean).join(' · ')}
+            {tc('box.wishes', { first, wish: [r?.wish?.salary && tc('box.wishSalary', { amount: euro(r.wish.salary), offered: euro(o.salary) }), r?.wish?.variable && tc('box.wishVariable', { amount: euro(r.wish.variable) }), r?.wish?.startDate && tc('box.wishStart', { date: dayDe(r.wish.startDate) }), r?.wish?.other].filter(Boolean).join(' · ') })}
           </p>
-          {r?.reason && <p className="mt-0.5 text-muted-foreground">{hhFirst}: „{r.reason}“</p>}
+          {r?.reason && <p className="mt-0.5 text-muted-foreground">{tc('box.quote', { hh: hhFirst, text: r.reason })}</p>}
           {keepNote !== null ? (
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Input value={keepNote} onChange={(e) => setKeepNote(e.target.value)} placeholder={`Kurze Begründung für ${hhFirst} (optional)`} className="h-8 min-w-[16rem] flex-1" aria-label="Begründung" />
-              <Button size="sm" disabled={busy} onClick={() => run(() => offerApi.keep(o.id, keepNote), `${hhFirst} ist informiert und spricht noch einmal mit ${first}.`)}>
-                {busy && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}Senden
+              <Input value={keepNote} onChange={(e) => setKeepNote(e.target.value)} placeholder={tc('box.keepPlaceholder', { hh: hhFirst })} className="h-8 min-w-[16rem] flex-1" aria-label={tc('box.reason')} />
+              <Button size="sm" disabled={busy} onClick={() => run(() => offerApi.keep(o.id, keepNote), tc('box.keepSent', { hh: hhFirst, first }))}>
+                {busy && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}{i18n.t('contracts:window.send')}
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => setKeepNote(null)}>Abbrechen</Button>
+              <Button size="sm" variant="ghost" onClick={() => setKeepNote(null)}>{i18n.t('offers:common.cancel')}</Button>
             </div>
           ) : (
             <div className="mt-2 flex flex-wrap gap-2">
-              <Button size="sm" onClick={onAdjust}>Angebot anpassen</Button>
-              <Button size="sm" variant="outline" onClick={() => setKeepNote('')}>Bei {euro(o.salary)} bleiben</Button>
-              <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={onReject}>Absagen</Button>
+              <Button size="sm" onClick={onAdjust}>{tc('box.adjust')}</Button>
+              <Button size="sm" variant="outline" onClick={() => setKeepNote('')}>{tc('box.stayAt', { amount: euro(o.salary) })}</Button>
+              <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={onReject}>{tc('box.reject')}</Button>
             </div>
           )}
         </>
@@ -147,33 +153,30 @@ export function OfferBox({ submissionId, onAdjust, onReject, onContract }: Props
 
       {o.status === 'accepted' && (
         <>
-          <p className="font-medium">{first} hat zugesagt: {offerSummary(o)}</p>
-          <p className="mt-0.5 text-muted-foreground">Schicken Sie {first} jetzt den Arbeitsvertrag.{onContract ? ' Die Vertragsdaten stehen bereit.' : ''}</p>
-          {onContract && <div className="mt-2"><Button size="sm" onClick={onContract}>Vertrag schicken</Button></div>}
+          <p className="font-medium">{tc('box.accepted', { first, summary: offerSummary(o) })}</p>
+          <p className="mt-0.5 text-muted-foreground">{tc('box.sendContractNow', { first })}{onContract ? tc('box.dataReady') : ''}</p>
+          {onContract && <div className="mt-2"><Button size="sm" onClick={onContract}>{tc('box.sendContract')}</Button></div>}
         </>
       )}
 
       {o.status === 'declined' && (
         <>
-          <p className="font-medium">{first} hat abgesagt</p>
-          <p className="mt-0.5 text-muted-foreground">{[r?.reason_category && REASONS[r.reason_category], r?.reason].filter(Boolean).join(': ') || 'Ohne Grund.'}</p>
+          <p className="font-medium">{tc('box.declined', { first })}</p>
+          <p className="mt-0.5 text-muted-foreground">{[r?.reason_category && tc(`box.reasons.${r.reason_category}`, { defaultValue: r.reason_category }), r?.reason].filter(Boolean).join(': ') || tc('box.noReason')}</p>
           <div className="mt-2 flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" onClick={onAdjust}>Neues Angebot</Button>
-            <Button size="sm" variant="ghost" asChild><Link to="/dashboard/candidates">Andere Bewerber ansehen</Link></Button>
+            <Button size="sm" variant="outline" onClick={onAdjust}>{tc('box.newOffer')}</Button>
+            <Button size="sm" variant="ghost" asChild><Link to="/dashboard/candidates">{tc('box.otherApplicants')}</Link></Button>
           </div>
         </>
       )}
 
       {o.status === 'withdrawn' && (
         <>
-          <p className="font-medium">Angebot zurückgezogen</p>
-          <div className="mt-2"><Button size="sm" variant="outline" onClick={onAdjust}>Neues Angebot</Button></div>
+          <p className="font-medium">{tc('box.offerWithdrawn')}</p>
+          <div className="mt-2"><Button size="sm" variant="outline" onClick={onAdjust}>{tc('box.newOffer')}</Button></div>
         </>
       )}
     </div>
   );
 }
 
-const REASONS: Record<string, string> = {
-  salary: 'Gehalt', counter_offer: 'Gegenangebot des Arbeitgebers', other_job: 'andere Stelle', personal: 'persönliche Gründe', other: 'anderer Grund',
-};

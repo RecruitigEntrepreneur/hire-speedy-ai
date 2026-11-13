@@ -8,15 +8,24 @@
  * muss er es für die nächste Stelle nicht wieder eintippen.
  */
 
+import i18n from '@/i18n';
+
 export type ArbeitgeberFeld =
   | 'culture_values' | 'employer_selling_points' | 'benefits' | 'target_companies' | 'excluded_companies';
 
+/** Beschriftung und Hilfe werden beim Lesen übersetzt (clientSettings:employer.<feld>), nicht beim Laden eingefroren. */
+const feldDef = (feld: ArbeitgeberFeld): { feld: ArbeitgeberFeld; label: string; hilfe: string } => ({
+  feld,
+  get label() { return i18n.t(`clientSettings:employer.${feld}.label`); },
+  get hilfe() { return i18n.t(`clientSettings:employer.${feld}.hint`); },
+});
+
 export const ARBEITGEBER_FELDER: { feld: ArbeitgeberFeld; label: string; hilfe: string }[] = [
-  { feld: 'culture_values', label: 'Wie arbeitet man bei Ihnen zusammen?', hilfe: 'Kultur, Hierarchien, Werkzeuge' },
-  { feld: 'employer_selling_points', label: 'Was macht Sie als Arbeitgeber attraktiv?', hilfe: 'Die Argumente, mit denen Recruiter Sie vorstellen' },
-  { feld: 'benefits', label: 'Benefits', hilfe: 'Gilt für Festanstellungen' },
-  { feld: 'target_companies', label: 'Ziel-Unternehmen', hilfe: 'Wo Recruiter gezielt suchen sollen' },
-  { feld: 'excluded_companies', label: 'No-Go-Unternehmen', hilfe: 'Wo Recruiter nicht abwerben sollen' },
+  feldDef('culture_values'),
+  feldDef('employer_selling_points'),
+  feldDef('benefits'),
+  feldDef('target_companies'),
+  feldDef('excluded_companies'),
 ];
 
 /** Die Stelle, aus der vorgeschlagen wird (jobs, jüngste aus einer Aufnahme). */

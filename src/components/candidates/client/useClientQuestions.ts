@@ -1,3 +1,4 @@
+import i18n from '@/i18n';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
@@ -64,7 +65,7 @@ export function useClientQuestions(jobId: string | undefined, candidateId: strin
       body: { action: 'ask', submission_id: p.submissionId, text: p.text },
     });
     if (error || (data as { error?: string } | null)?.error) {
-      throw new Error((data as { error?: string } | null)?.error ?? error?.message ?? 'Senden fehlgeschlagen');
+      throw new Error((data as { error?: string } | null)?.error ?? error?.message ?? i18n.t('clientCandidates:frage.sendFailed'));
     }
     await qc.invalidateQueries({ queryKey: key });
   };

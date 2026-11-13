@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { findeZitat, wertAlsText } from '@/lib/anzeigeZitat';
 
@@ -8,19 +9,27 @@ import { findeZitat, wertAlsText } from '@/lib/anzeigeZitat';
  * auf dem Handy), erscheint der Satz aus der Anzeige, aus dem der Wert stammt.
  * Steht nichts woertlich in der Anzeige, sagt das Etikett, dass er abgeleitet ist.
  */
-export function AnzeigeEtikett({ anzeige, wert, abweichend = false, anzeigeText }: {
+export function AnzeigeEtikett({ anzeige, wert, abweichend = false, anzeigeText, alternativen = [] }: {
   anzeige?: string | null;
   /** Der Wert, wie ihn die Anzeige sagt -- nicht die aktuelle Auswahl. */
   wert: unknown;
   /** Der Kunde hat etwas anderes gewaehlt: "laut Anzeige: …" statt "aus der Anzeige". */
   abweichend?: boolean;
-  /** Kurzform des Anzeige-Werts fuer das Etikett (z. B. "Vor Ort"). */
+  /** Kurzform des Anzeige-Werts fuer das Etikett, in der Sprache des Lesers (z. B. "On site"). */
   anzeigeText?: string;
+  /**
+   * Weitere Schreibweisen fuer die Suche im Wortlaut -- die Anzeige ist oft
+   * deutsch, auch wenn der Leser Englisch eingestellt hat ("Vor Ort" statt "On site").
+   */
+  alternativen?: unknown[];
 }) {
+  const { t } = useTranslation(['intake', 'intakeCatalog']);
   const [offen, setOffen] = useState(false);
-  const zitat = findeZitat(anzeige, wert);
+  const zitat = [wert, ...alternativen].map((w) => findeZitat(anzeige, w)).find(Boolean) ?? null;
   const kurz = anzeigeText ?? wertAlsText(wert);
-  const text = abweichend ? (kurz && kurz.length <= 28 ? `laut Anzeige: ${kurz}` : 'laut Anzeige') : 'aus der Anzeige';
+  const text = abweichend
+    ? (kurz && kurz.length <= 28 ? t('etappen.anzeige.labelOther', { value: kurz }) : t('etappen.anzeige.labelOtherShort'))
+    : t('etappen.anzeige.label');
   return (
     <Tooltip open={offen} onOpenChange={setOffen} delayDuration={150}>
       <TooltipTrigger asChild>
@@ -36,7 +45,7 @@ export function AnzeigeEtikett({ anzeige, wert, abweichend = false, anzeigeText 
       </TooltipTrigger>
       <TooltipContent side="top" align="start" className="max-w-sm space-y-1.5 p-3 text-xs">
         {abweichend && kurz && (
-          <p className="leading-snug">Ihre Anzeige sagt: „{kurz.length > 120 ? `${kurz.slice(0, 117)}…` : kurz}“. Sie haben etwas anderes gewählt.</p>
+          <p className="leading-snug">{t('etappen.anzeige.saysOther', { value: kurz.length > 120 ? `${kurz.slice(0, 117)}…` : kurz })}</p>
         )}
         {zitat ? (
           <>
@@ -44,14 +53,14 @@ export function AnzeigeEtikett({ anzeige, wert, abweichend = false, anzeigeText 
               <p key={s} className="border-l-2 border-blue-500/50 pl-2 italic leading-snug">„{s}“</p>
             ))}
             <p className="text-[10px] text-muted-foreground">
-              {zitat.vollstaendig ? 'Aus Ihrer Anzeige' : 'Aus Ihrer Anzeige · nicht alles steht dort wörtlich so'}
+              {zitat.vollstaendig ? t('etappen.anzeige.fromAd') : t('etappen.anzeige.fromAdPartial')}
             </p>
           </>
         ) : (
           <p className="leading-snug">
             {anzeige
-              ? 'Steht so nicht wörtlich in Ihrer Anzeige, sondern ist aus ihr abgeleitet. Bitte kurz prüfen.'
-              : 'Aus Ihrer Anzeige gelesen.'}
+              ? t('etappen.anzeige.derived')
+              : t('etappen.anzeige.readFromAd')}
           </p>
         )}
       </TooltipContent>

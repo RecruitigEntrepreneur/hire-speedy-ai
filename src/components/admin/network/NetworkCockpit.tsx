@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, RefreshCw, Search } from 'lucide-react';
+import { Link2, Plus, RefreshCw, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,8 @@ import {
 import { loadRecruiterAccounts } from './accounts';
 import { ConditionsDialog } from './ConditionsDialog';
 import { InviteSheet, type InvitePrefill } from './InviteSheet';
+import { PublicLinksSheet } from './PublicLinksSheet';
+import { LanguageTag } from '@/components/language/LanguagePicker';
 import { PartnerDrawer, type DrawerTab } from './PartnerDrawer';
 
 /**
@@ -30,6 +32,16 @@ const TILES: Tile[] = ['decide', 'activate', 'evidence', 'followUp', 'expiring']
 const GROUPS: (Group | 'all')[] = ['all', 'onboarding', 'active', 'no_contract', 'suspended', 'archive'];
 const ACTIONABLE = ['review', 'countersign', 'activate', 'remind', 'resend', 'start_contract'];
 const URGENT = ['review', 'countersign', 'activate'];
+
+/** Herkunft und Sprache des Vorgangs: Fahne, und bei öffentlichem Link die Kennung. */
+function Origin({ row }: { row: unknown }) {
+  const { language, source_key } = (row ?? {}) as { language?: string | null; source_key?: string | null };
+  if (!language && !source_key) return null;
+  return <p className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-muted-foreground">
+    {language && <LanguageTag code={language}/>}
+    {source_key && <span>über {source_key}</span>}
+  </p>;
+}
 
 function Dots({ step }: { step: number }) {
   return <span className="inline-flex gap-1" aria-hidden>{Array.from({ length: 6 }, (_, i) =>
@@ -56,6 +68,7 @@ export default function NetworkCockpit() {
   const [drawerTab, setDrawerTab] = useState<DrawerTab>('overview');
   const [invite, setInvite] = useState<{ open: boolean; prefill: InvitePrefill | null }>({ open: false, prefill: null });
   const [conditionsOpen, setConditionsOpen] = useState(false);
+  const [linksOpen, setLinksOpen] = useState(false);
 
   const load = useCallback(async () => {
     setRefreshing(true); setError('');
@@ -117,6 +130,7 @@ export default function NetworkCockpit() {
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"/>
           <Input className="pl-9" placeholder="Name, E-Mail oder Firma" value={search} onChange={e => setSearch(e.target.value)} aria-label="Partner suchen"/>
         </div>
+        <Button variant="outline" onClick={() => setLinksOpen(true)}><Link2 className="mr-1 h-4 w-4"/>Öffentliche Links</Button>
         <Button onClick={() => setInvite({ open: true, prefill: null })}><Plus className="mr-1 h-4 w-4"/>Einladen</Button>
       </div>
     </header>
@@ -163,6 +177,7 @@ export default function NetworkCockpit() {
               <div className="min-w-0">
                 <div className="flex items-center gap-2"><span className="truncate font-medium">{p.name}</span>{p.isTest && <Badge variant="outline" className="shrink-0">Test</Badge>}</div>
                 <p className="truncate text-sm text-muted-foreground">{p.company || p.email}</p>
+                <Origin row={p.caseRow}/>
               </div>
               <div className="flex items-center gap-2 text-sm"><Dots step={p.step}/><span>{PHASE_LABELS[p.phase]}</span></div>
               <div className="min-w-0 text-sm"><p className="truncate">{p.signal.text}</p><p className="text-muted-foreground">{relativeTime(p.signal.at)}</p></div>
@@ -186,6 +201,7 @@ export default function NetworkCockpit() {
       onTabChange={setDrawerTab} onOpenChange={open => { if (!open) setSelected(null); }} onChanged={() => void load()}
       onStartContract={prefill => { setSelected(null); setInvite({ open: true, prefill }); }}/>
     <InviteSheet open={invite.open} prefill={invite.prefill} onOpenChange={open => setInvite(v => ({ ...v, open }))} onChanged={() => void load()}/>
+    <PublicLinksSheet open={linksOpen} onOpenChange={setLinksOpen}/>
     <ConditionsDialog open={conditionsOpen} legacy={legacyFees} onOpenChange={setConditionsOpen} onChanged={() => void load()}/>
   </div>;
 }

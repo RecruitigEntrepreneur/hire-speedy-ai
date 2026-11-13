@@ -34,48 +34,52 @@ import {
 } from '@/lib/jobSearch';
 import { cn } from '@/lib/utils';
 import { ClientQuestionFlow } from './ClientQuestionFlow';
+import { useTranslation } from 'react-i18next';
 
-function standOf(s: MySearch): { text: string; tone: 'ok' | 'warn' | 'muted' } {
+type T = (key: string, options?: Record<string, unknown>) => string;
+
+function standOf(s: MySearch, t: T): { text: string; tone: 'ok' | 'warn' | 'muted' } {
   if (s.status === 'active') {
-    if (s.submissions > 0) return { text: 'läuft · belegt keinen Platz', tone: 'ok' };
+    if (s.submissions > 0) return { text: t('mine.stand.runningNoSlot'), tone: 'ok' };
     const d = daysUntil(s.ends_at);
     return d === null
-      ? { text: 'läuft', tone: 'ok' }
-      : { text: `noch ${d} ${d === 1 ? 'Tag' : 'Tage'} für 1. Einreichung`, tone: d <= 5 ? 'warn' : 'ok' };
+      ? { text: t('mine.stand.running'), tone: 'ok' }
+      : { text: t('mine.stand.daysLeft', { count: d }), tone: d <= 5 ? 'warn' : 'ok' };
   }
   if (s.status === 'paused') {
-    if (s.review_hold) return { text: 'ruht · Matchunt prüft „Stelle schon direkt“', tone: 'muted' };
+    if (s.review_hold) return { text: t('mine.stand.review'), tone: 'muted' };
     return {
-      text: `ruht · Kunde pausiert${s.job_paused_until ? ` bis ${fmtDayShort(s.job_paused_until)}` : ''}`,
+      text: s.job_paused_until ? t('mine.stand.clientPausedUntil', { date: fmtDayShort(s.job_paused_until) }) : t('mine.stand.clientPaused'),
       tone: 'muted',
     };
   }
   switch (s.end_reason) {
     case 'expired':
-      return { text: 'beendet · 30 Tage ohne Einreichung', tone: 'muted' };
+      return { text: t('mine.stand.expired'), tone: 'muted' };
     case 'job_closed':
-      return { text: s.job_status === 'filled' ? 'beendet · Stelle besetzt' : 'beendet · Stelle geschlossen', tone: 'muted' };
+      return { text: s.job_status === 'filled' ? t('mine.stand.filled') : t('mine.stand.closed'), tone: 'muted' };
     case 'direct_position':
-      return { text: 'du bearbeitest die Stelle direkt', tone: 'muted' };
-    default: {
-      const free = s.slot_until && new Date(s.slot_until) > new Date() ? ` · Platz frei am ${fmtDayShort(s.slot_until)}` : '';
-      return { text: `beendet${free}`, tone: 'muted' };
-    }
+      return { text: t('mine.stand.direct'), tone: 'muted' };
+    default:
+      return {
+        text: s.slot_until && new Date(s.slot_until) > new Date() ? t('mine.stand.endedSlotFree', { date: fmtDayShort(s.slot_until) }) : t('mine.stand.ended'),
+        tone: 'muted',
+      };
   }
 }
 
-function clientNote(s: MySearch): string | null {
-  const company = s.company_name || 'Der Kunde';
+function clientNote(s: MySearch, t: T): string | null {
+  const company = s.company_name || t('mine.note.theClient');
   if (s.direct_declaration === 'confirmed') return null;
   switch (s.client_declaration) {
     case 'client:confirmed':
-      return 'Bestandskunde bestätigt';
+      return t('mine.note.confirmed');
     case 'client:pending':
-      return 'Bestandskunde · in Prüfung';
+      return t('mine.note.pending');
     case 'client:rejected':
-      return `${company}: Beleg reicht nicht · nur über Matchunt`;
+      return t('mine.note.rejected', { company });
     default:
-      return s.status === 'ended' && s.company_name ? `${company}: nur über Matchunt (Kundenschutz)` : null;
+      return s.status === 'ended' && s.company_name ? t('mine.note.protected', { company }) : null;
   }
 }
 
@@ -83,6 +87,7 @@ export function MySearchesList({ onSubmit }: { onSubmit: (jobId: string, title: 
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { t } = useTranslation('recruiterSearch');
   const [rows, setRows] = useState<MySearch[] | null>(null);
   const [capacity, setCapacity] = useState<{ used: number; limit: number } | null>(null);
   const [progress, setProgress] = useState<PartnerProgress | null>(null);
@@ -100,9 +105,9 @@ export function MySearchesList({ onSubmit }: { onSubmit: (jobId: string, title: 
       setProgress(p);
     } catch (err) {
       setRows([]);
-      toast({ title: 'Meine Suchen konnten nicht geladen werden', description: errorText(err), variant: 'destructive' });
+      toast({ title: t('mine.loadFailed'), description: errorText(err), variant: 'destructive' });
     }
-  }, [toast]);
+  }, [toast, t]);
 
   useEffect(() => {
     void load();
@@ -113,11 +118,11 @@ export function MySearchesList({ onSubmit }: { onSubmit: (jobId: string, title: 
     setBusy(true);
     try {
       await endJobSearch(endFor.job_id);
-      toast({ title: 'Suche beendet' });
+      toast({ title: t('mine.ended') });
       setEndFor(null);
       await load();
     } catch (err) {
-      toast({ title: 'Beenden hat nicht geklappt', description: errorText(err), variant: 'destructive' });
+      toast({ title: t('mine.endFailed'), description: errorText(err), variant: 'destructive' });
     } finally {
       setBusy(false);
     }
@@ -128,12 +133,12 @@ export function MySearchesList({ onSubmit }: { onSubmit: (jobId: string, title: 
     setBusy(true);
     try {
       await uploadDeclarationProof(user.id, proofFor.client_declaration_id, 'contract', proofFile);
-      toast({ title: 'Beleg hochgeladen', description: 'Matchunt prüft ihn und meldet sich in der Glocke.' });
+      toast({ title: t('mine.proofUploaded'), description: t('mine.proofUploadedText') });
       setProofFor(null);
       setProofFile(null);
       await load();
     } catch (err) {
-      toast({ title: 'Upload hat nicht geklappt', description: errorText(err), variant: 'destructive' });
+      toast({ title: t('mine.uploadFailed'), description: errorText(err), variant: 'destructive' });
     } finally {
       setBusy(false);
     }
@@ -161,7 +166,7 @@ export function MySearchesList({ onSubmit }: { onSubmit: (jobId: string, title: 
         )}
         {capacity && (
           <span className="text-muted-foreground">
-            {capacity.used} von {capacity.limit} Plätzen belegt
+            {t('mine.slotsUsed', { used: capacity.used, limit: capacity.limit })}
           </span>
         )}
       </div>
@@ -169,20 +174,20 @@ export function MySearchesList({ onSubmit }: { onSubmit: (jobId: string, title: 
       {rows.length === 0 ? (
         <Card className="border-border/30">
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            Du suchst noch für keine Stelle. Drück bei einer Stelle „Ich suche“, dann erscheint sie hier.
+            {t('mine.empty')}
           </CardContent>
         </Card>
       ) : (
         <div className="overflow-hidden rounded-lg border border-border/40">
           <div className="hidden grid-cols-[minmax(0,1.6fr)_minmax(0,0.8fr)_minmax(0,1.3fr)_auto] gap-3 border-b border-border/40 bg-muted/30 px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground md:grid">
-            <span>Stelle · Kunde</span>
-            <span>Meine Kandidaten</span>
-            <span>Stand</span>
+            <span>{t('mine.col.job')}</span>
+            <span>{t('mine.col.candidates')}</span>
+            <span>{t('mine.col.stand')}</span>
             <span className="w-24" />
           </div>
           {rows.map((s) => {
-            const stand = standOf(s);
-            const note = clientNote(s);
+            const stand = standOf(s, t);
+            const note = clientNote(s, t);
             const openQuestion = (s.status === 'active' || s.status === 'paused') && !s.client_declaration && !s.review_hold;
             const needsProof = s.client_declaration === 'client:pending' || s.client_declaration === 'client:rejected';
             const canSubmit = s.status === 'active' && !openQuestion;
@@ -202,7 +207,7 @@ export function MySearchesList({ onSubmit }: { onSubmit: (jobId: string, title: 
                   </span>
                 </button>
                 <span className="text-xs text-muted-foreground">
-                  {s.submissions === 0 ? '–' : `${s.submissions}${s.in_process ? ` · ${s.in_process} im Prozess` : ''}`}
+                  {s.submissions === 0 ? '–' : s.in_process ? t('mine.inProcess', { submissions: s.submissions, inProcess: s.in_process }) : s.submissions}
                 </span>
                 <div className="min-w-0 text-xs">
                   <span
@@ -217,7 +222,7 @@ export function MySearchesList({ onSubmit }: { onSubmit: (jobId: string, title: 
                   {note && <span className="block text-muted-foreground">{note}</span>}
                   {openQuestion && (
                     <button type="button" className="block text-left text-primary underline-offset-2 hover:underline" onClick={() => setQuestion(s)}>
-                      Frage offen: Kennst du {s.company_name || 'das Unternehmen'} schon?
+                      {t('mine.openQuestion', { company: s.company_name || t('q.theCompany') })}
                     </button>
                   )}
                 </div>
@@ -225,13 +230,13 @@ export function MySearchesList({ onSubmit }: { onSubmit: (jobId: string, title: 
                   {canSubmit && (
                     <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => onSubmit(s.job_id, s.title)}>
                       <Send className="h-3 w-3" />
-                      Einreichen
+                      {t('q.submit')}
                     </Button>
                   )}
                   {(s.status !== 'ended' || needsProof) && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Weitere Aktionen">
+                        <Button size="icon" variant="ghost" className="h-7 w-7" aria-label={t('mine.moreActions')}>
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -239,12 +244,12 @@ export function MySearchesList({ onSubmit }: { onSubmit: (jobId: string, title: 
                         {needsProof && (
                           <DropdownMenuItem onClick={() => setProofFor(s)}>
                             <FileUp className="mr-2 h-4 w-4" />
-                            Vertrag als Beleg hochladen
+                            {t('mine.uploadContract')}
                           </DropdownMenuItem>
                         )}
                         {s.status !== 'ended' && (
                           <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setEndFor(s)}>
-                            Suche beenden
+                            {t('end.confirm')}
                           </DropdownMenuItem>
                         )}
                       </DropdownMenuContent>
@@ -261,7 +266,7 @@ export function MySearchesList({ onSubmit }: { onSubmit: (jobId: string, title: 
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{question?.title}</DialogTitle>
-            <DialogDescription>Bitte vor der ersten Einreichung beantworten.</DialogDescription>
+            <DialogDescription>{t('q.beforeFirst')}</DialogDescription>
           </DialogHeader>
           {question && (
             <ClientQuestionFlow
@@ -280,20 +285,20 @@ export function MySearchesList({ onSubmit }: { onSubmit: (jobId: string, title: 
       <Dialog open={!!proofFor} onOpenChange={(o) => { if (!o) { setProofFor(null); setProofFile(null); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Beleg für {proofFor?.company_name || 'den Kunden'}</DialogTitle>
+            <DialogTitle>{proofFor?.company_name ? t('mine.proofFor', { company: proofFor.company_name }) : t('mine.proofForClient')}</DialogTitle>
             <DialogDescription>
-              Unterschriebener Rahmen- oder Einzelvertrag von vor deinem ersten „Ich suche“. Beträge darfst du schwärzen, nur Matchunt sieht ihn.
+              {t('mine.proofText')}
             </DialogDescription>
           </DialogHeader>
           <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed p-3 text-sm hover:bg-muted/40">
             <FileUp className="h-4 w-4 text-muted-foreground" />
-            <span className="truncate">{proofFile ? proofFile.name : 'Datei wählen'}</span>
+            <span className="truncate">{proofFile ? proofFile.name : t('mine.chooseFile')}</span>
             <input type="file" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx" className="sr-only" onChange={(e) => setProofFile(e.target.files?.[0] ?? null)} />
           </label>
           <div className="flex justify-end">
             <Button disabled={!proofFile || busy} onClick={uploadProof}>
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-              Hochladen
+              {t('mine.upload')}
             </Button>
           </div>
         </DialogContent>
@@ -302,15 +307,15 @@ export function MySearchesList({ onSubmit }: { onSubmit: (jobId: string, title: 
       <AlertDialog open={!!endFor} onOpenChange={(o) => !o && setEndFor(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Suche „{endFor?.title}“ beenden?</AlertDialogTitle>
+            <AlertDialogTitle>{t('end.titleNamed', { title: endFor?.title })}</AlertDialogTitle>
             <AlertDialogDescription>
               {endFor && endFor.submissions > 0
-                ? 'Deine eingereichten Kandidaten laufen weiter. Neue Einreichungen gehen erst nach erneutem „Ich suche“.'
-                : 'Ohne Einreichung bleibt der Platz bis 30 Tage nach deinem „Ich suche“ belegt. Der Kunde sieht dich weiter als „hat gesucht“.'}
+                ? t('end.withSubmissions')
+                : t('end.withoutSubmissions')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={busy}>Abbrechen</AlertDialogCancel>
+            <AlertDialogCancel disabled={busy}>{t('end.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               disabled={busy}
               onClick={(e) => {
@@ -318,7 +323,7 @@ export function MySearchesList({ onSubmit }: { onSubmit: (jobId: string, title: 
                 void confirmEnd();
               }}
             >
-              Suche beenden
+              {t('end.confirm')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

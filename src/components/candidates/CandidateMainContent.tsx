@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -60,6 +61,7 @@ export function CandidateMainContent({
   onStartInterview,
   dossierSlot,
 }: CandidateMainContentProps) {
+  const { t } = useTranslation('candidateDetail');
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div className="space-y-6">
@@ -73,7 +75,7 @@ export function CandidateMainContent({
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-medium flex items-center gap-2">
               <Clock className="h-4 w-4" />
-              Letzte Aktivitäten
+              {t('activity.recent')}
             </h3>
             <Button variant="ghost" size="sm" onClick={onAddActivity}>
               <Plus className="h-4 w-4" />
@@ -85,7 +87,7 @@ export function CandidateMainContent({
           />
           {activities.length > 10 && (
             <p className="text-xs text-muted-foreground mt-2 text-center">
-              +{activities.length - 10} weitere Aktivitäten
+              {t('activity.moreCount', { count: activities.length - 10 })}
             </p>
           )}
         </div>
@@ -120,7 +122,7 @@ export function CandidateMainContent({
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <Building2 className="h-4 w-4 text-primary" />
-              Karriere-Timeline
+              {t('main.careerTimeline')}
             </CardTitle>
           </CardHeader>
           <CardContent>

@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchRecruiterPlacements } from '@/lib/placementViews';
@@ -39,9 +40,10 @@ import {
 import { usePageViewTracking } from '@/hooks/useEventTracking';
 import { RecruiterStartChecklist } from '@/components/recruiter/RecruiterStartChecklist';
 import { useMinutenTakt, useUnifiedTaskInbox, type UnifiedTaskItem } from '@/hooks/useUnifiedTaskInbox';
-import { buildGuide } from '@/components/recruiter/tasks/taskWindow';
+import { buildGuide, prepTexts } from '@/components/recruiter/tasks/taskWindow';
+import { dfLocale, loc } from '@/components/recruiter/tasks/sprache';
 import { dashboardRows, rowItem, splitJetzt, type JetztRow } from '@/components/recruiter/tasks/jetztRows';
-import { vorbereitenTexte, VORBEREITEN_TON } from '@/lib/kandidatVorbereiten';
+import { VORBEREITEN_TON } from '@/lib/kandidatVorbereiten';
 import { useRecruiterInterviewAgenda } from '@/hooks/useRecruiterInterviewAgenda';
 import { useActivityLogger } from '@/hooks/useCandidateActivityLog';
 import { HubSpotImportDialog } from '@/components/candidates/HubSpotImportDialog';
@@ -53,7 +55,6 @@ import { useRecruiterGuide } from '@/components/recruiter/guide/RecruiterGuide';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { format, isToday, isTomorrow } from 'date-fns';
-import { de } from 'date-fns/locale';
 import { isMissingColumnError } from '@/lib/intakeCapture';
 import { verdienstJeTag } from '@/lib/recruiterContracting';
 import { Honorar } from '@/components/recruiter/Honorar';
@@ -73,8 +74,8 @@ interface DashboardStats {
 }
 
 interface PipelineStage {
-  key: string;
-  label: string;
+  /** Anzeige über pipeline.stages.<key> */
+  key: 'submitted' | 'in_review' | 'interview' | 'offer';
   statuses: string[];
   color: string;
   count: number;
@@ -93,28 +94,28 @@ interface UpcomingInterview {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-const getGreeting = (): string => {
+const greetingKey = (): 'morning' | 'day' | 'evening' => {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Guten Morgen';
-  if (hour < 18) return 'Guten Tag';
-  return 'Guten Abend';
+  if (hour < 12) return 'morning';
+  if (hour < 18) return 'day';
+  return 'evening';
 };
 
 const getFirstName = (user: any): string => {
   const fullName = user?.user_metadata?.full_name || user?.email || '';
   if (fullName.includes('@')) return fullName.split('@')[0];
-  return fullName.split(' ')[0] || 'Recruiter';
+  return fullName.split(' ')[0] || '';
 };
 
 const formatEuro = (amount: number): string => {
   if (amount >= 1000) {
-    return `€${Math.round(amount / 1000).toLocaleString('de-DE')}k`;
+    return `€${Math.round(amount / 1000).toLocaleString(loc())}k`;
   }
-  return `€${amount.toLocaleString('de-DE')}`;
+  return `€${amount.toLocaleString(loc())}`;
 };
 
 const formatEuroFull = (amount: number): string => {
-  return `€${amount.toLocaleString('de-DE')}`;
+  return `€${amount.toLocaleString(loc())}`;
 };
 
 const calculatePotentialEarning = (
@@ -130,16 +131,20 @@ const calculatePotentialEarning = (
   return Math.round(avgSalary * (feePercentage / 100));
 };
 
-const formatInterviewDate = (dateStr: string): string => {
+type T = (key: string, options?: Record<string, unknown>) => string;
+const formatInterviewDate = (dateStr: string, t: T): string => {
   const date = new Date(dateStr);
-  if (isToday(date)) return `Heute, ${format(date, 'HH:mm')} Uhr`;
-  if (isTomorrow(date)) return `Morgen, ${format(date, 'HH:mm')} Uhr`;
-  return format(date, "EEEE, dd. MMM · HH:mm 'Uhr'", { locale: de });
+  const time = format(date, 'HH:mm');
+  if (isToday(date)) return t('date.today', { time });
+  if (isTomorrow(date)) return t('date.tomorrow', { time });
+  return t('date.other', { date: format(date, t('date.dayPattern'), { locale: dfLocale() }), time });
 };
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export default function RecruiterDashboard() {
+  // recruiterTasks: Pillen und Kurzzeilen der Aufgaben (buildGuide, prepTexts)
+  const { t, i18n } = useTranslation(['recruiterDashboard', 'recruiterTasks']);
   const { user } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats>({
@@ -305,10 +310,10 @@ export default function RecruiterDashboard() {
       submissions.forEach((s: any) => { s.jobs = pipelineJobsById[s.job_id] ?? null; });
 
       const stages: PipelineStage[] = [
-        { key: 'submitted', label: 'Eingereicht', statuses: ['submitted', 'pending'], color: 'bg-amber-500', count: 0 },
-        { key: 'in_review', label: 'In Prüfung', statuses: ['in_review'], color: 'bg-blue-500', count: 0 },
-        { key: 'interview', label: 'Interview', statuses: ['interview'], color: 'bg-purple-500', count: 0 },
-        { key: 'offer', label: 'Angebot', statuses: ['offer'], color: 'bg-emerald-500', count: 0 },
+        { key: 'submitted', statuses: ['submitted', 'pending'], color: 'bg-amber-500', count: 0 },
+        { key: 'in_review', statuses: ['in_review'], color: 'bg-blue-500', count: 0 },
+        { key: 'interview', statuses: ['interview'], color: 'bg-purple-500', count: 0 },
+        { key: 'offer', statuses: ['offer'], color: 'bg-emerald-500', count: 0 },
       ];
 
       // Conversion probabilities per stage (industry averages)
@@ -360,7 +365,7 @@ export default function RecruiterDashboard() {
   const handleMarkDone = async (item: UnifiedTaskItem) => {
     const { error } = await taskMarkDone(item.itemType, item.itemId);
     if (error) {
-      toast.error('Konnte nicht als erledigt markiert werden.');
+      toast.error(t('toast.markDoneFailed'));
       return;
     }
 
@@ -368,6 +373,7 @@ export default function RecruiterDashboard() {
       await logActivity(
         item.candidateId,
         'alert_actioned',
+        // Titel im Aktivitätslog: gespeichert, bleibt deutsch
         `Aufgabe erledigt: ${item.title}`,
         item.description || undefined,
         { item_type: item.itemType, task_category: item.taskCategory, priority: item.priority },
@@ -378,8 +384,8 @@ export default function RecruiterDashboard() {
 
     toast.success(
       item.itemType === 'derived'
-        ? 'Erledigt — kommt wieder, falls sich weiterhin nichts bewegt'
-        : 'Erledigt'
+        ? t('toast.doneDerived')
+        : t('toast.done')
     );
   };
 
@@ -425,42 +431,42 @@ export default function RecruiterDashboard() {
 
     // Urgent tasks + interview today
     if (urgentCount > 0 && interviewToday) {
-      return `Du hast ${urgentCount} dringende Aufgaben und ein Interview heute um ${timeStr} Uhr.`;
+      return t('subtext.urgentInterviewToday', { count: urgentCount, time: timeStr });
     }
     // Urgent tasks + interview tomorrow
     if (urgentCount > 0 && interviewTomorrow) {
-      return `${urgentCount} dringende Aufgaben – und morgen steht ein Interview an.`;
+      return t('subtext.urgentInterviewTomorrow', { count: urgentCount });
     }
     // Urgent tasks, no interview soon
     if (urgentCount > 0) {
       return prepCount > 0
-        ? `${urgentCount} dringende Aufgaben, ${prepCount} ${prepCount === 1 ? 'Kandidat' : 'Kandidaten'} vor der Einreichung.`
-        : `${urgentCount} dringende Aufgaben warten auf dich.`;
+        ? t('subtext.urgentWithPrep', { count: urgentCount, candidates: t('subtext.candidates', { count: prepCount }) })
+        : t('subtext.urgent', { count: urgentCount });
     }
     // No urgent, but interview today
     if (interviewToday && nextInterview) {
-      return `Heute um ${timeStr} Uhr: Interview mit ${nextInterview.candidateName}. Viel Erfolg!`;
+      return t('subtext.interviewToday', { time: timeStr, name: nextInterview.candidateName });
     }
     // No urgent, interview tomorrow
     if (interviewTomorrow) {
-      return 'Morgen steht ein Interview an – alles vorbereitet?';
+      return t('subtext.interviewTomorrow');
     }
     // No urgent, interviews this week
     if (upcomingInterviews.length > 0) {
-      return `${upcomingInterviews.length} Interview${upcomingInterviews.length > 1 ? 's' : ''} geplant diese Woche.`;
+      return t('subtext.interviewsWeek', { count: upcomingInterviews.length });
     }
     // No interviews, tasks pending → konkrete Top-Aufgabe nennen
     if (totalPendingAlerts > 0) {
       const top = topRows[0];
       if (top?.kind === 'person') {
-        return `${totalPendingAlerts} Aufgaben offen — Top-Priorität: ${top.group.name} (${buildGuide(top.group.primary).pill}).`;
+        return t('subtext.tasksTop', { count: totalPendingAlerts, name: top.group.name, pill: buildGuide(top.group.primary).pill });
       }
-      return `${totalPendingAlerts} Aufgaben warten – pack sie an!`;
+      return t('subtext.tasks', { count: totalPendingAlerts });
     }
-    if (isNewcomer) return 'Schön, dass du da bist. Such dir eine passende Position und stell deinen ersten Kandidaten vor.';
+    if (isNewcomer) return t('subtext.newcomer');
     // All clear
-    return 'Alles erledigt – Zeit, neue Kandidaten einzureichen!';
-  }, [urgentCount, prepCount, upcomingInterviews, totalPendingAlerts, topRows, isNewcomer]);
+    return t('subtext.allDone');
+  }, [urgentCount, prepCount, upcomingInterviews, totalPendingAlerts, topRows, isNewcomer, t, i18n.language]);
 
   // ─── Render ─────────────────────────────────────────────────────────────
 
@@ -485,7 +491,7 @@ export default function RecruiterDashboard() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h1 className="text-2xl font-bold tracking-tight">
-                  {getGreeting()}, {getFirstName(user)}
+                  {t(`greeting.${greetingKey()}`, { name: getFirstName(user) || t('greeting.fallbackName') })}
                 </h1>
                 <p className="text-sm text-muted-foreground mt-1">
                   {greetingSubtext}
@@ -495,7 +501,7 @@ export default function RecruiterDashboard() {
               <div className="flex items-center gap-2">
                 <Button variant="ghost" size="sm" onClick={guide.start}>
                   <Compass className="mr-1.5 h-3.5 w-3.5" />
-                  Rundgang
+                  {t('header.tour')}
                 </Button>
 <KandidatAnlegenMenu
                   onLebenslauf={() => setCvUploadDialogOpen(true)}
@@ -523,7 +529,7 @@ export default function RecruiterDashboard() {
             <CardContent className="p-5">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <h2 className="font-semibold">Aufgaben</h2>
+                  <h2 className="font-semibold">{t('tasks.title')}</h2>
                   {totalPendingAlerts > 0 && (
                     <Badge variant="secondary" className="text-xs">
                       {totalPendingAlerts}
@@ -531,7 +537,7 @@ export default function RecruiterDashboard() {
                   )}
                   {urgentCount > 0 && (
                     <Badge className="text-xs bg-destructive/10 text-destructive border-0">
-                      {urgentCount} dringend
+                      {t('tasks.urgent', { count: urgentCount })}
                     </Badge>
                   )}
                 </div>
@@ -539,7 +545,7 @@ export default function RecruiterDashboard() {
                   variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground"
                   onClick={() => navigate('/recruiter/influence')}
                 >
-                  Alle Aufgaben
+                  {t('tasks.all')}
                   <ChevronRight className="h-3.5 w-3.5 ml-1" />
                 </Button>
               </div>
@@ -547,17 +553,17 @@ export default function RecruiterDashboard() {
               {totalPendingAlerts === 0 && isNewcomer ? (
                 <div className="text-center py-8">
                   <Briefcase className="mx-auto h-9 w-9 text-muted-foreground/40 mb-2" />
-                  <p className="font-medium text-sm">Noch keine Aufgaben</p>
-                  <p className="text-xs text-muted-foreground">Sie entstehen, sobald du Kandidaten vorstellst.</p>
+                  <p className="font-medium text-sm">{t('tasks.emptyNewTitle')}</p>
+                  <p className="text-xs text-muted-foreground">{t('tasks.emptyNewText')}</p>
                   <Button variant="link" size="sm" className="mt-1 h-auto p-0 text-xs" asChild>
-                    <Link to="/recruiter/jobs">Offene Jobs ansehen</Link>
+                    <Link to="/recruiter/jobs">{t('tasks.openJobs')}</Link>
                   </Button>
                 </div>
               ) : totalPendingAlerts === 0 ? (
                 <div className="text-center py-8">
                   <CheckCircle className="mx-auto h-9 w-9 text-emerald-500/40 mb-2" />
-                  <p className="font-medium text-sm">Alles erledigt</p>
-                  <p className="text-xs text-muted-foreground">Keine offenen Aufgaben</p>
+                  <p className="font-medium text-sm">{t('tasks.doneTitle')}</p>
+                  <p className="text-xs text-muted-foreground">{t('tasks.doneText')}</p>
                 </div>
               ) : (
                 <div className="space-y-0.5">
@@ -571,14 +577,14 @@ export default function RecruiterDashboard() {
                     // Stellen desselben Kunden sind eine Zeile (28.10.2026)
                     const n = row.kind === 'bundle' ? [row.bundle, ...row.more].reduce((x, b) => x + b.items.length, 0) : 0;
                     const title = person ? person.name : row.kind === 'bundle'
-                      ? (row.more.length && row.bundle.companyName ? `${row.bundle.companyName} · ${row.more.length + 1} Stellen` : row.bundle.jobTitle || 'Stelle')
+                      ? (row.more.length && row.bundle.companyName ? t('tasks.bundleTitle', { company: row.bundle.companyName, count: row.more.length + 1 }) : row.bundle.jobTitle || t('tasks.job'))
                       : item.title;
                     const sub = item.prep
-                      ? [item.candidateRole, vorbereitenTexte(item.prep).kurz].filter(Boolean).join(' · ')
+                      ? [item.candidateRole, prepTexts(item.prep).kurz].filter(Boolean).join(' · ')
                       : person
                       ? `${item.jobTitle ?? ''}${item.companyName ? ` · ${item.companyName}` : ''}`
                       : row.kind === 'bundle'
-                        ? `${n} ${n === 1 ? 'Kandidat' : 'Kandidaten'} · ${row.bundle.erinnerung === 2 ? (row.bundle.kind === 'feedback' ? '2. Nachfrage' : '2. Erinnerung') : row.bundle.kind === 'feedback' ? `Kunde ohne Feedback seit ${row.bundle.days} Tagen` : `Kunde prüft seit ${row.bundle.days} Tagen`}`
+                        ? t(`tasks.bundle.${row.bundle.erinnerung === 2 ? (row.bundle.kind === 'feedback' ? 'secondAsk' : 'secondReminder') : row.bundle.kind === 'feedback' ? 'noFeedback' : 'inReview'}`, { count: n, days: row.bundle.days })
                         : '';
 
                     return (
@@ -601,7 +607,7 @@ export default function RecruiterDashboard() {
                         )} />
 
                         <div className="flex-1 min-w-0">
-                          {idx === 0 && <p className="text-[10px] font-semibold uppercase tracking-wide text-destructive">Als Nächstes</p>}
+                          {idx === 0 && <p className="text-[10px] font-semibold uppercase tracking-wide text-destructive">{t('tasks.next')}</p>}
                           <div className="flex items-center gap-1.5">
                             <span className="text-sm font-medium truncate">{title}</span>
                             <Badge variant="secondary" className={cn('h-4 shrink-0 px-1.5 text-[10px] font-medium', item.prep && VORBEREITEN_TON[item.prep.art])}>{pill}</Badge>
@@ -623,10 +629,10 @@ export default function RecruiterDashboard() {
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button variant="ghost" size="sm" className="h-6 w-6 p-0" asChild>
-                                  <a href={item.prep.termin.joinUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} aria-label="Beitreten"><Video className="h-3 w-3" /></a>
+                                  <a href={item.prep.termin.joinUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} aria-label={t('tasks.join')}><Video className="h-3 w-3" /></a>
                                 </Button>
                               </TooltipTrigger>
-                              <TooltipContent>Beitreten</TooltipContent>
+                              <TooltipContent>{t('tasks.join')}</TooltipContent>
                             </Tooltip>
                           ) : person && item.candidatePhone && (
                             <Tooltip>
@@ -638,7 +644,7 @@ export default function RecruiterDashboard() {
                                   <Phone className="h-3 w-3" />
                                 </Button>
                               </TooltipTrigger>
-                              <TooltipContent>Anrufen</TooltipContent>
+                              <TooltipContent>{t('tasks.call')}</TooltipContent>
                             </Tooltip>
                           )}
                           {item.itemType === 'task' ? (
@@ -652,7 +658,7 @@ export default function RecruiterDashboard() {
                                   <Check className="h-3 w-3" />
                                 </Button>
                               </TooltipTrigger>
-                              <TooltipContent>Erledigt</TooltipContent>
+                              <TooltipContent>{t('tasks.done')}</TooltipContent>
                             </Tooltip>
                           ) : (
                             <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
@@ -668,7 +674,7 @@ export default function RecruiterDashboard() {
                       className="w-full text-xs text-muted-foreground mt-1"
                       onClick={() => navigate('/recruiter/influence')}
                     >
-                      Alle {totalPendingAlerts} Aufgaben anzeigen
+                      {t('tasks.showAll', { count: totalPendingAlerts })}
                       <ChevronRight className="h-3.5 w-3.5 ml-1" />
                     </Button>
                   )}
@@ -681,10 +687,10 @@ export default function RecruiterDashboard() {
           <Card className="border-border/30 shadow-sm">
             <CardContent className="p-5">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="font-semibold">Pipeline</h2>
+                <h2 className="font-semibold">{t('pipeline.title')}</h2>
                 <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" asChild>
                   <Link to="/recruiter/submissions">
-                    Details
+                    {t('pipeline.details')}
                     <ArrowUpRight className="ml-1 h-3 w-3" />
                   </Link>
                 </Button>
@@ -694,7 +700,7 @@ export default function RecruiterDashboard() {
                 {pipelineStages.map((stage) => (
                   <div key={stage.key} className="flex items-center gap-3">
                     <span className="text-xs text-muted-foreground w-20 shrink-0">
-                      {stage.label}
+                      {t(`pipeline.stages.${stage.key}`)}
                     </span>
                     <div className="flex-1 h-2.5 rounded-full bg-muted/50 overflow-hidden">
                       <div
@@ -709,7 +715,7 @@ export default function RecruiterDashboard() {
                 ))}
                 {prepCount > 0 && (
                   <Link to="/recruiter/influence" className="flex items-center justify-between gap-3 border-t border-border/40 pt-2.5 text-xs text-muted-foreground hover:text-foreground">
-                    <span>Vor der Einreichung</span>
+                    <span>{t('pipeline.beforeSubmission')}</span>
                     <span className="w-6 text-right text-sm font-semibold tabular-nums text-foreground">{prepCount}</span>
                   </Link>
                 )}
@@ -719,7 +725,7 @@ export default function RecruiterDashboard() {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <div className="flex items-center justify-between text-sm cursor-help">
-                      <span className="text-muted-foreground">Erwartbar</span>
+                      <span className="text-muted-foreground">{t('pipeline.expected')}</span>
                       <div className="flex items-baseline gap-2">
                         <span className="font-semibold text-emerald-600"><Honorar>{formatEuroFull(stats.pipelineRealCase)}</Honorar></span>
                         <span className="text-[11px] text-muted-foreground">
@@ -729,7 +735,7 @@ export default function RecruiterDashboard() {
                     </div>
                   </TooltipTrigger>
                   <TooltipContent side="bottom" className="max-w-[220px] text-xs">
-                    Gewichtet nach Pipeline-Stage: Eingereicht 10%, In Prüfung 20%, Interview 40%, Angebot 75%
+                    {t('pipeline.expectedHint')}
                   </TooltipContent>
                 </Tooltip>
                 {/* „Erhalten“ statt „Verdient“ (H1, Umbau 11.11.2026): nur, was als Gutschrift ausgezahlt ist */}
@@ -740,12 +746,12 @@ export default function RecruiterDashboard() {
               {upcomingInterviews.length > 0 && (
                 <div className="mt-4 pt-3 border-t border-border/40">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-medium text-muted-foreground">ANSTEHENDE INTERVIEWS</p>
+                    <p className="text-xs font-medium text-muted-foreground">{t('pipeline.upcoming')}</p>
                     <Link
                       to="/recruiter/interviews"
                       className="text-xs text-muted-foreground hover:text-primary flex items-center gap-0.5"
                     >
-                      Alle
+                      {t('pipeline.all')}
                       <ArrowUpRight className="h-3 w-3" />
                     </Link>
                   </div>
@@ -762,10 +768,10 @@ export default function RecruiterDashboard() {
                         <Video className="h-3.5 w-3.5 text-purple-500 mt-0.5 shrink-0" />
                         <div className="min-w-0 flex-1">
                           <p className="text-xs font-medium flex items-center gap-1.5">
-                            {formatInterviewDate(interview.date)}
+                            {formatInterviewDate(interview.date, t)}
                             {!interview.confirmed && (
                               <Badge variant="outline" className="text-[9px] h-4 px-1 border-amber-500/50 text-amber-600 dark:text-amber-400">
-                                unbestätigt
+                                {t('pipeline.unconfirmed')}
                               </Badge>
                             )}
                           </p>
@@ -786,10 +792,10 @@ export default function RecruiterDashboard() {
           <Card className="border-border/30 shadow-sm" data-tour="dashboard.topJobs">
             <CardContent className="p-5">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="font-semibold">Top Jobs</h2>
+                <h2 className="font-semibold">{t('topJobs.title')}</h2>
                 <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" asChild>
                   <Link to="/recruiter/jobs">
-                    Alle {stats.openJobs} Jobs
+                    {t('topJobs.all', { count: stats.openJobs })}
                     <ArrowUpRight className="ml-1 h-3 w-3" />
                   </Link>
                 </Button>
@@ -798,7 +804,7 @@ export default function RecruiterDashboard() {
               {recentJobs.length === 0 ? (
                 <div className="text-center py-8">
                   <Briefcase className="mx-auto h-9 w-9 text-muted-foreground/30 mb-2" />
-                  <p className="text-xs text-muted-foreground">Keine Jobs verfügbar</p>
+                  <p className="text-xs text-muted-foreground">{t('topJobs.none')}</p>
                 </div>
               ) : (
                 <div className="space-y-1.5">
@@ -829,7 +835,7 @@ export default function RecruiterDashboard() {
                             ) : (
                               <span className="flex items-center gap-0.5 truncate">
                                 <Lock className="h-2.5 w-2.5" />
-                                {job.industry || 'Unternehmen'}
+                                {job.industry || t('topJobs.company')}
                               </span>
                             )}
                             <span className="text-border">·</span>
@@ -841,7 +847,7 @@ export default function RecruiterDashboard() {
                           <p className="text-xs font-semibold text-emerald-600">
                             <Honorar>{verdienstJeTag(job) ?? (earning ? formatEuro(earning) : `${job.recruiter_fee_percentage}%`)}</Honorar>
                           </p>
-                          {verdienstJeTag(job) && <p className="text-[10px] text-muted-foreground">je Einsatztag</p>}
+                          {verdienstJeTag(job) && <p className="text-[10px] text-muted-foreground">{t('topJobs.perDay')}</p>}
                         </div>
                       </Link>
                     );
@@ -854,27 +860,27 @@ export default function RecruiterDashboard() {
           {/* ─── CELL 4: Quick Stats & Actions (bottom-right) ─── */}
           <Card className="border-border/30 shadow-sm">
             <CardContent className="p-5">
-              <h2 className="font-semibold mb-3">Übersicht</h2>
+              <h2 className="font-semibold mb-3">{t('overview.title')}</h2>
 
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
                   <div className="flex items-center gap-2 mb-1">
                     <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">Offene Jobs</span>
+                    <span className="text-xs text-muted-foreground">{t('overview.openJobs')}</span>
                   </div>
                   <p className="text-xl font-bold">{stats.openJobs}</p>
                 </div>
                 <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
                   <div className="flex items-center gap-2 mb-1">
                     <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">Kandidaten</span>
+                    <span className="text-xs text-muted-foreground">{t('overview.candidates')}</span>
                   </div>
                   <p className="text-xl font-bold">{stats.myCandidates}</p>
                 </div>
                 <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
                   <div className="flex items-center gap-2 mb-1">
                     <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">In Pipeline</span>
+                    <span className="text-xs text-muted-foreground">{t('overview.inPipeline')}</span>
                   </div>
                   <p className="text-xl font-bold">{stats.activeSubmissions}</p>
                 </div>
@@ -889,7 +895,7 @@ export default function RecruiterDashboard() {
                 >
                   <Link to="/recruiter/jobs">
                     <Briefcase className="mr-2 h-3.5 w-3.5" />
-                    Offene Jobs durchsuchen
+                    {t('overview.browseJobs')}
                     <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
                   </Link>
                 </Button>
@@ -900,7 +906,7 @@ export default function RecruiterDashboard() {
                 >
                   <Link to="/recruiter/candidates">
                     <Users className="mr-2 h-3.5 w-3.5" />
-                    Meine Kandidaten
+                    {t('overview.myCandidates')}
                     <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
                   </Link>
                 </Button>
@@ -911,7 +917,7 @@ export default function RecruiterDashboard() {
                 >
                   <Link to="/recruiter/earnings">
                     <Euro className="mr-2 h-3.5 w-3.5" />
-                    Verdienste
+                    {t('overview.earnings')}
                     <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
                   </Link>
                 </Button>
@@ -927,7 +933,7 @@ export default function RecruiterDashboard() {
           onOpenChange={(o) => { setCvUploadDialogOpen(o); if (!o) setCvStartText(false); }}
           startWithText={cvStartText}
           onCandidateCreated={(id) => {
-            toast.success('Kandidat erfolgreich angelegt');
+            toast.success(t('toast.candidateCreated'));
             navigate(`/recruiter/candidates/${id}`);
           }}
         />
@@ -935,7 +941,7 @@ export default function RecruiterDashboard() {
           open={hubspotDialogOpen}
           onOpenChange={setHubspotDialogOpen}
           onImportComplete={() => {
-            toast.success('Kandidaten erfolgreich importiert');
+            toast.success(t('toast.imported'));
           }}
         />
 

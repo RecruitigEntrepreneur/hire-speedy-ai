@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Zap, ChevronRight, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 interface QuickQuestion {
   field: string;
@@ -21,63 +22,64 @@ interface QuickQuestionsSectionProps {
   className?: string;
 }
 
+// question, label und placeholder tragen Schlüssel des Namespace recruiterJobEdit; die Werte (value) bleiben wie gespeichert.
 const QUICK_QUESTIONS: QuickQuestion[] = [
   {
     field: 'vacancy_reason',
-    question: 'Warum ist die Stelle vakant?',
+    question: 'quick.vacancy_reason.question',
     type: 'radio',
     options: [
-      { value: 'growth', label: 'Wachstum' },
-      { value: 'succession', label: 'Nachfolge' },
-      { value: 'new_position', label: 'Neu geschaffen' },
-      { value: 'restructuring', label: 'Umstrukturierung' }
+      { value: 'growth', label: 'quick.vacancy_reason.growth' },
+      { value: 'succession', label: 'quick.vacancy_reason.succession' },
+      { value: 'new_position', label: 'quick.vacancy_reason.new_position' },
+      { value: 'restructuring', label: 'quick.vacancy_reason.restructuring' }
     ]
   },
   {
     field: 'hiring_urgency',
-    question: 'Wie dringend ist die Besetzung?',
+    question: 'quick.hiring_urgency.question',
     type: 'radio',
     options: [
-      { value: 'standard', label: 'Standard (8+ Wochen)' },
-      { value: 'urgent', label: 'Dringend (4-8 Wochen)' },
-      { value: 'hot', label: 'Sehr dringend (<4 Wochen)' }
+      { value: 'standard', label: 'quick.hiring_urgency.standard' },
+      { value: 'urgent', label: 'quick.hiring_urgency.urgent' },
+      { value: 'hot', label: 'quick.hiring_urgency.hot' }
     ]
   },
   {
     field: 'decision_makers_count',
-    question: 'Wie viele Personen entscheiden final?',
+    question: 'quick.decision_makers_count.question',
     type: 'radio',
     options: [
-      { value: '1', label: 'Nur ich' },
-      { value: '2', label: 'HR + Fachbereich' },
-      { value: '3+', label: 'Geschäftsführung + Team' }
+      { value: '1', label: 'quick.decision_makers_count.one' },
+      { value: '2', label: 'quick.decision_makers_count.two' },
+      { value: '3+', label: 'quick.decision_makers_count.three' }
     ]
   },
   {
     field: 'candidates_in_pipeline',
-    question: 'Kandidaten aktuell im Prozess?',
+    question: 'quick.candidates_in_pipeline.question',
     type: 'radio',
     options: [
-      { value: '0', label: 'Keine' },
+      { value: '0', label: 'quick.candidates_in_pipeline.none' },
       { value: '1-3', label: '1-3' },
-      { value: '4+', label: '4 oder mehr' }
+      { value: '4+', label: 'quick.candidates_in_pipeline.fourPlus' }
     ]
   },
   {
     field: 'team_size',
-    question: 'Größe des direkten Teams?',
+    question: 'quick.team_size.question',
     type: 'number',
-    placeholder: 'z.B. 8'
+    placeholder: 'quick.team_size.placeholder'
   },
   {
     field: 'remote_days',
-    question: 'Home Office Tage pro Woche?',
+    question: 'quick.remote_days.question',
     type: 'radio',
     options: [
-      { value: '0', label: 'Kein HO' },
-      { value: '1-2', label: '1-2 Tage' },
-      { value: '3-4', label: '3-4 Tage' },
-      { value: '5', label: 'Full Remote' }
+      { value: '0', label: 'quick.remote_days.none' },
+      { value: '1-2', label: 'quick.remote_days.oneTwo' },
+      { value: '3-4', label: 'quick.remote_days.threeFour' },
+      { value: '5', label: 'quick.remote_days.full' }
     ]
   }
 ];
@@ -88,6 +90,7 @@ export function QuickQuestionsSection({
   onValueChange,
   className
 }: QuickQuestionsSectionProps) {
+  const { t } = useTranslation('recruiterJobEdit');
   const relevantQuestions = QUICK_QUESTIONS.filter(q => 
     missingFields.includes(q.field)
   );
@@ -108,7 +111,7 @@ export function QuickQuestionsSection({
           <Zap className="h-5 w-5 text-amber-600" />
           Quick Questions
           <span className="ml-auto text-sm font-normal text-muted-foreground">
-            {answeredCount}/{relevantQuestions.length} beantwortet
+            {t('quick.answered', { done: answeredCount, total: relevantQuestions.length })}
           </span>
         </CardTitle>
       </CardHeader>
@@ -134,7 +137,7 @@ export function QuickQuestionsSection({
                 ) : (
                   <ChevronRight className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                 )}
-                <Label className="text-sm font-medium">{question.question}</Label>
+                <Label className="text-sm font-medium">{t(question.question)}</Label>
               </div>
 
               {question.type === 'radio' && question.options && (
@@ -160,7 +163,7 @@ export function QuickQuestionsSection({
                             : 'bg-background border-border'
                         )}
                       >
-                        {option.label}
+                        {/^quick\./.test(option.label) ? t(option.label) : option.label}
                       </Label>
                     </div>
                   ))}
@@ -170,7 +173,7 @@ export function QuickQuestionsSection({
               {question.type === 'number' && (
                 <Input
                   type="number"
-                  placeholder={question.placeholder}
+                  placeholder={question.placeholder ? t(question.placeholder) : undefined}
                   value={currentValue as number || ''}
                   onChange={(e) => onValueChange(question.field, parseInt(e.target.value) || '')}
                   className="ml-6 w-24"
@@ -179,7 +182,7 @@ export function QuickQuestionsSection({
 
               {question.type === 'input' && (
                 <Input
-                  placeholder={question.placeholder}
+                  placeholder={question.placeholder ? t(question.placeholder) : undefined}
                   value={currentValue as string || ''}
                   onChange={(e) => onValueChange(question.field, e.target.value)}
                   className="ml-6"

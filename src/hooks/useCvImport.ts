@@ -9,6 +9,10 @@ import {
 import { CvEducation, CvExtraction, CvStation } from '@/lib/cvImport';
 import { CvSnapshot, isCvFileName, snapshotFromCv } from '@/lib/candidateCv';
 import { docxToText, isDocx } from '@/lib/docxText';
+import i18n from '@/i18n';
+
+// Meldungen beim Aufruf übersetzt (Namespace candidateLogic).
+const tl = (key: string, options?: Record<string, unknown>): string => i18n.t(`candidateLogic:${key}`, options) as string;
 
 export interface CvFileInfo {
   fileName: string;
@@ -22,13 +26,13 @@ export const sanitizeFileName = (name: string) => name.normalize('NFKD').replace
 async function invokeError(error: unknown): Promise<string> {
   const ctx = (error as { context?: unknown })?.context;
   if (ctx instanceof Response) {
-    if (ctx.status === 404) return 'Das Auslesen ist noch nicht veröffentlicht (Funktion extract-candidate-cv fehlt).';
+    if (ctx.status === 404) return tl('import.notPublished');
     const detail = await ctx.clone().json().catch(() => null);
     if (typeof detail?.message === 'string') return detail.message;
   }
   // Keine Antwort vom Server: Funktion nicht veröffentlicht oder Netz weg.
-  if ((error as { name?: string })?.name === 'FunctionsFetchError') return 'Das Auslesen ist gerade nicht erreichbar (Funktion extract-candidate-cv noch nicht veröffentlicht?).';
-  return 'Der Lebenslauf konnte nicht ausgelesen werden. Bitte gleich noch einmal versuchen.';
+  if ((error as { name?: string })?.name === 'FunctionsFetchError') return tl('import.unreachable');
+  return tl('import.readFailed');
 }
 
 function devMockEnabled(): boolean {
@@ -151,7 +155,7 @@ export async function saveNewCandidateManual(p: { userId: string; form: DossierF
     recruiter_id: userId,
     import_source: 'manual',
   } as never).select('id').single();
-  if (error || !data) throw new Error(`Kandidat konnte nicht angelegt werden: ${error?.message ?? 'unbekannt'}`);
+  if (error || !data) throw new Error(tl('import.createFailed', { msg: error?.message ?? tl('import.unknown') }));
   const candidateId = (data as { id: string }).id;
   await logConsent(userId, candidateId);
   return candidateId;
@@ -172,7 +176,7 @@ export async function saveNewCandidateFromCv(p: { userId: string; form: DossierF
     import_source: 'cv_upload',
   };
   const { data, error } = await supabase.from('candidates').insert(candidate as never).select('id').single();
-  if (error || !data) throw new Error(`Kandidat konnte nicht angelegt werden: ${error?.message ?? 'unbekannt'}`);
+  if (error || !data) throw new Error(tl('import.createFailed', { msg: error?.message ?? tl('import.unknown') }));
   const candidateId = (data as { id: string }).id;
   const failed: string[] = [];
 
@@ -208,7 +212,7 @@ export async function saveCvIntoExisting(p: {
   changed.cv_parsed_at = new Date().toISOString();
   changed.cv_parser_version = cv.version;
   const { error } = await supabase.from('candidates').update(changed as never).eq('id', candidateId);
-  if (error) throw new Error(`Kandidat konnte nicht aktualisiert werden: ${error.message}`);
+  if (error) throw new Error(tl('import.updateFailed', { msg: error.message }));
 
   if (JSON.stringify(toNotesPayload(merged)) !== JSON.stringify(toNotesPayload(before))) {
     const notesFail = await writeNotes(candidateId, userId, merged, notesId);

@@ -1,3 +1,4 @@
+import i18n from '@/i18n';
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
@@ -119,7 +120,7 @@ export function useInterviewNotes(candidateId?: string) {
       if (fetchError) throw fetchError;
       setNotes(data as InterviewNotes | null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Fehler beim Laden');
+      setError(err instanceof Error ? err.message : i18n.t('candidateDetail:hooks.loadError'));
     } finally {
       setLoading(false);
     }
@@ -180,7 +181,7 @@ export function useInterviewNotes(candidateId?: string) {
 
       return true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Fehler beim Speichern');
+      setError(err instanceof Error ? err.message : i18n.t('candidateDetail:hooks.saveError'));
       return false;
     } finally {
       setSaving(false);

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Info, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuth } from '@/lib/auth';
@@ -17,15 +19,16 @@ import { dmy } from '../../../../supabase/functions/_shared/abrechnung-view';
 export function KonditionenHinweis() {
   const { data } = useConditionsNotice();
   const [open, setOpen] = useState(false);
+  const { t } = useTranslation('recruiterEarnings');
   if (!data?.show || !data.activeFrom) return null;
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm">
         <span className="flex items-start gap-2">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <span>Neue Konditionen ab {dmy(data.activeFrom)}: mehr für Nachbesetzungen, Auszahlung in zwei Teilen</span>
+          <span>{t('conditions.notice', { date: dmy(data.activeFrom, i18n.language) })}</span>
         </span>
-        <Button variant="outline" size="sm" onClick={() => setOpen(true)}>Ansehen</Button>
+        <Button variant="outline" size="sm" onClick={() => setOpen(true)}>{t('conditions.view')}</Button>
       </div>
       <KonditionenDialog open={open} onOpenChange={setOpen} />
     </>
@@ -38,28 +41,29 @@ export function KonditionenDialog({ open, onOpenChange }: { open: boolean; onOpe
   const qc = useQueryClient();
   const { data } = useConditionsNotice();
   const [busy, setBusy] = useState(false);
+  const { t } = useTranslation('recruiterEarnings');
   if (!data?.activeFrom) return null;
   const agree = async () => {
     setBusy(true);
     try {
       const next = await abrechnungApi.consent();
-      qc.setQueryData(['konditionen-hinweis', user?.id], next);
+      qc.setQueryData(['konditionen-hinweis', user?.id, i18n.language], next);
       void qc.invalidateQueries({ queryKey: ['job-terms'] });
-      toast.success('Danke. Die neuen Konditionen gelten für Stellen, die du ab dem Stichtag aktivierst.');
+      toast.success(t('conditions.thanks'));
       onOpenChange(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Deine Zustimmung konnte nicht gespeichert werden.');
+      toast.error(e instanceof Error ? e.message : t('api.consent'));
     } finally { setBusy(false); }
   };
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-xl">
         <DialogHeader>
-          <DialogTitle>Neue Konditionen ab {dmy(data.activeFrom)}</DialogTitle>
-          <DialogDescription>Für Stellen, die du ab dann aktivierst. Was du vorher aktiviert hast, bleibt, wie es ist.</DialogDescription>
+          <DialogTitle>{t('conditions.title', { date: dmy(data.activeFrom, i18n.language) })}</DialogTitle>
+          <DialogDescription>{t('conditions.description')}</DialogDescription>
         </DialogHeader>
         <div className="text-sm">
-          <div className="grid grid-cols-[8.5rem_minmax(0,1fr)_minmax(0,1fr)] gap-x-3 pb-1 text-xs text-muted-foreground"><span /><span>bisher</span><span>neu</span></div>
+          <div className="grid grid-cols-[8.5rem_minmax(0,1fr)_minmax(0,1fr)] gap-x-3 pb-1 text-xs text-muted-foreground"><span /><span>{t('conditions.before')}</span><span>{t('conditions.after')}</span></div>
           {data.table.map((r) => (
             <div key={r.label} className="grid grid-cols-[8.5rem_minmax(0,1fr)_minmax(0,1fr)] gap-x-3 border-t border-border py-2">
               <span className="text-muted-foreground">{r.label}</span>
@@ -68,10 +72,10 @@ export function KonditionenDialog({ open, onOpenChange }: { open: boolean; onOpe
             </div>
           ))}
         </div>
-        <p className="text-sm text-muted-foreground">Stimmst du nicht zu, gilt die bisherige Fassung, bis sie 12 Monate alt ist. Danach gilt die neue, angekündigt 8 Wochen vorher (Vertrag § 18 Abs. 2).</p>
+        <p className="text-sm text-muted-foreground">{t('conditions.note')}</p>
         <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>Später</Button>
-          <Button disabled={busy} onClick={() => void agree()}>{busy ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}Zustimmen</Button>
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>{t('conditions.later')}</Button>
+          <Button disabled={busy} onClick={() => void agree()}>{busy ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}{t('conditions.agree')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

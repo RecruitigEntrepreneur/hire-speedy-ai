@@ -16,6 +16,13 @@ import { placementApi } from '@/lib/placementApi';
 import { besetzungApi } from '@/lib/besetzungApi';
 import type { ContractOpen } from '@/components/contracts/ContractBox';
 import { TaskContextBlock } from './ClientTaskParts';
+import i18n from '@/i18n';
+import { useTranslation } from 'react-i18next';
+
+// Texte der Kundenseite (clientTasks), gelesen beim Aufruf (README Regel 7).
+// `labelDe` geht ins Protokoll (gespeichert, deutsch).
+const tw = (key: string, options?: Record<string, unknown>): string => i18n.t(`clientTasks:${key}`, options);
+const twDe = (key: string, options?: Record<string, unknown>): string => i18n.t(`clientTasks:${key}`, { ...options, lng: 'de' });
 
 /**
  * Aufgaben-Fenster des Kunden (23.10.2026): eine Aufgabe, ihre Antworten zum Anklicken,
@@ -40,6 +47,8 @@ type Field = 'none' | 'reason' | 'date' | 'text' | 'colleague' | 'po';
 interface Option {
   key: string;
   label: string;
+  /** Beschriftung auf Deutsch, so steht sie im Protokoll */
+  labelDe?: string;
   /** Text auf dem Knopf unten */
   cta: string;
   field?: Field;
@@ -56,13 +65,14 @@ interface Option {
 
 interface Values { reason: string; date: string; text: string; colleague: string; cost: string }
 
-const INTERVIEW_CANCEL = [
-  { key: 'Kandidat passt nicht mehr', label: 'passt nicht mehr' }, { key: 'Stelle ist besetzt', label: 'Stelle besetzt' },
-  { key: 'Termin entfällt intern', label: 'Termin entfällt intern' }, { key: 'Anderer Grund', label: 'anderer Grund' },
+// `key` wird gespeichert (deutsch), angezeigt wird clientTasks:reasons.<…>
+const INTERVIEW_CANCEL = () => [
+  { key: 'Kandidat passt nicht mehr', label: tw('reasons.notFit') }, { key: 'Stelle ist besetzt', label: tw('reasons.filled') },
+  { key: 'Termin entfällt intern', label: tw('reasons.internal') }, { key: 'Anderer Grund', label: tw('reasons.other') },
 ];
-const OFFER_WITHDRAW = [
-  { key: 'Keine Rückmeldung', label: 'keine Rückmeldung' }, { key: 'Anderer Kandidat', label: 'anderer Kandidat' },
-  { key: 'Budget', label: 'Budget' }, { key: 'Anderer Grund', label: 'anderer Grund' },
+const OFFER_WITHDRAW = () => [
+  { key: 'Keine Rückmeldung', label: tw('reasons.noResponse') }, { key: 'Anderer Kandidat', label: tw('reasons.otherCandidate') },
+  { key: 'Budget', label: tw('reasons.budget') }, { key: 'Anderer Grund', label: tw('reasons.other') },
 ];
 /** Wie NachbesetzungPanel: Kunde ist zum Anpassen der Stelle gegangen */
 const markAdjusted = (placementId: string) => { try { sessionStorage.setItem(`matchunt:nachbesetzung-angepasst:${placementId}`, '1'); } catch { /* nur Komfort */ } };
@@ -82,176 +92,176 @@ function optionsFor(t: ClientTask, h: TaskHandlers | null, extra: { recruiter: s
   switch (t.kind) {
     case 'review':
       return [
-        { key: 'ja', label: 'Ja, Interview anfragen', cta: 'Weiter zur Terminwahl', hint: 'Öffnet „Interview anfragen“ mit Format, Dauer und Zeiten.', run: needH((x) => x.requestInterview(null)) },
-        { key: 'nein', label: 'Nein, absagen', cta: 'Weiter zur Absage', hint: 'Grund wählen; der Headhunter sagt dem Kandidaten neutral ab.', run: needH((x) => x.reject()) },
-        { key: 'frage', label: `Frage an ${hh}`, cta: 'Frage schreiben', hint: 'Die Aufgabe bleibt offen, bis Sie entschieden haben.', run: needH((x) => x.askRecruiter()) },
+        { key: 'ja', label: tw('opt.review.ja.label'), labelDe: twDe('opt.review.ja.label'), cta: tw('opt.review.ja.cta'), hint: tw('opt.review.ja.hint'), run: needH((x) => x.requestInterview(null)) },
+        { key: 'nein', label: tw('opt.review.nein.label'), labelDe: twDe('opt.review.nein.label'), cta: tw('opt.review.nein.cta'), hint: tw('opt.review.nein.hint'), run: needH((x) => x.reject()) },
+        { key: 'frage', label: tw('opt.review.frage.label', { hh }), labelDe: twDe('opt.review.frage.label', { hh }), cta: tw('opt.review.frage.cta'), hint: tw('opt.review.frage.hint'), run: needH((x) => x.askRecruiter()) },
       ];
     case 'alternative':
       return [
-        { key: 'ok', label: 'Passt, bestätigen', cta: 'Bestätigen', hint: 'Termin steht, Einladung an alle.', doneText: 'Der Termin steht, die Einladung geht an alle.', run: async () => { await interviewApi.confirmAlternative(t.ref.interviewId!); return 'done'; } },
-        { key: 'neu', label: 'Andere Zeiten vorschlagen', cta: 'Zeiten wählen', hint: 'Öffnet das Terminraster; die neue Anfrage ersetzt die alte.', run: needH((x) => x.requestInterview(t.ref.interviewId ?? null)) },
-        { key: 'absagen', label: 'Interview absagen', cta: 'Absagen', doneText: 'Das Interview ist abgesagt, der Headhunter ist informiert.', field: 'reason', reasons: INTERVIEW_CANCEL, check: (v) => (v.reason ? null : 'Bitte einen Grund wählen.'),
+        { key: 'ok', label: tw('opt.alternative.ok.label'), labelDe: twDe('opt.alternative.ok.label'), cta: tw('opt.alternative.ok.cta'), hint: tw('opt.alternative.ok.hint'), doneText: tw('opt.alternative.ok.done'), run: async () => { await interviewApi.confirmAlternative(t.ref.interviewId!); return 'done'; } },
+        { key: 'neu', label: tw('opt.alternative.neu.label'), labelDe: twDe('opt.alternative.neu.label'), cta: tw('opt.alternative.neu.cta'), hint: tw('opt.alternative.neu.hint'), run: needH((x) => x.requestInterview(t.ref.interviewId ?? null)) },
+        { key: 'absagen', label: tw('opt.alternative.absagen.label'), labelDe: twDe('opt.alternative.absagen.label'), cta: tw('opt.alternative.absagen.cta'), doneText: tw('opt.alternative.absagen.done'), field: 'reason', reasons: INTERVIEW_CANCEL(), check: (v) => (v.reason ? null : tw('check.reason')),
           run: async (v) => { await interviewApi.withdraw(t.ref.interviewId!, v.reason); return 'done'; } },
       ];
     case 'expired_request':
       return [
-        { key: 'neu', label: 'Neue Termine vorschlagen', cta: 'Zeiten wählen', run: needH((x) => x.requestInterview(t.ref.interviewId ?? null)) },
-        { key: 'nachfassen', label: `${hh} soll nachfassen`, cta: 'Bitten', hint: `${hh} bekommt die Aufgabe „anrufen“. Ihre Aufgabe bleibt sichtbar.`,
-          run: async () => { await clientTasksApi.askFollowup(sid, 'Der Kandidat hat auf die Terminvorschläge nicht reagiert.'); return 'handoff'; } },
-        { key: 'beenden', label: 'Bewerbung beenden', cta: 'Weiter zur Absage', run: needH((x) => x.reject()) },
+        { key: 'neu', label: tw('opt.expired_request.neu.label'), labelDe: twDe('opt.expired_request.neu.label'), cta: tw('opt.expired_request.neu.cta'), run: needH((x) => x.requestInterview(t.ref.interviewId ?? null)) },
+        { key: 'nachfassen', label: tw('opt.expired_request.nachfassen.label', { hh }), labelDe: twDe('opt.expired_request.nachfassen.label', { hh }), cta: tw('opt.expired_request.nachfassen.cta'), hint: tw('opt.expired_request.nachfassen.hint', { hh }),
+          run: async () => { await clientTasksApi.askFollowup(sid, tw('followup.noReaction')); return 'handoff'; } },
+        { key: 'beenden', label: tw('opt.expired_request.beenden.label'), labelDe: twDe('opt.expired_request.beenden.label'), cta: tw('opt.expired_request.beenden.cta'), run: needH((x) => x.reject()) },
       ];
     case 'decide_unsure':
       return [
-        { key: 'angebot', label: 'Angebot machen', cta: 'Entscheidung speichern', hint: `${hh} schreibt die Empfehlung. Sie können danach trotzdem sofort anbieten.`,
-          doneText: `${hh} schreibt Ihnen jetzt, was es für die Zusage braucht. Sie bekommen dazu eine Mail.`,
+        { key: 'angebot', label: tw('opt.decide_unsure.angebot.label'), labelDe: twDe('opt.decide_unsure.angebot.label'), cta: tw('opt.decide_unsure.angebot.cta'), hint: tw('opt.decide_unsure.angebot.hint', { hh }),
+          doneText: tw('opt.decide_unsure.angebot.done', { hh }),
           run: async () => { await interviewApi.decideUnsure(t.ref.interviewId!, 'offer'); return 'done'; } },
-        { key: 'runde', label: 'Noch eine Runde', cta: 'Interview anfragen', run: async () => { await interviewApi.decideUnsure(t.ref.interviewId!, 'next_round'); h?.requestInterview(null); return 'handoff'; } },
-        { key: 'absage', label: 'Absage', cta: 'Weiter zur Absage', run: needH((x) => x.reject()) },
+        { key: 'runde', label: tw('opt.decide_unsure.runde.label'), labelDe: twDe('opt.decide_unsure.runde.label'), cta: tw('opt.decide_unsure.runde.cta'), run: async () => { await interviewApi.decideUnsure(t.ref.interviewId!, 'next_round'); h?.requestInterview(null); return 'handoff'; } },
+        { key: 'absage', label: tw('opt.decide_unsure.absage.label'), labelDe: twDe('opt.decide_unsure.absage.label'), cta: tw('opt.decide_unsure.absage.cta'), run: needH((x) => x.reject()) },
       ];
     case 'make_offer':
       return [
-        { key: 'angebot', label: 'Angebot erstellen', cta: 'Angebot erstellen', hint: 'Die Werte aus der Empfehlung stehen oben im Angebotsfenster.', run: needH((x) => x.offer()) },
-        { key: 'frage', label: `Erst Frage an ${hh}`, cta: 'Frage schreiben', hint: 'Die Aufgabe bleibt offen.', run: needH((x) => x.askRecruiter()) },
-        { key: 'absage', label: 'Doch absagen', cta: 'Weiter zur Absage', run: needH((x) => x.reject()) },
+        { key: 'angebot', label: tw('opt.make_offer.angebot.label'), labelDe: twDe('opt.make_offer.angebot.label'), cta: tw('opt.make_offer.angebot.cta'), hint: tw('opt.make_offer.angebot.hint'), run: needH((x) => x.offer()) },
+        { key: 'frage', label: tw('opt.make_offer.frage.label', { hh }), labelDe: twDe('opt.make_offer.frage.label', { hh }), cta: tw('opt.make_offer.frage.cta'), hint: tw('opt.make_offer.frage.hint'), run: needH((x) => x.askRecruiter()) },
+        { key: 'absage', label: tw('opt.make_offer.absage.label'), labelDe: twDe('opt.make_offer.absage.label'), cta: tw('opt.make_offer.absage.cta'), run: needH((x) => x.reject()) },
       ];
     case 'counter':
       return [
-        { key: 'anpassen', label: 'Angebot anpassen', cta: 'Version 2 erstellen', hint: 'Version 2 ersetzt Version 1; der Headhunter überbringt sie.', run: needH((x) => x.offer()) },
-        { key: 'bleiben', label: 'Beim Angebot bleiben', cta: 'Antwort senden', doneText: 'Ihre Antwort geht an den Headhunter.', field: 'text', hint: 'Optional ein Satz für die Kandidatin oder den Kandidaten.',
+        { key: 'anpassen', label: tw('opt.counter.anpassen.label'), labelDe: twDe('opt.counter.anpassen.label'), cta: tw('opt.counter.anpassen.cta'), hint: tw('opt.counter.anpassen.hint'), run: needH((x) => x.offer()) },
+        { key: 'bleiben', label: tw('opt.counter.bleiben.label'), labelDe: twDe('opt.counter.bleiben.label'), cta: tw('opt.counter.bleiben.cta'), doneText: tw('opt.counter.bleiben.done'), field: 'text', hint: tw('opt.counter.bleiben.hint'),
           run: async (v) => { await offerApi.keep(t.ref.offerId!, v.text.trim()); return 'done'; } },
-        { key: 'absagen', label: 'Absagen', cta: 'Angebot zurückziehen', doneText: 'Das Angebot ist zurückgezogen.', field: 'reason', reasons: OFFER_WITHDRAW, check: (v) => (v.reason ? null : 'Bitte einen Grund wählen.'),
+        { key: 'absagen', label: tw('opt.counter.absagen.label'), labelDe: twDe('opt.counter.absagen.label'), cta: tw('opt.counter.absagen.cta'), doneText: tw('opt.counter.absagen.done'), field: 'reason', reasons: OFFER_WITHDRAW(), check: (v) => (v.reason ? null : tw('check.reason')),
           run: async () => { await offerApi.withdraw(t.ref.offerId!); return 'done'; } },
       ];
     case 'offer_overdue':
       return [
-        { key: 'verlaengern', label: 'Frist verlängern', cta: 'Verlängern', doneText: 'Die Frist ist verlängert, der Headhunter weiß Bescheid.', field: 'date', check: (v) => (v.date && v.date >= todayIso() ? null : 'Bitte ein Datum ab heute wählen.'),
+        { key: 'verlaengern', label: tw('opt.offer_overdue.verlaengern.label'), labelDe: twDe('opt.offer_overdue.verlaengern.label'), cta: tw('opt.offer_overdue.verlaengern.cta'), doneText: tw('opt.offer_overdue.verlaengern.done'), field: 'date', check: (v) => (v.date && v.date >= todayIso() ? null : tw('check.dateFromToday')),
           run: async (v) => { await offerApi.extend(t.ref.offerId!, v.date); return 'done'; } },
-        { key: 'nachfassen', label: `${hh} soll nachfassen`, cta: 'Bitten', hint: 'Ihre Aufgabe bleibt sichtbar.',
-          run: async () => { await clientTasksApi.askFollowup(sid, t.ref.responseDue && t.ref.responseDue >= plusDays(0) ? 'Die Antwort auf das Angebot steht noch aus.' : 'Die Antwortfrist für das Angebot ist vorbei.'); return 'handoff'; } },
-        { key: 'zurueck', label: 'Angebot zurückziehen', cta: 'Zurückziehen', doneText: 'Das Angebot ist zurückgezogen.', field: 'reason', reasons: OFFER_WITHDRAW, check: (v) => (v.reason ? null : 'Bitte einen Grund wählen.'),
+        { key: 'nachfassen', label: tw('opt.offer_overdue.nachfassen.label', { hh }), labelDe: twDe('opt.offer_overdue.nachfassen.label', { hh }), cta: tw('opt.offer_overdue.nachfassen.cta'), hint: tw('opt.offer_overdue.nachfassen.hint'),
+          run: async () => { await clientTasksApi.askFollowup(sid, t.ref.responseDue && t.ref.responseDue >= plusDays(0) ? tw('followup.offerPending') : tw('followup.offerExpired')); return 'handoff'; } },
+        { key: 'zurueck', label: tw('opt.offer_overdue.zurueck.label'), labelDe: twDe('opt.offer_overdue.zurueck.label'), cta: tw('opt.offer_overdue.zurueck.cta'), doneText: tw('opt.offer_overdue.zurueck.done'), field: 'reason', reasons: OFFER_WITHDRAW(), check: (v) => (v.reason ? null : tw('check.reason')),
           run: async () => { await offerApi.withdraw(t.ref.offerId!); return 'done'; } },
       ];
     case 'send_contract':
       return [
-        { key: 'digital', label: 'Digital über Matchunt', cta: 'Vertrag hochladen', hint: 'DocuSign: erst Ihr Unterzeichner, dann die Kandidatin oder der Kandidat.', run: needH((x) => x.contract('digital')) },
-        { key: 'selbst', label: 'Selbst verschickt', cta: 'Datum eintragen', run: needH((x) => x.contract('verschickt')) },
-        { key: 'unterschrieben', label: 'Ist schon unterschrieben', cta: 'Unterschrift melden', run: needH((x) => x.contract('melden')) },
-        { key: 'weg', label: 'Abgesprungen', cta: 'Weiter', hint: 'Grund ist Pflicht; der Headhunter klärt den Fall.', run: needH((x) => x.contract('abgesprungen')) },
+        { key: 'digital', label: tw('opt.send_contract.digital.label'), labelDe: twDe('opt.send_contract.digital.label'), cta: tw('opt.send_contract.digital.cta'), hint: tw('opt.send_contract.digital.hint'), run: needH((x) => x.contract('digital')) },
+        { key: 'selbst', label: tw('opt.send_contract.selbst.label'), labelDe: twDe('opt.send_contract.selbst.label'), cta: tw('opt.send_contract.selbst.cta'), run: needH((x) => x.contract('verschickt')) },
+        { key: 'unterschrieben', label: tw('opt.send_contract.unterschrieben.label'), labelDe: twDe('opt.send_contract.unterschrieben.label'), cta: tw('opt.send_contract.unterschrieben.cta'), run: needH((x) => x.contract('melden')) },
+        { key: 'weg', label: tw('opt.send_contract.weg.label'), labelDe: twDe('opt.send_contract.weg.label'), cta: tw('opt.send_contract.weg.cta'), hint: tw('opt.send_contract.weg.hint'), run: needH((x) => x.contract('abgesprungen')) },
       ];
     case 'contract_signed_check':
       return [
-        { key: 'ja', label: 'Ja, unterschrieben', cta: 'Unterschrift melden', run: needH((x) => x.contract('melden')) },
-        { key: 'nein', label: 'Noch nicht', cta: 'Antwort speichern', hint: 'Wir fragen in einer Woche wieder.', doneText: 'Gespeichert. Wir fragen in einer Woche wieder.', run: async () => 'done' },
-        { key: 'weg', label: 'Abgesprungen', cta: 'Weiter', run: needH((x) => x.contract('abgesprungen')) },
+        { key: 'ja', label: tw('opt.contract_signed_check.ja.label'), labelDe: twDe('opt.contract_signed_check.ja.label'), cta: tw('opt.contract_signed_check.ja.cta'), run: needH((x) => x.contract('melden')) },
+        { key: 'nein', label: tw('opt.contract_signed_check.nein.label'), labelDe: twDe('opt.contract_signed_check.nein.label'), cta: tw('opt.contract_signed_check.nein.cta'), hint: tw('opt.contract_signed_check.nein.hint'), doneText: tw('opt.contract_signed_check.nein.done'), run: async () => 'done' },
+        { key: 'weg', label: tw('opt.contract_signed_check.weg.label'), labelDe: twDe('opt.contract_signed_check.weg.label'), cta: tw('opt.contract_signed_check.weg.cta'), run: needH((x) => x.contract('abgesprungen')) },
       ];
     case 'docusign_sign':
       // Über Matchunt (23.10.2026): unterschreiben direkt, ohne DocuSign-Mail
       if (t.ref.signMode === 'embedded' && t.ref.signerExternal) {
         // Jemand anderes unterschreibt für die Firma und hat es seit 2 Tagen nicht getan
         return [
-          { key: 'link', label: 'Link erneut senden', cta: 'Neuen Link senden', hint: 'Der alte Link gilt dann nicht mehr. Die Aufgabe bleibt, bis unterschrieben ist.',
-            run: async () => { const r = await contractApi.resendLink(sid); toast.success(`Neuer Link an ${r.sentTo ?? 'den Unterzeichner'} ist unterwegs.`); return 'handoff'; } },
-          { key: 'anderer', label: 'Anderer Unterzeichner', cta: 'Unterzeichner ändern', hint: 'Auch „Ich selbst“ geht: dann unterschreiben Sie gleich hier in Matchunt.', run: needH((x) => x.contract('unterzeichner')) },
-          { key: 'selbst', label: 'Doch selbst verschicken', cta: 'Umschlag zurückziehen',
+          { key: 'link', label: tw('opt.docusign_sign.link.label'), labelDe: twDe('opt.docusign_sign.link.label'), cta: tw('opt.docusign_sign.link.cta'), hint: tw('opt.docusign_sign.link.hint'),
+            run: async () => { const r = await contractApi.resendLink(sid); toast.success(tw('toast.linkSent', { to: r.sentTo ?? tw('theSigner') })); return 'handoff'; } },
+          { key: 'anderer', label: tw('opt.docusign_sign.anderer.label'), labelDe: twDe('opt.docusign_sign.anderer.label'), cta: tw('opt.docusign_sign.anderer.cta'), hint: tw('opt.docusign_sign.anderer.hint'), run: needH((x) => x.contract('unterzeichner')) },
+          { key: 'selbst', label: tw('opt.docusign_sign.selbst.label'), labelDe: twDe('opt.docusign_sign.selbst.label'), cta: tw('opt.docusign_sign.selbst.cta'),
             run: async () => { await contractApi.voidDigital(sid, true); h?.contract('verschickt'); return 'handoff'; } },
         ];
       }
       if (t.ref.signMode === 'embedded') {
         return [
-          { key: 'jetzt', label: 'Jetzt unterschreiben', cta: 'Zu DocuSign', hint: 'Öffnet die Unterschrift im selben Fenster, danach geht es zurück ins Bewerberprofil.', run: needH((x) => x.contract('unterschreiben')) },
-          { key: 'anderer', label: 'Anderer Unterzeichner', cta: 'Unterzeichner ändern', hint: 'Der Vertrag bleibt derselbe; die andere Person bekommt einen Link von Matchunt.', run: needH((x) => x.contract('unterzeichner')) },
-          { key: 'selbst', label: 'Doch selbst verschicken', cta: 'Umschlag zurückziehen',
+          { key: 'jetzt', label: tw('opt.docusign_sign.jetzt.label'), labelDe: twDe('opt.docusign_sign.jetzt.label'), cta: tw('opt.docusign_sign.jetzt.cta'), hint: tw('opt.docusign_sign.jetzt.hint'), run: needH((x) => x.contract('unterschreiben')) },
+          { key: 'anderer', label: tw('opt.docusign_sign.anderer.label'), labelDe: twDe('opt.docusign_sign.anderer.label'), cta: tw('opt.docusign_sign.anderer.cta'), hint: tw('opt.docusign_sign.anderer1.hint'), run: needH((x) => x.contract('unterzeichner')) },
+          { key: 'selbst', label: tw('opt.docusign_sign.selbst.label'), labelDe: twDe('opt.docusign_sign.selbst.label'), cta: tw('opt.docusign_sign.selbst.cta'),
             run: async () => { await contractApi.voidDigital(sid, true); h?.contract('verschickt'); return 'handoff'; } },
         ];
       }
       return [
-        { key: 'mail', label: 'DocuSign-Mail erneut senden', cta: 'Mail erneut senden', hint: 'Die Aufgabe bleibt, bis die Unterschrift bei DocuSign eingegangen ist.',
-          run: async () => { await contractApi.resend(sid); toast.success('DocuSign schickt die Mail noch einmal.'); return 'handoff'; } },
-        { key: 'stand', label: 'Ich habe schon unterschrieben', cta: 'Stand bei DocuSign abfragen',
+        { key: 'mail', label: tw('opt.docusign_sign.mail.label'), labelDe: twDe('opt.docusign_sign.mail.label'), cta: tw('opt.docusign_sign.mail.cta'), hint: tw('opt.docusign_sign.mail.hint'),
+          run: async () => { await contractApi.resend(sid); toast.success(tw('toast.docusignResent')); return 'handoff'; } },
+        { key: 'stand', label: tw('opt.docusign_sign.stand.label'), labelDe: twDe('opt.docusign_sign.stand.label'), cta: tw('opt.docusign_sign.stand.cta'),
           run: async () => { await contractApi.refresh(sid); return 'handoff'; } },
-        { key: 'anderer', label: 'Anderer Unterzeichner', cta: 'Unterzeichner ändern', hint: 'Stellt auf die Unterschrift über Matchunt um, ohne neues Hochladen. Der bisherige Umschlag wird zurückgezogen.',
+        { key: 'anderer', label: tw('opt.docusign_sign.anderer.label'), labelDe: twDe('opt.docusign_sign.anderer.label'), cta: tw('opt.docusign_sign.anderer.cta'), hint: tw('opt.docusign_sign.anderer2.hint'),
           run: needH((x) => x.contract('unterzeichner')) },
-        { key: 'selbst', label: 'Doch selbst verschicken', cta: 'Umschlag zurückziehen',
+        { key: 'selbst', label: tw('opt.docusign_sign.selbst.label'), labelDe: twDe('opt.docusign_sign.selbst.label'), cta: tw('opt.docusign_sign.selbst.cta'),
           run: async () => { await contractApi.voidDigital(sid, true); h?.contract('verschickt'); return 'handoff'; } },
       ];
     case 'confirm_signature':
       return [
-        { key: 'ja', label: 'Stimmt', cta: 'Bestätigen', hint: 'Die Einstellung wird verbindlich.', doneText: 'Bestätigt. Die Einstellung ist verbindlich.', run: async () => { await contractApi.confirm(sid, 'yes'); return 'done'; } },
-        { key: 'werte', label: 'Andere Werte', cta: 'Werte eintragen', run: needH((x) => x.contract('werte')) },
-        { key: 'nein', label: 'Noch nicht unterschrieben', cta: 'Antwort senden', doneText: 'Der Headhunter bekommt Ihre Rückmeldung.', run: async () => { await contractApi.confirm(sid, 'not_yet'); return 'done'; } },
+        { key: 'ja', label: tw('opt.confirm_signature.ja.label'), labelDe: twDe('opt.confirm_signature.ja.label'), cta: tw('opt.confirm_signature.ja.cta'), hint: tw('opt.confirm_signature.ja.hint'), doneText: tw('opt.confirm_signature.ja.done'), run: async () => { await contractApi.confirm(sid, 'yes'); return 'done'; } },
+        { key: 'werte', label: tw('opt.confirm_signature.werte.label'), labelDe: twDe('opt.confirm_signature.werte.label'), cta: tw('opt.confirm_signature.werte.cta'), run: needH((x) => x.contract('werte')) },
+        { key: 'nein', label: tw('opt.confirm_signature.nein.label'), labelDe: twDe('opt.confirm_signature.nein.label'), cta: tw('opt.confirm_signature.nein.cta'), doneText: tw('opt.confirm_signature.nein.done'), run: async () => { await contractApi.confirm(sid, 'not_yet'); return 'done'; } },
       ];
     case 'recruiter_question':
       return [
-        { key: 'antworten', label: 'Antworten', cta: 'Antwort senden', doneText: 'Ihre Antwort ist beim Headhunter.', field: 'text', check: (v) => (v.text.trim().length >= 2 ? null : 'Bitte eine Antwort schreiben.'),
+        { key: 'antworten', label: tw('opt.recruiter_question.antworten.label'), labelDe: twDe('opt.recruiter_question.antworten.label'), cta: tw('opt.recruiter_question.antworten.cta'), doneText: tw('opt.recruiter_question.antworten.done'), field: 'text', check: (v) => (v.text.trim().length >= 2 ? null : tw('check.answer')),
           run: async (v) => { await clientTasksApi.answerQuestion(t.ref.notificationId!, v.text.trim()); return 'logged'; } },
-        { key: 'kollege', label: 'An Kollegen geben', cta: 'Weitergeben', doneText: 'Weitergegeben. Die Frage steht jetzt bei Ihrer Kollegin oder Ihrem Kollegen.', field: 'colleague', check: (v) => (v.colleague ? null : 'Bitte eine Person wählen.'),
-          run: async (v) => { const r = await clientTasksApi.forwardQuestion(t.ref.notificationId!, v.colleague); toast.success(`An ${r.to} weitergegeben.`); return 'logged'; } },
+        { key: 'kollege', label: tw('opt.recruiter_question.kollege.label'), labelDe: twDe('opt.recruiter_question.kollege.label'), cta: tw('opt.recruiter_question.kollege.cta'), doneText: tw('opt.recruiter_question.kollege.done'), field: 'colleague', check: (v) => (v.colleague ? null : tw('check.person')),
+          run: async (v) => { const r = await clientTasksApi.forwardQuestion(t.ref.notificationId!, v.colleague); toast.success(tw('toast.forwarded', { to: r.to })); return 'logged'; } },
       ];
     case 'confirm_start':
       // K7: Kunde meldet zuerst. „Hat nicht angefangen“ öffnet „Besetzung endet“ mit „Nein“.
       return [
-        { key: 'ja', label: 'Ja, hat angefangen', cta: 'Bestätigen', doneText: 'Antritt bestätigt. Der Headhunter ist informiert.',
+        { key: 'ja', label: tw('opt.confirm_start.ja.label'), labelDe: twDe('opt.confirm_start.ja.label'), cta: tw('opt.confirm_start.ja.cta'), doneText: tw('opt.confirm_start.ja.done'),
           run: async () => { await besetzungApi.startAnswer({ placementId: t.ref.placementId!, way: 'started' }); return 'logged'; } },
-        { key: 'spaeter', label: 'Fängt später an', cta: 'Datum speichern', doneText: 'Neuer erster Arbeitstag gespeichert. Der Headhunter ist informiert.', field: 'date',
-          check: (v) => (v.date && v.date > todayIso() ? null : 'Bitte den neuen ersten Arbeitstag wählen (ab morgen).'),
+        { key: 'spaeter', label: tw('opt.confirm_start.spaeter.label'), labelDe: twDe('opt.confirm_start.spaeter.label'), cta: tw('opt.confirm_start.spaeter.cta'), doneText: tw('opt.confirm_start.spaeter.done'), field: 'date',
+          check: (v) => (v.date && v.date > todayIso() ? null : tw('check.newFirstDay')),
           run: async (v) => { await besetzungApi.startAnswer({ placementId: t.ref.placementId!, way: 'later', startDate: v.date }); return 'logged'; } },
-        { key: 'nein', label: 'Hat nicht angefangen', cta: 'Weiter zur Meldung', hint: 'Öffnet „Besetzung endet“.', run: go(besetzung('ende')) },
+        { key: 'nein', label: tw('opt.confirm_start.nein.label'), labelDe: twDe('opt.confirm_start.nein.label'), cta: tw('opt.confirm_start.nein.cta'), hint: tw('opt.confirm_start.nein.hint'), run: go(besetzung('ende')) },
       ];
     case 'start_check':
       // K7: Headhunter hat zuerst gemeldet; ohne Antwort gilt es nach 3 Werktagen als bestätigt
       return [
-        { key: 'ja', label: 'Stimmt', cta: 'Bestätigen', doneText: 'Bestätigt. Der Headhunter ist informiert.',
+        { key: 'ja', label: tw('opt.start_check.ja.label'), labelDe: twDe('opt.start_check.ja.label'), cta: tw('opt.start_check.ja.cta'), doneText: tw('opt.start_check.ja.done'),
           run: async () => { await besetzungApi.startAnswer({ placementId: t.ref.placementId!, way: 'agree' }); return 'logged'; } },
-        { key: 'nein', label: 'Stimmt so nicht', cta: 'Senden', field: 'text', hint: 'Matchunt klärt das mit dem Headhunter und meldet sich.',
-          doneText: 'Gesendet. Matchunt klärt das mit dem Headhunter und meldet sich.', check: (v) => (v.text.trim() ? null : 'Bitte kurz schreiben, was nicht stimmt.'),
+        { key: 'nein', label: tw('opt.start_check.nein.label'), labelDe: twDe('opt.start_check.nein.label'), cta: tw('opt.start_check.nein.cta'), field: 'text', hint: tw('opt.start_check.nein.hint'),
+          doneText: tw('opt.start_check.nein.done'), check: (v) => (v.text.trim() ? null : tw('check.whatWrong')),
           run: async (v) => { await besetzungApi.startAnswer({ placementId: t.ref.placementId!, way: 'disagree', note: v.text.trim() }); return 'logged'; } },
       ];
     case 'end_confirm':
       return [
-        { key: 'ja', label: 'Bestätigen', cta: 'Weiter zur Meldung', hint: 'Öffnet „Besetzung endet“ mit „Nein“. Danach prüft Matchunt.', run: go(besetzung('ende')) },
+        { key: 'ja', label: tw('opt.end_confirm.ja.label'), labelDe: twDe('opt.end_confirm.ja.label'), cta: tw('opt.end_confirm.ja.cta'), hint: tw('opt.end_confirm.ja.hint'), run: go(besetzung('ende')) },
       ];
     case 'research_position':
       return [
-        { key: 'so', label: 'Stelle so bestätigen', cta: 'Bestätigen', hint: 'Liegt das Gehalt höher, berechnen wir nur den Unterschied.',
+        { key: 'so', label: tw('opt.research_position.so.label'), labelDe: twDe('opt.research_position.so.label'), cta: tw('opt.research_position.so.cta'), hint: tw('opt.research_position.so.hint'),
           run: async () => {
             const r = await besetzungApi.confirmPosition(t.ref.placementId!, false);
-            return { logged: r.state === 'running' ? 'Bestätigt. Ihre Stelle ist jetzt für alle Headhunter neu ausgeschrieben.' : 'Bestätigt. Sobald die Rechnung bezahlt ist, schreiben wir die Stelle für alle Headhunter neu aus.' };
+            return { logged: r.state === 'running' ? i18n.t('clientPlacements:research.confirmedRunning') : i18n.t('clientPlacements:research.confirmedAfterPay') };
           } },
-        { key: 'anpassen', label: 'Stelle anpassen', cta: 'Zur Stelle', hint: 'Danach bestätigen Sie die Stelle im Fenster der Besetzung.',
+        { key: 'anpassen', label: tw('opt.research_position.anpassen.label'), labelDe: twDe('opt.research_position.anpassen.label'), cta: tw('opt.research_position.anpassen.cta'), hint: tw('opt.research_position.anpassen.hint'),
           run: async () => { if (t.ref.placementId) markAdjusted(t.ref.placementId); extra.navigate(`/dashboard/jobs/${t.jobId ?? ''}`); return 'handoff'; } },
       ];
     case 'research_offer':
       return [
-        { key: 'ja', label: 'Annehmen', cta: 'Annehmen',
+        { key: 'ja', label: tw('opt.research_offer.ja.label'), labelDe: twDe('opt.research_offer.ja.label'), cta: tw('opt.research_offer.ja.cta'),
           run: async () => {
             const r = await besetzungApi.answerOffer(t.ref.placementId!, true);
-            return { logged: r.state === 'running' ? 'Angenommen. Ihre Stelle ist jetzt für alle Headhunter neu ausgeschrieben.' : 'Angenommen. Sobald die Rechnung bezahlt ist, schreiben wir die Stelle für alle Headhunter neu aus.' };
+            return { logged: r.state === 'running' ? i18n.t('clientPlacements:research.acceptedRunning') : tw('toast.acceptedAfterPay') };
           } },
-        { key: 'nein', label: 'Nein, danke', cta: 'Antwort senden', doneText: 'Gemeldet, danke. Im Fenster der Besetzung können Sie die Stelle wieder öffnen.',
+        { key: 'nein', label: tw('opt.research_offer.nein.label'), labelDe: twDe('opt.research_offer.nein.label'), cta: tw('opt.research_offer.nein.cta'), doneText: tw('opt.research_offer.nein.done'),
           run: async () => { await besetzungApi.answerOffer(t.ref.placementId!, false); return 'logged'; } },
-        { key: 'ansehen', label: 'Besetzung ansehen', cta: 'Öffnen', run: go(besetzung()) },
+        { key: 'ansehen', label: tw('opt.research_offer.ansehen.label'), labelDe: twDe('opt.research_offer.ansehen.label'), cta: tw('opt.research_offer.ansehen.cta'), run: go(besetzung()) },
       ];
     case 'job_paused':
       return [
-        { key: 'geben', label: 'Rückmeldungen geben', cta: 'Zu den Vorstellungen', run: go(`/dashboard/candidates?job=${t.jobId ?? ''}&tab=neu`) },
+        { key: 'geben', label: tw('opt.job_paused.geben.label'), labelDe: twDe('opt.job_paused.geben.label'), cta: tw('opt.job_paused.geben.cta'), run: go(`/dashboard/candidates?job=${t.jobId ?? ''}&tab=neu`) },
       ];
     case 'invoice':
       return [
-        { key: 'pdf', label: 'Rechnung ansehen', cta: 'PDF öffnen', run: async () => { const { url } = await placementApi.file(t.ref.invoiceId!); window.open(url, '_blank', 'noopener'); return 'handoff'; } },
+        { key: 'pdf', label: tw('opt.invoice.pdf.label'), labelDe: twDe('opt.invoice.pdf.label'), cta: tw('opt.invoice.pdf.cta'), run: async () => { const { url } = await placementApi.file(t.ref.invoiceId!); window.open(url, '_blank', 'noopener'); return 'handoff'; } },
         // HR sieht Rechnungen nur lesend
-        ...(extra.canManageBilling ? [{ key: 'bezahlt', label: 'Ist überwiesen', cta: 'Überweisung melden', doneText: 'Überweisung gemeldet. Matchunt prüft den Zahlungseingang.', field: 'date' as const, hint: 'Matchunt prüft den Zahlungseingang; erledigt ist die Aufgabe, sobald er gebucht ist.',
-          check: (v: Values) => (v.date ? null : 'Bitte das Überweisungsdatum wählen.'), run: async (v: Values) => { await clientTasksApi.invoicePaid(t.ref.invoiceId!, v.date); return 'logged' as const; } }] : []),
-        { key: 'frage', label: 'Frage zur Rechnung', cta: 'Frage senden', field: 'text', check: (v) => (v.text.trim().length >= 3 ? null : 'Bitte die Frage schreiben.'),
-          run: async (v) => { await clientTasksApi.invoiceQuestion(t.ref.invoiceId!, v.text.trim()); toast.success('Frage an Matchunt gesendet.'); return 'handoff'; } },
+        ...(extra.canManageBilling ? [{ key: 'bezahlt', label: tw('opt.invoice.bezahlt.label'), labelDe: twDe('opt.invoice.bezahlt.label'), cta: tw('opt.invoice.bezahlt.cta'), doneText: tw('opt.invoice.bezahlt.done'), field: 'date' as const, hint: tw('opt.invoice.bezahlt.hint'),
+          check: (v: Values) => (v.date ? null : tw('check.transferDate')), run: async (v: Values) => { await clientTasksApi.invoicePaid(t.ref.invoiceId!, v.date); return 'logged' as const; } }] : []),
+        { key: 'frage', label: tw('opt.invoice.frage.label'), labelDe: twDe('opt.invoice.frage.label'), cta: tw('opt.invoice.frage.cta'), field: 'text', check: (v) => (v.text.trim().length >= 3 ? null : tw('check.question')),
+          run: async (v) => { await clientTasksApi.invoiceQuestion(t.ref.invoiceId!, v.text.trim()); toast.success(tw('toast.questionSent')); return 'handoff'; } },
       ];
     case 'purchase_order':
       return [
-        { key: 'eintragen', label: 'Bestellnummer eintragen', cta: 'Speichern', doneText: 'Gespeichert. Die Bestellnummer steht auf der Rechnung.', field: 'po',
-          check: (v) => (v.text.trim() ? null : 'Bitte die Bestellnummer angeben.'),
+        { key: 'eintragen', label: tw('opt.purchase_order.eintragen.label'), labelDe: twDe('opt.purchase_order.eintragen.label'), cta: tw('opt.purchase_order.eintragen.cta'), doneText: tw('opt.purchase_order.eintragen.done'), field: 'po',
+          check: (v) => (v.text.trim() ? null : tw('check.po')),
           run: async (v) => { await besetzungApi.setPurchaseOrder(t.ref.placementId!, v.text.trim(), v.cost.trim()); return 'logged'; } },
       ];
     default:
-      return [{ key: 'open', label: 'Öffnen', cta: 'Öffnen', run: handoff(() => {}) }];
+      return [{ key: 'open', label: tw('opt.default.open.label'), labelDe: twDe('opt.default.open.label'), cta: tw('opt.default.open.cta'), run: handoff(() => {}) }];
   }
 }
 
@@ -264,12 +274,13 @@ interface Props {
 }
 
 export function ClientTaskWindow({ task, open, onOpenChange, handlers, recruiterName }: Props) {
+  const { t, i18n: { language } } = useTranslation('clientTasks');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const all = useClientTasks();
   const hh = (recruiterName ?? 'Headhunter').split(' ')[0];
   const canManageBilling = all.data?.billing?.canManage ?? true;
-  const options = useMemo(() => (task ? optionsFor(task, handlers, { recruiter: hh, navigate, canManageBilling }) : []), [task, handlers, hh, navigate, canManageBilling]);
+  const options = useMemo(() => (task ? optionsFor(task, handlers, { recruiter: hh, navigate, canManageBilling }) : []), [task, handlers, hh, navigate, canManageBilling, language]); // eslint-disable-line react-hooks/exhaustive-deps
   const [choice, setChoice] = useState<string>('');
   const [values, setValues] = useState<Values>({ reason: '', date: '', text: '', colleague: '', cost: '' });
   const [error, setError] = useState<string | null>(null);
@@ -309,7 +320,7 @@ export function ClientTaskWindow({ task, open, onOpenChange, handlers, recruiter
       if (typeof r === 'object') {
         setDone(r.logged);
       } else if (r === 'done' || r === 'logged') {
-        if (r === 'done') await clientTasksApi.logDone(task, `${task.title}: ${opt.label}`, values.reason || undefined).catch(() => undefined);
+        if (r === 'done') await clientTasksApi.logDone(task, `${task.title}: ${opt.labelDe ?? opt.label}`, values.reason || undefined).catch(() => undefined);
         setDone(opt.doneText ?? `${opt.label}.`);
       } else {
         onOpenChange(false);
@@ -320,7 +331,7 @@ export function ClientTaskWindow({ task, open, onOpenChange, handlers, recruiter
       queryClient.invalidateQueries({ queryKey: ['bewerber'] });
       queryClient.invalidateQueries({ queryKey: ['besetzungen'] });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Das hat nicht geklappt.');
+      setError(e instanceof Error ? e.message : t('failed'));
     } finally {
       setBusy(false);
     }
@@ -338,18 +349,18 @@ export function ClientTaskWindow({ task, open, onOpenChange, handlers, recruiter
           <div className="space-y-4">
             <div className="flex items-start gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/[0.06] p-3 text-sm">
               <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-              <div><p className="font-medium">Erledigt.</p><p className="text-muted-foreground">{done}</p></div>
+              <div><p className="font-medium">{t('done')}</p><p className="text-muted-foreground">{done}</p></div>
             </div>
             {next ? (
               <div className="rounded-lg border p-3 text-sm">
-                <p className="text-xs text-muted-foreground">Nächste Aufgabe</p>
+                <p className="text-xs text-muted-foreground">{t('nextTask')}</p>
                 <p className="font-medium">{next.title}</p>
                 <p className="text-xs text-muted-foreground">{next.who}{next.jobTitle ? ` · ${next.jobTitle}` : ''} · {waitingLabel(next)}</p>
               </div>
-            ) : <p className="text-sm text-muted-foreground">Damit ist alles erledigt.</p>}
+            ) : <p className="text-sm text-muted-foreground">{t('allDone')}</p>}
             <div className="flex justify-end gap-2 border-t pt-3">
-              <Button variant="ghost" onClick={() => onOpenChange(false)}>Schließen</Button>
-              {next && <Button onClick={() => { onOpenChange(false); navigate(taskHref(next)); }}>Weiter zur nächsten</Button>}
+              <Button variant="ghost" onClick={() => onOpenChange(false)}>{t('close')}</Button>
+              {next && <Button onClick={() => { onOpenChange(false); navigate(taskHref(next)); }}>{t('next')}</Button>}
             </div>
           </div>
         ) : (
@@ -368,32 +379,32 @@ export function ClientTaskWindow({ task, open, onOpenChange, handlers, recruiter
 
             {opt?.field === 'reason' && (
               <div className="flex flex-wrap gap-1.5">
-                <span className="w-full text-xs text-muted-foreground">Grund (Pflicht)</span>
+                <span className="w-full text-xs text-muted-foreground">{t('reasonRequired')}</span>
                 {(opt.reasons ?? []).map((r) => (
                   <Button key={r.key} type="button" size="sm" variant={values.reason === r.key ? 'secondary' : 'outline'} className="h-7 text-xs" onClick={() => setValues((v) => ({ ...v, reason: r.key }))}>{r.label}</Button>
                 ))}
               </div>
             )}
             {opt?.field === 'date' && (
-              <label className="block text-sm"><span className="text-muted-foreground">{task.kind === 'invoice' ? 'Überwiesen am' : task.kind === 'confirm_start' ? 'Neuer erster Arbeitstag' : 'Neue Frist'}</span>
+              <label className="block text-sm"><span className="text-muted-foreground">{task.kind === 'invoice' ? t('field.transferredOn') : task.kind === 'confirm_start' ? t('field.newFirstDay') : t('field.newDeadline')}</span>
                 <Input type="date" className="mt-1 h-9 w-48" value={values.date} onChange={(e) => setValues((v) => ({ ...v, date: e.target.value }))} /></label>
             )}
             {opt?.field === 'text' && (
-              <Textarea rows={task.kind === 'recruiter_question' ? 4 : 2} placeholder={task.kind === 'counter' ? 'z. B. Mehr ist im Budget nicht drin, dafür Start flexibel.' : task.kind === 'invoice' ? 'Ihre Frage an Matchunt …' : task.kind === 'start_check' ? 'Was stimmt nicht? z. B. fängt erst am 15. an' : 'Ihre Antwort …'}
+              <Textarea rows={task.kind === 'recruiter_question' ? 4 : 2} placeholder={task.kind === 'counter' ? t('field.counterPlaceholder') : task.kind === 'invoice' ? t('field.invoicePlaceholder') : task.kind === 'start_check' ? t('field.startCheckPlaceholder') : t('field.answerPlaceholder')}
                 value={values.text} onChange={(e) => setValues((v) => ({ ...v, text: e.target.value }))} />
             )}
             {opt?.field === 'po' && (
               <div className="grid gap-3 sm:grid-cols-2">
-                <label className="block text-sm"><span className="text-muted-foreground">Bestellnummer</span>
-                  <Input className="mt-1 h-9" placeholder="z. B. 4500-1182" value={values.text} onChange={(e) => setValues((v) => ({ ...v, text: e.target.value }))} /></label>
-                <label className="block text-sm"><span className="text-muted-foreground">Kostenstelle (optional)</span>
-                  <Input className="mt-1 h-9" placeholder="leer = Standard aus den Rechnungsdaten" value={values.cost} onChange={(e) => setValues((v) => ({ ...v, cost: e.target.value }))} /></label>
+                <label className="block text-sm"><span className="text-muted-foreground">{t('field.po')}</span>
+                  <Input className="mt-1 h-9" placeholder={t('field.poPlaceholder')} value={values.text} onChange={(e) => setValues((v) => ({ ...v, text: e.target.value }))} /></label>
+                <label className="block text-sm"><span className="text-muted-foreground">{t('field.costCenter')}</span>
+                  <Input className="mt-1 h-9" placeholder={t('field.costPlaceholder')} value={values.cost} onChange={(e) => setValues((v) => ({ ...v, cost: e.target.value }))} /></label>
               </div>
             )}
             {opt?.field === 'colleague' && (
               <div className="flex flex-wrap gap-1.5">
                 {colleagues === null ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  : colleagues.length === 0 ? <p className="text-xs text-muted-foreground">Im Team der Stelle ist sonst niemand.</p>
+                  : colleagues.length === 0 ? <p className="text-xs text-muted-foreground">{t('noColleagues')}</p>
                   : colleagues.map((c) => (
                     <Button key={c.userId} type="button" size="sm" variant={values.colleague === c.userId ? 'secondary' : 'outline'} className="h-7 text-xs" onClick={() => setValues((v) => ({ ...v, colleague: c.userId }))}>{c.name}</Button>
                   ))}
@@ -403,10 +414,10 @@ export function ClientTaskWindow({ task, open, onOpenChange, handlers, recruiter
             {error && <p className="text-sm text-destructive">{error}</p>}
 
             <div className="flex items-center justify-between gap-2 border-t pt-3">
-              <span className={cn('text-xs text-muted-foreground', index < 0 && 'invisible')}>Aufgabe {index + 1} von {list.length}</span>
+              <span className={cn('text-xs text-muted-foreground', index < 0 && 'invisible')}>{t('position', { n: index + 1, total: list.length })}</span>
               <div className="flex gap-2">
-                <Button variant="ghost" onClick={() => onOpenChange(false)}>Abbrechen</Button>
-                <Button disabled={busy || !opt} onClick={() => void submit()}>{busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}{opt?.cta ?? 'Weiter'}</Button>
+                <Button variant="ghost" onClick={() => onOpenChange(false)}>{t('cancel')}</Button>
+                <Button disabled={busy || !opt} onClick={() => void submit()}>{busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}{opt?.cta ?? t('continue')}</Button>
               </div>
             </div>
           </div>

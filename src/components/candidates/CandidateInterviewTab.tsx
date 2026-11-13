@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { useTranslation } from 'react-i18next';
+import { dateFnsLocale } from '@/lib/candidateDateLocale';
+import { term } from '@/lib/candidateTerms';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -61,6 +63,8 @@ const MOTIVATION_TAGS = [
 
 export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateInterviewTabProps) {
   const { user } = useAuth();
+  const { t, i18n } = useTranslation(['candidateDetail', 'candidateTerms']);
+  const de = dateFnsLocale(i18n.language);
   const { notes, loading, saving, saveNotes, getFormData, emptyFormData } = useInterviewNotes(candidate.id);
   const { assessment, processing, processInterviewNotes } = useAIAssessment(candidate.id);
   const [formData, setFormData] = useState<InterviewNotesFormData>(emptyFormData);
@@ -116,7 +120,7 @@ export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateIn
     if (!newRequirement.trim()) return;
     const current = formData.offer_requirements || [];
     if (current.length >= 3) {
-      toast.error('Maximal 3 Anforderungen erlaubt');
+      toast.error(t('legacy.maximal_3_anforderungen_erlaubt'));
       return;
     }
     updateField('offer_requirements', [...current, newRequirement.trim()]);
@@ -169,7 +173,7 @@ export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateIn
     
     const success = await saveNotes(dataToSave);
     if (success) {
-      toast.success(markComplete ? 'Interview abgeschlossen' : 'Notizen gespeichert');
+      toast.success(markComplete ? t('legacy.toast_completed') : t('legacy.toast_saved'));
 
       // Sync salary & notice_period to candidates table
       await syncInterviewToCandidate(dataToSave);
@@ -178,7 +182,7 @@ export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateIn
       
       // Auto-trigger AI analysis when interview is completed
       if (markComplete && !assessment) {
-        toast.info('Starte automatische AI-Analyse...');
+        toast.info(t('legacy.starte_automatische_ai_analyse'));
         const extCandidate = candidate as any;
         await processInterviewNotes(
           formData as unknown as Record<string, unknown>,
@@ -193,7 +197,7 @@ export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateIn
         );
       }
     } else {
-      toast.error('Fehler beim Speichern');
+      toast.error(t('legacy.fehler_beim_speichern'));
     }
   };
 
@@ -211,7 +215,7 @@ export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateIn
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Badge variant={formData.status === 'completed' ? 'default' : 'secondary'}>
-            {formData.status === 'completed' ? 'Abgeschlossen' : 'Entwurf'}
+            {formData.status === 'completed' ? t('legacy.status_completed') : t('legacy.status_draft')}
           </Badge>
           {notes?.interview_date && (
             <span className="text-sm text-muted-foreground">
@@ -222,11 +226,11 @@ export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateIn
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => handleSave(false)} disabled={saving}>
             <Save className="h-4 w-4 mr-2" />
-            Speichern
+            {t('legacy.speichern')}
           </Button>
           <Button size="sm" onClick={() => handleSave(true)} disabled={saving}>
             <CheckCircle className="h-4 w-4 mr-2" />
-            Abschließen
+            {t('legacy.abschliessen')}
           </Button>
         </div>
       </div>
@@ -236,26 +240,26 @@ export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateIn
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
             <MessageSquare className="h-5 w-5" />
-            Gesprächsleitfaden
+            {t('legacy.gespraechsleitfaden')}
           </CardTitle>
         </CardHeader>
         <CardContent className="text-sm space-y-4">
           <div className="p-4 bg-background rounded-lg border">
-            <p className="font-medium mb-2">Begrüßung:</p>
+            <p className="font-medium mb-2">{t('legacy.begruessung')}</p>
             <p className="text-muted-foreground italic">
-              „Hallo {templateVars.anrede} {templateVars.kandidat_nachname}, ich bin {templateVars.recruiter_fullname} von {templateVars.company_name}. Wie geht es Ihnen heute?"
+              {t('legacy.greeting', { anrede: templateVars.anrede, nachname: templateVars.kandidat_nachname, recruiter: templateVars.recruiter_fullname, company: templateVars.company_name })}
             </p>
             <p className="text-muted-foreground italic mt-2">
-              „Bitte erlauben Sie, dass ich mich kurz vorstelle: Ich bin {templateVars.recruiter_fullname}, {templateVars.recruiter_role} bei {templateVars.company_name}. In den letzten 6 Jahren habe ich über 400 Menschen erfolgreich vermittelt."
+              {t('legacy.intro', { recruiter: templateVars.recruiter_fullname, role: templateVars.recruiter_role, company: templateVars.company_name })}
             </p>
             <p className="text-muted-foreground italic mt-2">
-              „Ich sage immer: Es gibt weder den perfekten Bewerber noch das perfekte Unternehmen, sondern nur Menschen mit eigenen Werten und Zielen. Und nur wenn diese im Einklang sind, entsteht eine langfristige Zusammenarbeit."
+              {t('legacy.ich_sage_immer_es_gibt_weder_den_397f')}
             </p>
             <p className="text-muted-foreground italic mt-2">
-              „Um herauszufinden, ob die Werte und Ziele meines Kunden mit Ihren im Einklang stehen, müsste ich Ihnen ein paar Fragen stellen. Ist das für Sie in Ordnung?"
+              {t('legacy.um_herauszufinden_ob_die_werte_u_c84f')}
             </p>
             <p className="text-muted-foreground italic mt-2">
-              „Super — bevor ich starte, haben Sie vorab Fragen an mich?"
+              {t('legacy.super_bevor_ich_starte_haben_sie_cfb0')}
             </p>
           </div>
         </CardContent>
@@ -268,46 +272,46 @@ export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateIn
           <AccordionTrigger className="px-4 hover:no-underline">
             <div className="flex items-center gap-2">
               <Target className="h-5 w-5 text-primary" />
-              <span className="font-semibold">Frageblock 1 – Karriereziele</span>
+              <span className="font-semibold">{t('legacy.frageblock_1_karriereziele')}</span>
             </div>
           </AccordionTrigger>
           <AccordionContent className="px-4 pb-4 space-y-4">
             <div>
               <Label className="text-sm font-medium">
-                ❓ Was wollen Sie ultimativ beruflich erreichen?
+                {t('legacy.q_goal')}
               </Label>
               <Textarea
                 className="mt-2"
-                placeholder="Notizen eingeben..."
+                placeholder={t('legacy.notizen_eingeben')}
                 value={formData.career_ultimate_goal || ''}
                 onChange={(e) => updateField('career_ultimate_goal', e.target.value)}
               />
             </div>
             <div>
               <Label className="text-sm font-medium">
-                ❓ Was wünschen Sie sich für die nächsten 3–5 Jahre?
+                {t('legacy.q_3_5')}
               </Label>
               <Textarea
                 className="mt-2"
-                placeholder="Notizen eingeben..."
+                placeholder={t('legacy.notizen_eingeben')}
                 value={formData.career_3_5_year_plan || ''}
                 onChange={(e) => updateField('career_3_5_year_plan', e.target.value)}
               />
             </div>
             <div>
               <Label className="text-sm font-medium">
-                ❓ Was haben Sie bisher unternommen, um dieses Ziel zu erreichen?
+                {t('legacy.q_done')}
               </Label>
               <Textarea
                 className="mt-2"
-                placeholder="Notizen eingeben..."
+                placeholder={t('legacy.notizen_eingeben')}
                 value={formData.career_actions_taken || ''}
                 onChange={(e) => updateField('career_actions_taken', e.target.value)}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="text-sm text-muted-foreground">Was hat gut funktioniert?</Label>
+                <Label className="text-sm text-muted-foreground">{t('legacy.was_hat_gut_funktioniert')}</Label>
                 <Textarea
                   className="mt-2"
                   placeholder="..."
@@ -316,7 +320,7 @@ export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateIn
                 />
               </div>
               <div>
-                <Label className="text-sm text-muted-foreground">Was hat weniger gut funktioniert?</Label>
+                <Label className="text-sm text-muted-foreground">{t('legacy.was_hat_weniger_gut_funktioniert')}</Label>
                 <Textarea
                   className="mt-2"
                   placeholder="..."
@@ -333,29 +337,29 @@ export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateIn
           <AccordionTrigger className="px-4 hover:no-underline">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-primary" />
-              <span className="font-semibold">Frageblock 2 – Aktuelle Situation & Wechselmotivation</span>
+              <span className="font-semibold">{t('legacy.frageblock_2_aktuelle_situation_aacd')}</span>
             </div>
           </AccordionTrigger>
           <AccordionContent className="px-4 pb-4 space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label className="text-sm font-medium">
-                  ❓ Was gefällt Ihnen an Ihrer aktuellen Situation besonders gut?
+                  {t('legacy.q_positive')}
                 </Label>
                 <Textarea
                   className="mt-2"
-                  placeholder="Positiv..."
+                  placeholder={t('legacy.positiv')}
                   value={formData.current_positive || ''}
                   onChange={(e) => updateField('current_positive', e.target.value)}
                 />
               </div>
               <div>
                 <Label className="text-sm font-medium">
-                  ❓ Was gefällt Ihnen weniger? Was stört Sie?
+                  {t('legacy.q_negative')}
                 </Label>
                 <Textarea
                   className="mt-2"
-                  placeholder="Negativ..."
+                  placeholder={t('legacy.negativ')}
                   value={formData.current_negative || ''}
                   onChange={(e) => updateField('current_negative', e.target.value)}
                 />
@@ -364,16 +368,16 @@ export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateIn
             
             <div>
               <Label className="text-sm font-medium">
-                ❓ Woher kommt Ihre Wechselmotivation konkret?
+                {t('legacy.q_motivation')}
               </Label>
               <Textarea
                 className="mt-2"
-                placeholder="Motivationsgründe..."
+                placeholder={t('legacy.motivationsgruende')}
                 value={formData.change_motivation || ''}
                 onChange={(e) => updateField('change_motivation', e.target.value)}
               />
               <div className="mt-3">
-                <Label className="text-xs text-muted-foreground">Motivations-Tags:</Label>
+                <Label className="text-xs text-muted-foreground">{t('legacy.motivations_tags')}</Label>
                 <div className="flex flex-wrap gap-2 mt-2">
                   {MOTIVATION_TAGS.map((tag) => (
                     <Badge
@@ -382,7 +386,7 @@ export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateIn
                       className="cursor-pointer"
                       onClick={() => toggleMotivationTag(tag)}
                     >
-                      {tag}
+                      {term(tag)}
                     </Badge>
                   ))}
                 </div>
@@ -390,11 +394,11 @@ export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateIn
             </div>
 
             <Separator />
-            <p className="text-sm text-muted-foreground font-medium">Weiterführende Fragen:</p>
+            <p className="text-sm text-muted-foreground font-medium">{t('legacy.weiterfuehrende_fragen')}</p>
             
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="text-xs text-muted-foreground">Ist da etwas Spezifisches vorgefallen?</Label>
+                <Label className="text-xs text-muted-foreground">{t('legacy.ist_da_etwas_spezifisches_vorgef_404c')}</Label>
                 <Textarea
                   className="mt-1"
                   placeholder="..."
@@ -403,7 +407,7 @@ export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateIn
                 />
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground">Wie oft kommt das vor?</Label>
+                <Label className="text-xs text-muted-foreground">{t('legacy.wie_oft_kommt_das_vor')}</Label>
                 <Textarea
                   className="mt-1"
                   placeholder="..."
@@ -415,18 +419,18 @@ export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateIn
 
             <div className="flex items-center gap-4">
               <Label className="text-xs text-muted-foreground">
-                Würden Sie bleiben, wenn Ihr Arbeitgeber das Angebot matcht?
+                {t('legacy.q_stay')}
               </Label>
               <Switch
                 checked={formData.would_stay_if_matched || false}
                 onCheckedChange={(val) => updateField('would_stay_if_matched', val)}
               />
-              <span className="text-sm">{formData.would_stay_if_matched ? 'Ja' : 'Nein'}</span>
+              <span className="text-sm">{formData.would_stay_if_matched ? t('legacy.yes') : t('legacy.no')}</span>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="text-xs text-muted-foreground">Warum jetzt — und nicht letztes Jahr?</Label>
+                <Label className="text-xs text-muted-foreground">{t('legacy.warum_jetzt_und_nicht_letztes_ja_e13b')}</Label>
                 <Textarea
                   className="mt-1"
                   placeholder="..."
@@ -435,7 +439,7 @@ export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateIn
                 />
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground">Woran ist es bei früheren Bewerbungsprozessen gescheitert?</Label>
+                <Label className="text-xs text-muted-foreground">{t('legacy.woran_ist_es_bei_frueheren_bewer_76b1')}</Label>
                 <Textarea
                   className="mt-1"
                   placeholder="..."
@@ -446,7 +450,7 @@ export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateIn
             </div>
 
             <div>
-              <Label className="text-xs text-muted-foreground">Haben Sie dies intern angesprochen? Wie wurde es aufgenommen?</Label>
+              <Label className="text-xs text-muted-foreground">{t('legacy.haben_sie_dies_intern_angesproch_53a1')}</Label>
               <Textarea
                 className="mt-1"
                 placeholder="..."
@@ -462,34 +466,34 @@ export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateIn
           <AccordionTrigger className="px-4 hover:no-underline">
             <div className="flex items-center gap-2">
               <DollarSign className="h-5 w-5 text-primary" />
-              <span className="font-semibold">Frageblock 3 – Gehalt</span>
+              <span className="font-semibold">{t('legacy.frageblock_3_gehalt')}</span>
             </div>
           </AccordionTrigger>
           <AccordionContent className="px-4 pb-4 space-y-4">
             <div className="grid grid-cols-3 gap-4">
               <div>
-                <Label className="text-sm font-medium">❓ Wo liegen Sie aktuell?</Label>
+                <Label className="text-sm font-medium">{t('legacy.wo_liegen_sie_aktuell')}</Label>
                 <Input
                   className="mt-2"
-                  placeholder="z.B. 65.000 €"
+                  placeholder={t('legacy.ph_salary_current')}
                   value={formData.salary_current || ''}
                   onChange={(e) => updateField('salary_current', e.target.value)}
                 />
               </div>
               <div>
-                <Label className="text-sm font-medium">❓ Wo möchten Sie gerne hin?</Label>
+                <Label className="text-sm font-medium">{t('legacy.wo_moechten_sie_gerne_hin')}</Label>
                 <Input
                   className="mt-2"
-                  placeholder="z.B. 75.000 €"
+                  placeholder={t('legacy.ph_salary_wish')}
                   value={formData.salary_desired || ''}
                   onChange={(e) => updateField('salary_desired', e.target.value)}
                 />
               </div>
               <div>
-                <Label className="text-sm font-medium">❓ Was ist Ihre Schmerzgrenze?</Label>
+                <Label className="text-sm font-medium">{t('legacy.was_ist_ihre_schmerzgrenze')}</Label>
                 <Input
                   className="mt-2"
-                  placeholder="z.B. 70.000 €"
+                  placeholder={t('legacy.ph_salary_min')}
                   value={formData.salary_minimum || ''}
                   onChange={(e) => updateField('salary_minimum', e.target.value)}
                 />
@@ -498,7 +502,7 @@ export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateIn
 
             <div>
               <Label className="text-sm font-medium">
-                ❓ Welche 3 Punkte müsste ein Angebot erfüllen, damit Sie es annehmen?
+                {t('legacy.q_offer')}
               </Label>
               <div className="space-y-2 mt-2">
                 {(formData.offer_requirements || []).map((req, index) => (
@@ -515,7 +519,7 @@ export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateIn
                 {(formData.offer_requirements?.length || 0) < 3 && (
                   <div className="flex gap-2">
                     <Input
-                      placeholder="Neue Anforderung..."
+                      placeholder={t('legacy.neue_anforderung')}
                       value={newRequirement}
                       onChange={(e) => setNewRequirement(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && addRequirement()}
@@ -535,22 +539,22 @@ export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateIn
           <AccordionTrigger className="px-4 hover:no-underline">
             <div className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-primary" />
-              <span className="font-semibold">Frageblock 4 – Vertragsrahmen</span>
+              <span className="font-semibold">{t('legacy.frageblock_4_vertragsrahmen')}</span>
             </div>
           </AccordionTrigger>
           <AccordionContent className="px-4 pb-4 space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="text-sm font-medium">Kündigungsfrist</Label>
+                <Label className="text-sm font-medium">{t('legacy.kuendigungsfrist')}</Label>
                 <Input
                   className="mt-2"
-                  placeholder="z.B. 3 Monate zum Quartalsende"
+                  placeholder={t('legacy.z_b_3_monate_zum_quartalsende')}
                   value={formData.notice_period || ''}
                   onChange={(e) => updateField('notice_period', e.target.value)}
                 />
               </div>
               <div>
-                <Label className="text-sm font-medium">Frühester Starttermin</Label>
+                <Label className="text-sm font-medium">{t('legacy.fruehester_starttermin')}</Label>
                 <Input
                   type="date"
                   className="mt-2"
@@ -568,31 +572,31 @@ export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateIn
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Users className="h-5 w-5" />
-            Abschluss
+            {t('legacy.abschluss')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="p-4 bg-muted/50 rounded-lg text-sm text-muted-foreground italic">
-            „Basierend auf dem, was Sie mir erzählt haben, passen Sie hervorragend auf die Position.
-            Die nächsten Schritte sind sehr einfach: Ich leite Ihr Profil anonymisiert weiter und melde mich, sobald wir Feedback haben."
+            {t('legacy.basierend_auf_dem_was_sie_mir_er_3b9f')}
+            {t('legacy.die_naechsten_schritte_sind_sehr_f5ed')}
           </div>
           
           <div className="flex items-center gap-4">
             <Label className="text-sm font-medium">
-              Empfehlung auf LinkedIn/Google?
+              {t('legacy.q_recommend')}
             </Label>
             <Switch
               checked={formData.would_recommend || false}
               onCheckedChange={(val) => updateField('would_recommend', val)}
             />
-            <span className="text-sm">{formData.would_recommend ? 'Ja' : 'Nein'}</span>
+            <span className="text-sm">{formData.would_recommend ? t('legacy.yes') : t('legacy.no')}</span>
           </div>
 
           <div>
-            <Label className="text-sm font-medium">Notizen zum Abschluss</Label>
+            <Label className="text-sm font-medium">{t('legacy.notizen_zum_abschluss')}</Label>
             <Textarea
               className="mt-2"
-              placeholder="Weitere Notizen..."
+              placeholder={t('legacy.weitere_notizen')}
               value={formData.recommendation_notes || ''}
               onChange={(e) => updateField('recommendation_notes', e.target.value)}
             />
@@ -603,12 +607,12 @@ export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateIn
       {/* Freitext / Additional Notes */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Freitext / Additional Notes</CardTitle>
+          <CardTitle className="text-lg">{t('legacy.freitext_additional_notes')}</CardTitle>
         </CardHeader>
         <CardContent>
           <Textarea
             className="min-h-[100px]"
-            placeholder="Spontane Notizen während des Gesprächs..."
+            placeholder={t('legacy.spontane_notizen_waehrend_des_ge_6194')}
             value={formData.additional_notes || ''}
             onChange={(e) => updateField('additional_notes', e.target.value)}
           />
@@ -619,25 +623,25 @@ export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateIn
       <Card className="border-green-500/30 bg-green-500/5">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg text-green-700">
-            📋 Zusammenfassung für Kunden
+            {t('legacy.zusammenfassung_fuer_kunden')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Wechselmotivation</Label>
+              <Label>{t('legacy.wechselmotivation')}</Label>
               <Textarea
                 className="mt-1"
-                placeholder="Zusammenfassung der Motivation..."
+                placeholder={t('legacy.zusammenfassung_der_motivation')}
                 value={formData.summary_motivation || ''}
                 onChange={(e) => updateField('summary_motivation', e.target.value)}
               />
             </div>
             <div>
-              <Label>Gehaltsrahmen</Label>
+              <Label>{t('legacy.gehaltsrahmen')}</Label>
               <Input
                 className="mt-1"
-                placeholder="z.B. 70.000 - 80.000 €"
+                placeholder={t('legacy.ph_salary_range')}
                 value={formData.summary_salary || ''}
                 onChange={(e) => updateField('summary_salary', e.target.value)}
               />
@@ -645,29 +649,29 @@ export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateIn
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>Kündigungsfrist</Label>
+              <Label>{t('legacy.kuendigungsfrist')}</Label>
               <Input
                 className="mt-1"
-                placeholder="z.B. 3 Monate"
+                placeholder={t('legacy.z_b_3_monate')}
                 value={formData.summary_notice || ''}
                 onChange={(e) => updateField('summary_notice', e.target.value)}
               />
             </div>
             <div>
-              <Label>Key Requirements</Label>
+              <Label>{t('legacy.key_requirements')}</Label>
               <Input
                 className="mt-1"
-                placeholder="Wichtigste Anforderungen..."
+                placeholder={t('legacy.wichtigste_anforderungen')}
                 value={formData.summary_key_requirements || ''}
                 onChange={(e) => updateField('summary_key_requirements', e.target.value)}
               />
             </div>
           </div>
           <div>
-            <Label>Cultural Fit</Label>
+            <Label>{t('legacy.cultural_fit')}</Label>
             <Textarea
               className="mt-1"
-              placeholder="Einschätzung zum Cultural Fit..."
+              placeholder={t('legacy.einschaetzung_zum_cultural_fit')}
               value={formData.summary_cultural_fit || ''}
               onChange={(e) => updateField('summary_cultural_fit', e.target.value)}
             />
@@ -679,11 +683,11 @@ export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateIn
       <div className="flex justify-end gap-2 pt-4">
         <Button variant="outline" onClick={() => handleSave(false)} disabled={saving}>
           <Save className="h-4 w-4 mr-2" />
-          Als Entwurf speichern
+          {t('legacy.als_entwurf_speichern')}
         </Button>
         <Button onClick={() => handleSave(true)} disabled={saving}>
           <CheckCircle className="h-4 w-4 mr-2" />
-          Interview abschließen
+          {t('legacy.interview_abschliessen')}
         </Button>
       </div>
     </div>

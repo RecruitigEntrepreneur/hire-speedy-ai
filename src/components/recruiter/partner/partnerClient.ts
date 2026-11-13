@@ -1,3 +1,5 @@
+import i18n from '@/i18n';
+
 /**
  * Kopieren und Herunterladen im Partnerstatus. Die Signatur geht formatiert in die
  * Zwischenablage (text/html), damit Gmail und Outlook sie beim Einfügen übernehmen;
@@ -40,17 +42,17 @@ export function downloadText(text: string, fileName: string, type: string) {
 /** SVG (etwa den QR-Code) als PNG speichern, in Druckgröße. */
 export async function downloadSvgAsPng(svg: string, fileName: string, size = 1024) {
   const img = new Image();
-  const loaded = new Promise<void>((resolve, reject) => { img.onload = () => resolve(); img.onerror = () => reject(new Error('Bild nicht lesbar')); });
+  const loaded = new Promise<void>((resolve, reject) => { img.onload = () => resolve(); img.onerror = () => reject(new Error(i18n.t('recruiterPartner:errors.imageUnreadable'))); });
   img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
   await loaded;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Kein Zeichenbereich');
+  if (!ctx) throw new Error(i18n.t('recruiterPartner:errors.noCanvas'));
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(img, 0, 0, size, size);
   const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'));
-  if (!blob) throw new Error('PNG nicht erzeugt');
+  if (!blob) throw new Error(i18n.t('recruiterPartner:errors.pngFailed'));
   save(blob, fileName);
 }

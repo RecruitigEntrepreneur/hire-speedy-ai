@@ -1,4 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
+import { intlLocale } from '@/i18n/languages';
 import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
@@ -49,6 +51,7 @@ interface Conversation {
 export default function RecruiterMessages() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t, i18n } = useTranslation('recruiterInbox');
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
@@ -113,7 +116,7 @@ export default function RecruiterMessages() {
         convList.push({
           id: convId,
           otherUserId,
-          otherUserName: profileData?.full_name || 'Unbekannt',
+          otherUserName: profileData?.full_name || t('messages.unknown'),
           lastMessage: lastMsg.content,
           lastMessageAt: lastMsg.created_at,
           unreadCount
@@ -141,7 +144,7 @@ export default function RecruiterMessages() {
           conv.candidateName = (candRes.data ?? []).find((c: any) => c.id === first.candidate_id)?.full_name ?? null;
           conv.submissionId = sub?.id ?? null;
           conv.needsAnswer = first.sender_id !== user?.id;
-          if (conv.otherUserName === 'Unbekannt') conv.otherUserName = job?.company_name ? `Kunde · ${job.company_name}` : 'Kunde';
+          if (conv.otherUserName === t('messages.unknown')) conv.otherUserName = job?.company_name ? t('messages.clientOf', { company: job.company_name }) : t('messages.client');
         }
       }
 
@@ -202,7 +205,7 @@ export default function RecruiterMessages() {
           throw new Error((res as { error?: string } | null)?.error ?? fnError?.message);
         }
         if ((res as { scrubbed?: boolean } | null)?.scrubbed) {
-          toast({ title: 'Gesendet', description: 'Name oder Arbeitgeber des Kandidaten wurden entfernt, weil er noch nicht zugestimmt hat.' });
+          toast({ title: t('messages.sent'), description: t('messages.scrubbed') });
         }
         setNewMessage('');
         await fetchMessages(selectedConversation);
@@ -234,8 +237,8 @@ export default function RecruiterMessages() {
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
-        title: 'Fehler',
-        description: 'Nachricht konnte nicht gesendet werden.',
+        title: t('messages.error'),
+        description: t('messages.sendFailed'),
         variant: 'destructive'
       });
     } finally {
@@ -249,9 +252,9 @@ export default function RecruiterMessages() {
     const isToday = date.toDateString() === now.toDateString();
     
     if (isToday) {
-      return date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+      return date.toLocaleTimeString(intlLocale(i18n.language), { hour: '2-digit', minute: '2-digit' });
     }
-    return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+    return date.toLocaleDateString(intlLocale(i18n.language), { day: '2-digit', month: '2-digit' });
   };
 
   const filteredConversations = conversations.filter(c =>
@@ -275,9 +278,9 @@ export default function RecruiterMessages() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Nachrichten</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t('messages.title')}</h1>
           <p className="text-muted-foreground">
-            {totalUnread > 0 ? `${totalUnread} ungelesene Nachrichten` : 'Kommunikation mit Kunden'}
+            {totalUnread > 0 ? t('messages.unread', { count: totalUnread }) : t('messages.subtitle')}
           </p>
         </div>
 
@@ -289,7 +292,7 @@ export default function RecruiterMessages() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Suchen..."
+                  placeholder={t('messages.search')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9"
@@ -302,7 +305,7 @@ export default function RecruiterMessages() {
                   <div className="text-center py-8 px-4">
                     <MessageSquare className="mx-auto h-8 w-8 text-muted-foreground/50" />
                     <p className="mt-2 text-sm text-muted-foreground">
-                      Keine Konversationen
+                      {t('messages.none')}
                     </p>
                   </div>
                 ) : (
@@ -332,7 +335,7 @@ export default function RecruiterMessages() {
                             </div>
                             {conv.jobTitle && (
                               <p className="text-xs text-muted-foreground truncate">
-                                {conv.candidateName ?? 'Kandidat'} · {conv.jobTitle}
+                                {conv.candidateName ?? t('messages.candidate')} · {conv.jobTitle}
                               </p>
                             )}
                             <p className="text-sm text-muted-foreground truncate">
@@ -373,15 +376,8 @@ export default function RecruiterMessages() {
                         const c = conversations.find((x) => x.id === selectedConversation);
                         return c?.jobTitle ? (
                           <p className="text-xs text-muted-foreground">
-                            Frage zu{' '}
-                            {c.candidateId ? (
-                              <Link to={`/recruiter/candidates/${c.candidateId}`} className="underline underline-offset-2 hover:text-foreground">
-                                {c.candidateName ?? 'deinem Kandidaten'}
-                              </Link>
-                            ) : (
-                              c.candidateName ?? 'deinem Kandidaten'
-                            )}{' '}
-                            · {c.jobTitle}
+                            <Trans t={t} i18nKey="messages.questionAbout" values={{ name: c.candidateName ?? t('messages.yourCandidate'), job: c.jobTitle }}
+                              components={{ link: c.candidateId ? <Link to={`/recruiter/candidates/${c.candidateId}`} className="underline underline-offset-2 hover:text-foreground" /> : <span /> }} />
                           </p>
                         ) : null;
                       })()}
@@ -420,12 +416,12 @@ export default function RecruiterMessages() {
                   <div className="border-t p-4">
                     {conversations.find((c) => c.id === selectedConversation)?.submissionId && (
                       <p className="mb-2 text-xs text-muted-foreground">
-                        Die Antwort geht an den Kunden (Glocke und Mail). Name und Arbeitgeber des Kandidaten werden entfernt, solange er nicht zugestimmt hat.
+                        {t('messages.replyNote')}
                       </p>
                     )}
                     <div className="flex gap-2">
                       <Input
-                        placeholder="Nachricht schreiben..."
+                        placeholder={t('messages.write')}
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
@@ -445,9 +441,9 @@ export default function RecruiterMessages() {
               <CardContent className="flex-1 flex items-center justify-center">
                 <div className="text-center">
                   <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground/50" />
-                  <h3 className="mt-4 text-lg font-semibold">Wähle eine Konversation</h3>
+                  <h3 className="mt-4 text-lg font-semibold">{t('messages.pickTitle')}</h3>
                   <p className="text-muted-foreground">
-                    Klicke links auf eine Konversation, um Nachrichten anzuzeigen
+                    {t('messages.pickText')}
                   </p>
                 </div>
               </CardContent>

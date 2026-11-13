@@ -7,8 +7,10 @@ import { verdienstJeTag } from '@/lib/recruiterContracting';
 import { Honorar } from './Honorar';
 import { useJobEarning } from './verdienste/useJobEarning';
 import { eur0 } from '../../../supabase/functions/_shared/abrechnung-view';
+import { useTranslation } from 'react-i18next';
+import { intlLocale } from '@/i18n/languages';
 
-const EURO = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+const euro = (value: number, language: string) => new Intl.NumberFormat(intlLocale(language), { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(value);
 const keyOf = (v: string) => v.trim().toLocaleLowerCase('de-DE');
 
 /**
@@ -21,11 +23,12 @@ const keyOf = (v: string) => v.trim().toLocaleLowerCase('de-DE');
 export function HeroEarning({ job, onDetails }: { job: WorkspaceJob; onDetails?: () => void }) {
   const jeTag = job.employment_type === 'freelance' ? verdienstJeTag(job) : null;
   const { earning: plan } = useJobEarning(jeTag ? null : job.id, job.salary_min ?? null, job.salary_max ?? null);
+  const { t, i18n } = useTranslation('recruiterJobDetail');
   if (plan) {
     return (
       <div>
-        <p className="text-xs text-muted-foreground">Dein Verdienst</p>
-        <p className="mt-1 text-2xl font-semibold leading-none tracking-tight tabular-nums text-emerald-500"><Honorar>{eur0(plan.totalCents)}</Honorar></p>
+        <p className="text-xs text-muted-foreground">{t('earning.yours')}</p>
+        <p className="mt-1 text-2xl font-semibold leading-none tracking-tight tabular-nums text-emerald-500"><Honorar>{eur0(plan.totalCents, i18n.language)}</Honorar></p>
         {onDetails
           ? <button type="button" onClick={onDetails} className="mt-1 text-left text-xs text-muted-foreground underline decoration-dotted underline-offset-4 hover:text-foreground"><Honorar>{plan.detail}</Honorar></button>
           : <p className="mt-1 text-xs text-muted-foreground"><Honorar>{plan.detail}</Honorar></p>}
@@ -40,8 +43,8 @@ export function HeroEarning({ job, onDetails }: { job: WorkspaceJob; onDetails?:
   if (!jeTag && mitte == null) return null;
   return (
     <div>
-      <p className="text-xs text-muted-foreground">{jeTag ? 'Dein Verdienst je Einsatztag' : 'Dein Verdienst'}</p>
-      <p className="mt-1 text-2xl font-semibold leading-none tracking-tight tabular-nums text-emerald-500"><Honorar>{jeTag ?? EURO.format(mitte!)}</Honorar></p>
+      <p className="text-xs text-muted-foreground">{jeTag ? t('earning.yoursPerDay') : t('earning.yours')}</p>
+      <p className="mt-1 text-2xl font-semibold leading-none tracking-tight tabular-nums text-emerald-500"><Honorar>{jeTag ?? euro(mitte!, i18n.language)}</Honorar></p>
     </div>
   );
 }
@@ -79,6 +82,7 @@ function Spalte({ titel, children }: { titel: string; children: React.ReactNode 
  * den Wechsel. Flach, ohne Karten; leere Spalten entfallen.
  */
 export function JobDecisionStrip({ job }: { job: WorkspaceJob }) {
+  const { t } = useTranslation('recruiterJobDetail');
   const criteria = getRecruiterCriteria(job);
   const muss = criteria.required.slice(0, 3);
   const mehr = criteria.required.length - muss.length;
@@ -104,16 +108,16 @@ export function JobDecisionStrip({ job }: { job: WorkspaceJob }) {
   return (
     <div className="grid gap-4 sm:auto-cols-fr sm:grid-flow-col sm:gap-0">
       {muss.length > 0 && (
-        <Spalte titel="Muss">
+        <Spalte titel={t('strip.must')}>
           {muss.map((m) => (
             <li key={m} className="flex gap-2"><Check className="mt-1 h-3.5 w-3.5 shrink-0 text-emerald-500" aria-hidden="true" /><span className="min-w-0">{m}</span></li>
           ))}
-          {mehr > 0 && <li className="text-xs text-muted-foreground">+ {mehr} weitere im Briefing</li>}
-          {vorteil.length > 0 && <li className="pt-1 text-xs leading-5 text-muted-foreground">Von Vorteil: {vorteil.join(' · ')}</li>}
+          {mehr > 0 && <li className="text-xs text-muted-foreground">{t('strip.more', { count: mehr })}</li>}
+          {vorteil.length > 0 && <li className="pt-1 text-xs leading-5 text-muted-foreground">{t('strip.niceToHave', { list: vorteil.join(' · ') })}</li>}
         </Spalte>
       )}
       {eintraege.length > 0 && (
-        <Spalte titel="Eckdaten">
+        <Spalte titel={t('ws.keyFacts')}>
           {eintraege.slice(0, 5).map((e) => (
             <li key={e.label} className="flex gap-2">
               <span className="w-24 shrink-0 text-xs leading-6 text-muted-foreground">{e.label}</span>
@@ -123,7 +127,7 @@ export function JobDecisionStrip({ job }: { job: WorkspaceJob }) {
         </Spalte>
       )}
       {gruende.length > 0 && (
-        <Spalte titel="Warum wechseln">
+        <Spalte titel={t('strip.whyMove')}>
           {gruende.map((g) => (
             <li key={g} className="flex gap-2"><span className="text-muted-foreground" aria-hidden="true">·</span><span className="min-w-0">{g}</span></li>
           ))}

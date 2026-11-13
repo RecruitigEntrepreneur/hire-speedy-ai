@@ -11,6 +11,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
 import { Building2, UserCheck, Shield, Loader2, ArrowLeft } from 'lucide-react';
 import { MatchuntWordmark } from '@/components/ui/MatchuntWordmark';
+import { LanguageMenu } from '@/components/language/LanguageMenu';
 import { z } from 'zod';
 
 const emailSchema = z.string().email('Please enter a valid email address');
@@ -144,13 +145,16 @@ export default function Auth() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <Link 
-          to="/" 
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-8 transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          {t('auth.backToHome')}
-        </Link>
+        <div className="mb-8 flex items-center justify-between gap-3">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            {t('auth.backToHome')}
+          </Link>
+          <LanguageMenu />
+        </div>
 
         <Card className="border-border/50 shadow-xl animate-scale-in">
           <CardHeader className="text-center pb-2">

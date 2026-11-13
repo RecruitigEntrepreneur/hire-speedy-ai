@@ -23,6 +23,8 @@ import {
 import { releaseBlockers } from './billing-config.ts';
 import { eur } from './invoice-pdf.ts';
 import { esc, layout } from './intake-mail.ts';
+import { dateKeyIn, eurCentsIn, m, tx, type Lang } from './notify-i18n.ts';
+import { clientLanguage } from './recipient-language.ts';
 import {
   JOKER_DEFAULT_PCT, JOKER_VALID_DAYS, START_OBJECTION_WORKDAYS, START_SILENCE_DAYS, addWorkdays, isPackageKey,
   splitFor, versionOfSnapshot, type PackageKey,
@@ -52,6 +54,33 @@ export const END_REASONS_AFTER_START: Record<string, string> = {
 /** Gründe, die in der Sphäre des Kunden liegen (§ 9 Abs. 4, R5). */
 export const CLIENT_SPHERE_REASONS = ['offer_withdrawn', 'position_changed'];
 export const END_REASON_LABEL: Record<string, string> = { ...END_REASONS_BEFORE_START, ...END_REASONS_AFTER_START };
+
+// ---------------------------------------------------------------------------
+// Sprache des Lesers (Mehrsprachigkeit 13.11.2026): Glocken an Kunde und Headhunter in
+// dessen Profilsprache. Deutsch bleibt wortgleich.
+// ---------------------------------------------------------------------------
+const isDeLang = (l: Lang) => l === 'de' || l === 'de-AT' || l === 'de-CH';
+/** Betrag wie bisher (eur) auf Deutsch, sonst nach Region */
+const eurIn = (cents: number, l: Lang) => (isDeLang(l) ? eur(cents) : eurCentsIn(cents, l));
+const END_REASON_OTHER: Record<string, [string, string, string]> = {
+  declined_before_start: ['withdrew before starting', 'tackade nej före start', 'trakk seg før oppstart'],
+  no_show: ['did not show up', 'dök inte upp', 'møtte ikke opp'],
+  offer_withdrawn: ['We withdrew the offer', 'Vi drog tillbaka erbjudandet', 'Vi trakk tilbake tilbudet'],
+  candidate_resigned: ['resigned', 'sa upp sig själv', 'sa opp selv'],
+  performance_conduct: ['We are parting ways due to performance or conduct', 'Vi skiljs åt på grund av prestation eller uppförande', 'Vi skilles på grunn av prestasjon eller oppførsel'],
+  mutual_on_request: ['Mutual termination at the person’s request', 'Avslut på personens begäran', 'Avslutning etter personens ønske'],
+  position_changed: ['Position eliminated or restructured', 'Tjänsten försvinner eller görs om', 'Stillingen faller bort eller endres'],
+  other: ['Something else', 'Något annat', 'Noe annet'],
+};
+/** Grund wie in der Meldung: „Cem hat selbst gekündigt“, „Wir trennen uns …“ – in der Sprache des Lesers */
+function endLabelIn(reason: string, firstName: string, l: Lang): string {
+  const de = END_REASON_LABEL[reason] ?? reason;
+  const o = END_REASON_OTHER[reason];
+  const sentence = /^(Wir|Stelle|Etwas|Aufhebung)/.test(de);
+  if (isDeLang(l) || !o) return sentence ? de : `${firstName} ${de}`;
+  const text = tx(l, de, o[0], o[1], o[2]);
+  return sentence ? text : `${firstName} ${text}`;
+}
 
 // ---------------------------------------------------------------------------
 // Hilfen
@@ -149,7 +178,14 @@ export async function reportStartByRecruiter(ctx: PlacementCtx, user: User, body
     must(on <= today, 'Der Tag liegt in der Zukunft.');
     const { error } = await ctx.db.from('placements').update({ start_reported_at: nowIso, start_reported_by: user.id, start_reported_on: on, start_report_kind: 'started' }).eq('id', p.id);
     dbFail(error, 'Die Meldung');
-    await notify(ctx, clientId, 'placement_start_reported', `${who.firstName}s Start bestätigen`, `${(await profile(ctx.db, user.id))?.name ?? 'Ihr Headhunter'} meldet: angefangen am ${dateDe(on)}. Ohne Antwort gilt es am ${dateDe(addWorkdays(today, START_OBJECTION_WORKDAYS))} als bestätigt.`, 'submission', p.submission_id);
+    const reporter = (await profile(ctx.db, user.id))?.name ?? null;
+    const fixesOn = addWorkdays(today, START_OBJECTION_WORKDAYS);
+    await notify(ctx, clientId, 'placement_start_reported',
+      (l) => tx(l, m`${who.firstName}s Start bestätigen`, m`Confirm ${who.firstName}’s start`, m`Bekräfta starten för ${who.firstName}`, m`Bekreft oppstarten til ${who.firstName}`),
+      (l) => {
+        const by = reporter ?? tx(l, 'Ihr Headhunter', 'Your headhunter', 'Din headhunter', 'Din headhunter');
+        return tx(l, m`${by} meldet: angefangen am ${dateKeyIn(on, l)}. Ohne Antwort gilt es am ${dateKeyIn(fixesOn, l)} als bestätigt.`, m`${by} reports: started on ${dateKeyIn(on, l)}. Without a reply, it counts as confirmed on ${dateKeyIn(fixesOn, l)}.`, m`${by} meddelar: började ${dateKeyIn(on, l)}. Utan svar räknas det som bekräftat ${dateKeyIn(fixesOn, l)}.`, m`${by} melder: begynte ${dateKeyIn(on, l)}. Uten svar regnes det som bekreftet ${dateKeyIn(fixesOn, l)}.`);
+      }, 'submission', p.submission_id);
     return { ok: true, state: 'reported', fixesOn: addWorkdays(today, START_OBJECTION_WORKDAYS) };
   }
   if (way === 'later') {
@@ -157,12 +193,20 @@ export async function reportStartByRecruiter(ctx: PlacementCtx, user: User, body
     must(DATE.test(next) && next > today, 'Bitte den neuen ersten Arbeitstag angeben.');
     const { error } = await ctx.db.from('placements').update({ first_working_day: next, start_moved_at: nowIso, start_moved_by: user.id, start_moved_note: note, start_report_kind: 'later' }).eq('id', p.id);
     dbFail(error, 'Der neue Starttermin');
-    await notify(ctx, clientId, 'placement_start_moved', `Start verschoben: ${who.firstName}`, `${who.job.title} · neuer erster Arbeitstag ${dateDe(next)} (vorher ${dateDe(planned)})${note ? ` · ${note}` : ''}`, 'submission', p.submission_id);
+    await notify(ctx, clientId, 'placement_start_moved',
+      (l) => tx(l, m`Start verschoben: ${who.firstName}`, m`Start moved: ${who.firstName}`, m`Start flyttad: ${who.firstName}`, m`Oppstart flyttet: ${who.firstName}`),
+      (l) => `${who.job.title} · ${tx(l, `neuer erster Arbeitstag ${dateKeyIn(next, l)} (vorher ${dateKeyIn(planned, l)})`, `new first working day ${dateKeyIn(next, l)} (previously ${dateKeyIn(planned, l)})`, `ny första arbetsdag ${dateKeyIn(next, l)} (tidigare ${dateKeyIn(planned, l)})`, `ny første arbeidsdag ${dateKeyIn(next, l)} (tidligere ${dateKeyIn(planned, l)})`)}${note ? ` · ${note}` : ''}`, 'submission', p.submission_id);
     return { ok: true, state: 'moved', startDate: next };
   }
   const { error } = await ctx.db.from('placements').update({ start_reported_at: nowIso, start_reported_by: user.id, start_reported_on: null, start_report_kind: 'not_started', start_contest_note: note }).eq('id', p.id);
   dbFail(error, 'Die Meldung');
-  await notify(ctx, clientId, 'placement_start_reported', `${(await profile(ctx.db, user.id))?.name ?? 'Ihr Headhunter'} meldet: ${who.firstName} hat nicht angefangen`, 'Bitte bestätigen, dann prüft Matchunt den Fall.', 'submission', p.submission_id);
+  const reporterName = (await profile(ctx.db, user.id))?.name ?? null;
+  await notify(ctx, clientId, 'placement_start_reported',
+    (l) => {
+      const by = reporterName ?? tx(l, 'Ihr Headhunter', 'Your headhunter', 'Din headhunter', 'Din headhunter');
+      return tx(l, m`${by} meldet: ${who.firstName} hat nicht angefangen`, m`${by} reports: ${who.firstName} did not start`, m`${by} meddelar: ${who.firstName} började inte`, m`${by} melder: ${who.firstName} begynte ikke`);
+    },
+    (l) => tx(l, 'Bitte bestätigen, dann prüft Matchunt den Fall.', 'Please confirm, then Matchunt will review the case.', 'Bekräfta, så granskar Matchunt ärendet.', 'Bekreft, så vurderer Matchunt saken.'), 'submission', p.submission_id);
   for (const a of await adminIds(ctx.db)) await notify(ctx, a, 'placement_non_start', `Headhunter meldet Nichtantritt: ${who.fullName}`, `${who.job.company_name} · ${who.job.title}${note ? ` · ${note}` : ''}`, 'placement', p.id);
   return { ok: true, state: 'not_started_reported' };
 }
@@ -173,14 +217,16 @@ export async function answerRecruiterStart(ctx: PlacementCtx, user: User, p: any
   const who = await placementPeople(ctx, p);
   if (agree) {
     await fixStart(ctx, p, 'client', p.start_reported_on, user.id);
-    await notify(ctx, who.recruiterId, 'placement_started', `${who.firstName} hat angefangen`, `${who.job.company_name} hat den Start bestätigt.`, 'placement', p.id);
+    await notify(ctx, who.recruiterId, 'placement_started', (l) => tx(l, m`${who.firstName} hat angefangen`, m`${who.firstName} has started`, m`${who.firstName} har börjat`, m`${who.firstName} har begynt`),
+      (l) => tx(l, m`${who.job.company_name} hat den Start bestätigt.`, m`${who.job.company_name} has confirmed the start.`, m`${who.job.company_name} har bekräftat starten.`, m`${who.job.company_name} har bekreftet oppstarten.`), 'placement', p.id);
     return { ok: true, state: 'started' };
   }
   const nowIso = new Date(ctx.now()).toISOString();
   const { error } = await ctx.db.from('placements').update({ start_contested_at: nowIso, start_contest_note: note }).eq('id', p.id);
   dbFail(error, 'Die Antwort');
   for (const a of await adminIds(ctx.db)) await notify(ctx, a, 'placement_start_contested', `Antritt unklar: ${who.fullName}`, `Headhunter meldet „angefangen“, der Kunde sagt „Stimmt so nicht“${note ? `: ${note}` : ''}.`, 'placement', p.id);
-  await notify(ctx, who.recruiterId, 'placement_start_contested', `Antritt unklar: ${who.firstName}`, 'Der Kunde sieht es anders. Matchunt klärt das und meldet sich.', 'placement', p.id);
+  await notify(ctx, who.recruiterId, 'placement_start_contested', (l) => tx(l, m`Antritt unklar: ${who.firstName}`, m`Start unclear: ${who.firstName}`, m`Oklar start: ${who.firstName}`, m`Uklar oppstart: ${who.firstName}`),
+    (l) => tx(l, 'Der Kunde sieht es anders. Matchunt klärt das und meldet sich.', 'The client sees it differently. Matchunt will clarify and get back to you.', 'Kunden ser det annorlunda. Matchunt reder ut det och hör av sig.', 'Kunden ser det annerledes. Matchunt avklarer og tar kontakt.'), 'placement', p.id);
   return { ok: true, state: 'contested' };
 }
 
@@ -243,8 +289,13 @@ export async function reportEnd(ctx: PlacementCtx, user: User, p: any, body: any
   const label = `${reasons[reason].startsWith('Wir') || reasons[reason].startsWith('Stelle') || reasons[reason].startsWith('Etwas') || reasons[reason].startsWith('Aufhebung') ? reasons[reason] : `${who.firstName} ${reasons[reason]}`}`;
   const adminTitle = outcome === 'claim' ? `Fall prüfen: ${who.fullName}` : kind === 'non_start' && !pkg.continuityDays ? `Nicht angefangen (Core): ${who.fullName}` : `Besetzung endet: ${who.fullName}`;
   for (const a of await adminIds(ctx.db)) await notify(ctx, a, 'placement_end_reported', adminTitle, `${who.job.company_name} · ${who.job.title} · ${label}${note ? ` · ${note}` : ''} · gemeldet von ${me?.name ?? 'Kunde'}`, 'placement', p.id);
-  await notify(ctx, who.recruiterId, 'placement_end_reported', `${kind === 'non_start' ? 'Nicht angefangen' : 'Besetzung endet'}: ${who.firstName}`,
-    `${who.job.company_name} meldet: ${label}. ${pkg.continuityDays ? 'Matchunt prüft den Fall und fragt dich nach deiner Sicht.' : 'Matchunt meldet sich.'}`, 'placement', p.id);
+  await notify(ctx, who.recruiterId, 'placement_end_reported',
+    (l) => `${kind === 'non_start' ? tx(l, 'Nicht angefangen', 'Did not start', 'Började inte', 'Begynte ikke') : tx(l, 'Besetzung endet', 'Placement ends', 'Placeringen upphör', 'Ansettelsen avsluttes')}: ${who.firstName}`,
+    (l) => {
+      const lab = isDeLang(l) ? label : endLabelIn(reason, who.firstName, l);
+      const next = pkg.continuityDays ? tx(l, 'Matchunt prüft den Fall und fragt dich nach deiner Sicht.', 'Matchunt is reviewing the case and will ask for your view.', 'Matchunt granskar ärendet och frågar efter din syn.', 'Matchunt vurderer saken og spør om ditt syn.') : tx(l, 'Matchunt meldet sich.', 'Matchunt will be in touch.', 'Matchunt hör av sig.', 'Matchunt tar kontakt.');
+      return `${tx(l, m`${who.job.company_name} meldet: ${lab}.`, m`${who.job.company_name} reports: ${lab}.`, m`${who.job.company_name} meddelar: ${lab}.`, m`${who.job.company_name} melder: ${lab}.`)} ${next}`;
+    }, 'placement', p.id);
   return { ok: true, outcome, claimId, kind };
 }
 
@@ -276,11 +327,13 @@ export async function acceptCase(ctx: PlacementCtx, adminId: string, claimId: st
   const bounty = bountyOf(p, 'continuity');
   await ctx.db.from('placements').update({ research_bounty_cents: bounty }).eq('id', p.id);
   const who = await placementPeople(ctx, p);
-  await notify(ctx, who.job.client_id, 'research_position_confirm', `Nachbesetzung für ${who.firstName}: Position bestätigen`,
-    `Matchunt hat Ihre Meldung geprüft. Bestätigen Sie die Stelle oder passen Sie sie an, dann schreiben wir sie für alle Headhunter neu aus.`, 'submission', p.submission_id);
+  await notify(ctx, who.job.client_id, 'research_position_confirm',
+    (l) => tx(l, m`Nachbesetzung für ${who.firstName}: Position bestätigen`, m`Replacement for ${who.firstName}: confirm the role`, m`Ersättning för ${who.firstName}: bekräfta tjänsten`, m`Erstatning for ${who.firstName}: bekreft stillingen`),
+    (l) => tx(l, `Matchunt hat Ihre Meldung geprüft. Bestätigen Sie die Stelle oder passen Sie sie an, dann schreiben wir sie für alle Headhunter neu aus.`, 'Matchunt has reviewed your report. Confirm the role or adjust it, then we will re-advertise it to all headhunters.', 'Matchunt har granskat din anmälan. Bekräfta tjänsten eller justera den, så annonserar vi ut den på nytt till alla headhunters.', 'Matchunt har vurdert meldingen din. Bekreft stillingen eller juster den, så lyser vi den ut på nytt for alle headhuntere.'), 'submission', p.submission_id);
   const kept = (claim as any).kind === 'non_start' ? 0 : Number(p.recruiter_initial_cents ?? 0);
-  await notify(ctx, who.recruiterId, 'research_accepted', `Nachbesetzung: ${who.job.title}`,
-    `${(claim as any).kind === 'non_start' ? `${who.firstName} hat nicht angefangen.` : `Die Besetzung von ${who.firstName} endet.`} ${kept ? `Dein 1. Teil (${eur(kept)}) bleibt deiner. ` : ''}Die Stelle wird neu für alle ausgeschrieben, sobald der Kunde sie bestätigt hat.`, 'placement', p.id);
+  const nonStartClaim = (claim as any).kind === 'non_start';
+  await notify(ctx, who.recruiterId, 'research_accepted', (l) => tx(l, m`Nachbesetzung: ${who.job.title}`, m`Replacement: ${who.job.title}`, m`Ersättning: ${who.job.title}`, m`Erstatning: ${who.job.title}`),
+    (l) => `${nonStartClaim ? tx(l, m`${who.firstName} hat nicht angefangen.`, m`${who.firstName} did not start.`, m`${who.firstName} började inte.`, m`${who.firstName} begynte ikke.`) : tx(l, m`Die Besetzung von ${who.firstName} endet.`, m`The placement of ${who.firstName} ends.`, m`Placeringen av ${who.firstName} upphör.`, m`Ansettelsen av ${who.firstName} avsluttes.`)} ${kept ? tx(l, `Dein 1. Teil (${eurIn(kept, l)}) bleibt deiner. `, `Your 1st part (${eurIn(kept, l)}) stays yours. `, `Din första del (${eurIn(kept, l)}) får du behålla. `, `Din første del (${eurIn(kept, l)}) beholder du. `) : ''}${tx(l, 'Die Stelle wird neu für alle ausgeschrieben, sobald der Kunde sie bestätigt hat.', 'The role will be re-advertised to everyone as soon as the client has confirmed it.', 'Tjänsten annonseras ut på nytt till alla så snart kunden har bekräftat den.', 'Stillingen lyses ut på nytt for alle så snart kunden har bekreftet den.')}`, 'placement', p.id);
   return { ok: true, bountyCents: bounty };
 }
 
@@ -304,8 +357,13 @@ export async function rejectCase(ctx: PlacementCtx, adminId: string, claimId: st
   if (clientSphere) await applyClientSphere(ctx, p, adminId);
   else await ctx.db.from('placements').update({ continuity_state: p.start_fixed_at ? 'running' : 'not_applicable' }).eq('id', p.id);
   p = await loadPlacementRow(ctx, p.id);
-  await notify(ctx, who.job.client_id, 'claim_rejected', `Ihre Meldung zu ${who.firstName}`, clientSphere ? 'Eine Nachbesetzung ist hier nicht vorgesehen, weil der Grund auf Ihrer Seite liegt (Rahmenvertrag § 9 Abs. 4).' : `Matchunt kann die Meldung nicht als Nachbesetzung anerkennen: ${why}`, 'submission', p.submission_id);
-  await notify(ctx, who.recruiterId, 'claim_rejected', `Fall entschieden: ${who.firstName}`, clientSphere ? 'Der Grund liegt beim Kunden. Du bekommst deinen vollen Anteil, der 2. Teil wird sofort frei.' : 'Matchunt hat den Fall nicht anerkannt. Für dich ändert sich nichts.', 'placement', p.id);
+  // Begründung schreibt Matchunt (Freitext) und bleibt, wie sie ist
+  await notify(ctx, who.job.client_id, 'claim_rejected', (l) => tx(l, m`Ihre Meldung zu ${who.firstName}`, m`Your report on ${who.firstName}`, m`Din anmälan om ${who.firstName}`, m`Meldingen din om ${who.firstName}`),
+    (l) => clientSphere ? tx(l, 'Eine Nachbesetzung ist hier nicht vorgesehen, weil der Grund auf Ihrer Seite liegt (Rahmenvertrag § 9 Abs. 4).', 'A replacement is not provided for here because the reason lies on your side (framework agreement § 9 (4)).', 'En ersättning ingår inte här eftersom skälet ligger på er sida (ramavtal § 9 st. 4).', 'En erstatning er ikke aktuell her fordi grunnen ligger hos dere (rammeavtale § 9 nr. 4).')
+      : tx(l, m`Matchunt kann die Meldung nicht als Nachbesetzung anerkennen: ${why}`, m`Matchunt cannot accept the report as a replacement case: ${why}`, m`Matchunt kan inte godkänna anmälan som ersättningsärende: ${why}`, m`Matchunt kan ikke godkjenne meldingen som erstatningssak: ${why}`), 'submission', p.submission_id);
+  await notify(ctx, who.recruiterId, 'claim_rejected', (l) => tx(l, m`Fall entschieden: ${who.firstName}`, m`Case decided: ${who.firstName}`, m`Ärendet avgjort: ${who.firstName}`, m`Saken avgjort: ${who.firstName}`),
+    (l) => clientSphere ? tx(l, 'Der Grund liegt beim Kunden. Du bekommst deinen vollen Anteil, der 2. Teil wird sofort frei.', 'The reason lies with the client. You get your full share; the 2nd part is released immediately.', 'Skälet ligger hos kunden. Du får hela din andel, den andra delen frigörs direkt.', 'Grunnen ligger hos kunden. Du får hele andelen din, den andre delen frigis med en gang.')
+      : tx(l, 'Matchunt hat den Fall nicht anerkannt. Für dich ändert sich nichts.', 'Matchunt did not accept the case. Nothing changes for you.', 'Matchunt godkände inte ärendet. För dig ändras ingenting.', 'Matchunt godkjente ikke saken. For deg endres ingenting.'), 'placement', p.id);
   return { ok: true };
 }
 
@@ -359,11 +417,13 @@ export async function openResearchJob(ctx: PlacementCtx, p: any, nowIso: string,
   dbFail(error, 'Die Stelle');
   await ctx.db.from('placements').update({ research_state: 'running', research_started_at: nowIso, research_job_id: jobId }).eq('id', p.id);
   const bounty = Number(p.research_bounty_cents ?? 0) || bountyOf(p, p.research_kind === 'joker' ? 'joker' : 'continuity');
-  const why = p.non_start_reported_at ? `${who.firstName} hat nicht angefangen.` : `Die erste Besetzung hat in der Garantiezeit geendet.`;
+  const whyIn = (l: Lang) => p.non_start_reported_at ? tx(l, m`${who.firstName} hat nicht angefangen.`, m`${who.firstName} did not start.`, m`${who.firstName} började inte.`, m`${who.firstName} begynte ikke.`)
+    : tx(l, 'Die erste Besetzung hat in der Garantiezeit geendet.', 'The first placement ended within the guarantee period.', 'Den första placeringen upphörde under garantitiden.', 'Den første ansettelsen ble avsluttet i garantiperioden.');
   for (const r of await recruitersOfJob(ctx, jobId)) {
     const own = r === who.recruiterId;
-    await notify(ctx, r, 'research_open', `Nachbesetzung: ${who.job.title}`,
-      own ? `${why} Die Stelle ist neu für alle ausgeschrieben, auch für dich.` : `${why} Die Stelle ist neu ausgeschrieben · Auslobung ${eur(bounty)} in einem Teil nach Antritt.${changed ? ' Der Kunde hat die Stelle angepasst.' : ''}`, 'job', jobId);
+    await notify(ctx, r, 'research_open', (l) => tx(l, m`Nachbesetzung: ${who.job.title}`, m`Replacement: ${who.job.title}`, m`Ersättning: ${who.job.title}`, m`Erstatning: ${who.job.title}`),
+      (l) => own ? `${whyIn(l)} ${tx(l, 'Die Stelle ist neu für alle ausgeschrieben, auch für dich.', 'The role has been re-advertised to everyone, including you.', 'Tjänsten är utannonserad på nytt till alla, även till dig.', 'Stillingen er lyst ut på nytt for alle, også for deg.')}`
+        : `${whyIn(l)} ${tx(l, `Die Stelle ist neu ausgeschrieben · Auslobung ${eurIn(bounty, l)} in einem Teil nach Antritt.`, `The role has been re-advertised · bounty ${eurIn(bounty, l)} in one part after the start.`, `Tjänsten är utannonserad på nytt · ersättning ${eurIn(bounty, l)} i en del efter start.`, `Stillingen er lyst ut på nytt · dusør ${eurIn(bounty, l)} i én del etter oppstart.`)}${changed ? tx(l, ' Der Kunde hat die Stelle angepasst.', ' The client has adjusted the role.', ' Kunden har justerat tjänsten.', ' Kunden har justert stillingen.') : ''}`, 'job', jobId);
   }
   for (const a of await adminIds(ctx.db)) await notify(ctx, a, 'research_open', `Nachbesetzung läuft: ${who.job.title}`, `${who.job.company_name} · Auslobung ${eur(bounty)}`, 'placement', p.id);
 }
@@ -376,7 +436,10 @@ export async function endResearch(ctx: PlacementCtx, actorId: string, p: any, re
   const who = await placementPeople(ctx, p);
   if (p.research_state === 'running' || p.research_state === 'paused') {
     await ctx.db.from('jobs').update({ status: 'closed', closed_reason: 'research_ended', closed_at: nowIso, closed_note: note, research_for_placement_id: null }).eq('id', who.job.id).eq('research_for_placement_id', p.id);
-    for (const r of await recruitersOfJob(ctx, who.job.id)) await notify(ctx, r, 'research_ended', `Nachbesetzung beendet: ${who.job.title}`, 'Die Stelle ist nicht mehr offen. Deine Einreichungen dafür sind abgeschlossen.', 'job', who.job.id);
+    for (const r of await recruitersOfJob(ctx, who.job.id)) {
+      await notify(ctx, r, 'research_ended', (l) => tx(l, m`Nachbesetzung beendet: ${who.job.title}`, m`Replacement ended: ${who.job.title}`, m`Ersättningen avslutad: ${who.job.title}`, m`Erstatningen avsluttet: ${who.job.title}`),
+        (l) => tx(l, 'Die Stelle ist nicht mehr offen. Deine Einreichungen dafür sind abgeschlossen.', 'The role is no longer open. Your submissions for it are closed.', 'Tjänsten är inte längre öppen. Dina kandidater för den är avslutade.', 'Stillingen er ikke lenger åpen. Kandidatene dine til den er avsluttet.'), 'job', who.job.id);
+    }
   }
   for (const a of await adminIds(ctx.db)) await notify(ctx, a, 'research_ended', `Nachbesetzung beendet: ${who.job.title}`, `${reason === 'client_ended' ? 'vom Kunden beendet' : 'von Matchunt beendet'}${note ? ` · ${note}` : ''}`, 'placement', p.id);
   return { ok: true };
@@ -405,7 +468,7 @@ export async function decideJoker(ctx: PlacementCtx, adminId: string, body: any)
     const { error } = await ctx.db.from('research_offers').insert({ placement_id: p.id, decision: 'none', status: 'none', decided_by: adminId, note });
     dbFail(error, 'Die Entscheidung');
     await forfeitWithoutStart(ctx, p, 'Kein Antritt (Core)');
-    await notify(ctx, who.recruiterId, 'non_start_decided', `${who.firstName} hat nicht angefangen`, 'Bei Core gibt es den Anteil erst mit dem Antritt, deshalb diesmal keinen.', 'placement', p.id);
+    await notify(ctx, who.recruiterId, 'non_start_decided', nonStartTitle(who.firstName), nonStartCoreText, 'placement', p.id);
     return { ok: true, decision: 'none' };
   }
   const defaults = jokerDefaults(p, today);
@@ -415,11 +478,15 @@ export async function decideJoker(ctx: PlacementCtx, adminId: string, body: any)
   dbFail(error, 'Das Angebot');
   await forfeitWithoutStart(ctx, p, 'Kein Antritt (Core)');
   await ctx.db.from('placements').update({ research_bounty_cents: defaults.bountyCents }).eq('id', p.id);
-  await notify(ctx, who.job.client_id, 'research_offer', `${who.firstName} hat nicht angefangen: unser Angebot`, `Für einmalig ${eur(price)} netto schreiben wir die Stelle neu für alle Headhunter aus, bis sie besetzt ist. Gültig bis ${dateDe(validUntil)}.`, 'submission', p.submission_id);
+  await notify(ctx, who.job.client_id, 'research_offer', (l) => tx(l, m`${who.firstName} hat nicht angefangen: unser Angebot`, m`${who.firstName} did not start: our offer`, m`${who.firstName} började inte: vårt erbjudande`, m`${who.firstName} begynte ikke: vårt tilbud`),
+    (l) => tx(l, `Für einmalig ${eurIn(price, l)} netto schreiben wir die Stelle neu für alle Headhunter aus, bis sie besetzt ist. Gültig bis ${dateKeyIn(validUntil, l)}.`, `For a one-off ${eurIn(price, l)} net, we re-advertise the role to all headhunters until it is filled. Valid until ${dateKeyIn(validUntil, l)}.`, `För ett engångsbelopp på ${eurIn(price, l)} netto annonserar vi ut tjänsten på nytt till alla headhunters tills den är tillsatt. Giltigt till ${dateKeyIn(validUntil, l)}.`, `For et engangsbeløp på ${eurIn(price, l)} netto lyser vi ut stillingen på nytt for alle headhuntere til den er besatt. Gyldig til ${dateKeyIn(validUntil, l)}.`), 'submission', p.submission_id);
   await sendJokerMail(ctx, p, who, price, validUntil);
-  await notify(ctx, who.recruiterId, 'non_start_decided', `${who.firstName} hat nicht angefangen`, 'Bei Core gibt es den Anteil erst mit dem Antritt, deshalb diesmal keinen.', 'placement', p.id);
+  await notify(ctx, who.recruiterId, 'non_start_decided', nonStartTitle(who.firstName), nonStartCoreText, 'placement', p.id);
   return { ok: true, decision: 'offer', priceCents: price, validUntil };
 }
+
+const nonStartTitle = (firstName: string) => (l: Lang) => tx(l, m`${firstName} hat nicht angefangen`, m`${firstName} did not start`, m`${firstName} började inte`, m`${firstName} begynte ikke`);
+const nonStartCoreText = (l: Lang) => tx(l, 'Bei Core gibt es den Anteil erst mit dem Antritt, deshalb diesmal keinen.', 'With Core, the share is only paid once the person starts, so there is none this time.', 'Med Core betalas andelen först vid tillträdet, därför ingen den här gången.', 'Med Core utbetales andelen først ved oppstart, derfor ingen denne gangen.');
 
 async function sendJokerMail(ctx: PlacementCtx, p: any, who: any, priceCents: number, validUntil: string) {
   try {
@@ -427,16 +494,24 @@ async function sendJokerMail(ctx: PlacementCtx, p: any, who: any, priceCents: nu
     const owner = await profile(ctx.db, who.job.client_id);
     const to = owner?.email ?? (cp as any)?.billing_email;
     if (!to) return;
-    const heading = `${who.firstName} hat nicht angefangen: unser Angebot`;
+    // Sprache des Kunden: Profil, sonst Land der Firma, sonst Deutsch (Dashboard-Link, keine öffentliche Seite)
+    const { data: comp } = await ctx.db.from('company_profiles').select('billing_country').eq('user_id', who.job.client_id).maybeSingle();
+    const l = await clientLanguage(ctx.db, { userId: who.job.client_id, email: to, country: (comp as any)?.billing_country ?? null });
+    const price = eurIn(priceCents, l), until = dateKeyIn(validUntil, l), fn = esc(who.firstName);
+    const heading = tx(l, m`${who.firstName} hat nicht angefangen: unser Angebot`, m`${who.firstName} did not start: our offer`, m`${who.firstName} började inte: vårt erbjudande`, m`${who.firstName} begynte ikke: vårt tilbud`);
     const url = `${ctx.appUrl()}/dashboard/besetzungen?besetzung=${p.submission_id}`;
     const body = [
-      '<p style="margin:0 0 12px 0;">Guten Tag,</p>',
-      `<p style="margin:0 0 12px 0;">Ihr Paket Core enthält keine Nachbesetzung. Weil ${esc(who.firstName)} die Stelle nicht angetreten hat, möchten wir Ihnen trotzdem helfen: Für einmalig <strong>${esc(eur(priceCents))} netto</strong> schreiben wir die Stelle neu für alle Headhunter aus, bis sie besetzt ist. Das Angebot gilt bis ${esc(dateDe(validUntil))}.</p>`,
+      `<p style="margin:0 0 12px 0;">${tx(l, 'Guten Tag,', 'Hello,', 'Hej,', 'Hei,')}</p>`,
+      `<p style="margin:0 0 12px 0;">${tx(l,
+        m`Ihr Paket Core enthält keine Nachbesetzung. Weil ${fn} die Stelle nicht angetreten hat, möchten wir Ihnen trotzdem helfen: Für einmalig <strong>${esc(price)} netto</strong> schreiben wir die Stelle neu für alle Headhunter aus, bis sie besetzt ist. Das Angebot gilt bis ${esc(until)}.`,
+        m`Your Core package does not include a replacement. Because ${fn} did not take up the role, we would still like to help: for a one-off <strong>${esc(price)} net</strong>, we re-advertise the role to all headhunters until it is filled. The offer is valid until ${esc(until)}.`,
+        m`Ditt Core-paket innehåller ingen ersättning. Eftersom ${fn} inte tillträdde tjänsten vill vi ändå hjälpa till: för ett engångsbelopp på <strong>${esc(price)} netto</strong> annonserar vi ut tjänsten på nytt till alla headhunters tills den är tillsatt. Erbjudandet gäller till ${esc(until)}.`,
+        m`Core-pakken din inneholder ingen erstatning. Fordi ${fn} ikke tiltrådte stillingen, vil vi likevel hjelpe: for et engangsbeløp på <strong>${esc(price)} netto</strong> lyser vi ut stillingen på nytt for alle headhuntere til den er besatt. Tilbudet gjelder til ${esc(until)}.`)}</p>`,
     ].join('');
     await ctx.mail({
       fromEmail: ctx.fromEmail, fromName: 'Matchunt', to, replyTo: 'info@bluewater-bridge.de',
-      subject: heading, html: layout({ preheader: heading, heading, body, cta: { label: 'Angebot ansehen', url } } as any),
-      text: `${heading}\nFür einmalig ${eur(priceCents)} netto schreiben wir die Stelle neu aus. Gültig bis ${dateDe(validUntil)}.\n${url}`,
+      subject: heading, html: layout({ lang: l, preheader: heading, heading, body, cta: { label: tx(l, 'Angebot ansehen', 'View offer', 'Visa erbjudandet', 'Se tilbudet'), url } } as any),
+      text: `${heading}\n${tx(l, `Für einmalig ${price} netto schreiben wir die Stelle neu aus. Gültig bis ${until}.`, `For a one-off ${price} net, we re-advertise the role. Valid until ${until}.`, `För ett engångsbelopp på ${price} netto annonserar vi ut tjänsten på nytt. Giltigt till ${until}.`, `For et engangsbeløp på ${price} netto lyser vi ut stillingen på nytt. Gyldig til ${until}.`)}\n${url}`,
     } as any, { template: 'research_offer', meta: { placement_id: p.id } });
   } catch (e) {
     console.warn('[nachbesetzung] Angebotsmail nicht verschickt', e instanceof Error ? e.message : e);

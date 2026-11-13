@@ -1,6 +1,8 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
+import { fmtNumber } from '@/lib/localeFormat';
 
 interface ConversionRateCardProps {
   title: string;
@@ -23,6 +25,7 @@ export function ConversionRateCard({
   trend,
   isLoading,
 }: ConversionRateCardProps) {
+  const { t } = useTranslation('clientDashboard');
   const calculateTrend = () => {
     if (trend) return trend;
     if (previousValue === undefined) return 'neutral';
@@ -56,7 +59,7 @@ export function ConversionRateCard({
             <p className="text-sm font-medium text-muted-foreground">{title}</p>
             <div className="flex items-baseline gap-1">
               <span className="text-3xl font-bold">
-                {typeof value === 'number' ? value.toLocaleString(undefined, { maximumFractionDigits: 1 }) : value}
+                {typeof value === 'number' ? fmtNumber(value, undefined, { maximumFractionDigits: 1 }) : value}
               </span>
               {suffix && <span className="text-lg text-muted-foreground">{suffix}</span>}
             </div>
@@ -84,7 +87,7 @@ export function ConversionRateCard({
             <span>
               {changeValue > 0 ? '+' : ''}{changeValue.toFixed(1)}{suffix}
             </span>
-            <span className="text-muted-foreground">vs. previous period</span>
+            <span className="text-muted-foreground">{t('analytics.vsPrevious')}</span>
           </div>
         )}
       </CardContent>

@@ -12,6 +12,9 @@
 // 5 Werktage her ist und er in den letzten 7 Tagen keinen Zwischenstand bekam.
 
 import type { UnifiedTaskItem } from '@/hooks/useUnifiedTaskInbox';
+import i18n from '@/i18n';
+import { intlLocale } from '@/i18n/languages';
+import { candidateLanguage, fmtDayMonth, fmtTime, tFor } from '@/lib/localeFormat';
 
 export const ERINNERUNG_AB_TAGEN = 5;
 export const WERKTAGE_BIS_NAECHSTE = 3;
@@ -81,10 +84,12 @@ export interface CandidateUpdateChoice {
 }
 
 // Nach Kalendertagen: gestern 18:22 ist am Morgen danach „gestern“, nicht „heute“.
+// Gründe in der Sprache der Oberfläche (taskTexts:choice), gelesen beim Aufruf (README Regel 7)
+const tc = (key: string, options?: Record<string, unknown>): string => i18n.t(`taskTexts:choice.${key}`, options);
 const tageText = (from: Date, now: Date) => {
   const tag = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   const d = Math.max(0, Math.round((tag(now) - tag(from)) / DAY_MS));
-  return d === 0 ? 'heute' : d === 1 ? 'gestern' : `vor ${d} Tagen`;
+  return d === 0 ? tc('today') : d === 1 ? tc('yesterday') : tc('daysAgo', { count: d });
 };
 
 /** Soll der Kandidat nach dem Erinnern einen Zwischenstand bekommen? */
@@ -100,35 +105,55 @@ export function candidateUpdateChoice(o: {
   /** Die Erinnerung an den Kunden, zu der der Zwischenstand gehört. Ohne: die letzte zählt. */
   nudgeAt?: string | null;
 }, now: Date): CandidateUpdateChoice {
-  if (!o.hasEmail) return { preselect: false, disabled: true, reason: 'Keine E-Mail hinterlegt, lieber anrufen' };
+  if (!o.hasEmail) return { preselect: false, disabled: true, reason: tc('noEmail') };
   if (o.lastUpdateAt && now.getTime() - new Date(o.lastUpdateAt).getTime() < ZWISCHENSTAND_SPERRE_TAGE * DAY_MS) {
     // Zu dieser Erinnerung schon Bescheid gegeben: nicht noch mal (05.11.2026, 5× an Sven).
     // Erst eine neue Erinnerung an den Kunden macht einen neuen Zwischenstand sinnvoll.
     if (!o.nudgeAt || Date.parse(o.lastUpdateAt) >= Date.parse(o.nudgeAt)) {
-      const tag = tageText(new Date(o.lastUpdateAt), now);
-      const zeit = tag === 'heute' ? ` um ${new Date(o.lastUpdateAt).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}` : '';
-      return { preselect: false, disabled: true, erledigt: { at: o.lastUpdateAt }, reason: `Zwischenstand ${tag}${zeit} bekommen` };
+      const heute = new Date(o.lastUpdateAt).toDateString() === now.toDateString();
+      const reason = heute
+        ? tc('updateGotToday', { time: fmtTime(o.lastUpdateAt) })
+        : tc('updateGot', { when: tageText(new Date(o.lastUpdateAt), now) });
+      return { preselect: false, disabled: true, erledigt: { at: o.lastUpdateAt }, reason };
     }
-    return { preselect: false, disabled: false, reason: `Zwischenstand ${tageText(new Date(o.lastUpdateAt), now)} schon bekommen` };
+    return { preselect: false, disabled: false, reason: tc('updateGotAlready', { when: tageText(new Date(o.lastUpdateAt), now) }) };
   }
   const candidates = [o.lastContactAt, o.submittedAt].filter(Boolean) as string[];
-  if (!candidates.length) return { preselect: true, disabled: false, reason: 'Noch kein Kontakt festgehalten' };
+  if (!candidates.length) return { preselect: true, disabled: false, reason: tc('noContact') };
   const last = candidates.sort((a, b) => b.localeCompare(a))[0];
   const viaSubmission = last === o.submittedAt && last !== o.lastContactAt;
-  const label = `Letzter Kontakt ${tageText(new Date(last), now)}${viaSubmission ? ` (${o.anchor ?? 'Einreichung'})` : ''}`;
+  const when = tageText(new Date(last), now);
+  const label = viaSubmission
+    ? tc(o.anchor === 'Interview' ? 'lastContactInterview' : 'lastContactSubmission', { when })
+    : tc('lastContact', { when });
   const lange = workdaysBetween(new Date(last), now) >= KANDIDAT_UPDATE_AB_WERKTAGEN;
-  return { preselect: lange, disabled: false, reason: lange ? label : `${label}, darum nicht ausgewählt` };
+  return { preselect: lange, disabled: false, reason: lange ? label : tc('notChosen', { label }) };
 }
 
 /** Zwischenstand passend zur Bitte an den Kunden. Der Server setzt „Hallo <Vorname>,“ davor. */
-/** `wann`: „heute“ oder „am 15.10.“ – je nachdem, wann der Kunde erinnert wurde. */
-export function candidateUpdateText(intent: string | null, jobTitle: string | null, until: string, wann = 'heute'): string {
-  const job = jobTitle || 'der Stelle';
-  const tail = 'Sobald ich etwas höre, melde ich mich bei dir. Falls sich bei dir in der Zwischenzeit etwas tut, sag mir gern kurz Bescheid.';
-  if (intent === 'interview_feedback') return `kurzer Zwischenstand von mir: Ich habe ${wann} beim Unternehmen nach dem Eindruck aus deinem Interview zu ${job} gefragt.\n\n${tail}`;
-  if (intent === 'decision') return `kurzer Zwischenstand von mir: Ich habe ${wann} beim Unternehmen zu ${job} nachgefragt und um eine Entscheidung bis ${until} gebeten.\n\n${tail}`;
-  if (intent === 'question') return `kurzer Zwischenstand von mir: Ich habe ${wann} beim Unternehmen zu ${job} nachgefragt, ob für die Entscheidung noch etwas fehlt.\n\n${tail}`;
-  return `kurzer Zwischenstand von mir: Ich habe ${wann} beim Unternehmen zu ${job} nachgehakt.\n\n${tail}`;
+/**
+ * `wann`: „heute“ oder „am 15.10.“ – je nachdem, wann der Kunde erinnert wurde (`updateWhen`).
+ * Text an den Kandidaten: in der Sprache des Headhunters (`lang`, sonst `candidateLanguage()`).
+ */
+export function candidateUpdateText(intent: string | null, jobTitle: string | null, until: string, wann?: string, lang: string = candidateLanguage()): string {
+  const t = (key: string, options?: Record<string, unknown>) => tFor(lang, 'taskMessages')(`update.${key}`, options) as string;
+  const job = jobTitle || t('theJobDat');
+  const when = wann ?? t('today');
+  const tail = t('tail');
+  const key = intent === 'interview_feedback' ? 'feedback' : intent === 'decision' ? 'decision' : intent === 'question' ? 'question' : 'remind';
+  return `${t(key, { when, job, until })}\n\n${tail}`;
+}
+
+/** „heute“ oder „am 15.10.“ für den Zwischenstand, in der Sprache des Kandidaten-Texts. */
+export function updateWhen(at: Date, lang: string = candidateLanguage()): string {
+  const t = tFor(lang, 'taskMessages');
+  return at.toDateString() === new Date().toDateString() ? t('update.today') as string : t('update.onDate', { date: fmtDayMonth(at, lang) }) as string;
+}
+
+/** Betreff des Zwischenstands an den Kandidaten. */
+export function candidateUpdateSubject(jobTitle: string | null, lang: string = candidateLanguage()): string {
+  const t = tFor(lang, 'taskMessages');
+  return t('update.subject', { job: jobTitle ?? t('update.yourApplication') }) as string;
 }
 
 export interface StalledBundle {
@@ -173,7 +198,7 @@ export function bundleByJob(items: UnifiedTaskItem[], now: Date): StalledBundle[
 
 /** „In Prüfung“ (29.10.2026): Hat das Kundenteam das Profil geöffnet? Für Zeilen und Fenster. */
 export function viewText(count: number | null | undefined, lastAt: string | null | undefined): string {
-  if (!count || !lastAt) return 'noch nicht geöffnet';
-  const d = new Date(lastAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' });
-  return count === 1 ? `angesehen am ${d}` : `${count}× angesehen, zuletzt ${d}`;
+  if (!count || !lastAt) return i18n.t('recruiterTasks:view.notOpened');
+  const date = new Date(lastAt).toLocaleDateString(intlLocale(i18n.language), { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' });
+  return count === 1 ? i18n.t('recruiterTasks:view.once', { date }) : i18n.t('recruiterTasks:view.many', { count, date });
 }

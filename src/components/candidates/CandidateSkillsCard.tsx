@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +11,7 @@ interface CandidateSkillsCardProps {
 }
 
 export function CandidateSkillsCard({ skills, certifications }: CandidateSkillsCardProps) {
+  const { t } = useTranslation('candidateDetail');
   const [expanded, setExpanded] = useState(false);
 
   const hasSkills = skills && skills.length > 0;
@@ -21,12 +23,12 @@ export function CandidateSkillsCard({ skills, certifications }: CandidateSkillsC
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <Wrench className="h-4 w-4 text-muted-foreground" />
-            Skills & Expertise
+            {t('skills.title')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Keine Skills hinterlegt – ergänzen Sie die Fähigkeiten manuell oder laden Sie einen CV hoch.
+            {t('skills.empty')}
           </p>
         </CardContent>
       </Card>
@@ -42,7 +44,7 @@ export function CandidateSkillsCard({ skills, certifications }: CandidateSkillsC
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
           <Wrench className="h-4 w-4 text-primary" />
-          Skills & Expertise
+          {t('skills.title')}
           {hasSkills && (
             <Badge variant="secondary" className="text-xs ml-auto">
               {skills.length} Skills
@@ -54,7 +56,7 @@ export function CandidateSkillsCard({ skills, certifications }: CandidateSkillsC
         {/* Skills */}
         {hasSkills && (
           <div className="space-y-2">
-            <p className="text-xs text-muted-foreground">Kernkompetenzen</p>
+            <p className="text-xs text-muted-foreground">{t('skills.core')}</p>
             <div className="flex flex-wrap gap-1.5">
               {displaySkills?.map((skill, i) => (
                 <Badge 
@@ -76,12 +78,12 @@ export function CandidateSkillsCard({ skills, certifications }: CandidateSkillsC
                 {expanded ? (
                   <>
                     <ChevronUp className="h-3 w-3 mr-1" />
-                    Weniger anzeigen
+                    {t('common.showLess')}
                   </>
                 ) : (
                   <>
                     <ChevronDown className="h-3 w-3 mr-1" />
-                    +{(skills?.length ?? 0) - displayLimit} weitere Skills
+                    {t('skills.more', { count: (skills?.length ?? 0) - displayLimit })}
                   </>
                 )}
               </Button>

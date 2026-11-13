@@ -1,6 +1,8 @@
 import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
+import { term } from '@/lib/candidateTerms';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import {
   AlertDialog,
@@ -37,17 +39,8 @@ export interface EditFocus {
   field?: string;
 }
 
-const SECTIONS: Array<{ key: DossierSection; label: string }> = [
-  { key: 'kontakt', label: 'Kontakt' },
-  { key: 'beruf', label: 'Beruf' },
-  { key: 'wechsel', label: 'Wechsel' },
-  { key: 'arbeitsort', label: 'Arbeitsort' },
-  { key: 'sprachen', label: 'Sprachen' },
-  { key: 'arbeitserlaubnis', label: 'Arbeitserlaubnis' },
-  { key: 'einschaetzung', label: 'Einschätzung' },
-  { key: 'kunde', label: 'Für den Kunden' },
-  { key: 'links', label: 'Links' },
-];
+// Beschriftung: candidateDossier:edit.tab.<abschnitt> und edit.section.<abschnitt>
+const SECTIONS: DossierSection[] = ['kontakt', 'beruf', 'wechsel', 'arbeitsort', 'sprachen', 'arbeitserlaubnis', 'einschaetzung', 'kunde', 'links'];
 
 function Section({ id, title, children }: { id: DossierSection; title: string; children: ReactNode }) {
   return (
@@ -70,6 +63,7 @@ interface Props {
 }
 
 export function CandidateEditSheet({ open, onOpenChange, candidateName, form, onSave, focus, hasCv = false }: Props) {
+  const { t } = useTranslation(['candidateDossier', 'candidateTerms']);
   const [draft, setDraft] = useState<DossierForm>(form);
   const [initial, setInitial] = useState<DossierForm>(form);
   const [errors, setErrors] = useState<Partial<Record<keyof DossierForm, string>>>({});
@@ -130,9 +124,9 @@ export function CandidateEditSheet({ open, onOpenChange, candidateName, form, on
 
   const validate = (): boolean => {
     const next: Partial<Record<keyof DossierForm, string>> = {};
-    if (!draft.full_name.trim()) next.full_name = 'Bitte einen Namen eintragen.';
-    if (draft.email.trim() && !isValidEmail(draft.email)) next.email = 'Das ist keine gültige E-Mail-Adresse.';
-    if (!draft.email.trim() && !draft.phone.trim()) next.email = 'Bitte E-Mail oder Telefon eintragen.';
+    if (!draft.full_name.trim()) next.full_name = t('edit.errName');
+    if (draft.email.trim() && !isValidEmail(draft.email)) next.email = t('edit.errEmail');
+    if (!draft.email.trim() && !draft.phone.trim()) next.email = t('edit.errContact');
     setErrors(next);
     const first = Object.keys(next)[0];
     if (first) focusDossierField(first);
@@ -145,10 +139,10 @@ export function CandidateEditSheet({ open, onOpenChange, candidateName, form, on
     const result = await onSave(draft);
     setSaving(false);
     if (!result.ok) {
-      toast.error('Speichern hat nicht geklappt', { description: result.error });
+      toast.error(t('edit.saveFailed'), { description: result.error });
       return;
     }
-    toast.success('Gespeichert');
+    toast.success(t('edit.saved'));
     setInitial(draft);
     onOpenChange(false);
   };
@@ -164,27 +158,27 @@ export function CandidateEditSheet({ open, onOpenChange, candidateName, form, on
       <Sheet open={open} onOpenChange={requestClose}>
         <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-2xl">
           <div className="border-b border-border px-6 pb-3 pt-5">
-            <SheetTitle className="pr-8 text-base">{candidateName} bearbeiten</SheetTitle>
-            <SheetDescription className="sr-only">Alle Angaben zur Kandidatin oder zum Kandidaten auf einer Seite.</SheetDescription>
+            <SheetTitle className="pr-8 text-base">{t('edit.title', { name: candidateName })}</SheetTitle>
+            <SheetDescription className="sr-only">{t('edit.description')}</SheetDescription>
             <div className="mt-3 flex items-center gap-3">
               <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
                 <div className="h-full rounded-full bg-success transition-all" style={{ width: `${(readiness.done / readiness.total) * 100}%` }} />
               </div>
               <span className="whitespace-nowrap text-xs text-muted-foreground">
-                Bereit {readiness.done} von {readiness.total}
+                {t('edit.ready', { done: readiness.done, total: readiness.total })}
               </span>
             </div>
             {readiness.missing.length > 0 && (
               <p className="mt-1.5 text-xs text-warning">
-                Fehlt noch:{' '}
+                {t('edit.stillMissing')}{' '}
                 {readiness.missing.map((m, i) => (
                   <span key={m.key}>
                     {i > 0 && ', '}
                     {m.action === 'upload_cv' ? (
-                      <span title="Im Profil über „Lebenslauf hochladen“">{m.label}</span>
+                      <span title={t('edit.cvHint')}>{term(m.label)}</span>
                     ) : (
                       <button type="button" className="underline underline-offset-2 hover:text-foreground" onClick={() => focusDossierField(m.field)}>
-                        {m.label}
+                        {term(m.label)}
                       </button>
                     )}
                   </span>
@@ -194,18 +188,18 @@ export function CandidateEditSheet({ open, onOpenChange, candidateName, form, on
             <div className="mt-3 flex flex-wrap gap-1.5">
               {SECTIONS.map((s) => (
                 <button
-                  key={s.key}
+                  key={s}
                   type="button"
-                  onClick={() => scrollToSection(s.key)}
+                  onClick={() => scrollToSection(s)}
                   className={cn(
                     'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-colors',
-                    active === s.key ? 'border-primary bg-primary/10 text-primary'
-                      : missingSections.has(s.key) ? 'border-warning/50 text-warning hover:bg-warning/10'
+                    active === s ? 'border-primary bg-primary/10 text-primary'
+                      : missingSections.has(s) ? 'border-warning/50 text-warning hover:bg-warning/10'
                       : 'border-border text-muted-foreground hover:text-foreground',
                   )}
                 >
-                  {missingSections.has(s.key) && <span className="h-1.5 w-1.5 rounded-full bg-warning" aria-label="fehlt noch" />}
-                  {s.label}
+                  {missingSections.has(s) && <span className="h-1.5 w-1.5 rounded-full bg-warning" aria-label={t('edit.missingDot')} />}
+                  {t(`edit.tab.${s}`)}
                 </button>
               ))}
             </div>
@@ -213,44 +207,44 @@ export function CandidateEditSheet({ open, onOpenChange, candidateName, form, on
 
           <FieldMissingContext.Provider value={missing}>
           <div ref={scrollRef} onScroll={onScroll} className="relative min-h-0 flex-1 space-y-5 overflow-y-auto px-6 pb-8 pt-3">
-            <Section id="kontakt" title="Kontakt">
+            <Section id="kontakt" title={t('edit.section.kontakt')}>
               <KontaktBlock form={draft} set={set} errors={errors} />
             </Section>
-            <Section id="beruf" title="Beruf und Skills">
+            <Section id="beruf" title={t('edit.section.beruf')}>
               <BerufBlock form={draft} set={set} />
             </Section>
-            <Section id="wechsel" title="Wechsel">
+            <Section id="wechsel" title={t('edit.section.wechsel')}>
               <div className="space-y-4">
                 <GehaltBlock form={draft} set={set} />
                 <VerfuegbarkeitBlock form={draft} set={set} />
                 <MotivationBlock form={draft} set={set} />
-                <p className="text-xs text-muted-foreground">Dieselben Felder wie im Interview. Was dort eingetragen wird, steht hier, und umgekehrt.</p>
+                <p className="text-xs text-muted-foreground">{t('edit.sameFields')}</p>
               </div>
             </Section>
-            <Section id="arbeitsort" title="Arbeitsort und Präferenzen">
+            <Section id="arbeitsort" title={t('edit.section.arbeitsort')}>
               <div className="space-y-4">
                 <ArbeitsortBlock form={draft} set={set} />
                 <ZieleBlock form={draft} set={set} />
               </div>
             </Section>
-            <Section id="sprachen" title="Sprachen">
+            <Section id="sprachen" title={t('edit.section.sprachen')}>
               <SprachenBlock form={draft} set={set} />
             </Section>
-            <Section id="arbeitserlaubnis" title="Arbeitserlaubnis">
+            <Section id="arbeitserlaubnis" title={t('edit.section.arbeitserlaubnis')}>
               <ArbeitserlaubnisBlock form={draft} set={set} />
             </Section>
-            <Section id="einschaetzung" title="Deine Einschätzung">
+            <Section id="einschaetzung" title={t('edit.section.einschaetzung')}>
               <div className="space-y-3">
                 <EmpfehlungBlock form={draft} set={set} />
-                <Field label="Interne Notiz (nur für dich)" field="internal_note">
+                <Field label={t('edit.internalNote')} field="internal_note">
                   <AreaField field="internal_note" value={draft.internal_note} onChange={(v) => set({ internal_note: v })} rows={2} />
                 </Field>
               </div>
             </Section>
-            <Section id="kunde" title="Für den Kunden, anonym">
+            <Section id="kunde" title={t('edit.section.kunde')}>
               <KundeBlock form={draft} set={set} />
             </Section>
-            <Section id="links" title="Links">
+            <Section id="links" title={t('edit.section.links')}>
               <LinksBlock form={draft} set={set} />
             </Section>
           </div>
@@ -258,15 +252,15 @@ export function CandidateEditSheet({ open, onOpenChange, candidateName, form, on
 
           <div className="flex items-center justify-between gap-3 border-t border-border px-6 py-3">
             <span className="text-xs text-muted-foreground">
-              {changes === 0 ? 'Keine Änderungen' : changes === 1 ? '1 Änderung' : `${changes} Änderungen`}
+              {t('edit.changes', { count: changes })}
             </span>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => requestClose(false)} disabled={saving}>
-                Abbrechen
+                {t('edit.cancel')}
               </Button>
               <Button onClick={handleSave} disabled={saving || changes === 0}>
                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Speichern
+                {t('edit.save')}
               </Button>
             </div>
           </div>
@@ -276,20 +270,20 @@ export function CandidateEditSheet({ open, onOpenChange, candidateName, form, on
       <AlertDialog open={confirmClose} onOpenChange={setConfirmClose}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Änderungen verwerfen?</AlertDialogTitle>
+            <AlertDialogTitle>{t('edit.discardTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Du hast {changes === 1 ? '1 Feld' : `${changes} Felder`} geändert. Die gehen verloren, wenn du jetzt schließt.
+              {t('edit.discardText', { count: changes })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Weiter bearbeiten</AlertDialogCancel>
+            <AlertDialogCancel>{t('edit.keepEditing')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 setConfirmClose(false);
                 onOpenChange(false);
               }}
             >
-              Verwerfen
+              {t('edit.discard')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

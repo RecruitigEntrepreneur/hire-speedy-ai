@@ -9,6 +9,8 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
 import { useCandidateDossier } from '@/hooks/useCandidateDossier';
 import { useCandidateTags } from '@/hooks/useCandidateTags';
 import { useCandidateActivityLog } from '@/hooks/useCandidateActivityLog';
@@ -35,14 +37,12 @@ import { LebenslaufAnfragenFenster } from '@/components/recruiter/termin/Lebensl
 import { useLebenslaufAnfrage } from '@/components/recruiter/termin/useLebenslaufAnfrage';
 
 function getStatusLabel(status: string): string {
-  const labels: Record<string, string> = {
-    new: 'Neu', contacted: 'Kontaktiert', interview: 'Interview',
-    offer: 'Angebot', placed: 'Platziert', rejected: 'Absage',
-  };
-  return labels[status] || status;
+  const known = ['new', 'contacted', 'interview', 'offer', 'placed', 'rejected'];
+  return known.includes(status) ? i18n.t(`recruiterCandidates:detail.status.${status}`) : status;
 }
 
 export default function RecruiterCandidateDetail() {
+  const { t } = useTranslation('recruiterCandidates');
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -136,7 +136,7 @@ export default function RecruiterCandidateDetail() {
         .eq('recruiter_id', user.id)
         .single();
       if (error || !data) {
-        toast.error('Kandidat nicht gefunden');
+        toast.error(t('detail.notFound'));
         navigate('/recruiter/candidates');
         return;
       }
@@ -192,7 +192,7 @@ export default function RecruiterCandidateDetail() {
     if (!candidate) return;
     await logActivity(candidate.id, activityType as any, title, description);
     setAddActivityOpen(false);
-    toast.success('Aktivität hinzugefügt');
+    toast.success(t('detail.activityAdded'));
   };
 
   const handleViewExpose = () => { if (candidate) window.open(`/expose/${candidate.id}`, '_blank'); };
@@ -230,10 +230,10 @@ export default function RecruiterCandidateDetail() {
     return (
       <DashboardLayout>
         <div className="flex flex-col items-center justify-center h-64 gap-4">
-          <p className="text-muted-foreground">Kandidat nicht gefunden</p>
+          <p className="text-muted-foreground">{t('detail.notFound')}</p>
           <Button onClick={() => navigate('/recruiter/candidates')}>
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Zurück zur Übersicht
+            {t('detail.backToList')}
           </Button>
         </div>
       </DashboardLayout>
@@ -247,9 +247,9 @@ export default function RecruiterCandidateDetail() {
           <div className="flex items-center gap-4">
             <Button variant="ghost" onClick={() => setShowFullInterview(false)}>
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Zurück
+              {t('detail.back')}
             </Button>
-            <h1 className="text-2xl font-bold">Interview mit {candidate.full_name}</h1>
+            <h1 className="text-2xl font-bold">{t('detail.interviewWith', { name: candidate.full_name })}</h1>
           </div>
           <CandidateInterviewTab candidate={candidate} onNotesUpdated={() => refetchActivities()} />
         </div>

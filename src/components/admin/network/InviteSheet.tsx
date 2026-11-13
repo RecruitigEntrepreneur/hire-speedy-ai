@@ -1,3 +1,5 @@
+import { LanguagePicker } from '@/components/language/LanguagePicker';
+import { languageDef, type LanguageCode } from '@/i18n/languages';
 import { useEffect, useState } from 'react';
 import { Building2, Copy, Mail, UserRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -13,7 +15,7 @@ import { onboardingApi } from '@/lib/recruiterOnboardingApi';
  * Altkonten öffnet das Panel mit Name, Adresse und Firma vorbelegt.
  */
 export interface InvitePrefill { name?: string; email?: string; company?: string }
-const EMPTY = { name: '', email: '', company: '', country: '', specialty: '', region: '', kind: 'individual', days: '7', internal_note: '' };
+const EMPTY = { name: '', email: '', company: '', country: '', specialty: '', region: '', kind: 'individual', days: '7', internal_note: '', language: 'de' as LanguageCode };
 const FIELDS = { name: 'Kontaktname', email: 'E-Mail-Adresse', company: 'Vertragspartner / Firma', country: 'Sitzland', specialty: 'Recruiting-Schwerpunkt', region: 'Zielregion' } as const;
 
 export function InviteSheet({ open, prefill, onOpenChange, onChanged }: {
@@ -70,6 +72,10 @@ export function InviteSheet({ open, prefill, onOpenChange, onChanged }: {
             <span>{FIELDS[key]}{!['name', 'email'].includes(key) && <span className="text-muted-foreground"> · optional</span>}</span>
             <Input required={['name', 'email'].includes(key)} type={key === 'email' ? 'email' : 'text'} value={draft[key]} onChange={e => setDraft({ ...draft, [key]: e.target.value })}/>
           </label>)}
+          <div className="space-y-1 text-sm"><label htmlFor="invite-language">Sprache der Einladung</label>
+            <LanguagePicker id="invite-language" value={draft.language} onChange={language => setDraft({ ...draft, language: language ?? 'de' })}/>
+            <p className="text-xs text-muted-foreground">Mail und Startseite erscheinen in dieser Sprache. Der Headhunter kann wechseln.</p>
+          </div>
           <label className="block space-y-1 text-sm"><span>Link gültig für</span>
             <select className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={draft.days} onChange={e => setDraft({ ...draft, days: e.target.value })}>
               <option value="7">7 Tage</option><option value="14">14 Tage</option><option value="30">30 Tage</option>
@@ -88,6 +94,7 @@ export function InviteSheet({ open, prefill, onOpenChange, onChanged }: {
           <details className="rounded-lg border p-3 text-sm">
             <summary className="cursor-pointer font-medium">E-Mail-Inhalt ansehen</summary>
             <div className="mt-3 space-y-2">
+              {languageDef(draft.language).base !== 'de' && <p className="rounded-md bg-muted p-2 text-xs text-muted-foreground">Die Mail geht auf {languageDef(draft.language).label} raus. Die Vorschau zeigt den deutschen Wortlaut.</p>}
               <p className="text-xs uppercase tracking-widest text-muted-foreground">Willkommen bei Matchunt</p>
               <p>Guten Tag {draft.name},</p>
               <p>wir freuen uns, die Zusammenarbeit mit Ihnen vorzubereiten.</p>

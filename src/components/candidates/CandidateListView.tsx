@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -52,6 +53,7 @@ export function CandidateListView({
   onAddToPool,
   withCvIds,
 }: CandidateListViewProps) {
+  const { t } = useTranslation('candidates');
   const allSelected = candidates.length > 0 && selectedIds.length === candidates.length;
 
   return (
@@ -62,11 +64,11 @@ export function CandidateListView({
           checked={allSelected}
           onCheckedChange={(checked) => onSelectAll(!!checked)}
         />
-        <div className="flex-1">Kandidat</div>
-        <div className="w-32 hidden md:block">Erfahrung</div>
-        <div className="w-32 hidden lg:block">Gehalt</div>
-        <div className="w-24 hidden xl:block">Tags</div>
-        <div className="w-32">Aktionen</div>
+        <div className="flex-1">{t('list.candidate')}</div>
+        <div className="w-32 hidden md:block">{t('list.experience')}</div>
+        <div className="w-32 hidden lg:block">{t('list.salary')}</div>
+        <div className="w-24 hidden xl:block">{t('list.tags')}</div>
+        <div className="w-32">{t('list.actions')}</div>
       </div>
 
       {/* Rows */}
@@ -105,7 +107,7 @@ export function CandidateListView({
             </div>
             <div className="w-32 hidden md:block text-sm text-muted-foreground">
               {candidate.experience_years !== null
-                ? `${candidate.experience_years} Jahre`
+                ? t('list.years', { count: candidate.experience_years })
                 : '-'}
             </div>
             <div className="w-32 hidden lg:block text-sm text-muted-foreground">
@@ -166,19 +168,19 @@ export function CandidateListView({
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={() => onView(candidate)}>
                     <Eye className="h-4 w-4 mr-2" />
-                    Details
+                    {t('actions.details')}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => onEdit(candidate)}>
                     <Edit className="h-4 w-4 mr-2" />
-                    Bearbeiten
+                    {t('actions.edit')}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => onAssignTag(candidate.id)}>
                     <Tag className="h-4 w-4 mr-2" />
-                    Tags
+                    {t('actions.tags')}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => onAddToPool(candidate)}>
                     <UserPlus className="h-4 w-4 mr-2" />
-                    Talent Pool
+                    {t('actions.talentPool')}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
@@ -186,7 +188,7 @@ export function CandidateListView({
                     className="text-destructive"
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
-                    Löschen
+                    {t('actions.delete')}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -197,7 +199,7 @@ export function CandidateListView({
 
       {candidates.length === 0 && (
         <div className="p-8 text-center text-muted-foreground">
-          Keine Kandidaten gefunden
+          {t('list.empty')}
         </div>
       )}
     </div>

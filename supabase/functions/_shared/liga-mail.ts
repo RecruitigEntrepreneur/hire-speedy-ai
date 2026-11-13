@@ -2,8 +2,9 @@ import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { layout, sendIntakeMail } from './intake-mail.ts';
 import { APP_ORIGIN } from './recruiter-partner.ts';
 import {
-  awardMailBodyHtml, awardMailContent, weeklyBodyHtml, weeklyContent, type LigaAwardKind, type LigaWeeklyRow,
+  awardMailBodyHtml, awardMailContent, weeklyBodyHtml, weeklyContent, type LigaAwardKind, type LigaLang, type LigaWeeklyRow,
 } from './liga.ts';
+import { languageOfUser } from './recipient-language.ts';
 
 /**
  * Mails der Matchunt Liga: Wochenstand am Montag (Zusatz 2) und Glückwunsch nach dem
@@ -15,6 +16,17 @@ export interface LigaMailResult { dry_run: boolean; total: number; sent: number;
 
 const WEEKLY_FOOT = 'Du bekommst diese Mail montags, solange eine Saison der Matchunt Liga läuft. '
   + 'Abbestellen: Profil › Partnerstatus › Sichtbarkeit. Die Liga ändert nichts an deinen Plätzen und Konditionen.';
+const WEEKLY_FOOT_OTHER = {
+  en: 'You receive this email on Mondays while a Matchunt Liga season is running. '
+    + 'Unsubscribe: Profile › Partner status › Visibility. The Liga does not change your slots or conditions.',
+  sv: 'Du får det här mejlet på måndagar så länge en säsong av Matchunt Liga pågår. '
+    + 'Avsluta: Profil › Partnerstatus › Synlighet. Ligan ändrar inget i dina platser och villkor.',
+  nb: 'Du får denne e-posten på mandager så lenge en sesong av Matchunt Liga pågår. '
+    + 'Avslutt: Profil › Partnerstatus › Synlighet. Ligaen endrer ikke plassene eller vilkårene dine.',
+};
+/** Headhunter lesen die Liga-Mails in ihrer Profilsprache, sonst Deutsch. */
+const langOf = async (db: SupabaseClient, recruiterId: string): Promise<LigaLang> => (await languageOfUser(db, recruiterId)) ?? 'de';
+const other = (l: LigaLang) => (l === 'en' || l === 'sv' || l === 'nb' ? l : null);
 
 export async function sendWeekly(db: SupabaseClient, opts: { dryRun: boolean; onlyTo?: string | null; mail?: Mail; today?: string }): Promise<LigaMailResult> {
   const { data, error } = await db.rpc('liga_weekly_rows', { p_dry_run: opts.dryRun || !!opts.onlyTo });
@@ -23,10 +35,14 @@ export async function sendWeekly(db: SupabaseClient, opts: { dryRun: boolean; on
   const day = opts.today ?? new Date().toISOString().slice(0, 10);
   const result: LigaMailResult = { dry_run: opts.dryRun, total: rows.length, sent: 0, failed: 0, preview: [] };
   for (const r of rows) {
-    const c = weeklyContent(r);
+    const l = await langOf(db, r.recruiter_id);
+    const o = other(l);
+    const c = weeklyContent(r, l);
     const html = layout({
-      preheader: c.lines[0], heading: c.heading, body: weeklyBodyHtml(r),
-      cta: { label: 'Zur Liga', url: `${APP_ORIGIN}/recruiter/liga` }, footnote: WEEKLY_FOOT,
+      ...(l === 'de' ? {} : { lang: l }),
+      preheader: c.lines[0], heading: c.heading, body: weeklyBodyHtml(r, l),
+      cta: { label: o === 'en' ? 'Go to the Liga' : o === 'sv' ? 'Till ligan' : o === 'nb' ? 'Til ligaen' : 'Zur Liga', url: `${APP_ORIGIN}/recruiter/liga` },
+      footnote: o ? WEEKLY_FOOT_OTHER[o] : l === 'de-CH' ? WEEKLY_FOOT.replace(/ß/g, 'ss') : WEEKLY_FOOT,
     });
     result.preview.push({ to: r.email!, subject: c.subject });
     result.sample_html ??= html;
@@ -77,10 +93,13 @@ export async function sendAwards(db: SupabaseClient, seasonId: string, opts: { d
   const open = rows.filter((r) => r.email && (opts.onlyTo || !r.award_mailed_at));
   const result: LigaMailResult = { dry_run: opts.dryRun, total: open.length, sent: 0, failed: 0, preview: [] };
   for (const r of open) {
-    const c = awardMailContent(r);
+    const l = await langOf(db, r.recruiter_id);
+    const o = other(l);
+    const c = awardMailContent(r, l);
     const html = layout({
-      preheader: c.paragraphs[0], heading: c.heading, body: awardMailBodyHtml(r),
-      cta: { label: 'Zum Partnerstatus', url: `${APP_ORIGIN}/recruiter/profile/partnerstatus` },
+      ...(l === 'de' ? {} : { lang: l }),
+      preheader: c.paragraphs[0], heading: c.heading, body: awardMailBodyHtml(r, l),
+      cta: { label: o === 'en' ? 'Go to Partner status' : o === 'sv' ? 'Till Partnerstatus' : o === 'nb' ? 'Til Partnerstatus' : 'Zum Partnerstatus', url: `${APP_ORIGIN}/recruiter/profile/partnerstatus` },
     });
     result.preview.push({ to: r.email!, subject: c.subject });
     result.sample_html ??= html;

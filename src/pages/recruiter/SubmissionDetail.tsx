@@ -38,22 +38,24 @@ import {
 } from 'lucide-react';
 import { formatSimpleAnonymousCompany } from '@/lib/anonymousCompanyFormat';
 import { format, formatDistanceToNow } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { useTranslation } from 'react-i18next';
+import { dateFnsLocale } from '@/components/recruiter/termin/datum';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useState } from 'react';
 
 // ─── Stage Pipeline ────────────────────────────────────────────────
+// Anzeige je Stufe: recruiterSubmissions → detail.stages.<key>
 const PIPELINE_STAGES = [
-  { key: 'new', label: 'Neu' },
-  { key: 'submitted', label: 'Eingereicht' },
-  { key: 'screening', label: 'Screening' },
-  { key: 'interview_requested', label: 'Angefr.' },
-  { key: 'candidate_opted_in', label: 'Opt-In' },
-  { key: 'interview', label: 'Interview' },
-  { key: 'offer', label: 'Angebot' },
-  { key: 'hired', label: 'Eingestellt' },
-];
+  { key: 'new' },
+  { key: 'submitted' },
+  { key: 'screening' },
+  { key: 'interview_requested' },
+  { key: 'candidate_opted_in' },
+  { key: 'interview' },
+  { key: 'offer' },
+  { key: 'hired' },
+] as const;
 
 function getStageIndex(stage: string | null): number {
   // Map interview sub-stages
@@ -64,6 +66,7 @@ function getStageIndex(stage: string | null): number {
 }
 
 function FullStagePipeline({ currentStage }: { currentStage: string | null }) {
+  const { t } = useTranslation('recruiterSubmissions');
   const currentIdx = getStageIndex(currentStage);
 
   return (
@@ -90,7 +93,7 @@ function FullStagePipeline({ currentStage }: { currentStage: string | null }) {
                 isPassed && 'text-green-600',
                 isFuture && 'text-muted-foreground/50',
               )}>
-                {stage.label}
+                {t(`detail.stages.${stage.key}`)}
               </span>
             </div>
           </div>
@@ -126,6 +129,7 @@ function TimelineItem({
   iconColor: string;
   isLast?: boolean;
 }) {
+  const { t, i18n } = useTranslation('recruiterSubmissions');
   return (
     <div className="flex gap-3">
       <div className="flex flex-col items-center">
@@ -140,7 +144,7 @@ function TimelineItem({
           <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{description}</p>
         )}
         <p className="text-[10px] text-muted-foreground mt-1">
-          {format(new Date(time), "d. MMM yyyy, HH:mm", { locale: de })}
+          {format(new Date(time), t('detail.fmt.dateTime'), { locale: dateFnsLocale(i18n.language) })}
         </p>
       </div>
     </div>
@@ -180,6 +184,8 @@ function getActivityIcon(type: string): { icon: React.ElementType; color: string
 // ─── Main Component ────────────────────────────────────────────────
 
 export default function SubmissionDetail() {
+  const { t, i18n } = useTranslation('recruiterSubmissions');
+  const locale = dateFnsLocale(i18n.language);
   const { submissionId } = useParams<{ submissionId: string }>();
   // ?interview=<id> kommt aus Agenda und Benachrichtigungen und benennt den
   // Termin, auf den geklickt wurde. Ohne ihn muss die Seite raten — bei
@@ -268,9 +274,9 @@ export default function SubmissionDetail() {
       if (error) throw error;
       setRecruiterNote('');
       refetch();
-      toast.success('Notiz gespeichert');
+      toast.success(t('detail.noteSaved'));
     } catch {
-      toast.error('Fehler beim Speichern');
+      toast.error(t('detail.saveFailed'));
     } finally {
       setSavingNote(false);
     }
@@ -284,9 +290,9 @@ export default function SubmissionDetail() {
         .update({ action_taken: 'marked_done', action_taken_at: new Date().toISOString(), is_read: true })
         .eq('id', alertId);
       refetch();
-      toast.success('Erledigt');
+      toast.success(t('detail.done'));
     } catch {
-      toast.error('Fehler');
+      toast.error(t('detail.error'));
     }
   };
 
@@ -307,9 +313,9 @@ export default function SubmissionDetail() {
         <div className="p-6">
           <Link to=".." className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4">
             <ArrowLeft className="h-4 w-4" />
-            Zurück
+            {t('detail.back')}
           </Link>
-          <p className="text-destructive">Einreichung nicht gefunden.</p>
+          <p className="text-destructive">{t('detail.notFound')}</p>
         </div>
       </DashboardLayout>
     );
@@ -356,8 +362,8 @@ export default function SubmissionDetail() {
   // Add submission creation if no activity for it
   if (!timelineItems.some(t => t.type === 'submission_created' || t.type === 'candidate_submitted')) {
     timelineItems.push({
-      title: 'Kandidat eingereicht',
-      description: `Für "${job?.title}" bei ${companyDisplay}`,
+      title: t('detail.timeline.submitted'),
+      description: t('detail.timeline.submittedFor', { job: job?.title, company: companyDisplay }),
       time: submission.submitted_at,
       type: 'candidate_submitted',
     });
@@ -367,16 +373,16 @@ export default function SubmissionDetail() {
   interviews.forEach((iv: any) => {
     if (iv.status === 'pending_response' && !timelineItems.some(t => t.type === 'interview_invitation_sent' && t.time === iv.created_at)) {
       timelineItems.push({
-        title: 'Interview-Einladung gesendet',
-        description: `${iv.meeting_format || 'Video'} · ${iv.duration_minutes || 30} Min · ${(iv.proposed_slots as any[])?.length || 0} Terminvorschläge`,
+        title: t('detail.timeline.inviteSent'),
+        description: t('detail.timeline.inviteDesc', { format: iv.meeting_format || 'Video', minutes: iv.duration_minutes || 30, count: (iv.proposed_slots as any[])?.length || 0 }),
         time: iv.created_at,
         type: 'interview_invitation_sent',
       });
     }
     if (iv.status === 'scheduled' && iv.scheduled_at) {
       timelineItems.push({
-        title: 'Interview bestätigt',
-        description: `Termin: ${format(new Date(iv.scheduled_at), 'EEE d. MMM, HH:mm', { locale: de })}`,
+        title: t('detail.timeline.confirmed'),
+        description: t('detail.timeline.date', { date: format(new Date(iv.scheduled_at), t('detail.fmt.weekdayDateTime'), { locale }) }),
         time: iv.candidate_confirmed_at || iv.updated_at || iv.created_at,
         type: 'interview_scheduled',
       });
@@ -387,7 +393,7 @@ export default function SubmissionDetail() {
   alerts.forEach((a: any) => {
     if (!timelineItems.some(t => t.time === a.created_at && t.title === a.title)) {
       timelineItems.push({
-        title: `Alert: ${a.title}`,
+        title: t('detail.timeline.alert', { title: a.title }),
         description: a.message,
         time: a.created_at,
         type: 'alert_created',
@@ -417,7 +423,7 @@ export default function SubmissionDetail() {
         className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         <ArrowLeft className="h-4 w-4" />
-        Zurück zu {candidate?.full_name || 'Kandidaten'}
+        {candidate?.full_name ? t('detail.backTo', { name: candidate.full_name }) : t('detail.backToCandidates')}
       </Link>
 
       {/* ── Header Card ── */}
@@ -434,7 +440,7 @@ export default function SubmissionDetail() {
                         <Unlock className="h-4 w-4" />
                       </span>
                     </TooltipTrigger>
-                    <TooltipContent>Identitäten freigeschaltet</TooltipContent>
+                    <TooltipContent>{t('detail.unlockedTip')}</TooltipContent>
                   </Tooltip>
                 ) : (
                   <Tooltip>
@@ -443,17 +449,17 @@ export default function SubmissionDetail() {
                         <Shield className="h-4 w-4" />
                       </span>
                     </TooltipTrigger>
-                    <TooltipContent>Triple-Blind aktiv</TooltipContent>
+                    <TooltipContent>{t('detail.tripleBlind')}</TooltipContent>
                   </Tooltip>
                 )}
                 <h1 className="text-lg font-bold truncate">{companyDisplay}</h1>
                 {submission.match_score && (
                   <Badge variant="outline" className="text-xs shrink-0">
-                    Match {submission.match_score}%
+                    {t('detail.match', { score: submission.match_score })}
                   </Badge>
                 )}
               </div>
-              <p className="text-sm text-muted-foreground mt-0.5">{job?.title || 'Unbekannte Stelle'}</p>
+              <p className="text-sm text-muted-foreground mt-0.5">{job?.title || t('detail.unknownJob')}</p>
               <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <User className="h-3 w-3" />
@@ -461,7 +467,7 @@ export default function SubmissionDetail() {
                 </span>
                 <span className="flex items-center gap-1">
                   <Clock className="h-3 w-3" />
-                  Eingereicht {formatDistanceToNow(new Date(submission.submitted_at), { locale: de, addSuffix: true })}
+                  {t('detail.submittedAgo', { time: formatDistanceToNow(new Date(submission.submitted_at), { locale, addSuffix: true }) })}
                 </span>
               </div>
             </div>
@@ -492,8 +498,8 @@ export default function SubmissionDetail() {
             <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
               <Clock className="h-5 w-5 text-amber-600 shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-amber-700 dark:text-amber-400">Wartet auf die Zusage des Kandidaten</p>
-                <p className="text-xs text-muted-foreground">Zusagen kann nur der Kandidat selbst, per Klick in der Einladung. Ein Anruf hilft.</p>
+                <p className="text-sm font-medium text-amber-700 dark:text-amber-400">{t('detail.optIn.title')}</p>
+                <p className="text-xs text-muted-foreground">{t('detail.optIn.text')}</p>
               </div>
             </div>
           )}
@@ -509,17 +515,17 @@ export default function SubmissionDetail() {
             <CardHeader className="p-4 pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
                 <FileText className="h-4 w-4" />
-                Details
+                {t('detail.rows.title')}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-0 divide-y">
-              <DetailRow label="Status">
+              <DetailRow label={t('detail.rows.status')}>
                 <Badge variant="outline" className="text-xs">{submission.status || '—'}</Badge>
               </DetailRow>
-              <DetailRow label="Stage">
+              <DetailRow label={t('detail.rows.stage')}>
                 <Badge variant="outline" className="text-xs">{submission.stage || 'new'}</Badge>
               </DetailRow>
-              <DetailRow label="Match Score">
+              <DetailRow label={t('detail.rows.matchScore')}>
                 {submission.match_score ? (
                   <div className="flex items-center gap-2">
                     <div className="w-16 h-1.5 rounded-full bg-muted-foreground/15 overflow-hidden">
@@ -534,43 +540,43 @@ export default function SubmissionDetail() {
                   <span className="text-xs text-muted-foreground">—</span>
                 )}
               </DetailRow>
-              <DetailRow label="Opt-In">
+              <DetailRow label={t('detail.rows.optIn')}>
                 {submission.opt_in_response ? (
                   <Badge variant="outline" className="text-xs text-green-600 border-green-500/30">
                     {submission.opt_in_response}
                   </Badge>
                 ) : isAwaitingOptIn ? (
-                  <span className="text-xs text-amber-600 font-medium">⏳ ausstehend</span>
+                  <span className="text-xs text-amber-600 font-medium">{t('detail.rows.pending')}</span>
                 ) : (
                   <span className="text-xs text-muted-foreground">—</span>
                 )}
               </DetailRow>
-              <DetailRow label="Firma sichtbar">
+              <DetailRow label={t('detail.rows.companyVisible')}>
                 {companyRevealed ? (
-                  <span className="text-xs text-green-600 flex items-center gap-1"><Unlock className="h-3 w-3" /> Ja</span>
+                  <span className="text-xs text-green-600 flex items-center gap-1"><Unlock className="h-3 w-3" /> {t('detail.rows.yes')}</span>
                 ) : (
-                  <span className="text-xs text-muted-foreground flex items-center gap-1"><Lock className="h-3 w-3" /> Nein</span>
+                  <span className="text-xs text-muted-foreground flex items-center gap-1"><Lock className="h-3 w-3" /> {t('detail.rows.no')}</span>
                 )}
               </DetailRow>
-              <DetailRow label="Identität freigeschaltet">
+              <DetailRow label={t('detail.rows.identityUnlocked')}>
                 {identityUnlocked ? (
-                  <span className="text-xs text-green-600 flex items-center gap-1"><Unlock className="h-3 w-3" /> Ja</span>
+                  <span className="text-xs text-green-600 flex items-center gap-1"><Unlock className="h-3 w-3" /> {t('detail.rows.yes')}</span>
                 ) : (
-                  <span className="text-xs text-muted-foreground flex items-center gap-1"><Lock className="h-3 w-3" /> Nein</span>
+                  <span className="text-xs text-muted-foreground flex items-center gap-1"><Lock className="h-3 w-3" /> {t('detail.rows.no')}</span>
                 )}
               </DetailRow>
-              <DetailRow label="Consent">
+              <DetailRow label={t('detail.rows.consent')}>
                 {submission.consent_confirmed ? (
-                  <span className="text-xs text-green-600">✓ Bestätigt</span>
+                  <span className="text-xs text-green-600">{t('detail.rows.confirmed')}</span>
                 ) : (
-                  <span className="text-xs text-muted-foreground">⏳ ausstehend</span>
+                  <span className="text-xs text-muted-foreground">{t('detail.rows.pending')}</span>
                 )}
               </DetailRow>
-              <DetailRow label="Eingereicht">
-                <span className="text-xs">{format(new Date(submission.submitted_at), 'd. MMM yyyy, HH:mm', { locale: de })}</span>
+              <DetailRow label={t('detail.rows.submitted')}>
+                <span className="text-xs">{format(new Date(submission.submitted_at), t('detail.fmt.dateTime'), { locale })}</span>
               </DetailRow>
-              <DetailRow label="Letztes Update">
-                <span className="text-xs">{format(new Date(submission.updated_at), 'd. MMM yyyy, HH:mm', { locale: de })}</span>
+              <DetailRow label={t('detail.rows.lastUpdate')}>
+                <span className="text-xs">{format(new Date(submission.updated_at), t('detail.fmt.dateTime'), { locale })}</span>
               </DetailRow>
             </CardContent>
           </Card>
@@ -580,7 +586,7 @@ export default function SubmissionDetail() {
             <CardHeader className="p-4 pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
                 <MessageSquare className="h-4 w-4" />
-                Notizen
+                {t('detail.notes.title')}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-0 space-y-3">
@@ -590,13 +596,13 @@ export default function SubmissionDetail() {
                   {submission.recruiter_notes}
                 </div>
               ) : (
-                <p className="text-xs text-muted-foreground italic">Noch keine Recruiter-Notizen.</p>
+                <p className="text-xs text-muted-foreground italic">{t('detail.notes.none')}</p>
               )}
 
               {/* Add note */}
               <div className="flex gap-2">
                 <Textarea
-                  placeholder="Notiz hinzufügen..."
+                  placeholder={t('detail.notes.placeholder')}
                   value={recruiterNote}
                   onChange={(e) => setRecruiterNote(e.target.value)}
                   className="text-xs min-h-[60px]"
@@ -606,14 +612,14 @@ export default function SubmissionDetail() {
               {recruiterNote.trim() && (
                 <Button size="sm" onClick={handleSaveNote} disabled={savingNote} className="w-full">
                   {savingNote ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
-                  Notiz speichern
+                  {t('detail.notes.save')}
                 </Button>
               )}
 
               {/* Client notes */}
               {submission.client_notes && (
                 <div className="pt-2 border-t">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Client Notizen</p>
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">{t('detail.notes.client')}</p>
                   <div className="text-xs whitespace-pre-wrap bg-muted/50 rounded-md p-2.5">
                     {typeof submission.client_notes === 'string'
                       ? (() => {
@@ -623,13 +629,13 @@ export default function SubmissionDetail() {
                               const req = parsed.pending_interview_request;
                               return (
                                 <div className="space-y-1">
-                                  <p className="font-medium">Interview-Anfrage ({req.status})</p>
+                                  <p className="font-medium">{t('detail.notes.request', { status: req.status })}</p>
                                   {req.client_message && <p>{req.client_message}</p>}
                                   {req.client_time_slots && (
                                     <div className="flex flex-wrap gap-1 mt-1">
                                       {(req.client_time_slots as string[]).map((slot: string, i: number) => (
                                         <Badge key={i} variant="secondary" className="text-[10px]">
-                                          {format(new Date(slot), 'd.M. HH:mm', { locale: de })}
+                                          {format(new Date(slot), t('detail.fmt.slotShort'), { locale })}
                                         </Badge>
                                       ))}
                                     </div>
@@ -656,7 +662,7 @@ export default function SubmissionDetail() {
               <CardHeader className="p-4 pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4" />
-                  Alerts ({pendingAlerts.length} offen)
+                  {t('detail.alerts.title', { count: pendingAlerts.length })}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 pt-0 space-y-2">
@@ -679,14 +685,14 @@ export default function SubmissionDetail() {
                         onClick={() => handleMarkAlertDone(alert.id)}
                       >
                         <Check className="h-3 w-3 mr-0.5" />
-                        Erledigt
+                        {t('detail.alerts.done')}
                       </Button>
                     </div>
                   );
                 })}
                 {doneAlerts.length > 0 && (
                   <p className="text-[10px] text-muted-foreground pt-1">
-                    {doneAlerts.length} erledigte Alerts
+                    {t('detail.alerts.doneCount', { count: doneAlerts.length })}
                   </p>
                 )}
               </CardContent>
@@ -705,28 +711,28 @@ export default function SubmissionDetail() {
               <CardHeader className="p-4 pb-2">
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Calendar className="h-4 w-4" />
-                  Interview
+                  {t('detail.interview.title')}
                   <Badge variant="outline" className={cn(
                     'text-[10px] ml-auto',
                     activeInterview.status === 'pending_response' && 'text-amber-600 border-amber-500/30',
                     activeInterview.status === 'scheduled' && 'text-green-600 border-green-500/30',
                   )}>
-                    {activeInterview.status === 'pending_response' ? 'Wartet auf Antwort' : 'Bestätigt'}
+                    {activeInterview.status === 'pending_response' ? t('detail.interview.waiting') : t('detail.interview.confirmed')}
                   </Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 pt-0 space-y-3">
                 <div className="grid grid-cols-3 gap-3 text-xs">
                   <div>
-                    <p className="text-muted-foreground">Format</p>
+                    <p className="text-muted-foreground">{t('detail.interview.format')}</p>
                     <p className="font-medium capitalize">{activeInterview.meeting_format || activeInterview.meeting_type || '—'}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Dauer</p>
-                    <p className="font-medium">{activeInterview.duration_minutes || '—'} Min</p>
+                    <p className="text-muted-foreground">{t('detail.interview.duration')}</p>
+                    <p className="font-medium">{t('detail.interview.minutes', { value: activeInterview.duration_minutes || '—' })}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Status</p>
+                    <p className="text-muted-foreground">{t('detail.interview.status')}</p>
                     <p className="font-medium capitalize">{activeInterview.status?.replace(/_/g, ' ')}</p>
                   </div>
                 </div>
@@ -734,7 +740,7 @@ export default function SubmissionDetail() {
                 {/* Proposed slots */}
                 {activeInterview.proposed_slots && (activeInterview.proposed_slots as any[]).length > 0 && (
                   <div>
-                    <p className="text-xs text-muted-foreground mb-1.5">Terminvorschläge</p>
+                    <p className="text-xs text-muted-foreground mb-1.5">{t('detail.interview.slots')}</p>
                     <div className="flex flex-wrap gap-1.5">
                       {(activeInterview.proposed_slots as any[]).map((slot: any, i: number) => (
                         <Badge
@@ -743,7 +749,7 @@ export default function SubmissionDetail() {
                           className="text-xs"
                         >
                           <Calendar className="h-3 w-3 mr-1" />
-                          {format(new Date(slot.datetime), 'EEE d.M. HH:mm', { locale: de })}
+                          {format(new Date(slot.datetime), t('detail.fmt.slot'), { locale })}
                         </Badge>
                       ))}
                     </div>
@@ -756,9 +762,9 @@ export default function SubmissionDetail() {
                     <Calendar className="h-4 w-4 text-green-600" />
                     <div>
                       <p className="text-sm font-medium text-green-700 dark:text-green-400">
-                        {format(new Date(activeInterview.scheduled_at), 'EEEE, d. MMMM yyyy · HH:mm', { locale: de })}
+                        {format(new Date(activeInterview.scheduled_at), t('detail.fmt.full'), { locale })}
                       </p>
-                      <p className="text-xs text-muted-foreground">{activeInterview.duration_minutes} Minuten · {activeInterview.meeting_format}</p>
+                      <p className="text-xs text-muted-foreground">{t('detail.interview.scheduledMeta', { minutes: activeInterview.duration_minutes, format: activeInterview.meeting_format })}</p>
                     </div>
                   </div>
                 )}
@@ -766,7 +772,7 @@ export default function SubmissionDetail() {
                 {/* Client message */}
                 {activeInterview.client_message && (
                   <div className="text-xs bg-muted/50 rounded-md p-2.5 border-l-2 border-primary/30">
-                    <p className="text-[10px] text-muted-foreground mb-0.5">Nachricht des Unternehmens</p>
+                    <p className="text-[10px] text-muted-foreground mb-0.5">{t('detail.interview.clientMessage')}</p>
                     <p className="italic">"{activeInterview.client_message}"</p>
                   </div>
                 )}
@@ -783,7 +789,7 @@ export default function SubmissionDetail() {
                     )}
                   >
                     <Video className="h-3.5 w-3.5 mr-1.5" />
-                    Meeting beitreten
+                    {t('detail.interview.join')}
                   </Button>
                 )}
               </CardContent>
@@ -795,7 +801,7 @@ export default function SubmissionDetail() {
             <CardHeader className="p-4 pb-2">
               <CardTitle className="text-sm flex items-center gap-2">
                 <Clock className="h-4 w-4" />
-                Timeline
+                {t('detail.timeline.title')}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 pt-2">
@@ -817,7 +823,7 @@ export default function SubmissionDetail() {
                   })}
                 </div>
               ) : (
-                <p className="text-xs text-muted-foreground">Noch keine Aktivitäten.</p>
+                <p className="text-xs text-muted-foreground">{t('detail.timeline.none')}</p>
               )}
             </CardContent>
           </Card>

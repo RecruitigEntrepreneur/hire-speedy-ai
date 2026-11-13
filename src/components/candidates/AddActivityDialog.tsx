@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -26,16 +27,18 @@ interface AddActivityDialogProps {
   loading?: boolean;
 }
 
+// Beschriftung über candidateDetail:activity.types.<value>
 const activityTypes = [
-  { value: 'call', label: 'Anruf', icon: Phone },
-  { value: 'email', label: 'E-Mail', icon: Mail },
-  { value: 'note', label: 'Notiz', icon: FileText },
-  { value: 'status_change', label: 'Status geändert', icon: ArrowRightLeft },
-  { value: 'playbook_used', label: 'Playbook genutzt', icon: BookOpen },
-  { value: 'alert_actioned', label: 'Alert bearbeitet', icon: CheckCircle },
+  { value: 'call', icon: Phone },
+  { value: 'email', icon: Mail },
+  { value: 'note', icon: FileText },
+  { value: 'status_change', icon: ArrowRightLeft },
+  { value: 'playbook_used', icon: BookOpen },
+  { value: 'alert_actioned', icon: CheckCircle },
 ];
 
 export function AddActivityDialog({ open, onOpenChange, onSubmit, loading }: AddActivityDialogProps) {
+  const { t } = useTranslation('candidateDetail');
   const [activityType, setActivityType] = useState('note');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -57,13 +60,13 @@ export function AddActivityDialog({ open, onOpenChange, onSubmit, loading }: Add
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Icon className="h-5 w-5" />
-            Aktivität hinzufügen
+            {t('activity.addTitle')}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label>Aktivitätstyp</Label>
+            <Label>{t('activity.typeLabel')}</Label>
             <Select value={activityType} onValueChange={setActivityType}>
               <SelectTrigger>
                 <SelectValue />
@@ -75,7 +78,7 @@ export function AddActivityDialog({ open, onOpenChange, onSubmit, loading }: Add
                     <SelectItem key={type.value} value={type.value}>
                       <div className="flex items-center gap-2">
                         <TypeIcon className="h-4 w-4" />
-                        {type.label}
+                        {t(`activity.types.${type.value}`)}
                       </div>
                     </SelectItem>
                   );
@@ -85,18 +88,18 @@ export function AddActivityDialog({ open, onOpenChange, onSubmit, loading }: Add
           </div>
 
           <div className="space-y-2">
-            <Label>Titel *</Label>
+            <Label>{t('activity.titleLabel')}</Label>
             <Input
-              placeholder="z.B. Erstgespräch durchgeführt"
+              placeholder={t('activity.titlePlaceholder')}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
           </div>
 
           <div className="space-y-2">
-            <Label>Beschreibung</Label>
+            <Label>{t('activity.descriptionLabel')}</Label>
             <Textarea
-              placeholder="Details zur Aktivität..."
+              placeholder={t('activity.descriptionPlaceholder')}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={4}
@@ -106,10 +109,10 @@ export function AddActivityDialog({ open, onOpenChange, onSubmit, loading }: Add
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Abbrechen
+            {t('common.cancel')}
           </Button>
           <Button onClick={handleSubmit} disabled={!title.trim() || loading}>
-            {loading ? 'Speichere...' : 'Aktivität speichern'}
+            {loading ? t('activity.saving') : t('activity.save')}
           </Button>
         </DialogFooter>
       </DialogContent>

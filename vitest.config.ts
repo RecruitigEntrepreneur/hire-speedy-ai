@@ -15,6 +15,8 @@ export default defineConfig({
   test: {
     include: ['evals/**/*.test.ts', 'src/lib/**/*.test.ts'],
     watch: false,
+    // Sprache der Tests ist Deutsch, alle Übersetzungen sind vorab geladen.
+    setupFiles: ['src/i18n/testSetup.ts'],
   },
   resolve: {
     alias: { '@': path.resolve(__dirname, './src') },

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import i18n from '@/i18n';
 
 export interface OrganizationInvite {
   id: string;
@@ -76,11 +77,11 @@ export function useOrganizationInvites(organizationId: string | undefined) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['organization-invites', organizationId] });
-      toast.success('Einladung gesendet');
+      toast.success(i18n.t('clientTeam:toast.inviteSent'));
     },
     onError: (error) => {
       console.error('Error sending invite:', error);
-      toast.error(error.message || 'Fehler beim Senden der Einladung');
+      toast.error(error.message || i18n.t('clientTeam:toast.inviteSendError'));
     },
   });
 
@@ -95,11 +96,11 @@ export function useOrganizationInvites(organizationId: string | undefined) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['organization-invites', organizationId] });
-      toast.success('Einladung zurückgezogen');
+      toast.success(i18n.t('clientTeam:toast.inviteRevoked'));
     },
     onError: (error) => {
       console.error('Error canceling invite:', error);
-      toast.error('Fehler beim Zurückziehen');
+      toast.error(i18n.t('clientTeam:toast.inviteRevokeError'));
     },
   });
 
@@ -118,12 +119,12 @@ export function useOrganizationInvites(organizationId: string | undefined) {
       queryClient.invalidateQueries({ queryKey: ['organization-memberships'] });
       queryClient.invalidateQueries({ queryKey: ['my-organization'] });
       if (data?.organization_name) {
-        toast.success(`Erfolgreich beigetreten: ${data.organization_name}`);
+        toast.success(i18n.t('clientTeam:toast.joined', { org: data.organization_name }));
       }
     },
     onError: (error) => {
       console.error('Error accepting invite:', error);
-      toast.error(error.message || 'Fehler beim Annehmen der Einladung');
+      toast.error(error.message || i18n.t('clientTeam:toast.acceptError'));
     },
   });
 

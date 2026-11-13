@@ -4,6 +4,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { RecruiterIntegration, IntegrationProvider, ProviderInfo } from '@/types/integrations';
 import { PROVIDERS, getProviderName } from '@/types/integrations';
+import i18n from '@/i18n';
+
+// Meldungen in der Sprache der Oberfläche; die Seite lädt den Namespace recruiterIntegrations.
+const tx = (key: string, options?: Record<string, unknown>): string => i18n.t(`recruiterIntegrations:toast.${key}`, options);
 
 /** Check if an error is a FunctionsFetchError (edge function not deployed) */
 function isEdgeFunctionNotDeployed(err: unknown): boolean {
@@ -90,14 +94,14 @@ export function useRecruiterIntegrations(): UseRecruiterIntegrationsReturn {
     const provider = params.get('provider');
 
     if (connected) {
-      toast.success(`${getProviderName(connected)} erfolgreich verbunden!`);
+      toast.success(tx('connected', { name: getProviderName(connected) }));
       window.history.replaceState({}, '', '/recruiter/integrations');
       fetchIntegrations();
     }
 
     if (error) {
       const providerName = provider ? getProviderName(provider) : 'Provider';
-      toast.error(`Verbindung zu ${providerName} fehlgeschlagen: ${error}`);
+      toast.error(tx('failedWith', { name: providerName, error }));
       window.history.replaceState({}, '', '/recruiter/integrations');
     }
   }, []); // Only on mount
@@ -112,7 +116,7 @@ export function useRecruiterIntegrations(): UseRecruiterIntegrationsReturn {
 
       if (error) {
         if (isEdgeFunctionNotDeployed(error)) {
-          toast.error(`OAuth für ${getProviderName(provider)} ist noch nicht konfiguriert. Die Edge Function muss zuerst deployed werden.`);
+          toast.error(tx('oauthMissing', { name: getProviderName(provider) }));
           return;
         }
         throw error;
@@ -129,11 +133,11 @@ export function useRecruiterIntegrations(): UseRecruiterIntegrationsReturn {
     } catch (err) {
       // FunctionsFetchError is THROWN by supabase-js (not returned as error field)
       if (isEdgeFunctionNotDeployed(err)) {
-        toast.error(`OAuth für ${getProviderName(provider)} ist noch nicht konfiguriert. Die Edge Function muss zuerst deployed werden.`);
+        toast.error(tx('oauthMissing', { name: getProviderName(provider) }));
         return;
       }
       console.error('[useRecruiterIntegrations] OAuth connect failed:', err);
-      toast.error(`Verbindung zu ${getProviderName(provider)} fehlgeschlagen. Bitte versuche es erneut.`);
+      toast.error(tx('failedRetry', { name: getProviderName(provider) }));
     }
   }, []);
 
@@ -147,14 +151,14 @@ export function useRecruiterIntegrations(): UseRecruiterIntegrationsReturn {
 
       if (error) {
         if (isEdgeFunctionNotDeployed(error)) {
-          toast.error(`Edge Function für API-Key-Verbindung ist noch nicht deployed.`);
+          toast.error(tx('apiKeyMissing'));
           return false;
         }
         throw error;
       }
 
       if (data?.success) {
-        toast.success(`${getProviderName(provider)} erfolgreich verbunden!`);
+        toast.success(tx('connected', { name: getProviderName(provider) }));
         await fetchIntegrations();
         return true;
       }
@@ -162,11 +166,11 @@ export function useRecruiterIntegrations(): UseRecruiterIntegrationsReturn {
       throw new Error(data?.error || 'Verbindung fehlgeschlagen');
     } catch (err) {
       if (isEdgeFunctionNotDeployed(err)) {
-        toast.error(`Edge Function für API-Key-Verbindung ist noch nicht deployed.`);
+        toast.error(tx('apiKeyMissing'));
         return false;
       }
       console.error('[useRecruiterIntegrations] API key connect failed:', err);
-      toast.error(`Verbindung zu ${getProviderName(provider)} fehlgeschlagen`);
+      toast.error(tx('failed', { name: getProviderName(provider) }));
       return false;
     }
   }, [fetchIntegrations]);
@@ -185,14 +189,14 @@ export function useRecruiterIntegrations(): UseRecruiterIntegrationsReturn {
 
       if (error) {
         if (isEdgeFunctionNotDeployed(error)) {
-          toast.error(`Edge Function für Credentials-Verbindung ist noch nicht deployed.`);
+          toast.error(tx('credentialsMissing'));
           return false;
         }
         throw error;
       }
 
       if (data?.success) {
-        toast.success(`${getProviderName(provider)} erfolgreich verbunden!`);
+        toast.success(tx('connected', { name: getProviderName(provider) }));
         await fetchIntegrations();
         return true;
       }
@@ -200,11 +204,11 @@ export function useRecruiterIntegrations(): UseRecruiterIntegrationsReturn {
       throw new Error(data?.error || 'Verbindung fehlgeschlagen');
     } catch (err) {
       if (isEdgeFunctionNotDeployed(err)) {
-        toast.error(`Edge Function für Credentials-Verbindung ist noch nicht deployed.`);
+        toast.error(tx('credentialsMissing'));
         return false;
       }
       console.error('[useRecruiterIntegrations] Client credentials connect failed:', err);
-      toast.error(`Verbindung zu ${getProviderName(provider)} fehlgeschlagen`);
+      toast.error(tx('failed', { name: getProviderName(provider) }));
       return false;
     }
   }, [fetchIntegrations]);
@@ -219,14 +223,14 @@ export function useRecruiterIntegrations(): UseRecruiterIntegrationsReturn {
 
       if (error) {
         if (isEdgeFunctionNotDeployed(error)) {
-          toast.error(`Edge Function für Disconnect ist noch nicht deployed.`);
+          toast.error(tx('disconnectMissing'));
           return false;
         }
         throw error;
       }
 
       if (data?.success) {
-        toast.success(`${getProviderName(data.provider)} getrennt`);
+        toast.success(tx('disconnected', { name: getProviderName(data.provider) }));
         await fetchIntegrations();
         return true;
       }
@@ -234,11 +238,11 @@ export function useRecruiterIntegrations(): UseRecruiterIntegrationsReturn {
       throw new Error(data?.error || 'Trennen fehlgeschlagen');
     } catch (err) {
       if (isEdgeFunctionNotDeployed(err)) {
-        toast.error(`Edge Function für Disconnect ist noch nicht deployed.`);
+        toast.error(tx('disconnectMissing'));
         return false;
       }
       console.error('[useRecruiterIntegrations] Disconnect failed:', err);
-      toast.error('Integration konnte nicht getrennt werden');
+      toast.error(tx('disconnectFailed'));
       return false;
     }
   }, [fetchIntegrations]);

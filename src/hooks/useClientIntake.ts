@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
+import i18n from '@/i18n';
 import { emptyCapture, captureBriefingText, type CaptureState } from '@/components/intake/guest/CaptureStep';
 import type { CompanyDraft, Anreicherung } from '@/components/intake/guest/CompanyBlock';
 import type { IntakeFailure } from '@/hooks/useGuestIntake';
@@ -15,6 +16,13 @@ import { companyAddress, companyLabel, useClientCompanies, type ClientCompany } 
 import { draftToJobRow } from '../../supabase/functions/_shared/intake-mapping';
 import { CONTRACTING_FASSUNG } from '../../supabase/functions/_shared/contracting-konditionen';
 import { unterRahmenvertrag } from '../../supabase/functions/_shared/contracting-mandat';
+
+/**
+ * Meldungen an den Kunden, gelesen beim Aufruf (README Regel 7). Die Seite,
+ * die den Hook nutzt (ClientIntake), lädt den Namespace `intake`.
+ */
+const meldung = (key: string, werte?: Record<string, unknown>): string =>
+  i18n.t(`intake:clientIntake.hook.${key}`, werte);
 
 /**
  * Die Jobaufnahme fuer angemeldete Kunden.
@@ -88,7 +96,7 @@ async function writeJob(id: string | null, row: Record<string, unknown>) {
       : await supabase.from('jobs').insert(payload as any);
     if (!res.error) {
       if (id && res.count === 0) {
-        return { id: null, error: new Error('Keine Berechtigung für diesen Entwurf') };
+        return { id: null, error: new Error(i18n.t('clientJobs:hooks.noDraftRights')) };
       }
       if (dropped.length) console.warn('[useClientIntake] Spalten fehlen live, weggelassen:', dropped);
       return { id: id ?? newId, error: null };
@@ -253,7 +261,7 @@ export function useClientIntake(jobIdParam?: string) {
       const { data, error } = await supabase.from('jobs').select('*').eq('id', jobIdParam).maybeSingle();
       if (cancelled) return;
       if (error || !data) {
-        setLoadError('Dieser Entwurf konnte nicht geladen werden.');
+        setLoadError(meldung('draftLoadFailed'));
         setCapture(emptyCapture('full-time'));
         return;
       }
@@ -360,7 +368,7 @@ export function useClientIntake(jobIdParam?: string) {
     setSaving(false);
     if (res.error) {
       dirty.current = true;
-      setSaveError('Speichern fehlgeschlagen.');
+      setSaveError(meldung('saveFailed'));
       console.error('[useClientIntake] Speichern:', res.error);
       return false;
     }
@@ -432,38 +440,38 @@ export function useClientIntake(jobIdParam?: string) {
   const fail = (message: string): IntakeFailure => ({ reason: 'invalid_request' as any, message });
 
   const askAi = useCallback(async (payload: Record<string, unknown>) => {
-    const { data, error } = await supabase.functions.invoke('intake-questions', { body: payload });
+    const { data, error } = await supabase.functions.invoke('intake-questions', { body: { ...payload, lang: i18n.language } });
     if (error) throw error;
     return data as Record<string, any>;
   }, []);
 
   const parseText = useCallback(async (jobText: string) => {
     const { data, error } = await supabase.functions.invoke('parse-job-url', { body: { jobText } });
-    if (error) return fail('Die Anzeige konnte gerade nicht gelesen werden.');
+    if (error) return fail(meldung('adUnreadable'));
     return data;
   }, []);
 
   const parseUrl = useCallback(async (jobUrl: string) => {
     const { data, error } = await supabase.functions.invoke('parse-job-url', { body: { jobUrl } });
-    if (error) return fail('Der Link konnte nicht gelesen werden. Fügen Sie den Text der Anzeige ein.');
+    if (error) return fail(meldung('linkUnreadable'));
     return data;
   }, []);
 
   const parsePdf = useCallback(async (file: File) => {
     const path = `uploads/${Date.now()}-${Math.random().toString(36).slice(2, 9)}.pdf`;
     const up = await supabase.storage.from('job-documents').upload(path, file);
-    if (up.error) return fail('Die Datei konnte nicht hochgeladen werden.');
+    if (up.error) return fail(meldung('uploadFailed'));
     // format 'aufnahme': das PDF liest derselbe Leser wie eingefuegten Text (13.11.2026).
     const { data, error } = await supabase.functions.invoke('parse-job-pdf', { body: { pdfPath: path, format: 'aufnahme' } });
-    if (error) return fail('Die PDF konnte nicht gelesen werden. Fügen Sie den Text ein.');
+    if (error) return fail(meldung('pdfUnreadable'));
     return data;
   }, []);
 
   const enrichCompany = useCallback(async (domain?: string): Promise<Anreicherung | IntakeFailure> => {
     const d = domain || companyRef.current.company_website;
-    if (!d) return fail('Keine Website hinterlegt.');
+    if (!d) return fail(meldung('noWebsite'));
     const { data, error } = await supabase.functions.invoke('enrich-company-from-domain', { body: { domain: d } });
-    if (error) return fail('Die Website konnte nicht gelesen werden.');
+    if (error) return fail(meldung('websiteUnreadable'));
     return ((data as any)?.data ?? {}) as Anreicherung;
   }, []);
 
@@ -476,7 +484,7 @@ export function useClientIntake(jobIdParam?: string) {
   const firmaSperre: string | null = !mitFirmen || !gewaehlt
     ? null
     : gewaehlt.status !== 'verified'
-        ? `„${companyLabel(gewaehlt)}“ wird noch von Matchunt geprüft. Einreichen geht, sobald die Firma verifiziert ist – Ihre Aufnahme bleibt gespeichert.`
+        ? meldung('companyInReview', { name: companyLabel(gewaehlt) })
         : null;
 
   /**
@@ -490,7 +498,7 @@ export function useClientIntake(jobIdParam?: string) {
     const co = companyRef.current;
     const name = (co.company_legal_name || co.company_name || '').trim();
     if (!name || !co.company_street || !co.company_postal_code || !co.company_city) {
-      return 'Bitte tragen Sie unter „Ihr Unternehmen“ Firmierung und Anschrift ein. Matchunt prüft die Firma, danach können Sie einreichen.';
+      return meldung('companyDataMissing');
     }
     try {
       const id = await beantrageFirma({
@@ -500,15 +508,15 @@ export function useClientIntake(jobIdParam?: string) {
       });
       setFirmaId(id);
       firmaIdRef.current = id;
-      return `„${name}“ ist jetzt zur Prüfung bei Matchunt. Einreichen geht, sobald die Firma verifiziert ist – Ihre Aufnahme bleibt gespeichert.`;
+      return meldung('companySentForReview', { name });
     } catch (e) {
-      return e instanceof Error ? e.message : 'Die Firma konnte nicht zur Prüfung gesendet werden.';
+      return e instanceof Error ? e.message : meldung('companySendFailed');
     }
   }, [mitFirmen, gewaehlt, firmaSperre, beantrageFirma]);
 
   const submit = useCallback(
     async (choice: CommercialChoice | null) => {
-      if (!user) return { ok: false as const, message: 'Nicht angemeldet.' };
+      if (!user) return { ok: false as const, message: meldung('notSignedIn') };
       const sperre = await firmaVorEinreichen();
       if (sperre) {
         if (inFlight.current) await inFlight.current;
@@ -561,12 +569,12 @@ export function useClientIntake(jobIdParam?: string) {
         return {
           ok: false as const,
           message: /verifizierte Firma/i.test(msg)
-            ? 'Stellen können nur für eine von Matchunt verifizierte Firma eingereicht werden. Ihre Aufnahme bleibt gespeichert.'
+            ? meldung('onlyVerified')
             : /gehört nicht zu Ihrem Konto/i.test(msg)
-              ? 'Diese Firma gehört nicht zu Ihrem Konto.'
+              ? meldung('notYourCompany')
               : /row-level security|permission/i.test(msg)
-                ? 'Ihre Rolle darf keine Positionen einreichen. Bitte wenden Sie sich an Ihren Admin.'
-                : 'Die Position konnte nicht eingereicht werden.',
+                ? meldung('roleNotAllowed')
+                : meldung('submitFailed'),
         };
       }
       dirty.current = false;

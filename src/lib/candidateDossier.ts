@@ -7,6 +7,9 @@
 
 import { hasBlockingClientText } from '@/lib/clientTextCheck';
 import { isOldAutoMotivation } from '@/lib/situationMotives';
+import i18n from '@/i18n';
+import { fmtMoney } from '@/lib/localeFormat';
+import { term } from '@/lib/candidateTerms';
 
 export interface Option<T extends string = string> {
   value: T;
@@ -911,11 +914,12 @@ export function exposeSummaryIssues(f: DossierForm): SummaryIssue[] {
   if (internal(f.salary_minimum)) issues.push({ level: 'danger', message: 'Das Kurzprofil nennt die Schmerzgrenze. Die darf der Kunde nie sehen.' });
   if (internal(f.current_salary)) issues.push({ level: 'danger', message: 'Das Kurzprofil nennt das aktuelle Gehalt. Das darf der Kunde nie sehen.' });
   if (f.expected_salary && amounts.some((a) => a !== f.expected_salary && a !== f.salary_minimum && a !== f.current_salary)) {
-    issues.push({ level: 'warn', message: `Das Gehalt im Kurzprofil passt nicht mehr zur Akte (Wunschgehalt ${formatEuro(f.expected_salary)}).` });
+    // Meldungen mit Werten in der Sprache der Oberfläche; feste Meldungen übersetzt die Anzeige über term().
+    issues.push({ level: 'warn', message: i18n.t('candidateLogic:textCheck.summarySalary', { amount: fmtMoney(f.expected_salary) }) as string });
   }
   const current = optionLabel(NOTICE_OPTIONS, f.notice_period);
   if (current && NOTICE_OPTIONS.some((o) => o.label !== current && !current.includes(o.label) && text.includes(o.label))) {
-    issues.push({ level: 'warn', message: `Die Kündigungsfrist im Kurzprofil passt nicht mehr zur Akte (jetzt ${current}).` });
+    issues.push({ level: 'warn', message: i18n.t('candidateLogic:textCheck.summaryNotice', { notice: term(current) }) as string });
   }
   return issues;
 }

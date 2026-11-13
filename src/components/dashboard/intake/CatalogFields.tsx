@@ -1,11 +1,13 @@
+import { useTranslation } from 'react-i18next';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import {
   bedingungGilt, hatWert, questionsAt, sizeBand,
-  frageKurz, frageText, slotChipWert, slotChips, slotLabel,
+  slotChipWert, slotChips,
   type BriefPlace, type BriefSlot, type Known,
 } from '@/lib/briefCatalog';
+import { chipLabelT, frageKurzT, frageTextT, slotLabelT, slotNach, slotPlaceholderT, wertAnzeigeT } from '@/lib/briefCatalogText';
 import { Check } from 'lucide-react';
 import { AnzeigeEtikett } from '@/components/intake/guest/AnzeigeEtikett';
 import { gleicherWert } from '@/lib/anzeigeZitat';
@@ -67,6 +69,8 @@ interface Props {
 }
 
 export function CatalogFields({ place, known, onSet, contract, mustHaves = [], onConfirm, aufbauVorschlaege, nur, treppeOhneWeiter = false, gross = false, anzeige = null, anzeigeWerte }: Props) {
+  // Laedt die Namespaces und zeichnet beim Sprachwechsel neu; die Katalogtexte lesen beim Aufruf.
+  const { t } = useTranslation(['intake', 'intakeCatalog']);
   /** Was die Anzeige zu einem Feld sagte (gemerkt), sonst der noch ungepruefte Wert. */
   const adVon = (k: string): unknown =>
     anzeigeWerte && k in anzeigeWerte ? anzeigeWerte[k] : known[k]?.from === 'ad' ? known[k]?.value : undefined;
@@ -109,7 +113,7 @@ export function CatalogFields({ place, known, onSet, contract, mustHaves = [], o
             {zeigeFrage && (
               /* Markos Wortlaut — als Beschriftung, nicht als Frage. */
               <p className={gross ? 'mb-3 text-base font-semibold leading-snug text-foreground' : 'mb-2 text-xs leading-snug text-muted-foreground'}>
-                {gross ? frageText(q, contract) : frageKurz(q, contract) ?? q.text}
+                {gross ? frageTextT(q, contract) : frageKurzT(q, contract) ?? frageTextT(q, contract)}
               </p>
             )}
             <div className="space-y-2.5">
@@ -139,11 +143,11 @@ export function CatalogFields({ place, known, onSet, contract, mustHaves = [], o
                   ) : (
                   <>
                   <p className={gross ? (zeigeFrage ? 'mb-1.5 text-sm font-medium text-foreground' : 'mb-2 text-base font-semibold text-foreground') : 'mb-1 text-[11px] text-muted-foreground'}>
-                    {slotLabel(s, contract)}
-                    {!s.required && <span className="ml-1 text-[10px]">(optional)</span>}
+                    {slotLabelT(s, contract)}
+                    {!s.required && <span className="ml-1 text-[10px]">{t('shared.optional')}</span>}
                     {gross && adVon(s.key) !== undefined && (
                       <span className="ml-1.5 inline-block align-middle">
-                        <AnzeigeEtikett anzeige={anzeige} wert={adVon(s.key)} abweichend={!gleicherWert(known[s.key]?.value, adVon(s.key))} />
+                        <AnzeigeEtikett anzeige={anzeige} wert={adVon(s.key)} anzeigeText={wertAnzeigeT(s.key, adVon(s.key), contract)} abweichend={!gleicherWert(known[s.key]?.value, adVon(s.key))} />
                       </span>
                     )}
                   </p>
@@ -183,11 +187,13 @@ export function CatalogFields({ place, known, onSet, contract, mustHaves = [], o
 
 /* ------------------------------------------------------------------ */
 
-const QUELLE: Partial<Record<string, string>> = {
-  ad: 'aus der Anzeige',
-  enrich: 'aus dem Impressum',
-  inherit: 'aus Ihrem Firmenprofil',
-  derive: 'abgeleitet',
+/** Herkunft eines vorbelegten Werts; die Beschriftung steht unter intake:fields.source.<quelle>. */
+const QUELLEN = ['ad', 'enrich', 'inherit', 'derive'];
+
+/** Die Groessenklasse (Speicherwert, deutsch) in der Sprache des Lesers. */
+const groessenklasse = (contract: 'full-time' | 'freelance', band: string): string => {
+  const s = slotNach('company_size_band');
+  return s ? chipLabelT(s, contract, band) : band;
 };
 
 function FeldEingabe({
@@ -209,7 +215,8 @@ function FeldEingabe({
    */
   ruhig?: boolean;
 }) {
-  const hinweis = quelle && quelle !== 'answer' ? QUELLE[quelle] : null;
+  const { t } = useTranslation(['intake', 'intakeCatalog']);
+  const hinweis = quelle && QUELLEN.includes(quelle) ? t(`fields.source.${quelle}`) : null;
   const gewaehlt = Array.isArray(wert) ? (wert as string[]) : [];
   const chips = optionen ?? slotChips(slot, contract);
 
@@ -247,7 +254,7 @@ function FeldEingabe({
                 ? onSet(an && nurVorschlag ? gewaehlt : an ? gewaehlt.filter((x) => x !== c) : [...gewaehlt, c])
                 : onSet(an && !nurVorschlag ? undefined : wert_)
             }
-            title={laut && !an ? 'So steht es in Ihrer Anzeige' : undefined}
+            title={laut && !an ? t('etappen.anzeige.optionTitle') : undefined}
             className={cn(
               'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs transition-colors',
               an
@@ -257,13 +264,13 @@ function FeldEingabe({
             )}
           >
             {an && <Check className="h-2.5 w-2.5 shrink-0" />}
-            {c}
+            {chipLabelT(slot, contract, c)}
           </button>
         );
       })}
       {chips?.length === 0 && (
         <span className="text-xs text-muted-foreground">
-          Tragen Sie zuerst Muss-Kriterien ein — daraus wählen Sie hier aus.
+          {t('fields.needMustHaves')}
         </span>
       )}
     </div>
@@ -273,12 +280,12 @@ function FeldEingabe({
     <div>
       {(slot.form === 'chips' || slot.form === 'multi') && chipReihe(slot.form === 'multi')}
       {slot.form === 'multi' && slot.eigene && (
-        <EigeneEintraege alle={gewaehlt} chips={chips ?? []} placeholder={slot.placeholder} onChange={(v) => onSet(v)} />
+        <EigeneEintraege alle={gewaehlt} chips={chips ?? []} placeholder={slotPlaceholderT(slot)} onChange={(v) => onSet(v)} />
       )}
 
       {slot.form === 'short' && (
         <Input value={String(wert ?? '')} className="h-8 text-xs"
-               placeholder={slot.placeholder}
+               placeholder={slotPlaceholderT(slot)}
                /* Nicht bei jedem Anschlag trimmen: sonst frisst das Feld das
                   Leerzeichen, das gerade getippt wird. Das Trimmen passiert
                   beim Schreiben in die Spalte. */
@@ -287,12 +294,12 @@ function FeldEingabe({
 
       {slot.form === 'number' && (
         <Input type="number" value={String(wert ?? '')} className="h-8 text-xs"
-               placeholder={slot.placeholder}
+               placeholder={slotPlaceholderT(slot)}
                onChange={(e) => onSet(e.target.value === '' ? undefined : Number(e.target.value))} />
       )}
 
       {(slot.form === 'text' || slot.form === 'ai') && (
-        <Textarea value={String(wert ?? '')} rows={2} placeholder="In Ihren Worten …"
+        <Textarea value={String(wert ?? '')} rows={2} placeholder={t('fields.ownWords')}
                   className="text-xs" onChange={(e) => onSet(e.target.value || undefined)} />
       )}
 
@@ -310,12 +317,12 @@ function FeldEingabe({
               onClick={onConfirm}
               className="rounded border border-amber-500/40 px-1.5 py-px font-medium hover:bg-amber-500/10"
             >
-              ✓ stimmt
+              {t('fields.confirm')}
             </button>
           ) : (
-            <span className="text-muted-foreground">— bitte prüfen</span>
+            <span className="text-muted-foreground">{t('fields.pleaseCheck')}</span>
           )}
-          <span className="text-muted-foreground">sonst einfach ändern</span>
+          <span className="text-muted-foreground">{t('fields.orChange')}</span>
         </p>
       )}
 
@@ -325,8 +332,7 @@ function FeldEingabe({
           eine Groessenklasse nach draussen geht. */}
       {slot.key === 'company_headcount' && sizeBand(wert as number) && (
         <p className="mt-1 text-[10px] text-muted-foreground">
-          Größenklasse {sizeBand(wert as number)} — mehr sieht der Recruiter
-          vor der Freigabe nicht.
+          {t('fields.sizeBandNote', { band: groessenklasse(contract, sizeBand(wert as number)!) })}
         </p>
       )}
     </div>

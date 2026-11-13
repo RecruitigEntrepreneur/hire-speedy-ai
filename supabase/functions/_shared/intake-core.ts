@@ -9,6 +9,7 @@
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { hashToken } from './tokens.ts';
 import { isMissingRelation } from './http.ts';
+import { normLang } from './i18n.ts';
 
 export const serviceClient = (): SupabaseClient =>
   createClient(
@@ -286,6 +287,8 @@ export function publicDraft(d: DraftRow, contract?: ContractState | null) {
     contract: contract ?? null,
     id: d.id,
     contract_type: d.contract_type,
+    // Sprache, die der Kunde gewählt hat (null = keine Angabe, Deutsch).
+    language: normLang(d.language),
     built: d.built ?? null,
     answers: d.answers ?? null,
     dyn: d.dyn ?? null,
@@ -337,6 +340,8 @@ export function publicLink(l: LinkRow, ownerName: string | null) {
     link_type: l.link_type,
     label: l.label,
     owner_name: ownerName,
+    // Sprache, in der der Link begrüßt (null = automatisch, der Browser entscheidet).
+    language: normLang(l.language),
     allow_freemail: l.link_type === 'public' ? l.allow_freemail === true : true,
     prefill: {
       company_name: prefill.company_name ?? null,

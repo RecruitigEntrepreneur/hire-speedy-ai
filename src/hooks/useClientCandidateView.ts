@@ -7,6 +7,9 @@ import {
   FitLabel,
   MotivationStatus
 } from '@/lib/anonymization';
+import i18n from '@/i18n';
+import { fmtMonthYear } from '@/lib/localeFormat';
+import { experienceBandLabel, regionLabel } from '@/lib/clientCandidateLabels';
 
 // ============================================================================
 // ZENTRALE DATENREGELN FÜR CLIENT-KANDIDATEN-ANSICHT
@@ -80,6 +83,11 @@ export interface ClientCandidateViewData {
   cvUrl: string | null;
   linkedinUrl: string | null;
   
+  /** Gespeicherte Kündigungsfrist (z. B. „3_months_eoq“), für Logik statt des Anzeigetexts. */
+  noticePeriod: string | null;
+  /** Welche Anzeige nur ein Platzhalter ist (blass zeigen, nicht ins PDF). */
+  placeholders: { experience: boolean; seniority: boolean; salary: boolean; availability: boolean; region: boolean; workModel: boolean };
+
   // Flags für UI
   hasRequiredData: boolean;
   missingFields: string[];
@@ -94,97 +102,59 @@ interface UseClientCandidateViewResult {
   refetch: () => Promise<void>;
 }
 
-// Semantische Erklärungen für fehlende Felder mit Kontext
+// Anzeige in der Sprache der Oberfläche (Namespace clientCandidates, „view“). Die Texte werden beim
+// Laden geholt; ob ein Feld nur ein Platzhalter ist, steht als Schalter in `placeholders`, damit die
+// Seite nicht gegen Texte vergleicht.
+const tv = (key: string, options?: Record<string, unknown>) => i18n.t(`clientCandidates:view.${key}`, options ?? {});
+
+type SemanticField = 'salary' | 'experience' | 'seniority' | 'availability' | 'work_model' | 'region';
+
+// Semantische Erklärungen für fehlende Felder mit Kontext. Vor dem Interview (und beim Gehalt immer)
+// ist der Text nur ein Platzhalter und wird blass gezeigt.
 function getSemanticExplanation(
-  fieldType: string, 
+  fieldType: SemanticField,
   context: { hasInterview: boolean; stage: string }
-): string {
-  const { hasInterview, stage } = context;
-  
-  const explanations: Record<string, { preInterview: string; postInterview: string }> = {
-    salary: {
-      preInterview: 'Wird im Interview besprochen',
-      postInterview: 'Vom Kandidaten noch nicht freigegeben'
-    },
-    experience: {
-      preInterview: 'CV-Analyse ausstehend',
-      postInterview: 'Aus Lebenslauf ermittelt'
-    },
-    seniority: {
-      preInterview: 'Wird basierend auf CV ermittelt',
-      postInterview: 'Fachliche Einschätzung verfügbar'
-    },
-    availability: {
-      preInterview: 'Noch nicht besprochen',
-      postInterview: 'Im Interview geklärt'
-    },
-    work_model: {
-      preInterview: 'Präferenz noch nicht erfasst',
-      postInterview: 'Arbeitsmodell abgestimmt'
-    },
-    region: {
-      preInterview: 'Standort nicht angegeben',
-      postInterview: 'Region bestätigt'
-    }
+): { text: string; placeholder: boolean } {
+  const { hasInterview } = context;
+  return {
+    text: tv(`semantic.${fieldType}_${hasInterview ? 'post' : 'pre'}`),
+    placeholder: !hasInterview || fieldType === 'salary',
   };
-  
-  const fieldExplanation = explanations[fieldType];
-  if (!fieldExplanation) return 'Nicht angegeben';
-  
-  return hasInterview 
-    ? fieldExplanation.postInterview 
-    : fieldExplanation.preInterview;
 }
 
 // Work Model Label mapping
-function getWorkModelLabel(preference: string | null): string {
-  if (!preference) return 'Flexibel';
-  const labels: Record<string, string> = {
-    'remote': 'Full Remote',
-    'hybrid': 'Hybrid',
-    'onsite': 'Vor Ort',
-    'flexible': 'Flexibel'
-  };
-  return labels[preference.toLowerCase()] || preference;
+function getWorkModelLabel(preference: string | null): { text: string; placeholder: boolean } {
+  if (!preference) return { text: tv('workModel.flexible'), placeholder: true };
+  const key = preference.toLowerCase();
+  if (['remote', 'hybrid', 'onsite', 'flexible'].includes(key)) {
+    return { text: tv(`workModel.${key}`), placeholder: key === 'flexible' };
+  }
+  return { text: preference, placeholder: false };
 }
 
 // Format availability from multiple sources
 function formatAvailability(
-  noticePeriod: string | null, 
+  noticePeriod: string | null,
   availabilityDate: string | null,
   hasInterview: boolean
-): string {
+): { text: string; placeholder: boolean } {
   if (availabilityDate) {
-    try {
-      const date = new Date(availabilityDate);
-      return `Ab ${date.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}`;
-    } catch {
-      return availabilityDate;
-    }
+    const date = new Date(availabilityDate);
+    if (Number.isNaN(date.getTime())) return { text: availabilityDate, placeholder: false };
+    return { text: tv('availableFromMonth', { date: fmtMonthYear(date) }), placeholder: false };
   }
   if (noticePeriod) {
     // Rohe DB-Enums nie ungefiltert anzeigen („6_months" → „6 Monate Kündigungsfrist")
-    const noticeLabels: Record<string, string> = {
-      immediate: 'Sofort verfügbar',
-      immediately: 'Sofort verfügbar',
-      '2_weeks': '2 Wochen Kündigungsfrist',
-      '1_month': '1 Monat Kündigungsfrist',
-      '6_weeks': '6 Wochen Kündigungsfrist',
-      '2_months': '2 Monate Kündigungsfrist',
-      '3_months': '3 Monate Kündigungsfrist',
-      '3_months_eoq': 'Kündigungsfrist 3 Monate zum Quartalsende',
-      '6_months': '6 Monate Kündigungsfrist',
-    };
-    if (noticeLabels[noticePeriod]) return noticeLabels[noticePeriod];
+    if (noticePeriod === 'immediate' || noticePeriod === 'immediately') return { text: tv('notice.immediate'), placeholder: false };
+    if (noticePeriod === '3_months_eoq') return { text: tv('notice.three_months_eoq'), placeholder: false };
     // auch mit Endtermin: „2_months_eom“ → „2 Monate Kündigungsfrist zum Monatsende“
     const monthsMatch = noticePeriod.match(/^(\d+)_(months?|weeks?)(?:_(eom|eoq|eoy))?$/);
     if (monthsMatch) {
-      const n = monthsMatch[1];
-      const unit = monthsMatch[2].startsWith('month') ? (n === '1' ? 'Monat' : 'Monate') : (n === '1' ? 'Woche' : 'Wochen');
-      const end = monthsMatch[3] === 'eom' ? ' zum Monatsende' : monthsMatch[3] === 'eoq' ? ' zum Quartalsende' : monthsMatch[3] === 'eoy' ? ' zum Jahresende' : '';
-      return `${n} ${unit} Kündigungsfrist${end}`;
+      const unit = monthsMatch[2].startsWith('month') ? 'months' : 'weeks';
+      const end = monthsMatch[3] ? `_${monthsMatch[3]}` : '';
+      return { text: tv(`notice.${unit}${end}`, { count: Number(monthsMatch[1]) }), placeholder: false };
     }
-    return noticePeriod;
+    return { text: noticePeriod, placeholder: false };
   }
   return getSemanticExplanation('availability', { hasInterview, stage: '' });
 }
@@ -235,7 +205,7 @@ export function useClientCandidateView(submissionId: string | undefined): UseCli
 
       if (submissionResult.error) throw submissionResult.error;
       if (!submissionResult.data) {
-        setError('Kandidat nicht gefunden');
+        setError(tv('notFound'));
         setLoading(false);
         return;
       }
@@ -256,16 +226,16 @@ export function useClientCandidateView(submissionId: string | undefined): UseCli
       // Build missing fields list (from the view's pre-anonymized bands)
       const missingFields: string[] = [];
       if (!v.salary_band || v.salary_band === 'Nicht freigegeben') {
-        missingFields.push('Gehaltsvorstellung');
+        missingFields.push(tv('missing.salary'));
       }
       if (!v.experience_band || v.experience_band === 'Nicht angegeben') {
-        missingFields.push('Berufserfahrung');
+        missingFields.push(tv('missing.experience'));
       }
       if (!v.availability_date && !v.notice_period) {
-        missingFields.push('Verfügbarkeit');
+        missingFields.push(tv('missing.availability'));
       }
       if (!v.skills || v.skills.length === 0) {
-        missingFields.push('Skills');
+        missingFields.push(tv('missing.skills'));
       }
 
       // Calculate if candidate can be presented
@@ -273,25 +243,32 @@ export function useClientCandidateView(submissionId: string | undefined): UseCli
       const canBePresented = hasRequiredData || hasInterview;
 
       // Salary: the view delivers a privacy-safe band (or 'Nicht freigegeben')
-      const salaryRange: string =
-        v.salary_band && v.salary_band !== 'Nicht freigegeben'
-          ? v.salary_band
-          : getSemanticExplanation('salary', { hasInterview, stage });
+      const salaryOpen = !!v.salary_band && v.salary_band !== 'Nicht freigegeben';
+      const salaryRange: string = salaryOpen
+        ? v.salary_band
+        : getSemanticExplanation('salary', { hasInterview, stage }).text;
 
       // Experience: exact years only after unlock, otherwise the view's band
       let experience: string;
+      let experiencePlaceholder = false;
       if (identityUnlocked && (v.experience_years || v.experience_years === 0)) {
-        experience = `${v.experience_years} Jahre`;
+        experience = tv('years', { count: v.experience_years });
       } else if (v.experience_band && v.experience_band !== 'Nicht angegeben') {
-        experience = v.experience_band;
+        experience = experienceBandLabel(v.experience_band);
       } else {
-        experience = getSemanticExplanation('experience', { hasInterview, stage });
+        const sem = getSemanticExplanation('experience', { hasInterview, stage });
+        experience = sem.text;
+        experiencePlaceholder = sem.placeholder;
       }
 
       // Build seniority display
-      const seniority = v.seniority ||
-        summary?.role_archetype ||
-        getSemanticExplanation('seniority', { hasInterview, stage });
+      const senioritySem = getSemanticExplanation('seniority', { hasInterview, stage });
+      const seniorityKnown = v.seniority || summary?.role_archetype;
+      const seniority = seniorityKnown || senioritySem.text;
+      const availability = formatAvailability(v.notice_period, v.availability_date, hasInterview);
+      const workModel = getWorkModelLabel(v.remote_preference);
+      // region_broad is always present; exact city only after unlock
+      const regionRaw = identityUnlocked ? (v.city || v.region_broad || null) : (v.region_broad || 'DACH');
 
       // Get fit label based on fit_assessment only (V3.1 provides the numeric score)
       const fitLabel = getFitLabel(
@@ -360,21 +337,14 @@ export function useClientCandidateView(submissionId: string | undefined): UseCli
         identityUnlocked,
 
         // Hard Facts
-        currentRole: v.candidate_role || 'Fachkraft',
+        currentRole: v.candidate_role || tv('roleFallback'),
         experience,
         experienceYears: v.experience_years ?? null,
         seniority,
         salaryRange,
-        availability: formatAvailability(
-          v.notice_period,
-          v.availability_date,
-          hasInterview
-        ),
-        // region_broad is always present; exact city only after unlock
-        region: identityUnlocked
-          ? (v.city || v.region_broad || 'Nicht angegeben')
-          : (v.region_broad || 'DACH'),
-        workModel: getWorkModelLabel(v.remote_preference),
+        availability: availability.text,
+        region: regionRaw ? regionLabel(regionRaw) : tv('notSpecified'),
+        workModel: workModel.text,
 
         // Skills
         topSkills: v.skills || [],
@@ -401,7 +371,7 @@ export function useClientCandidateView(submissionId: string | undefined): UseCli
         stage: v.stage || v.status,
 
         // Job Context
-        jobTitle: v.job_title || 'Position',
+        jobTitle: v.job_title || tv('jobFallback'),
         jobId: v.job_id,
         jobIndustry: v.job_industry || 'IT',
 
@@ -424,6 +394,16 @@ export function useClientCandidateView(submissionId: string | undefined): UseCli
         cvUrl: v.cv_url ?? null,
         linkedinUrl: v.linkedin_url ?? null,
 
+        noticePeriod: v.notice_period ?? null,
+        placeholders: {
+          experience: experiencePlaceholder,
+          seniority: !seniorityKnown && senioritySem.placeholder,
+          salary: !salaryOpen,
+          availability: availability.placeholder,
+          region: !regionRaw,
+          workModel: workModel.placeholder,
+        },
+
         // Flags
         hasRequiredData,
         missingFields,
@@ -434,7 +414,7 @@ export function useClientCandidateView(submissionId: string | undefined): UseCli
       setData(viewData);
     } catch (err) {
       console.error('Error fetching client candidate view:', err);
-      setError('Fehler beim Laden der Kandidatendaten');
+      setError(tv('loadError'));
     } finally {
       setLoading(false);
     }

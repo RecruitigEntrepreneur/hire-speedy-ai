@@ -1,6 +1,7 @@
 import { useJobActivation } from '@/hooks/useJobActivation';
 import { formatAnonymousCompany } from '@/lib/anonymousCompanyFormat';
 import { ActivationConfirmDialog, SlotLimitDialog } from './ActivationConfirmDialog';
+import { useTranslation } from 'react-i18next';
 
 type JobLike = Record<string, unknown> & { id: string; title: string };
 
@@ -45,6 +46,7 @@ export function ActivateJobDialog({
   forSubmission?: boolean;
 }) {
   const { activateJob, activeCount, maxSlots, canActivate } = gate;
+  const { t } = useTranslation('recruiterJobs');
   if (!job) return null;
 
   if (!canActivate && !(forSubmission && activeCount < maxSlots + 1)) {
@@ -80,7 +82,7 @@ export function ActivateJobDialog({
       forSubmission={forSubmission}
       onConfirm={async () => {
         const res = await activateJob(job.id, forSubmission);
-        return res.success && res.result ? { ok: true, result: res.result } : { ok: false, error: res.error || 'Das hat nicht geklappt.' };
+        return res.success && res.result ? { ok: true, result: res.result } : { ok: false, error: res.error || t('list.failed') };
       }}
       onSubmitCandidate={() => done(true)}
       onGoToJob={() => done(false)}

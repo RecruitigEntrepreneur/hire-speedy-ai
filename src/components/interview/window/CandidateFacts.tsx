@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ExternalLink, FileText, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -22,22 +23,23 @@ function Fact({ label, value }: { label: string; value: string | null | undefine
 
 /** Kandidat im Interview-Fenster – reveal-sicher aus der client_candidate_view. */
 export function CandidateFacts({ submissionId, compact = false }: Props) {
+  const { t } = useTranslation('clientInterviews');
   const navigate = useNavigate();
   const { data: c, loading, error } = useClientCandidateView(submissionId);
 
   if (loading) {
-    return <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Kandidat wird geladen …</div>;
+    return <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> {t('facts.loading')}</div>;
   }
-  if (error || !c) return <p className="py-6 text-sm text-muted-foreground">Die Kandidatendaten konnten nicht geladen werden.</p>;
+  if (error || !c) return <p className="py-6 text-sm text-muted-foreground">{t('facts.loadError')}</p>;
 
   const facts = (
     <div className={cn('grid gap-3', compact ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-3')}>
-      <Fact label="Aktuell" value={c.currentRole} />
-      <Fact label="Erfahrung" value={c.experience} />
-      <Fact label="Region" value={c.region} />
-      <Fact label="Gehaltswunsch" value={c.salaryRange} />
-      <Fact label="Verfügbar" value={c.availability} />
-      <Fact label="Arbeitsmodell" value={c.workModel} />
+      <Fact label={t('facts.current')} value={c.currentRole} />
+      <Fact label={t('facts.experience')} value={c.experience} />
+      <Fact label={t('facts.region')} value={c.region} />
+      <Fact label={t('facts.salary')} value={c.salaryRange} />
+      <Fact label={t('facts.available')} value={c.availability} />
+      <Fact label={t('facts.workModel')} value={c.workModel} />
     </div>
   );
 
@@ -51,10 +53,10 @@ export function CandidateFacts({ submissionId, compact = false }: Props) {
 
   const cv = c.cvUrl ? (
     <Button size="sm" variant="outline" className="gap-1.5" onClick={() => window.open(c.cvUrl!, '_blank', 'noopener')}>
-      <FileText className="h-3.5 w-3.5" /> Lebenslauf öffnen
+      <FileText className="h-3.5 w-3.5" /> {t('facts.openCv')}
     </Button>
   ) : (
-    <p className="text-xs text-muted-foreground">{c.identityUnlocked ? 'Kein Lebenslauf hinterlegt.' : 'Lebenslauf nach der Freigabe.'}</p>
+    <p className="text-xs text-muted-foreground">{c.identityUnlocked ? t('facts.noCv') : t('facts.cvAfter')}</p>
   );
 
   if (compact) {
@@ -72,25 +74,25 @@ export function CandidateFacts({ submissionId, compact = false }: Props) {
       {facts}
       {skills}
       {c.languageSkills.length > 0 && (
-        <Fact label="Sprachen" value={c.languageSkills.map((l) => `${l.language}${l.level ? ` (${l.level})` : ''}`).join(', ')} />
+        <Fact label={t('facts.languages')} value={c.languageSkills.map((l) => `${l.language}${l.level ? ` (${l.level})` : ''}`).join(', ')} />
       )}
-      {c.certifications.length > 0 && <Fact label="Zertifikate" value={c.certifications.join(', ')} />}
+      {c.certifications.length > 0 && <Fact label={t('facts.certificates')} value={c.certifications.join(', ')} />}
       {c.recruiterNotes && (
         <div className="space-y-1">
-          <p className="text-[11px] text-muted-foreground">Headhunter-Notiz</p>
+          <p className="text-[11px] text-muted-foreground">{t('facts.hhNote')}</p>
           <p className="whitespace-pre-line rounded-md bg-muted/40 px-3 py-2 text-sm">{c.recruiterNotes}</p>
         </div>
       )}
       {c.executiveSummary && (
         <div className="space-y-1">
-          <p className="text-[11px] text-muted-foreground">Kurzprofil</p>
+          <p className="text-[11px] text-muted-foreground">{t('facts.summary')}</p>
           <p className="text-sm">{c.executiveSummary}</p>
         </div>
       )}
       <div className="flex flex-wrap items-center gap-2">
         {cv}
         <Button size="sm" variant="ghost" className="gap-1.5 text-muted-foreground" onClick={() => navigate(`/dashboard/candidates/${submissionId}`)}>
-          <ExternalLink className="h-3.5 w-3.5" /> Vollständiges Profil
+          <ExternalLink className="h-3.5 w-3.5" /> {t('facts.fullProfile')}
         </Button>
       </div>
     </div>

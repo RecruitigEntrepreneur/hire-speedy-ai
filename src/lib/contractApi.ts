@@ -1,5 +1,11 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { callFunction } from '@/lib/interviewScheduling';
+import i18n from '@/i18n';
+import { intlLocale } from '@/i18n/languages';
+import { fmtDate, fmtNumber, tFor } from '@/lib/localeFormat';
+
+// Anzeige in der Sprache der Oberfläche (contracts), gelesen beim Aufruf (README Regel 7)
+const tc = (key: string, options?: Record<string, unknown>): string => i18n.t(`contracts:${key}`, options);
 
 /** Arbeitsvertrag und Unterschrift (Paket 3, 22.10.2026): Typen und Aufrufe der Function employment-contract. */
 
@@ -100,17 +106,17 @@ const call = <T,>(action: string, body: Record<string, unknown>, fallback?: stri
 
 export const contractApi = {
   context: (submissionId: string) => call<ContractContext>('context', { submissionId }),
-  sendSelf: (submissionId: string, sentOn: string | null) => call<Ok>('send_self', { submissionId, sentOn }, 'Konnte nicht gespeichert werden.'),
-  sendDigital: (input: DigitalInput) => call<Ok & { signUrl: string | null }>('send_digital', { ...input, returnBase: returnBase() }, 'Der Vertrag konnte nicht verschickt werden.'),
+  sendSelf: (submissionId: string, sentOn: string | null) => call<Ok>('send_self', { submissionId, sentOn }, tc('errors.sendSelf')),
+  sendDigital: (input: DigitalInput) => call<Ok & { signUrl: string | null }>('send_digital', { ...input, returnBase: returnBase() }, tc('errors.sendDigital')),
   /** Firma unterschreibt im Bewerberprofil: Adresse der Unterschrift bei DocuSign */
-  signUrl: (submissionId: string) => call<{ url: string }>('sign_url', { submissionId, returnBase: returnBase() }, 'Die Unterschrift lässt sich gerade nicht starten.'),
-  resendLink: (submissionId: string) => call<{ ok: true; sentTo: string | null; role: 'company' | 'candidate' }>('resend_link', { submissionId }, 'Der Link konnte nicht erneut gesendet werden.'),
+  signUrl: (submissionId: string) => call<{ url: string }>('sign_url', { submissionId, returnBase: returnBase() }, tc('errors.signStart')),
+  resendLink: (submissionId: string) => call<{ ok: true; sentTo: string | null; role: 'company' | 'candidate' }>('resend_link', { submissionId }, tc('errors.resendLink')),
   changeSigner: (submissionId: string, signer: { signerSelf: true } | { signerName: string; signerEmail: string }) =>
-    call<Ok & { signUrl: string | null }>('change_signer', { submissionId, ...signer, returnBase: returnBase() }, 'Der Unterzeichner konnte nicht geändert werden.'),
+    call<Ok & { signUrl: string | null }>('change_signer', { submissionId, ...signer, returnBase: returnBase() }, tc('errors.changeSigner')),
   voidDigital: (submissionId: string, toSelf: boolean) => call<Ok>('void_digital', { submissionId, toSelf }),
-  resend: (submissionId: string) => call<Ok>('resend', { submissionId }, 'Die DocuSign-Mail konnte nicht erneut gesendet werden.'),
+  resend: (submissionId: string) => call<Ok>('resend', { submissionId }, tc('errors.resend')),
   refresh: (submissionId: string, returned = false) => call<Ok>('refresh', { submissionId, returned }),
-  report: (input: ReportInput) => call<Ok>('report', { ...input }, 'Die Meldung konnte nicht gespeichert werden.'),
+  report: (input: ReportInput) => call<Ok>('report', { ...input }, tc('errors.report')),
   confirm: (submissionId: string, way: 'yes' | 'values' | 'not_yet', values?: Partial<ReportInput>) => call<Ok>('confirm', { submissionId, way, ...values }),
   undo: (submissionId: string) => call<Ok>('undo', { submissionId }),
   check: (submissionId: string, way: 'ok' | 'differs', note?: string) => call<Ok>('check', { submissionId, way, note }),
@@ -129,36 +135,45 @@ export interface AdminCase {
 export function linkLine(l: SignLinkView | null | undefined, email: string | null | undefined): string | null {
   if (!l) return null;
   const to = l.email ?? email;
-  return [to ? `Link an ${to}` : 'Link per Mail', l.openedAt ? `geöffnet ${timeDe(l.openedAt)}` : 'noch nicht geöffnet'].join(' · ');
+  return [to ? tc('link.to', { to }) : tc('link.byMail'), l.openedAt ? tc('link.opened', { when: timeDe(l.openedAt) }) : tc('link.notOpened')].join(' · ');
 }
 
-export const euro = (n: number | null | undefined) => (n == null ? '' : `${new Intl.NumberFormat('de-DE').format(n)} €`);
-export const dateDe = (iso: string | null | undefined) => (iso ? new Date(`${iso.slice(0, 10)}T12:00:00`).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '');
-export const timeDe = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '');
+// Die Namen (…De) sind geblieben; Datum und Zahl folgen der Sprache der Oberfläche.
+export const euro = (n: number | null | undefined) => (n == null ? '' : `${fmtNumber(n)} €`);
+export const dateDe = (iso: string | null | undefined) => (iso ? fmtDate(`${iso.slice(0, 10)}T12:00:00`) : '');
+export const timeDe = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleString(intlLocale(i18n.language), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '');
 export const todayIso = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
 
-/** Vertragsdaten aus der Zusage: zum Übernehmen in den eigenen Vertrag. */
-export function contractData(c: Pick<ContractContext, 'jobTitle' | 'offer'>): { label: string; value: string; missing?: boolean }[] {
+/**
+ * Vertragsdaten aus der Zusage: zum Übernehmen in den eigenen Vertrag. Auf dem Bildschirm in der
+ * Sprache der Oberfläche; Text zum Kopieren und PDF bleiben deutsch (Vertragsunterlage, `lang = 'de'`).
+ */
+export function contractData(c: Pick<ContractContext, 'jobTitle' | 'offer'>, lang: string = i18n.language): { label: string; value: string; missing?: boolean }[] {
+  const t = (key: string, options?: Record<string, unknown>) => tFor(lang, 'contracts')(`client.data.${key}`, options) as string;
+  const de = lang === 'de';
+  const money = (n: number) => (de ? `${new Intl.NumberFormat('de-DE').format(n)} €` : euro(n));
+  const day = (iso: string) => (de ? new Date(`${iso.slice(0, 10)}T12:00:00`).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : dateDe(iso));
   const o = c.offer;
   const urlaub = o?.extras.find((e) => /urlaub/i.test(e));
   const extras = (o?.extras ?? []).filter((e) => e !== urlaub);
+  const missing = t('missing');
   return [
-    { label: 'Beginn', value: o?.startDate ? dateDe(o.startDate) : 'bitte ergänzen', missing: !o?.startDate },
-    { label: 'Tätigkeit', value: c.jobTitle },
-    { label: 'Arbeitsort · Modell', value: o?.workModel || 'bitte ergänzen', missing: !o?.workModel },
-    { label: 'Gehalt fix', value: o ? `${euro(o.salary)} pro Jahr` : 'bitte ergänzen', missing: !o },
-    { label: 'Variabel', value: o?.variable ? `${euro(o.variable)} bei 100 % Zielerreichung` : 'keins vereinbart' },
-    { label: 'Vertragsart', value: o?.contractType === 'fixed_term' ? 'befristet' : 'unbefristet' },
-    { label: 'Probezeit', value: o?.probationMonths ? `${o.probationMonths} Monate` : 'bitte ergänzen', missing: !o?.probationMonths },
-    { label: 'Urlaub', value: urlaub ?? 'bitte ergänzen', missing: !urlaub },
-    { label: 'Arbeitszeit', value: 'bitte ergänzen', missing: true },
-    { label: 'Kündigungsfrist', value: 'bitte ergänzen', missing: true },
-    ...(extras.length ? [{ label: 'Extras', value: extras.join(', ') }] : []),
+    { label: t('start'), value: o?.startDate ? day(o.startDate) : missing, missing: !o?.startDate },
+    { label: t('role'), value: c.jobTitle },
+    { label: t('place'), value: o?.workModel || missing, missing: !o?.workModel },
+    { label: t('salary'), value: o ? t('salaryValue', { amount: money(o.salary) }) : missing, missing: !o },
+    { label: t('variable'), value: o?.variable ? t('variableValue', { amount: money(o.variable) }) : t('noVariable') },
+    { label: t('contractType'), value: o?.contractType === 'fixed_term' ? t('fixedTerm') : t('permanent') },
+    { label: t('probation'), value: o?.probationMonths ? t('probationValue', { count: o.probationMonths }) : missing, missing: !o?.probationMonths },
+    { label: t('vacation'), value: urlaub ?? missing, missing: !urlaub },
+    { label: t('hours'), value: missing, missing: true },
+    { label: t('notice'), value: missing, missing: true },
+    ...(extras.length ? [{ label: t('extras'), value: extras.join(', ') }] : []),
   ];
 }
 
 export function contractDataText(c: Pick<ContractContext, 'jobTitle' | 'offer' | 'candidateName' | 'companyName'>): string {
-  return [`Vertragsdaten ${c.candidateName} · ${c.companyName}`, ...contractData(c).map((r) => `${r.label}: ${r.value}`)].join('\n');
+  return [`Vertragsdaten ${c.candidateName} · ${c.companyName}`, ...contractData(c, 'de').map((r) => `${r.label}: ${r.value}`)].join('\n');
 }
 
 /** Vertragsdaten als PDF (im Browser erzeugt, nichts verlässt das Gerät). */
@@ -171,7 +186,7 @@ export async function contractDataPdf(c: Pick<ContractContext, 'jobTitle' | 'off
   let y = 770;
   page.drawText('Vertragsdaten aus der Zusage', { x: 60, y, size: 18, font: bold, color: ink }); y -= 26;
   page.drawText(`${c.candidateName} · ${c.companyName}`, { x: 60, y, size: 11, font, color: ink }); y -= 30;
-  for (const r of contractData(c)) {
+  for (const r of contractData(c, 'de')) {
     page.drawText(r.label, { x: 60, y, size: 10, font: bold, color: ink });
     page.drawText(r.value, { x: 200, y, size: 10, font, color: r.missing ? rgb(0.7, 0.4, 0) : ink });
     y -= 20;
@@ -228,11 +243,11 @@ const signCall = <T,>(action: string, token: string, extra: Record<string, unkno
   callFunction<T>('contract-sign', { action, token, ...extra }, fallback);
 
 export const signLinkApi = {
-  peek: (token: string) => signCall<SignPageView>('peek', token, {}, 'Der Link konnte nicht geladen werden.'),
-  start: (token: string) => signCall<{ url: string }>('start', token, { returnBase: returnBase() }, 'Die Unterschrift lässt sich gerade nicht starten.'),
+  peek: (token: string) => signCall<SignPageView>('peek', token, {}, tc('errors.peek')),
+  start: (token: string) => signCall<{ url: string }>('start', token, { returnBase: returnBase() }, tc('errors.signStart')),
   returned: (token: string) => signCall<SignPageView>('returned', token),
-  renew: (token: string) => signCall<{ ok: true; email: string }>('renew', token, {}, 'Der neue Link konnte nicht verschickt werden.'),
-  document: (token: string) => signCall<{ url: string }>('document', token, {}, 'Die Kopie ist gerade nicht abrufbar.'),
+  renew: (token: string) => signCall<{ ok: true; email: string }>('renew', token, {}, tc('errors.renew')),
+  document: (token: string) => signCall<{ url: string }>('document', token, {}, tc('errors.copy')),
 };
 
 // ---------------------------------------------------------------------------
@@ -263,7 +278,7 @@ const statusCall = <T,>(action: string, token: string, extra: Record<string, unk
   callFunction<T>('contract-status', { action, token, ...extra }, fallback);
 
 export const contractStatusApi = {
-  peek: (token: string) => statusCall<StatusPageView>('peek', token, {}, 'Die Seite konnte nicht geladen werden.'),
+  peek: (token: string) => statusCall<StatusPageView>('peek', token, {}, tc('errors.statusPeek')),
   answer: (token: string, input: { way: StatusAnswer; signedOn?: string; startDate?: string; note?: string }) =>
-    statusCall<{ ok: true; view: StatusPageView }>('answer', token, input, 'Ihre Antwort konnte nicht gespeichert werden.'),
+    statusCall<{ ok: true; view: StatusPageView }>('answer', token, input, tc('errors.statusAnswer')),
 };

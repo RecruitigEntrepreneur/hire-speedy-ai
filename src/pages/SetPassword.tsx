@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { MatchuntWordmark } from '@/components/ui/MatchuntWordmark';
 import { Card, CardContent } from '@/components/ui/card';
@@ -26,6 +27,7 @@ import { CheckCircle2, KeyRound, Loader2, TriangleAlert } from 'lucide-react';
  */
 export default function SetPassword() {
   const navigate = useNavigate();
+  const { t } = useTranslation('candidatePages');
   const [ready, setReady] = useState<boolean | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [password, setPassword] = useState('');
@@ -73,8 +75,8 @@ export default function SetPassword() {
 
   const submit = async () => {
     setError(null);
-    if (password.length < 8) { setError('Bitte mindestens 8 Zeichen.'); return; }
-    if (password !== repeat) { setError('Die beiden Eingaben stimmen nicht überein.'); return; }
+    if (password.length < 8) { setError(t('setPassword.tooShort')); return; }
+    if (password !== repeat) { setError(t('setPassword.mismatch')); return; }
 
     setBusy(true);
     const { error: updateErr } = await supabase.auth.updateUser({ password });
@@ -101,12 +103,9 @@ export default function SetPassword() {
               <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-muted">
                 <TriangleAlert className="h-5 w-5 text-muted-foreground" />
               </div>
-              <h1 className="mb-2 text-xl font-semibold tracking-tight">Dieser Zugangslink ist nicht mehr gültig</h1>
-              <p className="mb-6 text-sm text-muted-foreground">
-                Zugangslinks laufen aus Sicherheitsgründen ab. Ihr Ansprechpartner sendet Ihnen
-                gern einen neuen.
-              </p>
-              <Button variant="outline" onClick={() => navigate('/auth')}>Zur Anmeldung</Button>
+              <h1 className="mb-2 text-xl font-semibold tracking-tight">{t('setPassword.invalidTitle')}</h1>
+              <p className="mb-6 text-sm text-muted-foreground">{t('setPassword.invalidBody')}</p>
+              <Button variant="outline" onClick={() => navigate('/auth')}>{t('setPassword.toLogin')}</Button>
             </CardContent>
           </Card>
         )}
@@ -119,8 +118,8 @@ export default function SetPassword() {
                   <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-emerald-600/10">
                     <CheckCircle2 className="h-5 w-5 text-emerald-600" />
                   </div>
-                  <h1 className="text-xl font-semibold tracking-tight">Zugang eingerichtet</h1>
-                  <p className="mt-2 text-sm text-muted-foreground">Wir bringen Sie zu Ihrem Dashboard …</p>
+                  <h1 className="text-xl font-semibold tracking-tight">{t('setPassword.doneTitle')}</h1>
+                  <p className="mt-2 text-sm text-muted-foreground">{t('setPassword.doneBody')}</p>
                 </div>
               ) : (
                 <>
@@ -128,18 +127,18 @@ export default function SetPassword() {
                     <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-muted">
                       <KeyRound className="h-5 w-5 text-muted-foreground" />
                     </div>
-                    <h1 className="text-xl font-semibold tracking-tight">Zugang einrichten</h1>
+                    <h1 className="text-xl font-semibold tracking-tight">{t('setPassword.title')}</h1>
                     {email && <p className="mt-1 text-sm text-muted-foreground">{email}</p>}
                   </div>
 
                   <div>
-                    <Label htmlFor="pw" className="text-xs text-muted-foreground">Passwort</Label>
+                    <Label htmlFor="pw" className="text-xs text-muted-foreground">{t('setPassword.password')}</Label>
                     <Input id="pw" type="password" autoComplete="new-password" value={password}
                       onChange={(e) => setPassword(e.target.value)} className="mt-1" />
-                    <p className="mt-1 text-[11px] text-muted-foreground">Mindestens 8 Zeichen.</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">{t('setPassword.minHint')}</p>
                   </div>
                   <div>
-                    <Label htmlFor="pw2" className="text-xs text-muted-foreground">Passwort wiederholen</Label>
+                    <Label htmlFor="pw2" className="text-xs text-muted-foreground">{t('setPassword.repeat')}</Label>
                     <Input id="pw2" type="password" autoComplete="new-password" value={repeat}
                       onChange={(e) => setRepeat(e.target.value)} className="mt-1"
                       onKeyDown={(e) => e.key === 'Enter' && submit()} />
@@ -153,7 +152,7 @@ export default function SetPassword() {
                   )}
 
                   <Button onClick={submit} disabled={busy || !password || !repeat} className="w-full gap-2">
-                    {busy && <Loader2 className="h-4 w-4 animate-spin" />} Passwort speichern
+                    {busy && <Loader2 className="h-4 w-4 animate-spin" />} {t('setPassword.save')}
                   </Button>
                 </>
               )}

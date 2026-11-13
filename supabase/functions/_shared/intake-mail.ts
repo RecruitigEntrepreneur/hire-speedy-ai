@@ -15,6 +15,7 @@
  * Protokolliert wird in die vorhandene Tabelle email_events.
  */
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { htmlLang, tr, type Lang } from './i18n.ts';
 
 // Nur lokal: RESEND_API_URL zeigt auf einen Mail-Fänger statt auf Resend (online nie gesetzt)
 const resendEndpoint = () => `${(Deno.env.get('RESEND_API_URL') || 'https://api.resend.com').replace(/\/$/, '')}/emails`;
@@ -49,9 +50,11 @@ export function layout(opts: {
   /** Text unter dem Knopf, in Fließtextgröße (etwa Gültigkeit und Gruß). */
   after?: string;
   footnote?: string;
+  /** Sprache der Mail; ohne Angabe Deutsch wie bisher. */
+  lang?: Lang | null;
 }): string {
   return `<!doctype html>
-<html lang="de"><body style="margin:0;padding:0;background:#f6f7f9;">
+<html lang="${htmlLang(opts.lang)}"><body style="margin:0;padding:0;background:#f6f7f9;">
 <span style="display:none;font-size:1px;color:#f6f7f9;">${esc(opts.preheader)}</span>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f7f9;padding:32px 12px;">
 <tr><td align="center">
@@ -86,7 +89,7 @@ export function layout(opts: {
         : ''
     }
     <tr><td style="padding:24px 32px 28px 32px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
-      <div style="font-size:12px;color:${MUTED};">Versendet über Matchunt.</div>
+      <div style="font-size:12px;color:${MUTED};">${tr(opts.lang, { de: 'Versendet über Matchunt.', en: 'Sent via Matchunt.', sv: 'Skickat via Matchunt.', nb: 'Sendt via Matchunt.' })}</div>
     </td></tr>
   </table>
 </td></tr></table>

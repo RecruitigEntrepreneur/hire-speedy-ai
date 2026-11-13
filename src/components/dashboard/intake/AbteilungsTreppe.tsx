@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { Check, Minus, Plus } from 'lucide-react';
@@ -24,69 +26,56 @@ import {
  */
 
 /** Rueckfall, wenn die KI keine Vorschlaege liefert. Rollen haben keinen:
-    die haengen zu sehr an der Stelle, um sie allgemein vorzuschlagen. */
+    die haengen zu sehr an der Stelle, um sie allgemein vorzuschlagen.
+    Der deutsche Text ist der Speicherwert (a.schnittstellen); angezeigt wird
+    er ueber intake:treppe.interface.c<Stelle>. */
 const SCHNITTSTELLEN_STANDARD = [
   'Geschäftsführung', 'Vertrieb', 'Einkauf', 'Controlling', 'IT', 'Personal', 'Produktion', 'Kunden',
 ];
 
-const FRAGE: Record<AufbauSchritt, string> = {
-  einbindung: 'Wie ist die Position eingebunden?',
-  team: 'Wie viele Kolleg:innen im direkten Team?',
-  fuehrt: 'Wie viele Personen führt die Position direkt?',
-  fuehrung: 'Wie wird geführt?',
-  teams: 'Wie viele Teams gehören dazu?',
-  ziel: 'Auf wie viele Personen soll das Team wachsen?',
-  rollen: 'Wer ist im Team?',
-  abteilung: 'Wie heißt die Abteilung, und wie groß ist sie?',
-  schnittstellen: 'Mit wem arbeitet die Position eng zusammen?',
+type T = TFunction<['intake', 'intakeCatalog']>;
+
+/** Anzeige einer Schnittstelle: feste Vorschlaege uebersetzt, eigene und KI-Vorschlaege unveraendert. */
+const schnittstelleText = (t: T, x: string): string => {
+  const i = SCHNITTSTELLEN_STANDARD.indexOf(x);
+  return i >= 0 ? t(`treppe.interface.c${i}`, { defaultValue: x }) : x;
 };
 
-const ZEILE: Record<AufbauSchritt, string> = {
-  einbindung: 'Einbindung',
-  team: 'Direktes Team',
-  fuehrt: 'Führt direkt',
-  fuehrung: 'Führung',
-  teams: 'Teams',
-  ziel: 'Zielgröße',
-  rollen: 'Rollen',
-  abteilung: 'Abteilung',
-  schnittstellen: 'Schnittstellen',
-};
+const einbindungText = (t: T, a: Abteilungsaufbau): string =>
+  a.einbindung
+    ? t(`treppe.einbindung.${a.einbindung}`, { defaultValue: EINBINDUNGEN.find((e) => e.wert === a.einbindung)?.label ?? '' })
+    : '';
 
-const EINHEIT: Partial<Record<AufbauSchritt, [string, string]>> = {
-  team: ['Kolleg:in', 'Kolleg:innen'],
-  fuehrt: ['Person', 'Personen'],
-  teams: ['Team', 'Teams'],
-  ziel: ['Person', 'Personen'],
-};
+const fuehrungAnzeige = (t: T, f: Abteilungsaufbau['fuehrung']): string =>
+  f ? t(`treppe.fuehrung.${f}`, { defaultValue: fuehrungText(f) }) : '';
 
-function frageFuer(s: AufbauSchritt, a: Abteilungsaufbau): string {
-  if (s === 'rollen' && a.einbindung === 'leitung') return 'Wen führt die Position?';
-  if (s === 'rollen' && a.einbindung === 'aufbau') return 'Welche Rollen kommen dazu?';
-  if (s === 'schnittstellen' && a.einbindung === 'allein') return 'Mit wem arbeitet die Position am engsten?';
-  return FRAGE[s];
+function frageFuer(t: T, s: AufbauSchritt, a: Abteilungsaufbau): string {
+  if (s === 'rollen' && a.einbindung === 'leitung') return t('treppe.question.rollenLeitung');
+  if (s === 'rollen' && a.einbindung === 'aufbau') return t('treppe.question.rollenAufbau');
+  if (s === 'schnittstellen' && a.einbindung === 'allein') return t('treppe.question.schnittstellenAllein');
+  return t(`treppe.question.${s}`);
 }
 
-function zeilenText(s: AufbauSchritt, a: Abteilungsaufbau): string {
-  const zahl = (n: number | undefined, e: [string, string]) => `${n} ${n === 1 ? e[0] : e[1]}`;
+function zeilenText(t: T, s: AufbauSchritt, a: Abteilungsaufbau): string {
   switch (s) {
-    case 'einbindung': return EINBINDUNGEN.find((e) => e.wert === a.einbindung)?.label ?? '';
+    case 'einbindung': return einbindungText(t, a);
     case 'team': case 'fuehrt': case 'teams': case 'ziel':
-      return zahl(a[s], EINHEIT[s]!);
-    case 'fuehrung': return fuehrungText(a.fuehrung);
-    case 'rollen': return rollenText(a.rollen) || 'ohne Angabe';
+      return t(`treppe.count.${s}`, { count: a[s] ?? 0 });
+    case 'fuehrung': return fuehrungAnzeige(t, a.fuehrung);
+    case 'rollen': return rollenText(a.rollen) || t('treppe.notSpecified');
     case 'abteilung': {
       const ab = a.abteilung;
-      return `${ab?.name?.trim() ? `${ab.name.trim()} · ` : ''}${ab?.groesse} Personen`;
+      return ab?.name?.trim()
+        ? t('treppe.departmentNamed', { name: ab.name.trim(), count: ab?.groesse ?? 0 })
+        : t('treppe.departmentSize', { count: ab?.groesse ?? 0 });
     }
-    case 'schnittstellen': return (a.schnittstellen ?? []).join(', ') || 'ohne Angabe';
+    case 'schnittstellen': return (a.schnittstellen ?? []).map((x) => schnittstelleText(t, x)).join(', ') || t('treppe.notSpecified');
   }
 }
 
-const QUELLE: Partial<Record<string, string>> = {
-  ad: 'aus der Anzeige',
-  derive: 'abgeleitet',
-};
+/** Herkunftshinweis; nur fuer 'ad' und 'derive' gibt es einen. */
+const quelleText = (t: T, quelle: string | undefined): string | null =>
+  quelle === 'ad' || quelle === 'derive' ? t(`treppe.source.${quelle}`) : null;
 
 interface Props {
   wert: unknown;
@@ -115,6 +104,7 @@ export function AbteilungsTreppe({
   wert, quelle, onSet, onConfirm,
   rollenVorschlaege = [], schnittstellenVorschlaege = [], laedtVorschlaege, onVorschlaegeNoetig, ohneWeiter = false, anzeige = null, anzeigeWert,
 }: Props) {
+  const { t } = useTranslation(['intake', 'intakeCatalog']);
   const a: Abteilungsaufbau = istAufbau(wert) ? wert : {};
   const [bearbeite, setBearbeite] = useState<AufbauSchritt | null>(null);
   const box = useRef<HTMLDivElement>(null);
@@ -132,7 +122,7 @@ export function AbteilungsTreppe({
   };
 
   const rest = offen ? schritte.filter((s) => s !== offen && !schrittBeantwortet(a, s)).length : 0;
-  const hinweis = quelle && quelle !== 'answer' ? QUELLE[quelle] : null;
+  const hinweis = quelle && quelle !== 'answer' ? quelleText(t, quelle) : null;
 
   if (ohneWeiter) {
     // Alle beantworteten Stufen bleiben als Frage stehen, dazu die erste offene.
@@ -173,7 +163,7 @@ export function AbteilungsTreppe({
             <Stufe
               schritt={s}
               a={a}
-              frage={frageFuer(s, a)}
+              frage={frageFuer(t, s, a)}
               onFertig={setzeUndWeiter}
               rollenVorschlaege={rollenVorschlaege}
               schnittstellenVorschlaege={schnittstellenVorschlaege.length ? schnittstellenVorschlaege : SCHNITTSTELLEN_STANDARD}
@@ -182,7 +172,7 @@ export function AbteilungsTreppe({
             />
           </div>
         ))}
-        {!a.einbindung && <p className="text-[11px] text-muted-foreground">Je nach Antwort 2–4 kurze Folgefragen</p>}
+        {!a.einbindung && <p className="text-[11px] text-muted-foreground">{t('treppe.followUpsHint')}</p>}
       </div>
     );
   }
@@ -196,7 +186,7 @@ export function AbteilungsTreppe({
               <Stufe
                 schritt={s}
                 a={a}
-                frage={frageFuer(s, a)}
+                frage={frageFuer(t, s, a)}
                 onFertig={setze}
                 rollenVorschlaege={rollenVorschlaege}
                 schnittstellenVorschlaege={
@@ -207,14 +197,14 @@ export function AbteilungsTreppe({
               <p className="mt-2 text-[11px] text-muted-foreground">
                 {bearbeite ? (
                   <button type="button" onClick={() => setBearbeite(null)} className="text-primary hover:underline">
-                    abbrechen
+                    {t('treppe.cancel')}
                   </button>
                 ) : !a.einbindung ? (
-                  'Je nach Antwort 2–4 kurze Folgefragen'
+                  t('treppe.followUpsHint')
                 ) : rest ? (
-                  `Noch ${rest} ${rest === 1 ? 'Frage' : 'Fragen'}`
+                  t('treppe.remaining', { count: rest })
                 ) : (
-                  'Letzte Frage'
+                  t('treppe.lastQuestion')
                 )}
               </p>
             </div>
@@ -223,14 +213,14 @@ export function AbteilungsTreppe({
         if (!schrittBeantwortet(a, s)) return null;
         return (
           <div key={s} className="flex items-baseline gap-3 border-b py-1.5 last:border-b-0">
-            <span className="w-28 shrink-0 text-muted-foreground">{ZEILE[s]}</span>
-            <span className="min-w-0 flex-1">{zeilenText(s, a)}</span>
+            <span className="w-28 shrink-0 text-muted-foreground">{t(`treppe.row.${s}`)}</span>
+            <span className="min-w-0 flex-1">{zeilenText(t, s, a)}</span>
             <button
               type="button"
               onClick={() => setBearbeite(s)}
               className="shrink-0 text-[11px] text-primary hover:underline"
             >
-              ändern
+              {t('treppe.change')}
             </button>
           </div>
         );
@@ -245,10 +235,10 @@ export function AbteilungsTreppe({
               onClick={onConfirm}
               className="rounded border border-amber-500/40 px-1.5 py-px font-medium hover:bg-amber-500/10"
             >
-              ✓ stimmt
+              {t('treppe.confirm')}
             </button>
           )}
-          <span className="text-muted-foreground">sonst einfach ändern</span>
+          <span className="text-muted-foreground">{t('treppe.orChange')}</span>
         </p>
       )}
     </div>
@@ -278,6 +268,7 @@ function Stufe({
   /** Ohne eigenes "Weiter": Zahlen beim Verlassen, Auswahl sofort uebernehmen. */
   ohneWeiter?: boolean;
 }) {
+  const { t } = useTranslation(['intake', 'intakeCatalog']);
   const [zahl, setZahl] = useState<string>(() => {
     const v = schritt === 'abteilung' ? a.abteilung?.groesse : (a as Record<string, unknown>)[schritt];
     return typeof v === 'number' ? String(v) : '';
@@ -298,7 +289,7 @@ function Stufe({
   const zahlOk = () => {
     const n = Math.round(Number(zahl));
     if (!zahl.trim() || !Number.isFinite(n) || n < 1) {
-      setFehler('Eine Zahl ab 1 eintragen');
+      setFehler(t('treppe.numberError'));
       return null;
     }
     return n;
@@ -312,12 +303,12 @@ function Stufe({
       onClick={onClick}
       className="rounded-md border border-input px-2.5 py-1 text-xs font-medium hover:bg-accent"
     >
-      Weiter
+      {t('shared.next')}
     </button>
   );
   const ueberspringen = (onClick: () => void) => (
     <button type="button" onClick={onClick} className="text-[11px] text-muted-foreground hover:underline">
-      überspringen
+      {t('treppe.skip')}
     </button>
   );
   const enter = (fn: () => void) => (e: KeyboardEvent<HTMLInputElement>) => {
@@ -337,7 +328,7 @@ function Stufe({
               onClick={() => onFertig({ ...a, einbindung: e.wert })}
             >
               {a.einbindung === e.wert && <Check className="h-2.5 w-2.5" />}
-              {e.label}
+              {t(`treppe.einbindung.${e.wert}`, { defaultValue: e.label })}
             </button>
           ))}
         </div>
@@ -358,7 +349,7 @@ function Stufe({
               onClick={() => onFertig({ ...a, fuehrung: f.wert })}
             >
               {a.fuehrung === f.wert && <Check className="h-2.5 w-2.5" />}
-              {f.label}
+              {t(`treppe.fuehrung.${f.wert}`, { defaultValue: f.label })}
             </button>
           ))}
         </div>
@@ -382,7 +373,7 @@ function Stufe({
             onBlur={ohneWeiter ? () => { if (zahl.trim()) fertig(); } : undefined}
             className="h-8 w-20 text-xs"
           />
-          <span className="text-muted-foreground">{EINHEIT[schritt]![1]}</span>
+          <span className="text-muted-foreground">{t(`treppe.unit.${schritt}`)}</span>
           {weiter(fertig)}
         </div>
         {fehlerZeile}
@@ -400,12 +391,12 @@ function Stufe({
         {kopf}
         <div className="flex flex-wrap items-center gap-2">
           <Input
-            value={name} placeholder="z. B. Rechnungswesen"
+            value={name} placeholder={t('treppe.departmentPlaceholder')}
             onChange={(e) => setName(e.target.value)}
             onBlur={ohneWeiter ? () => { if (zahl.trim()) fertig(); } : undefined}
             className={cn('h-8 text-xs', ohneWeiter ? 'w-full sm:w-96' : 'w-48')}
           />
-          <span className="text-muted-foreground">mit</span>
+          <span className="text-muted-foreground">{t('treppe.departmentWith')}</span>
           <Input
             type="number" min={1} step={1} value={zahl}
             onChange={(e) => { setZahl(e.target.value); setFehler(''); }}
@@ -413,7 +404,7 @@ function Stufe({
             onBlur={ohneWeiter ? () => { if (zahl.trim()) fertig(); } : undefined}
             className="h-8 w-20 text-xs"
           />
-          <span className="text-muted-foreground">Personen</span>
+          <span className="text-muted-foreground">{t('treppe.departmentPeople')}</span>
           {weiter(fertig)}
         </div>
         {fehlerZeile}
@@ -447,11 +438,11 @@ function Stufe({
             const n = anzahl(r);
             return n > 0 ? (
               <span key={r} className={cn(chipKlasse(true), 'gap-1.5')}>
-                <button type="button" aria-label={`${r} weniger`} onClick={() => setAnzahl(r, n - 1)}>
+                <button type="button" aria-label={t('treppe.roleLess', { role: r })} onClick={() => setAnzahl(r, n - 1)}>
                   <Minus className="h-3 w-3" />
                 </button>
                 {n} {r}
-                <button type="button" aria-label={`${r} mehr`} onClick={() => setAnzahl(r, n + 1)}>
+                <button type="button" aria-label={t('treppe.roleMore', { role: r })} onClick={() => setAnzahl(r, n + 1)}>
                   <Plus className="h-3 w-3" />
                 </button>
               </span>
@@ -462,14 +453,14 @@ function Stufe({
             );
           })}
           <Input
-            value={eigene} placeholder="Weitere Rolle …"
+            value={eigene} placeholder={t('treppe.rolePlaceholder')}
             onChange={(e) => setEigene(e.target.value)}
             onKeyDown={enter(dazu)} onBlur={dazu}
             className="h-6 w-36 rounded-full px-2.5 text-xs"
           />
         </div>
         <p className="mt-1 text-[11px] text-muted-foreground">
-          {laedt ? 'Vorschläge passend zur Rolle werden geladen …' : 'Vorschläge passend zur Rolle · + erhöht die Anzahl'}
+          {laedt ? t('treppe.suggestionsLoading') : t('treppe.roleHint')}
         </p>
         <div className="mt-2 flex items-center gap-3">
           {weiter(() => onFertig({ ...a, rollen }))}
@@ -497,18 +488,18 @@ function Stufe({
         {alle.map((x) => (
           <button key={x} type="button" className={chipKlasse(auswahl.includes(x))} onClick={() => umschalten(x)}>
             {auswahl.includes(x) && <Check className="h-2.5 w-2.5" />}
-            {x}
+            {schnittstelleText(t, x)}
           </button>
         ))}
         <Input
-          value={eigene} placeholder="Weitere …"
+          value={eigene} placeholder={t('treppe.morePlaceholder')}
           onChange={(e) => setEigene(e.target.value)}
           onKeyDown={enter(dazu)} onBlur={dazu}
           className="h-6 w-28 rounded-full px-2.5 text-xs"
         />
       </div>
       <p className="mt-1 text-[11px] text-muted-foreground">
-        {laedt ? 'Vorschläge passend zur Rolle werden geladen …' : 'Mehrere möglich'}
+        {laedt ? t('treppe.suggestionsLoading') : t('treppe.multiple')}
       </p>
       <div className="mt-2 flex items-center gap-3">
         {weiter(() => onFertig({ ...a, schnittstellen: auswahl }))}

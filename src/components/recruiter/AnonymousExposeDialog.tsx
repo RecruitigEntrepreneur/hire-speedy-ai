@@ -12,6 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, Copy, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from 'react-i18next';
 
 interface AnonymousExposeDialogProps {
   open: boolean;
@@ -24,6 +25,7 @@ export function AnonymousExposeDialog({ open, onOpenChange, jobId }: AnonymousEx
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
+  const { t } = useTranslation('recruiterJobDetail');
   const request = useRef(0);
 
   useEffect(() => {
@@ -42,10 +44,10 @@ export function AnonymousExposeDialog({ open, onOpenChange, jobId }: AnonymousEx
         body: { jobId },
       });
       if (error) throw error;
-      if (request.current === currentRequest) setExpose(data?.expose || 'Kein Exposé generiert.');
+      if (request.current === currentRequest) setExpose(data?.expose || t('expose.none'));
     } catch (err) {
       console.error('Error generating expose:', err);
-      if (request.current === currentRequest) toast({ title: 'Fehler', description: 'Exposé konnte nicht generiert werden.', variant: 'destructive' });
+      if (request.current === currentRequest) toast({ title: t('expose.error'), description: t('expose.errorText'), variant: 'destructive' });
     } finally {
       if (request.current === currentRequest) setLoading(false);
     }
@@ -56,9 +58,9 @@ export function AnonymousExposeDialog({ open, onOpenChange, jobId }: AnonymousEx
     try {
       await navigator.clipboard.writeText(expose);
       setCopied(true);
-      toast({ title: 'Kopiert!', description: 'Exposé wurde in die Zwischenablage kopiert.' });
+      toast({ title: t('expose.copiedTitle'), description: t('expose.copiedText') });
     } catch {
-      toast({ title: 'Kopieren nicht möglich', description: 'Bitte markiere den Text und kopiere ihn manuell.', variant: 'destructive' });
+      toast({ title: t('expose.copyFailed'), description: t('expose.copyFailedText'), variant: 'destructive' });
     }
   };
 
@@ -75,16 +77,16 @@ export function AnonymousExposeDialog({ open, onOpenChange, jobId }: AnonymousEx
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Anonymes Exposé</DialogTitle>
+          <DialogTitle>{t('ws.expose')}</DialogTitle>
           <DialogDescription>
-            Erstelle einen Entwurf für die Kandidatenansprache. Prüfe die Aussagen und die Anonymisierung vor der Weitergabe.
+            {t('expose.description')}
           </DialogDescription>
         </DialogHeader>
         <div className="py-4">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-12 gap-3">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm text-muted-foreground">Exposé wird generiert...</p>
+              <p className="text-sm text-muted-foreground">{t('expose.generating')}</p>
             </div>
           ) : expose ? (
             <ScrollArea className="h-[400px] rounded-lg border border-border p-4">
@@ -92,16 +94,16 @@ export function AnonymousExposeDialog({ open, onOpenChange, jobId }: AnonymousEx
                 {expose}
               </div>
             </ScrollArea>
-          ) : <div className="space-y-4 py-6 text-center"><p className="text-sm leading-6 text-muted-foreground">Das Exposé wird erst auf deinen Klick erstellt. Anschließend kannst du den vollständigen Text prüfen und kopieren.</p><Button onClick={generateExpose}>Exposé generieren</Button></div>}
+          ) : <div className="space-y-4 py-6 text-center"><p className="text-sm leading-6 text-muted-foreground">{t('expose.intro')}</p><Button onClick={generateExpose}>{t('expose.generate')}</Button></div>}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => handleOpenChange(false)}>
-            Schließen
+            {t('expose.close')}
           </Button>
           {expose && (
             <Button onClick={handleCopy} disabled={copied}>
               {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
-              {copied ? 'Kopiert' : 'Kopieren'}
+              {copied ? t('ws.copied') : t('outreach.copy')}
             </Button>
           )}
         </DialogFooter>

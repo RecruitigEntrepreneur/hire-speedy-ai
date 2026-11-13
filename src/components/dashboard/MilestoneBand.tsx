@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { PartyPopper, MessageSquareReply, UserX, FileCheck2, Sunrise, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -23,6 +24,7 @@ const LOOK: Record<ClientNewsItem['kind'], { icon: LucideIcon; tone: string }> =
 };
 
 export function MilestoneBand() {
+  const { t } = useTranslation('clientDashboard');
   const navigate = useNavigate();
   const { data } = useClientTasks();
   const [contractFor, setContractFor] = useState<string | null>(null);
@@ -59,9 +61,9 @@ export function MilestoneBand() {
       </div>
       {second && (
         <p className="px-1 text-xs text-muted-foreground">
-          Weitere Neuigkeit: <span className="text-foreground">{second.title}</span> · {second.detail}{' '}
+          {t('milestone.more')} <span className="text-foreground">{second.title}</span> · {second.detail}{' '}
           <button type="button" className="underline underline-offset-2 hover:text-foreground" onClick={() => go(second)}>{second.cta}</button>
-          {news.length > 2 && <> · <button type="button" className="underline underline-offset-2 hover:text-foreground" onClick={() => navigate('/dashboard/aufgaben')}>alle Aufgaben</button></>}
+          {news.length > 2 && <> · <button type="button" className="underline underline-offset-2 hover:text-foreground" onClick={() => navigate('/dashboard/aufgaben')}>{t('milestone.allTasks')}</button></>}
         </p>
       )}
       {windows}

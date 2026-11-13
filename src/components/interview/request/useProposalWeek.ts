@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import i18n from '@/i18n';
 import { weekStartOf, type AvailabilityResult } from '@/lib/interviewScheduling';
 import { initialWeekStart } from '@/lib/interviewRequestUtils';
 
@@ -35,7 +36,7 @@ export function useProposalWeek(nowIso: string, maxWeek: string) {
     go,
     skipIfEmpty,
     // Hinweis nur, solange die von selbst gewählte Woche zu sehen ist
-    note: state.skipped > 0 && state.found ? 'Vorher ist nichts mehr frei – das ist die erste Woche mit freien Zeiten.' : null,
+    note: state.skipped > 0 && state.found ? i18n.t('clientInterviews:request.firstFreeWeek') : null,
   };
 }
 

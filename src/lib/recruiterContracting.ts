@@ -6,7 +6,20 @@
  * des Recruiters je Einsatztag. Budget und Marge des Kunden sieht der
  * Recruiter nicht. Hier wird nur noch formatiert.
  */
-import { einsatzZeile, euroSpanne, spanne } from './contractingFreigabe';
+import { spanne } from './contractingFreigabe';
+import { fmtNumber, tFor } from './localeFormat';
+import i18n from '@/i18n';
+
+// Texte beim Aufruf übersetzt (Namespace jobPosting, contracting.*). Ohne Sprache: Oberfläche.
+const tc = (key: string, options?: Record<string, unknown>, lang?: string | null): string =>
+  tFor(lang ?? i18n.language, 'jobPosting')(`contracting.${key}`, options) as string;
+const betrag = (n: number, lang?: string | null) => fmtNumber(Math.round(n), lang ?? i18n.language);
+/** „310–780 €“ in der Sprache der Anzeige. */
+const euroSpanne = ([von, bis]: [number, number], lang?: string | null) =>
+  tFor(lang ?? i18n.language, 'jobPosting')('money.eur', {
+    amount: Math.round(von) === Math.round(bis) ? betrag(von, lang) : `${betrag(von, lang)}–${betrag(bis, lang)}`,
+  }) as string;
+const zahl = (v: unknown): number | null => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : null; };
 
 // Jede Stellenform aus recruiter_jobs_view; gelesen werden nur die Spalten unten.
 type Job = object | null | undefined;
@@ -19,15 +32,22 @@ export const istContracting = (job: Job) => feld(job, 'employment_type') === 'fr
  * (CONTRACTING_ABRECHNUNGSMODELL.md, Freelancer-Vertrag § 5): 30 Tage,
  * Schnellzahlung in 7 Tagen gegen 2 % Skonto.
  */
-export const ZAHLUNG_KANDIDAT = 'Zahlung 30 Tage nach Abnahme, auf Wunsch in 7 Tagen mit 2 % Skonto';
+export const zahlungKandidat = (lang?: string | null) => tc('payment', undefined, lang);
 
 /** Wann der Recruiter sein Geld sieht (CONTRACTING_ABRECHNUNGSMODELL.md). */
-export const AUSZAHLUNG_RECRUITER = 'monatlich nach Zahlung des Kunden';
+export const auszahlungRecruiter = () => tc('payout');
 
 /** "zzgl. USt · 3 Tage/Woche · 12 Monate · Verlängerung möglich" */
 export function einsatzFuerKandidat(job: Job): string {
-  const einsatz = job ? einsatzZeile(job as Record<string, unknown>) : null;
-  return ['zzgl. USt', einsatz].filter(Boolean).join(' · ');
+  const j = (job ?? {}) as Record<string, unknown>;
+  const tage = zahl(j.utilization_days_per_week);
+  const monate = zahl(j.contract_duration_months);
+  return [
+    tc('plusVat'),
+    tage ? tc('daysPerWeek', { n: tage }) : null,
+    monate ? tc('months', { n: monate }) : null,
+    j.extension_possible === true ? tc('extension') : null,
+  ].filter(Boolean).join(' · ');
 }
 
 /** "310–780 €" -- der Tagessatz für den Spezialisten. */
@@ -45,14 +65,20 @@ export function spezialistenSatz(job: Job): string | null {
 export function spezialistenGrenze(job: Job): string | null {
   if (!istContracting(job)) return null;
   const bis = Number(feld(job, 'day_rate_max'));
-  if (Number.isFinite(bis) && bis > 0) return `bis ${euroSpanne([bis, bis])}`;
+  if (Number.isFinite(bis) && bis > 0) return tc('upTo', { amount: euroSpanne([bis, bis]) });
   const ab = Number(feld(job, 'day_rate_min'));
-  return Number.isFinite(ab) && ab > 0 ? `ab ${euroSpanne([ab, ab])}` : null;
+  return Number.isFinite(ab) && ab > 0 ? tc('from', { amount: euroSpanne([ab, ab]) }) : null;
+}
+
+/** Nur der Betrag der Obergrenze („810 €“), ohne „bis“; ohne Obergrenze null. */
+export function spezialistenObergrenze(job: Job): string | null {
+  if (!istContracting(job)) return null;
+  const bis = Number(feld(job, 'day_rate_max'));
+  return Number.isFinite(bis) && bis > 0 ? euroSpanne([bis, bis]) : null;
 }
 
 /** Fürs Gespräch: Vertragspartner und Status des Kandidaten. */
-export const VERTRAG_KANDIDAT =
-  'Vertrag und Rechnung laufen über Matchunt, nicht über den Kunden. Selbstständig: eigene Rechnung, eigene Versicherung, keine Anstellung.';
+export const vertragKandidat = () => tc('contract');
 
 /** "44–110 €" -- was der Recruiter je Einsatztag verdient. */
 export function verdienstJeTag(job: Job): string | null {

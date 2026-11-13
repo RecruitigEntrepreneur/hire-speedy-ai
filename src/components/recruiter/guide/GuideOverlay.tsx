@@ -1,9 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { ArrowLeft, ArrowRight, Compass, MousePointerClick, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { GUIDE_CHAPTERS, placeCard, type GuideStep, type TourRect } from '@/lib/recruiterGuide';
+import { guideChapters, placeCard, type GuideStep, type TourRect } from '@/lib/recruiterGuide';
 import { GuideExampleView } from './GuideExamples';
 import type { GuideTarget } from './useGuideTarget';
 
@@ -14,25 +15,8 @@ const PAD = 6;
 // nicht anklicken, und Klicks fielen durch die Abdeckung auf das Fenster.
 const DIM = 'pointer-events-auto fixed z-[100] bg-slate-950/60';
 
-/** Die Worte des Rundgangs -- Headhunter duzen wir, Kunden siezen wir. */
-export interface GuideTexts {
-  yourTurn: string;
-  start: string;
-  skip: string;
-  finish: string;
-  paused: string;
-  resume: string;
-  finalCta: string;
-}
-export const RECRUITER_GUIDE_TEXTS: GuideTexts = {
-  yourTurn: 'Du bist dran: Klick auf die markierte Stelle.',
-  start: "Los geht's",
-  skip: 'Überspringen',
-  finish: 'Fertig',
-  paused: 'Rundgang pausiert',
-  resume: 'Fortsetzen',
-  finalCta: 'Offene Jobs ansehen',
-};
+/** Die Worte des Rundgangs -- Headhunter duzen wir (`texts`), Kunden siezen wir (`clientTexts`). */
+export type GuideTextsKey = 'texts' | 'clientTexts';
 
 function useViewport() {
   const [size, setSize] = useState(() => ({ width: window.innerWidth, height: window.innerHeight }));
@@ -75,11 +59,14 @@ export interface GuideOverlayProps {
   onAct: () => void;
   /** Der Hauptknopf im letzten Schritt. */
   onOpenJobs: () => void;
-  chapters?: readonly string[];
-  texts?: GuideTexts;
+  /** Kapitelnamen in der aktuellen Sprache. */
+  chapters?: () => readonly string[];
+  texts?: GuideTextsKey;
 }
 
-export function GuideOverlay({ step, stepNumber, stepCount, firstName, target, clickable, onNext, onBack, onClose, onAct, onOpenJobs, chapters = GUIDE_CHAPTERS, texts = RECRUITER_GUIDE_TEXTS }: GuideOverlayProps) {
+export function GuideOverlay({ step, stepNumber, stepCount, firstName, target, clickable, onNext, onBack, onClose, onAct, onOpenJobs, chapters: chapterNames = guideChapters, texts = 'texts' }: GuideOverlayProps) {
+  const { t } = useTranslation('recruiterGuide');
+  const chapters = chapterNames();
   const viewport = useViewport();
   const cardRef = useRef<HTMLDivElement>(null);
   const primaryRef = useRef<HTMLButtonElement>(null);
@@ -89,7 +76,7 @@ export function GuideOverlay({ step, stepNumber, stepCount, firstName, target, c
   const missing = !!step.target && !target.el && !target.waiting;
   const showExample = !!step.example && (!step.exampleWhenMissing || missing);
   const body = step.click && !clickable ? step.narrowBody ?? step.body : step.body;
-  const title = first && firstName ? `${step.title}, ${firstName}` : step.title;
+  const title = first && firstName ? t('ui.titleWithName', { title: step.title, name: firstName }) : step.title;
 
   const rect = target.rect;
   const hole = rect && {
@@ -134,33 +121,33 @@ export function GuideOverlay({ step, stepNumber, stepCount, firstName, target, c
     >
       <div className="flex items-start justify-between gap-3">
         <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
-          Kapitel {step.chapter} von {chapters.length} · {chapters[step.chapter - 1]}
+          {t('ui.chapter', { current: step.chapter, total: chapters.length, name: chapters[step.chapter - 1] })}
         </p>
-        <button type="button" onClick={onClose} aria-label="Rundgang beenden" className="-m-1 rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <button type="button" onClick={onClose} aria-label={t('ui.close')} className="-m-1 rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <X className="h-4 w-4" />
         </button>
       </div>
-      <div className="mt-3 h-1 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label="Fortschritt im Rundgang" aria-valuemin={1} aria-valuemax={stepCount} aria-valuenow={stepNumber}>
+      <div className="mt-3 h-1 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label={t('ui.progress')} aria-valuemin={1} aria-valuemax={stepCount} aria-valuenow={stepNumber}>
         <div className="h-full rounded-full bg-primary transition-all duration-300 motion-reduce:transition-none" style={{ width: `${(stepNumber / stepCount) * 100}%` }} />
       </div>
       <h2 id="guide-title" className="mt-4 text-lg font-semibold leading-snug">{title}</h2>
       <p id="guide-body" className="mt-2 text-sm leading-relaxed text-muted-foreground">{body}</p>
       {showExample && <GuideExampleView kind={step.example!} />}
-      {clickable && <p className="mt-3 flex items-center gap-2 text-sm font-medium"><MousePointerClick className="h-4 w-4 text-primary" />{texts.yourTurn}</p>}
+      {clickable && <p className="mt-3 flex items-center gap-2 text-sm font-medium"><MousePointerClick className="h-4 w-4 text-primary" />{t(`${texts}.yourTurn`)}</p>}
       <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
         {first ? <>
-          <Button variant="ghost" size="sm" onClick={onClose}>{texts.skip}</Button>
-          <Button ref={primaryRef} size="sm" onClick={onNext}>{texts.start}<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
+          <Button variant="ghost" size="sm" onClick={onClose}>{t(`${texts}.skip`)}</Button>
+          <Button ref={primaryRef} size="sm" onClick={onNext}>{t(`${texts}.start`)}<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
         </> : <>
-          {onBack && !last && <Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="mr-1.5 h-4 w-4" />Zurück</Button>}
+          {onBack && !last && <Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="mr-1.5 h-4 w-4" />{t('ui.back')}</Button>}
           {last
             ? <>
-              <Button variant="outline" size="sm" onClick={onClose}>{texts.finish}</Button>
-              <Button ref={primaryRef} size="sm" onClick={onOpenJobs}>{texts.finalCta}<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
+              <Button variant="outline" size="sm" onClick={onClose}>{t(`${texts}.finish`)}</Button>
+              <Button ref={primaryRef} size="sm" onClick={onOpenJobs}>{t(`${texts}.finalCta`)}<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
             </>
             : step.click
               ? <Button ref={primaryRef} size="sm" variant={clickable ? 'outline' : 'default'} onClick={onAct}>{step.click.label}<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
-              : <Button ref={primaryRef} size="sm" onClick={onNext}>Weiter<ArrowRight className="ml-1.5 h-4 w-4" /></Button>}
+              : <Button ref={primaryRef} size="sm" onClick={onNext}>{t('ui.next')}<ArrowRight className="ml-1.5 h-4 w-4" /></Button>}
         </>}
       </div>
     </div>
@@ -172,15 +159,16 @@ export function GuideOverlay({ step, stepNumber, stepCount, firstName, target, c
  * `text` sagt der Hinweis, worauf er wartet; ohne `onResume` bietet er kein
  * „Fortsetzen“ an (etwa mitten in der Aufnahme, wo ein Seitenwechsel sie schlösse).
  */
-export function GuidePausePill({ onResume, onClose, text = RECRUITER_GUIDE_TEXTS.paused, resumeLabel = RECRUITER_GUIDE_TEXTS.resume }: {
-  onResume?: () => void; onClose: () => void; text?: string; resumeLabel?: string;
+export function GuidePausePill({ onResume, onClose, text, texts = 'texts' }: {
+  onResume?: () => void; onClose: () => void; text?: string; texts?: GuideTextsKey;
 }) {
+  const { t } = useTranslation('recruiterGuide');
   return createPortal(
     <div role="status" className="pointer-events-auto fixed bottom-4 right-4 z-[102] flex max-w-[calc(100vw-2rem)] items-center gap-2 rounded-full border border-border bg-popover py-1.5 pl-4 pr-1.5 text-popover-foreground shadow-lg">
       <Compass className="h-4 w-4 shrink-0 text-primary" />
-      <span className="text-sm">{text}</span>
-      {onResume && <Button size="sm" className="h-8 rounded-full" onClick={onResume}>{resumeLabel}</Button>}
-      <button type="button" onClick={onClose} aria-label="Rundgang beenden" className="rounded-full p-1.5 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      <span className="text-sm">{text ?? t(`${texts}.paused`)}</span>
+      {onResume && <Button size="sm" className="h-8 rounded-full" onClick={onResume}>{t(`${texts}.resume`)}</Button>}
+      <button type="button" onClick={onClose} aria-label={t('ui.close')} className="rounded-full p-1.5 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <X className="h-4 w-4" />
       </button>
     </div>,

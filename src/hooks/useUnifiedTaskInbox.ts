@@ -3,8 +3,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { anonymizeCompanyName } from '@/lib/anonymization';
 import { ERINNERUNG_AB_TAGEN, FEEDBACK_AB_WERKTAGEN, nudgeState, workdaysBetween, type WaitState } from '@/lib/kundePrueft';
-import { vorbereitenTexte, type Vorbereitung } from '@/lib/kandidatVorbereiten';
+import type { Vorbereitung } from '@/lib/kandidatVorbereiten';
 import { ladeVorbereitung } from '@/lib/vorbereitenLaden';
+import i18n from '@/i18n';
+import { fmtDayMonth, fmtMoney, fmtTime } from '@/lib/localeFormat';
+import { startTaskKind } from '../../supabase/functions/_shared/abrechnung-view';
+
+// Titel, Beschreibung und Hinweise der Aufgaben in der Sprache der Oberfläche, gelesen beim
+// Laden (README Regel 7). Logik vergleicht nie diese Texte, sondern `variant` und die Felder.
+const tt = (key: string, options?: Record<string, unknown>): string => i18n.t(`taskTexts:${key}`, options);
 
 export interface UnifiedTaskItem {
   itemType: 'alert' | 'task' | 'derived';
@@ -63,6 +70,18 @@ export interface UnifiedTaskItem {
   /** Aufgabe vor der Einreichung (01.11.2026): kein Honorar, keine Stelle, dafür der Beruf des Kandidaten. */
   prep?: Vorbereitung;
   candidateRole?: string | null;
+  /**
+   * Stabile Spielart einer abgeleiteten Aufgabe, statt den (übersetzten) Titel zu vergleichen:
+   * Angebot: considering · notConfirmedYet · callback · expired · notConfirmed · deliver · clientKeeps · noAnswer · wishAccepted · discuss;
+   * Stelle zu: filled · closed; Vertrag begleiten: declined.
+   */
+  variant?: string;
+  /** Ort der Stelle (recruiter_jobs_view.location): daraus die Sprache des Kunden, wenn nichts Besseres da ist. */
+  jobLocation?: string | null;
+  /** Absagegrund des Kunden (so gespeichert), für den Satz im Fenster. */
+  reason?: string | null;
+  /** Angebot: wann die Mail an den Kandidaten von selbst rausgeht. */
+  mailAt?: string | null;
 }
 
 /** Stand der Stelle zu einer eigenen Einreichung (my_submission_jobs, 28.10.2026). */
@@ -204,15 +223,26 @@ function mapAlertToItem(alert: any): UnifiedTaskItem {
   };
 }
 
+// Systemaufgaben am ersten Arbeitstag und zur Halbzeit (H7): gespeichert als „Hat Lea angefangen?“ bzw.
+// „Wie läuft es bei Lea?“. Gezeigt wird der Titel in der Sprache der Oberfläche, verglichen `variant`.
+function systemTaskTitle(title: string | null | undefined): { title: string; variant: 'start' | 'halfway' } | null {
+  const kind = startTaskKind(title);
+  if (!kind) return null;
+  const m = String(title).match(/^Hat (.+) angefangen\?$/) ?? String(title).match(/^Wie läuft es bei (.+)\?$/);
+  return { title: tt(`systemTask.${kind}`, { first: m?.[1] ?? '' }), variant: kind };
+}
+
 function mapTaskToItem(task: any, job: any): UnifiedTaskItem {
   const candidate = task.candidates;
   const normalizedPriority = TASK_PRIORITY_TO_ALERT[task.priority] || 'medium';
+  const system = systemTaskTitle(task.title);
 
   return {
     itemType: 'task',
     itemId: task.id,
     recruiterId: task.recruiter_id,
-    title: task.title,
+    title: system?.title ?? task.title,
+    variant: system?.variant,
     description: task.description || null,
     recommendedAction: null,
     taskCategory: task.task_type || 'other',
@@ -257,9 +287,9 @@ function mapStalledSubmission(sub: any, now: number): UnifiedTaskItem | null {
     itemType: 'derived',
     itemId: `derived-stalled-${sub.id}`,
     recruiterId: sub.recruiter_id,
-    title: `Keine Client-Reaktion seit ${days} Tagen`,
-    description: `${candidate?.full_name || 'Kandidat'} liegt seit ${days} Tagen unbeantwortet beim Client — der Deal kühlt ab.`,
-    recommendedAction: 'Beim Client nachfassen und Feedback zur Einreichung erfragen.',
+    title: tt('stalled.title', { count: days }),
+    description: tt('stalled.description', { count: days, name: candidate?.full_name || tt('fallback.candidate') }),
+    recommendedAction: tt('stalled.action'),
     taskCategory: 'client_review_stalled',
     sortPriority: ALERT_PRIORITY_MAP[priority],
     priority,
@@ -281,23 +311,25 @@ function mapStalledSubmission(sub: any, now: number): UnifiedTaskItem | null {
     candidateEmail: candidate?.email || null,
     jobTitle: job?.title || null,
     companyName: safeCompany(job, sub.company_revealed),
+    jobLocation: job?.location ?? null,
     companyRevealed: !!job?.company_name,
     isStale: false,
   };
 }
 
-const dayMonth = (iso: string) => new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+const dayMonth = (iso: string) => fmtDayMonth(iso);
 
 // Abgeleitete Aufgabe (28.10.2026): Stelle besetzt oder geschlossen, die Einreichung lag noch beim
 // Kunden. Statt den Kunden zu erinnern, informiert der Headhunter den Kandidaten.
 function mapJobClosedInform(sub: any, js: SubmissionJobState): UnifiedTaskItem {
   const filled = js.job_status === 'filled';
-  const name = sub.candidates?.full_name || 'Der Kandidat';
+  const name = sub.candidates?.full_name || tt('fallback.theCandidate');
   return {
     ...derivedBase(sub, sub.jobs, sub.candidates, {
       itemId: `derived-jobclosed-${sub.id}`,
-      title: filled ? 'Stelle besetzt — Kandidat informieren' : 'Stelle geschlossen — Kandidat informieren',
-      description: `${name} weiß noch nicht, dass die Stelle ${filled ? 'besetzt' : 'geschlossen'} ist.`,
+      title: filled ? tt('jobClosed.titleFilled') : tt('jobClosed.titleClosed'),
+      description: filled ? tt('jobClosed.descFilled', { name }) : tt('jobClosed.descClosed', { name }),
+      variant: filled ? 'filled' : 'closed',
       taskCategory: 'job_closed_inform',
       priority: 'high',
       createdAt: js.closed_at ?? sub.submitted_at ?? sub.updated_at,
@@ -310,11 +342,11 @@ function mapJobClosedInform(sub: any, js: SubmissionJobState): UnifiedTaskItem {
 function mapPausedPark(sub: any, js: SubmissionJobState): UnifiedTaskItem {
   return {
     ...derivedBase(sub, sub.jobs, sub.candidates, {
-      itemId: `parked-paused-${sub.id}`, title: 'Stelle pausiert', taskCategory: 'job_paused', priority: 'medium',
+      itemId: `parked-paused-${sub.id}`, title: tt('paused.title'), taskCategory: 'job_paused', priority: 'medium',
       createdAt: js.paused_at ?? sub.submitted_at ?? sub.updated_at,
     }),
     parkKind: 'paused',
-    parkNote: `Stelle pausiert${js.pause_until ? ` bis ${dayMonth(js.pause_until)}` : ''} · keine Erinnerung an den Kunden`,
+    parkNote: js.pause_until ? tt('paused.noteUntil', { date: dayMonth(js.pause_until) }) : tt('paused.note'),
   };
 }
 
@@ -358,9 +390,11 @@ function mapDebriefDue(iv: any, now: number): UnifiedTaskItem | null {
     itemType: 'derived',
     itemId: `derived-debrief-${iv.id}`,
     recruiterId: sub.recruiter_id,
-    title: 'Nachgespräch fällig — Interview ist vorbei',
-    description: `Das Interview mit ${candidate?.full_name || 'Kandidat'} war vor ${hoursSince < 48 ? `${hoursSince} Std.` : `${Math.floor(hoursSince / 24)} Tagen`} — anrufen und hören, wie es lief, solange es frisch ist.`,
-    recommendedAction: 'Kandidat anrufen: Bauchgefühl, Gehalt, Angebot, Start. Danach den Kunden nach seinem Eindruck fragen.',
+    title: tt('debrief.title'),
+    description: hoursSince < 48
+      ? tt('debrief.descHours', { name: candidate?.full_name || tt('fallback.candidate'), hours: hoursSince })
+      : tt('debrief.descDays', { name: candidate?.full_name || tt('fallback.candidate'), count: Math.floor(hoursSince / 24) }),
+    recommendedAction: tt('debrief.action'),
     taskCategory: 'interview_debrief_due',
     sortPriority: ALERT_PRIORITY_MAP[priority],
     priority,
@@ -382,6 +416,7 @@ function mapDebriefDue(iv: any, now: number): UnifiedTaskItem | null {
     candidateEmail: candidate?.email || null,
     jobTitle: job?.title || null,
     companyName: safeCompany(job, sub.company_revealed),
+    jobLocation: job?.location ?? null,
     isStale: false,
   };
 }
@@ -395,7 +430,7 @@ function derivedBase(sub: any, job: any, candidate: any, extra: Partial<UnifiedT
     playbookId: null, dueAt: null, isRead: false, isArchived: false, isCompleted: false, completedAt: null, snoozedUntil: null,
     impactScore: fee ? Math.min(98, 75 + Math.round(fee / 1000)) : 80, feeValue: fee,
     candidateName: candidate?.full_name || null, candidatePhone: candidate?.phone || null, candidateEmail: candidate?.email || null,
-    jobTitle: job?.title || null, companyName: safeCompany(job, sub.company_revealed), isStale: false,
+    jobTitle: job?.title || null, companyName: safeCompany(job, sub.company_revealed), jobLocation: job?.location ?? null, isStale: false,
     ...extra,
   };
 }
@@ -417,7 +452,7 @@ function outsideQuietHoursBerlin(ms: number): number {
   }
   return ms;
 }
-const clock = (ms: number) => new Date(ms).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' });
+const clock = (ms: number) => fmtTime(ms, undefined, 'Europe/Berlin');
 
 function mapOfferDeliver(o: any, now: number): UnifiedTaskItem | null {
   const sub = o.submissions;
@@ -427,53 +462,59 @@ function mapOfferDeliver(o: any, now: number): UnifiedTaskItem | null {
   const berlinDay = (ms: number) => new Date(ms).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
   const daysLeft = due ? Math.round((Date.parse(`${berlinDay(due)}T12:00:00Z`) - Date.parse(`${berlinDay(now)}T12:00:00Z`)) / DAY_MS) : null;
   const byDeadline: 'critical' | 'high' = daysLeft !== null && daysLeft <= 1 ? 'critical' : 'high';
-  const base = (title: string, description: string | null, priority: 'critical' | 'high', dueAt: number | null, createdAt: string) => derivedBase(sub, sub.jobs, sub.candidates, {
-    itemId: `derived-offer-${o.id}`, title, description, taskCategory: 'offer_deliver', priority, createdAt,
+  const base = (variant: string, title: string, description: string | null, priority: 'critical' | 'high', dueAt: number | null, createdAt: string) => derivedBase(sub, sub.jobs, sub.candidates, {
+    itemId: `derived-offer-${o.id}`, title, description, taskCategory: 'offer_deliver', priority, createdAt, variant,
     dueAt: dueAt ? new Date(dueAt).toISOString() : null,
   });
-  const frist = o.response_due ? `Antwort bis ${new Date(`${o.response_due}T12:00:00`).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}` : null;
-  const first = (sub.candidates?.full_name ?? '').trim().split(/\s+/)[0] || 'Kandidat';
+  const answerUntil = (iso: string) => tt('offer.answerUntil', { date: fmtDayMonth(`${iso}T12:00:00`) });
+  const frist = o.response_due ? answerUntil(o.response_due) : null;
+  const first = (sub.candidates?.full_name ?? '').trim().split(/\s+/)[0] || tt('fallback.candidate');
 
   // Ältere Angebote von vor G + H: „überlegt noch“
   if (o.status === 'considering') {
     const until = o.candidate_response?.until ? new Date(`${o.candidate_response.until}T23:59:59`).getTime() : due;
-    return base('Kandidat überlegt noch — nachfassen', `Antwort bis ${o.candidate_response?.until ?? o.response_due ?? ''}`, byDeadline, until, o.sent_at ?? o.created_at);
+    const bis = o.candidate_response?.until ?? o.response_due ?? null;
+    return base('considering', tt('offer.considering'), bis ? answerUntil(bis) : null, byDeadline, until, o.sent_at ?? o.created_at);
   }
   // Zusage gemeldet: Kandidat bestätigt per Mail; nach 24 Std. ohne Klick anrufen
   if (o.status === 'accept_reported') {
     const at = o.accept_reported_at ? Date.parse(o.accept_reported_at) : null;
     if (!at || now - at < 24 * HOUR_MS) return null;
-    return base('Zusage noch nicht bestätigt — anrufen', 'Seit 24 Std. kein Klick auf „Ja, ich sage zu“', 'high', at + 24 * HOUR_MS, o.accept_reported_at);
+    return base('notConfirmedYet', tt('offer.notConfirmedYet'), tt('offer.noClick'), 'high', at + 24 * HOUR_MS, o.accept_reported_at);
   }
   // Rückrufwunsch von der Angebotsseite: binnen 2 Std. (nachts bis 8 Uhr)
   if (o.callback_requested_at && !o.callback_done_at) {
     const until = outsideQuietHoursBerlin(Date.parse(o.callback_requested_at) + 2 * HOUR_MS);
-    return base(`Rückruf: ${first} möchte sprechen`, [`Rückruf bis ${clock(until)}`, o.callback_topic ? `„${o.callback_topic}“` : null].filter(Boolean).join(' · '), 'critical', until, o.callback_requested_at);
+    return base('callback', tt('offer.callback', { first }), [tt('offer.callbackUntil', { time: clock(until) }), o.callback_topic ? tt('quote', { text: o.callback_topic }) : null].filter(Boolean).join(' · '), 'critical', until, o.callback_requested_at);
   }
   // Frist vorbei: Der Kandidat kann nicht mehr antworten, erst muss der Kunde verlängern (02.11.2026)
   if (due !== null && now > due) {
     if (o.candidate_response?.extension_asked) return null;
-    return base('Antwortfrist abgelaufen: Kunden um Verlängerung bitten', frist, 'high', due, o.response_due);
+    return base('expired', tt('offer.expired'), frist, 'high', due, o.response_due);
   }
   // „Stimmt so nicht“: anrufen und klären; das Angebot ist wieder offen
   if (o.candidate_response?.way === 'not_confirmed' && !o.recruiter_talked_at) {
-    return base(`${first} hat die Zusage nicht bestätigt — anrufen`, frist, 'critical', due, o.candidate_response.at ?? o.created_at);
+    return base('notConfirmed', tt('offer.notConfirmed', { first }), frist, 'critical', due, o.candidate_response.at ?? o.created_at);
   }
   const mailDue = o.candidate_mail_due_at ? Date.parse(o.candidate_mail_due_at) : null;
   const mailSent = !!o.candidate_mail_sent_at || (mailDue !== null && mailDue <= now);
   // Uhr läuft: anrufen, bevor die Mail von selbst rausgeht
   if (!mailSent && mailDue !== null) {
-    return base(o.candidate_response?.client_keep ? `Kunde bleibt beim Angebot — ${first} anrufen` : 'Angebot überbringen', `Mail an ${first} um ${clock(mailDue)}`, 'critical', mailDue, o.sent_at ?? o.created_at);
+    const keep = !!o.candidate_response?.client_keep;
+    return {
+      ...base(keep ? 'clientKeeps' : 'deliver', keep ? tt('offer.clientKeeps', { first }) : tt('offer.deliver'), tt('offer.mailAt', { first, time: clock(mailDue) }), 'critical', mailDue, o.sent_at ?? o.created_at),
+      mailAt: new Date(mailDue).toISOString(),
+    };
   }
   // 24 Std. nach der Mail keine Antwort: anrufen
   const reminder = o.candidate_reminder_due_at ? Date.parse(o.candidate_reminder_due_at) : null;
   if (reminder !== null && reminder <= now) {
-    return base('Keine Antwort seit 24 Std. — anrufen', frist, byDeadline, due ?? reminder, o.candidate_reminder_due_at);
+    return base('noAnswer', tt('offer.noAnswer'), frist, byDeadline, due ?? reminder, o.candidate_reminder_due_at);
   }
   // Mail ging ohne Gespräch raus: noch besprechen; nach „Gespräch geführt“ antwortet der Kandidat selbst
   if (!o.recruiter_talked_at) {
     const wunsch = String(o.message_to_recruiter ?? '').startsWith('Wunsch angenommen');
-    return base(wunsch ? `${first} Bescheid sagen: Wunsch angenommen` : `Angebot mit ${first} besprechen`, frist, byDeadline, due, o.candidate_mail_sent_at ?? o.candidate_mail_due_at ?? o.created_at);
+    return base(wunsch ? 'wishAccepted' : 'discuss', wunsch ? tt('offer.wishAccepted', { first }) : tt('offer.discuss', { first }), frist, byDeadline, due, o.candidate_mail_sent_at ?? o.candidate_mail_due_at ?? o.created_at);
   }
   return null;
 }
@@ -486,8 +527,8 @@ function mapCounterStalled(o: any, now: number): UnifiedTaskItem | null {
   const wish = o.candidate_response?.wish?.salary;
   return derivedBase(sub, sub.jobs, sub.candidates, {
     itemId: `derived-counter-${o.id}`,
-    title: 'Kunde antwortet nicht auf Gegenwunsch',
-    description: wish ? `Wunsch: ${new Intl.NumberFormat('de-DE').format(wish)} € statt ${new Intl.NumberFormat('de-DE').format(o.salary_offered)} €` : null,
+    title: tt('counter.title'),
+    description: wish ? tt('counter.wish', { wish: fmtMoney(Number(wish)), offered: fmtMoney(Number(o.salary_offered)) }) : null,
     taskCategory: 'offer_counter_stalled',
     priority: 'high',
     createdAt: at,
@@ -502,26 +543,26 @@ function mapContractTask(r: any, acceptedAt: string | null, now: number): Unifie
   const base = (extra: Partial<UnifiedTaskItem> & Pick<UnifiedTaskItem, 'itemId' | 'title' | 'taskCategory' | 'priority' | 'createdAt'>) => derivedBase(sub, sub.jobs, sub.candidates, extra);
   // Gegenprobe: erledigt, sobald du oder der Kandidat bestätigt (29.10.2026)
   if (['signed', 'final'].includes(r.status) && r.reported_role === 'client' && !r.recruiter_check && !r.candidate_check) {
-    return base({ itemId: `derived-contract-check-${r.contract_id}`, title: 'Gegenprobe: Kunde meldet die Unterschrift', description: r.signed_on ? `Unterschrieben am ${r.signed_on}` : null, taskCategory: 'contract_check', priority: 'high', createdAt: r.reported_at ?? r.updated_at });
+    return base({ itemId: `derived-contract-check-${r.contract_id}`, title: tt('contract.checkTitle'), description: r.signed_on ? tt('contract.signedOn', { date: fmtDayMonth(`${String(r.signed_on).slice(0, 10)}T12:00:00`) }) : null, taskCategory: 'contract_check', priority: 'high', createdAt: r.reported_at ?? r.updated_at });
   }
   if (r.status === 'company_signed') {
-    return base({ itemId: `derived-contract-nudge-${r.contract_id}`, title: 'Zur Unterschrift anstoßen', description: 'Die Firma hat unterschrieben, der Kandidat noch nicht.', taskCategory: 'contract_nudge', priority: 'high', createdAt: r.company_signed_at ?? r.updated_at });
+    return base({ itemId: `derived-contract-nudge-${r.contract_id}`, title: tt('contract.nudgeTitle'), description: tt('contract.nudgeDesc'), taskCategory: 'contract_nudge', priority: 'high', createdAt: r.company_signed_at ?? r.updated_at });
   }
   // Kandidat sagt „Noch nicht da“ (29.10.2026): Kunde weiß es schon, du rufst an
   if (['preparing', 'sent_self'].includes(r.status) && r.candidate_status === 'missing') {
-    return base({ itemId: `derived-contract-missing-${r.contract_id}`, title: 'Vertrag kommt nicht an', description: `Laut Kandidat noch nicht da${r.status === 'sent_self' && r.sent_at ? ` (Kunde: verschickt am ${new Date(r.sent_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })})` : ''}. Der Kunde ist informiert.`, taskCategory: 'contract_missing', priority: 'critical', createdAt: r.candidate_status_at ?? r.updated_at });
+    return base({ itemId: `derived-contract-missing-${r.contract_id}`, title: tt('contract.missingTitle'), description: r.status === 'sent_self' && r.sent_at ? tt('contract.missingDescSent', { date: dayMonth(r.sent_at) }) : tt('contract.missingDesc'), taskCategory: 'contract_missing', priority: 'critical', createdAt: r.candidate_status_at ?? r.updated_at });
   }
   const anchor = r.status === 'sent_digital' && r.sent_at ? r.sent_at : (acceptedAt ?? r.updated_at);
   const days = anchor ? Math.floor((now - new Date(anchor).getTime()) / DAY_MS) : 0;
   if (['preparing', 'sent_self', 'sent_digital'].includes(r.status) && days >= 10) {
-    return base({ itemId: `derived-contract-followup-${r.contract_id}`, title: 'Vertrag nachfassen', description: `Seit ${days} Tagen keine Unterschrift gemeldet.`, taskCategory: 'contract_followup', priority: days >= 21 ? 'critical' : 'high', createdAt: anchor });
+    return base({ itemId: `derived-contract-followup-${r.contract_id}`, title: tt('contract.followupTitle'), description: tt('contract.followupDesc', { count: days }), taskCategory: 'contract_followup', priority: days >= 21 ? 'critical' : 'high', createdAt: anchor });
   }
   // Bis Tag 10 ruhig: Vertrag begleiten (Stand ansehen, Unterschrift melden)
   if (['preparing', 'sent_self', 'sent_digital', 'declined'].includes(r.status)) {
-    const desc = r.status === 'sent_self' ? `Kunde hat den Vertrag${r.sent_at ? ` am ${new Date(r.sent_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}` : ''} selbst verschickt.`
-      : r.status === 'sent_digital' ? 'Vertrag über DocuSign verschickt, die Firma unterschreibt zuerst.'
-        : r.status === 'declined' ? 'In DocuSign abgelehnt. Bitte klären.' : 'Kunde bereitet den Vertrag vor.';
-    return base({ itemId: `derived-contract-follow-${r.contract_id}`, title: 'Vertrag begleiten', description: desc, taskCategory: 'contract_follow', priority: r.status === 'declined' ? 'high' : 'medium', createdAt: acceptedAt ?? r.updated_at });
+    const desc = r.status === 'sent_self' ? (r.sent_at ? tt('contract.sentSelfOn', { date: dayMonth(r.sent_at) }) : tt('contract.sentSelf'))
+      : r.status === 'sent_digital' ? tt('contract.sentDigital')
+        : r.status === 'declined' ? tt('contract.declined') : tt('contract.preparing');
+    return base({ itemId: `derived-contract-follow-${r.contract_id}`, title: tt('contract.followTitle'), description: desc, variant: r.status === 'declined' ? 'declined' : undefined, taskCategory: 'contract_follow', priority: r.status === 'declined' ? 'high' : 'medium', createdAt: acceptedAt ?? r.updated_at });
   }
   return null;
 }
@@ -532,8 +573,8 @@ function mapRecommendationDue(iv: any): UnifiedTaskItem | null {
   if (!sub) return null;
   return derivedBase(sub, sub.jobs, sub.candidates, {
     itemId: `derived-recommend-${sub.id}`,
-    title: 'Empfehlung an den Kunden',
-    description: 'Der Kunde möchte ein Angebot machen. Schick deine Empfehlung, bevor er Zahlen schreibt.',
+    title: tt('recommendation.title'),
+    description: tt('recommendation.desc'),
     taskCategory: 'recommendation_due',
     priority: 'high',
     createdAt: iv.updated_at ?? iv.scheduled_at,
@@ -550,8 +591,8 @@ function mapClientUnsure(iv: any): UnifiedTaskItem | null {
   const fb = feedbackOf(iv.feedback);
   return derivedBase(sub, sub.jobs, sub.candidates, {
     itemId: `derived-unsure-${iv.id}`,
-    title: 'Kunde ist unsicher: Frage klären',
-    description: fb.question || 'Der Kunde ist noch unsicher.',
+    title: tt('unsure.title'),
+    description: fb.question || tt('unsure.desc'),
     taskCategory: 'client_unsure',
     priority: 'high',
     createdAt: fb.submitted_at ?? iv.updated_at ?? iv.scheduled_at,
@@ -563,8 +604,8 @@ function mapClientUndecided(iv: any, now: number): UnifiedTaskItem | null {
   const at = feedbackOf(iv.feedback).submitted_at ?? iv.updated_at;
   return derivedBase(sub, sub.jobs, sub.candidates, {
     itemId: `derived-undecided-${iv.id}`,
-    title: 'Kunde entscheidet nicht: benachrichtigen',
-    description: `Seit ${Math.floor((now - Date.parse(at)) / DAY_MS)} Tagen unsicher, der Kandidat wartet.`,
+    title: tt('undecided.title'),
+    description: tt('undecided.desc', { count: Math.floor((now - Date.parse(at)) / DAY_MS) }),
     taskCategory: 'client_undecided',
     priority: 'high',
     createdAt: at,
@@ -579,15 +620,16 @@ function mapOptInDue(sub: any, now: number): UnifiedTaskItem {
   const candidate = sub.candidates;
   const fee = calcFee(job?.salary_min ?? null, job?.salary_max ?? null, job?.recruiter_fee_percentage ?? null);
   const priority: 'critical' | 'high' | 'medium' = hours >= 48 ? 'critical' : hours >= 24 ? 'high' : 'medium';
-  const since = hours < 48 ? `${hours} Std.` : `${Math.floor(hours / 24)} Tagen`;
 
   return {
     itemType: 'derived',
     itemId: `derived-optin-${sub.id}`,
     recruiterId: sub.recruiter_id,
-    title: 'Opt-In einholen — Kunde wartet',
-    description: `${candidate?.full_name || 'Kandidat'} hat die Interview-Einladung seit ${since} nicht beantwortet.`,
-    recommendedAction: 'Kandidat anrufen, Termin wählen lassen oder Opt-In bestätigen.',
+    title: tt('optIn.title'),
+    description: hours < 48
+      ? tt('optIn.descHours', { name: candidate?.full_name || tt('fallback.candidate'), hours })
+      : tt('optIn.descDays', { name: candidate?.full_name || tt('fallback.candidate'), count: Math.floor(hours / 24) }),
+    recommendedAction: tt('optIn.action'),
     taskCategory: 'opt_in_pending',
     sortPriority: ALERT_PRIORITY_MAP[priority],
     priority,
@@ -609,6 +651,7 @@ function mapOptInDue(sub: any, now: number): UnifiedTaskItem {
     candidateEmail: candidate?.email || null,
     jobTitle: job?.title || null,
     companyName: safeCompany(job, sub.company_revealed),
+    jobLocation: job?.location ?? null,
     isStale: false,
   };
 }
@@ -622,9 +665,12 @@ function mapRejectedInform(sub: any): UnifiedTaskItem {
     itemType: 'derived',
     itemId: `derived-rejected-${sub.id}`,
     recruiterId: sub.recruiter_id,
-    title: 'Kunde hat abgesagt — Kandidat informieren',
-    description: `${candidate?.full_name || 'Kandidat'} weiß noch nicht, dass der Kunde abgesagt hat${reason ? ` (Grund: ${reason})` : ''}.`,
-    recommendedAction: 'Kandidat informieren, Grund neutral, andere Stellen anbieten.',
+    title: tt('rejected.title'),
+    description: reason
+      ? tt('rejected.descReason', { name: candidate?.full_name || tt('fallback.candidate'), reason })
+      : tt('rejected.desc', { name: candidate?.full_name || tt('fallback.candidate') }),
+    recommendedAction: tt('rejected.action'),
+    reason,
     taskCategory: 'rejected_inform',
     sortPriority: ALERT_PRIORITY_MAP.high,
     priority: 'high',
@@ -646,16 +692,20 @@ function mapRejectedInform(sub: any): UnifiedTaskItem {
     candidateEmail: candidate?.email || null,
     jobTitle: job?.title || null,
     companyName: safeCompany(job, sub.company_revealed),
+    jobLocation: job?.location ?? null,
     isStale: false,
   };
 }
+
+/** Pille je Art wie `prepTexts` im Aufgaben-Fenster (recruiterTasks:prep.*). */
+const PREP_PILL: Record<string, string> = { termin: 'termin', war: 'war', entwurf: 'entwurf', eingeladen: 'eingeladen', bereit: 'bereit' };
 
 function mapVorbereitung(v: Vorbereitung, recruiterId: string): UnifiedTaskItem {
   return {
     itemType: 'derived',
     itemId: `prep-${v.art}-${v.candidateId}`,
     recruiterId,
-    title: vorbereitenTexte(v).pill,
+    title: i18n.t(`recruiterTasks:prep.${PREP_PILL[v.art] ?? 'neu'}.pill`),
     description: null,
     recommendedAction: null,
     taskCategory: `prep_${v.art}`,
@@ -1008,7 +1058,7 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
       if (allJobIds.length > 0) {
         const { data: jobRows, error: jobsError } = await supabase
           .from('recruiter_jobs_view')
-          .select('id, title, company_name, industry, salary_min, salary_max, recruiter_fee_percentage')
+          .select('id, title, company_name, industry, location, salary_min, salary_max, recruiter_fee_percentage')
           .in('id', allJobIds);
         if (jobsError) console.error('Error fetching task jobs:', jobsError);
         taskJobsById = Object.fromEntries((jobRows || []).map((j: any) => [j.id, j]));
@@ -1149,8 +1199,8 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
           return {
             ...derivedBase(sub, sub.jobs, sub.candidates, {
               itemId: `derived-feedback-${iv.id}`,
-              title: `Kunde ohne Feedback seit ${days} Tagen`,
-              description: `Interview am ${dayMonth(iv.scheduled_at)}, seitdem kein Eindruck des Kunden.`,
+              title: tt('feedback.title', { count: days }),
+              description: tt('feedback.desc', { date: dayMonth(iv.scheduled_at) }),
               taskCategory: 'client_feedback_due',
               priority: 'high',
               createdAt: endIso,
@@ -1174,11 +1224,11 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
           const accepted = acceptedAtBySub.get(r.submission_id) ?? null;
           const anchor = r.status === 'sent_digital' && r.sent_at ? r.sent_at : (accepted ?? r.updated_at);
           const ab = dayMonth(new Date(Date.parse(anchor) + 10 * DAY_MS).toISOString());
-          const first = (it.candidateName ?? '').split(/\s+/)[0] || 'dem Kandidaten';
-          const stand = r.status === 'preparing' ? 'Kunde bereitet den Vertrag vor'
-            : r.status === 'sent_self' ? `bei ${first} seit ${r.sent_at ? dayMonth(r.sent_at) : 'kurzem'}`
-              : `digital verschickt${r.sent_at ? ` am ${dayMonth(r.sent_at)}` : ''}`;
-          parked.push({ ...it, parkKind: 'contract', parkNote: `${stand} · nachfassen ab ${ab}` });
+          const first = (it.candidateName ?? '').split(/\s+/)[0] || tt('fallback.theCandidateDat');
+          const stand = r.status === 'preparing' ? tt('park.contractPreparing')
+            : r.status === 'sent_self' ? (r.sent_at ? tt('park.contractWithCandidate', { first, date: dayMonth(r.sent_at) }) : tt('park.contractWithCandidateRecent', { first }))
+              : r.sent_at ? tt('park.contractDigitalOn', { date: dayMonth(r.sent_at) }) : tt('park.contractDigital');
+          parked.push({ ...it, parkKind: 'contract', parkNote: tt('park.contractFollowFrom', { state: stand, date: ab }) });
           continue;
         }
         // Nachgefasst (29.10.2026): Kandidat sagt „unterschreibt bis …“ oder Kunde ist gefragt → wartet
@@ -1186,14 +1236,14 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
           const mine = logRows.filter(l => l.related_submission_id === r.submission_id);
           const until = mine.find(l => l.activity_type === 'call' && typeof l.metadata?.until === 'string')?.metadata?.until as string | undefined;
           const today = new Date(nowMs).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
-          const first = (it.candidateName ?? '').split(/\s+/)[0] || 'Der Kandidat';
+          const first = (it.candidateName ?? '').split(/\s+/)[0] || tt('fallback.theCandidate');
           if (until && until >= today) {
-            parked.push({ ...it, parkKind: 'contract', parkNote: `${first} unterschreibt laut Anruf bis ${dayMonth(until)} · danach wieder oben` });
+            parked.push({ ...it, parkKind: 'contract', parkNote: tt('park.contractSignsUntil', { first, date: dayMonth(until) }) });
             continue;
           }
           const st = nudgeState(mine.filter(l => l.metadata?.kind === 'client_nudge' && l.metadata?.anlass === 'contract').map(l => l.created_at), nowDate);
           if (st.waitState === 'wartet') {
-            parked.push({ ...it, ...st, parkKind: 'contract', parkNote: `Kunde zum Vertrag gefragt am ${dayMonth(st.lastNudgeAt!)} · nachfassen ab ${dayMonth(st.nextNudgeAt!)}` });
+            parked.push({ ...it, ...st, parkKind: 'contract', parkNote: tt('park.contractAsked', { date: dayMonth(st.lastNudgeAt!), next: dayMonth(st.nextNudgeAt!) }) });
             continue;
           }
         }
@@ -1208,7 +1258,7 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
         const since = o.counter_offer_at ?? o.responded_at ?? '';
         const st = nudgeState(logRows.filter(l => l.related_submission_id === o.submission_id && l.metadata?.kind === 'client_nudge' && l.created_at >= since).map(l => l.created_at), nowDate);
         if (st.waitState === 'wartet') {
-          parked.push({ ...it, ...st, parkKind: 'counter', parkNote: `Kunde erinnert am ${dayMonth(st.lastNudgeAt!)} · ${st.nudgeCount >= 2 ? 'wieder nachfassen' : '2. Erinnerung'} ab ${dayMonth(st.nextNudgeAt!)}` });
+          parked.push({ ...it, ...st, parkKind: 'counter', parkNote: tt(st.nudgeCount >= 2 ? 'park.counterAgain' : 'park.counterSecond', { date: dayMonth(st.lastNudgeAt!), next: dayMonth(st.nextNudgeAt!) }) });
         } else counterJetzt.push({ ...it, ...st });
       }
       setParkedItems(parked);
@@ -1268,7 +1318,7 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
       const doneFromLog: UnifiedTaskItem[] = doneLog.map(l => {
         const jobId = l.related_submission_id ? knownSubJob.get(l.related_submission_id) ?? null : null;
         return {
-          itemType: 'derived', itemId: `log-${l.id}`, recruiterId: user.id, title: l.title || 'Erledigt', description: null,
+          itemType: 'derived', itemId: `log-${l.id}`, recruiterId: user.id, title: l.title || tt('done'), description: null,
           recommendedAction: null, taskCategory: l.metadata?.kind || l.activity_type, sortPriority: 9, priority: 'low',
           submissionId: l.related_submission_id, candidateId: l.candidate_id, jobId, playbookId: null, createdAt: l.created_at,
           dueAt: null, isRead: true, isArchived: false, isCompleted: true, completedAt: l.created_at, snoozedUntil: null,
@@ -1291,7 +1341,7 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
       setCompletedItems(completedMerged);
     } catch (err) {
       console.error('Unified inbox fetch error:', err);
-      setError(err instanceof Error ? err.message : 'Fehler beim Laden der Aufgaben');
+      setError(err instanceof Error ? err.message : tt('loadError'));
     } finally {
       setLoading(false);
     }
@@ -1306,6 +1356,13 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
     const t = setTimeout(() => { void fetchItems(); }, Math.min(...enden) - jetzt + 1000);
     return () => clearTimeout(t);
   }, [items, fetchItems]);
+
+  // Sprache gewechselt: Titel und Hinweise neu in der neuen Sprache aufbauen
+  useEffect(() => {
+    const onLang = () => { void fetchItems(); };
+    i18n.on('languageChanged', onLang);
+    return () => { i18n.off('languageChanged', onLang); };
+  }, [fetchItems]);
 
   // Ein Handgriff in einem Fenster lädt jede Liste neu, nicht nur die eigene.
   useEffect(() => {

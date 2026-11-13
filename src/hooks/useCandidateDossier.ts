@@ -1,3 +1,4 @@
+import i18n from '@/i18n';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
@@ -120,7 +121,7 @@ export function useCandidateDossier(candidateId: string | undefined) {
 
   const saveNow = useCallback(
     async (next: DossierForm): Promise<DossierSaveResult> => {
-      if (!candidateId || !user) return { ok: false, pendingColumns: false, error: 'Nicht angemeldet' };
+      if (!candidateId || !user) return { ok: false, pendingColumns: false, error: i18n.t('errors:notSignedIn') };
       const state = stateRef.current;
       const prev = fromRecords(state.candidate, state.notes, state.languages);
       let pending = false;
@@ -188,7 +189,7 @@ export function useCandidateDossier(candidateId: string | undefined) {
         await load();
         return { ok: true, pendingColumns: pending };
       } catch (err) {
-        const message = err && typeof err === 'object' && 'message' in err ? String((err as { message: unknown }).message) : 'Speichern fehlgeschlagen';
+        const message = err && typeof err === 'object' && 'message' in err ? String((err as { message: unknown }).message) : i18n.t('errors:saveFailed');
         return { ok: false, pendingColumns: pending, error: message };
       }
     },

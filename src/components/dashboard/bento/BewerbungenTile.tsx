@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -11,7 +12,7 @@ import { Inbox } from 'lucide-react';
 interface Row {
   submissionId: string;
   anonId: string;
-  role: string;
+  role: string | null;
   stage: string;
   status: string;
   matchScore: number | null;
@@ -25,6 +26,7 @@ const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
 /** Tile A – Bewerbungen. Liest ausschließlich aus der reveal-gated
  *  client_candidate_view (Triple-Blind: PII bleibt NULL bis Opt-In). */
 export function BewerbungenTile() {
+  const { t } = useTranslation('clientDashboard');
   const { user } = useAuth();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,7 +54,7 @@ export function BewerbungenTile() {
         (data || []).map((s: any) => ({
           submissionId: s.submission_id,
           anonId: `PR-${String(s.submission_id || '').slice(0, 6).toUpperCase()}`,
-          role: s.candidate_role || 'Nicht angegeben',
+          role: s.candidate_role || null,
           stage: s.stage || s.status,
           status: s.status,
           matchScore: s.match_score ?? null,
@@ -89,7 +91,7 @@ export function BewerbungenTile() {
   );
 
   return (
-    <BentoTile icon={Inbox} title="Bewerbungen" count={loading ? undefined : active.length} to="/dashboard/candidates">
+    <BentoTile icon={Inbox} title={t('tiles.applications')} count={loading ? undefined : active.length} to="/dashboard/candidates">
       {loading ? (
         <div className="space-y-2">
           {[1, 2, 3, 4].map((i) => (
@@ -98,7 +100,7 @@ export function BewerbungenTile() {
         </div>
       ) : active.length === 0 ? (
         <div className="flex h-full items-center justify-center py-6 text-center text-sm text-muted-foreground">
-          Keine offenen Bewerbungen
+          {t('tiles.noApplications')}
         </div>
       ) : (
         <div className="flex h-full flex-col">
@@ -109,7 +111,7 @@ export function BewerbungenTile() {
               className="h-7 text-xs"
               onClick={() => setTab('all')}
             >
-              Alle ({active.length})
+              {t('tiles.allCount', { count: active.length })}
             </Button>
             {PIPELINE_STAGES.slice(0, 5).map((st) => {
               const c = stageCounts[st.key] || 0;
@@ -122,7 +124,7 @@ export function BewerbungenTile() {
                   className="h-7 text-xs"
                   onClick={() => setTab(st.key)}
                 >
-                  {st.label} ({c})
+                  {t(`tiles.stage.${st.key}`, { defaultValue: st.label })} ({c})
                 </Button>
               );
             })}
@@ -140,7 +142,7 @@ export function BewerbungenTile() {
                     {r.anonId}
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {r.role}
+                    {r.role ?? t('tiles.notSpecified')}
                     {r.region ? ` · ${r.region}` : ''}
                   </p>
                 </div>

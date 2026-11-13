@@ -132,8 +132,44 @@ const dmy = (iso: string) => {
 const escape = (v: unknown) => String(v ?? '')
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+// ---------------------------------------------------------------------------
+// Sprache der Mails (Mehrsprachigkeit 13.11.2026): Headhunter lesen in ihrer Profilsprache
+// (du). Ohne Angabe Deutsch, wortgleich wie bisher. Ohne Abhängigkeiten, weil das
+// Frontend diese Datei mitliest.
+// ---------------------------------------------------------------------------
+
+/** Sprachen der Liga-Mails; de-AT/de-CH lesen Deutsch (de-CH ohne ß). */
+export type LigaLang = 'de' | 'de-AT' | 'de-CH' | 'en' | 'sv' | 'nb';
+const L4 = (lang: LigaLang | null | undefined, de: string, en: string, sv: string, nb: string) => {
+  if (lang === 'en') return en;
+  if (lang === 'sv') return sv;
+  if (lang === 'nb') return nb;
+  return lang === 'de-CH' ? de.replace(/ß/g, 'ss') : de;
+};
+const AWARD_LABEL_OTHER: Record<LigaAwardKind, [string, string, string]> = {
+  season_winner: ['Headhunter of the Season', 'Säsongens headhunter', 'Sesongens headhunter'],
+  top_performer: ['Top Performer', 'Top Performer', 'Top Performer'],
+  newcomer: ['Rising Star of the Season', 'Säsongens klättrare', 'Sesongens klatrer'],
+  accurate: ['Sharpshooter', 'Träffsäker', 'Treffsikker'],
+};
+/** Name der Auszeichnung in der Sprache des Lesers */
+export const awardLabelIn = (kind: LigaAwardKind, lang?: LigaLang | null) => {
+  const o = AWARD_LABEL_OTHER[kind];
+  return o ? L4(lang, AWARD_LABEL[kind], o[0], o[1], o[2]) : AWARD_LABEL[kind];
+};
+const criteriaIn = (lang?: LigaLang | null) => L4(lang, AWARD_CRITERIA,
+  'What counts are results with clients in the quarter: interviews, offers, hires and hires that last.',
+  'Det som räknas är resultat hos kunden under kvartalet: intervjuer, erbjudanden, anställningar och anställningar som håller.',
+  'Det som teller, er resultater hos kunden i kvartalet: intervjuer, tilbud, ansettelser og ansettelser som varer.');
+const dateIn = (iso: string, lang?: LigaLang | null) => {
+  if (!lang || lang === 'de' || lang === 'de-AT' || lang === 'de-CH') return dmy(iso);
+  const loc = lang === 'en' ? 'en-GB' : lang === 'sv' ? 'sv-SE' : 'nb-NO';
+  return new Intl.DateTimeFormat(loc, { timeZone: 'UTC', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(`${iso.slice(0, 10)}T12:00:00Z`));
+};
+
 /** Betreff und Kernzeilen der Wochenmail. Der Rahmen kommt vom Server (layout). */
-export function weeklyContent(r: LigaWeeklyRow): { subject: string; heading: string; lines: string[] } {
+export function weeklyContent(r: LigaWeeklyRow, lang?: LigaLang | null): { subject: string; heading: string; lines: string[] } {
+  if (lang === 'en' || lang === 'sv' || lang === 'nb') return weeklyContentOther(r, lang);
   const moved = r.previous_rank === null ? 0 : r.previous_rank - r.rank;
   const heading = moved > 0
     ? `Du bist auf Platz ${r.rank} gestiegen (▲ ${moved})`
@@ -146,12 +182,41 @@ export function weeklyContent(r: LigaWeeklyRow): { subject: string; heading: str
   if (r.gap_above !== null && r.rank > 1) lines.push(`Bis Platz ${r.rank - 1} fehlen ${r.gap_above} ${r.gap_above === 1 ? 'Punkt' : 'Punkte'}.`);
   if (r.next_hold) lines.push(`Deine Einstellung ist ab ${dmy(r.next_hold)} über die Garantiezeit (${signed(r.hold_points)}).`);
   if (r.rank <= r.top_n) lines.push(`Du liegst unter den ersten ${r.top_n}. Wer dort am Saisonende steht, wird Top Performer.`);
+  if (lang === 'de-CH') return { subject: `Matchunt Liga: ${heading}`, heading, lines: lines.map((l) => l.replace(/ß/g, 'ss')) };
   return { subject: `Matchunt Liga: ${heading}`, heading, lines };
 }
 
-export const weeklyBodyHtml = (r: LigaWeeklyRow) => {
-  const c = weeklyContent(r);
-  return `<p>Hallo${r.full_name ? ` ${escape(r.full_name.split(/\s+/)[0])}` : ''},</p>`
+function weeklyContentOther(r: LigaWeeklyRow, lang: 'en' | 'sv' | 'nb'): { subject: string; heading: string; lines: string[] } {
+  const T = (en: string, sv: string, nb: string) => L4(lang, '', en, sv, nb);
+  const moved = r.previous_rank === null ? 0 : r.previous_rank - r.rank;
+  const heading = moved > 0
+    ? T(`You have climbed to place ${r.rank} (▲ ${moved})`, `Du har klättrat till plats ${r.rank} (▲ ${moved})`, `Du har klatret til plass ${r.rank} (▲ ${moved})`)
+    : moved < 0
+      ? T(`You are in place ${r.rank} (▼ ${Math.abs(moved)})`, `Du ligger på plats ${r.rank} (▼ ${Math.abs(moved)})`, `Du ligger på plass ${r.rank} (▼ ${Math.abs(moved)})`)
+      : T(`You are in place ${r.rank}`, `Du ligger på plats ${r.rank}`, `Du ligger på plass ${r.rank}`);
+  const one = r.days_left === 1;
+  const lines = [
+    T(`${r.points} points · place ${r.rank} of ${r.participants} · season ${r.season_label}, ${r.days_left} ${one ? 'day' : 'days'} left.`,
+      `${r.points} poäng · plats ${r.rank} av ${r.participants} · säsong ${r.season_label}, ${r.days_left} ${one ? 'dag' : 'dagar'} kvar.`,
+      `${r.points} poeng · plass ${r.rank} av ${r.participants} · sesong ${r.season_label}, ${r.days_left} ${one ? 'dag' : 'dager'} igjen.`),
+  ];
+  if (r.gap_above !== null && r.rank > 1) {
+    const p1 = r.gap_above === 1;
+    lines.push(T(`${r.gap_above} ${p1 ? 'point' : 'points'} to place ${r.rank - 1}.`, `${r.gap_above} ${p1 ? 'poäng' : 'poäng'} kvar till plats ${r.rank - 1}.`, `${r.gap_above} ${p1 ? 'poeng' : 'poeng'} igjen til plass ${r.rank - 1}.`));
+  }
+  if (r.next_hold) {
+    const d = dateIn(r.next_hold, lang);
+    lines.push(T(`Your hire passes the guarantee period on ${d} (${signed(r.hold_points)}).`, `Din anställning klarar garantitiden från ${d} (${signed(r.hold_points)}).`, `Ansettelsen din har passert garantiperioden fra ${d} (${signed(r.hold_points)}).`));
+  }
+  if (r.rank <= r.top_n) lines.push(T(`You are among the top ${r.top_n}. Whoever is there at the end of the season becomes Top Performer.`, `Du ligger bland de ${r.top_n} första. Den som ligger där när säsongen slutar blir Top Performer.`, `Du er blant de ${r.top_n} første. Den som ligger der ved sesongslutt, blir Top Performer.`));
+  return { subject: `Matchunt Liga: ${heading}`, heading, lines };
+}
+
+const hello = (lang?: LigaLang | null) => L4(lang, 'Hallo', 'Hi', 'Hej', 'Hei');
+
+export const weeklyBodyHtml = (r: LigaWeeklyRow, lang?: LigaLang | null) => {
+  const c = weeklyContent(r, lang);
+  return `<p>${hello(lang)}${r.full_name ? ` ${escape(r.full_name.split(/\s+/)[0])}` : ''},</p>`
     + c.lines.map((l) => `<p>${escape(l)}</p>`).join('');
 };
 
@@ -170,7 +235,21 @@ export interface LigaAwardMailRow {
 }
 
 /** Betreff, Überschrift und Absätze; die Urkunde lädt der Headhunter im Partnerstatus. */
-export function awardMailContent(r: LigaAwardMailRow): { subject: string; heading: string; paragraphs: string[] } {
+export function awardMailContent(r: LigaAwardMailRow, lang?: LigaLang | null): { subject: string; heading: string; paragraphs: string[] } {
+  if (lang === 'en' || lang === 'sv' || lang === 'nb') {
+    const T = (en: string, sv: string, nb: string) => L4(lang, '', en, sv, nb);
+    const main = r.awards[0] ?? 'top_performer';
+    const label = (a: LigaAwardKind) => awardLabelIn(a, lang);
+    const heading = T(`You are ${label(main)} ${r.season_label}`, `Du är ${label(main)} ${r.season_label}`, `Du er ${label(main)} ${r.season_label}`);
+    const paragraphs = [T(`Congratulations: place ${r.rank} of ${r.participants} in the Matchunt Liga, ${r.points} points.`, `Grattis: plats ${r.rank} av ${r.participants} i Matchunt Liga, ${r.points} poäng.`, `Gratulerer: plass ${r.rank} av ${r.participants} i Matchunt Liga, ${r.points} poeng.`)];
+    if (r.awards.length > 1) paragraphs.push(T(`Your awards: ${r.awards.map(label).join(', ')}.`, `Dina utmärkelser: ${r.awards.map(label).join(', ')}.`, `Utmerkelsene dine: ${r.awards.map(label).join(', ')}.`));
+    if (r.prizes && r.prizes.length) paragraphs.push(T(`Your prize: ${r.prizes.join(' · ')}. We will get in touch with you about it.`, `Ditt pris: ${r.prizes.join(' · ')}. Vi hör av oss till dig om det.`, `Premien din: ${r.prizes.join(' · ')}. Vi tar kontakt med deg om den.`));
+    paragraphs.push(T('Your badge is now shown on your verification page. In Partner status you will find the signature block with the award, the certificate as a PDF and a text for LinkedIn.',
+      'Ditt märke visas nu på din verifieringssida. Under Partnerstatus hittar du signaturblocket med utmärkelsen, diplomet som PDF och en text för LinkedIn.',
+      'Merket ditt vises nå på verifiseringssiden din. Under Partnerstatus finner du signaturblokken med utmerkelsen, diplomet som PDF og en tekst til LinkedIn.'));
+    paragraphs.push(criteriaIn(lang));
+    return { subject: `Matchunt Liga: ${heading}`, heading, paragraphs };
+  }
   const main = r.awards[0] ?? 'top_performer';
   const heading = `Du bist ${AWARD_LABEL[main]} ${r.season_label}`;
   const paragraphs = [
@@ -180,11 +259,12 @@ export function awardMailContent(r: LigaAwardMailRow): { subject: string; headin
   if (r.prizes && r.prizes.length) paragraphs.push(`Dein Preis: ${r.prizes.join(' · ')}. Wir melden uns dazu bei dir.`);
   paragraphs.push('Dein Abzeichen steht ab jetzt auf deiner Prüfseite. Im Partnerstatus findest du den Signatur-Baustein mit Auszeichnung, die Urkunde als PDF und einen Text für LinkedIn.');
   paragraphs.push(AWARD_CRITERIA);
+  if (lang === 'de-CH') return { subject: `Matchunt Liga: ${heading}`, heading, paragraphs: paragraphs.map((p) => p.replace(/ß/g, 'ss')) };
   return { subject: `Matchunt Liga: ${heading}`, heading, paragraphs };
 }
 
-export const awardMailBodyHtml = (r: LigaAwardMailRow) => {
-  const c = awardMailContent(r);
-  return `<p>Hallo${r.full_name ? ` ${escape(r.full_name.split(/\s+/)[0])}` : ''},</p>`
+export const awardMailBodyHtml = (r: LigaAwardMailRow, lang?: LigaLang | null) => {
+  const c = awardMailContent(r, lang);
+  return `<p>${hello(lang)}${r.full_name ? ` ${escape(r.full_name.split(/\s+/)[0])}` : ''},</p>`
     + c.paragraphs.map((p) => `<p>${escape(p)}</p>`).join('');
 };

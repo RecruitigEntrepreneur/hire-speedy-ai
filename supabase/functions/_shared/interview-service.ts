@@ -25,6 +25,9 @@ import { buildIcs, inviteUid } from './interview-ics.ts';
 import { cancelScheduledMail, sendInterviewMail, type InterviewMail, type MailResult } from './interview-mailer.ts';
 import { clientMailAllowed } from './client-mail-prefs.ts';
 import * as mails from './interview-mails.ts';
+import { normLang, tr, type Lang } from './i18n.ts';
+import { candidateLanguage, languageOfEmail, languageOfUser, recruiterLanguage } from './recipient-language.ts';
+import { viaMatchunt } from './mail-i18n.ts';
 import {
   cancelEvent, createMatchuntMeeting, createTeamsEvent, deleteMatchuntMeeting, getBusy, msConfig,
   userAccessToken, type MsConfig,
@@ -601,7 +604,10 @@ export async function preview(ctx: ServiceCtx, user: User, body: any) {
   const team = await teamOf(ctx.db, bundle.job, me);
   const draft = validateDraft({ ...ctx, now: () => 0 }, body, me, team);
   const recruiter = await profileOf(ctx.db, bundle.submission.recruiter_id);
+  // Vorschau in der Sprache, in der der Kandidat die Einladung bekommt
+  const lang = await langOfCandidate(ctx, bundle);
   const content = mails.candidateInvitation({
+    lang,
     firstName: bundle.submission.identity_unlocked ? firstName(bundle.candidate.full_name) : '[Vorname]',
     companyName: bundle.job.company_name,
     jobTitle: bundle.job.title,
@@ -616,7 +622,7 @@ export async function preview(ctx: ServiceCtx, user: User, body: any) {
     consentRequired: !bundle.submission.identity_unlocked,
     meeting: draftMeeting(draft, bundle.job.company_name),
   });
-  return { subject: content.subject, html: content.html, fromName: recruiter ? `${recruiter.name} über Matchunt` : 'Matchunt' };
+  return { subject: content.subject, html: content.html, fromName: recruiter ? viaMatchunt(recruiter.name, lang) : 'Matchunt' };
 }
 
 export async function send(ctx: ServiceCtx, user: User, body: any) {
@@ -697,8 +703,10 @@ export async function send(ctx: ServiceCtx, user: User, body: any) {
   }
 
   const link = `${ctx.appUrl()}/interview/respond/${token}`;
-  const fromName = recruiter ? `${recruiter.name} über Matchunt` : 'Matchunt';
+  const candLang = await langOfCandidate(ctx, bundle);
+  const fromName = recruiter ? viaMatchunt(recruiter.name, candLang) : 'Matchunt';
   const invitation = mails.candidateInvitation({
+    lang: candLang,
     firstName: firstName(bundle.candidate.full_name),
     companyName: bundle.job.company_name,
     jobTitle: bundle.job.title,
@@ -719,6 +727,7 @@ export async function send(ctx: ServiceCtx, user: User, body: any) {
   let recruiterMail: MailResult = { sent: false };
   if (recruiter?.email) {
     const content = mails.recruiterRequested({
+      lang: await langOfRecruiter(ctx, bundle),
       recruiterFirstName: firstName(recruiter.name),
       candidateName: bundle.candidate.full_name,
       candidatePhone: bundle.candidate.phone ?? null,
@@ -785,7 +794,10 @@ async function supersede(ctx: ServiceCtx, oldId: string, newId: string, userId: 
   const { data: old } = await ctx.db.from('interviews').select('*').eq('id', oldId).maybeSingle();
   if (!old) return;
   if (old.status === 'scheduled') {
-    await cancelBookedMeeting(ctx, old, opts.movedTo ? `Neuer Termin: ${formatBerlinDateShort(opts.movedTo)}.` : 'Der Termin wird neu abgestimmt.', opts.movedTo ? 'moved' : 'cancelled');
+    const movedTo = opts.movedTo;
+    await cancelBookedMeeting(ctx, old, movedTo
+      ? (l) => T(l, 'Neuer Termin: {d}.', 'New time: {d}.', 'Ny tid: {d}.', 'Nytt tidspunkt: {d}.', { d: formatBerlinDateShort(movedTo, l) })
+      : (l) => T(l, 'Der Termin wird neu abgestimmt.', 'A new time is being arranged.', 'En ny tid tas fram.', 'Et nytt tidspunkt avtales.'), movedTo ? 'moved' : 'cancelled');
   }
   if (opts.movedTo) {
     // Verschoben: Leitfaden (mit Anpassungen und Haken) und Notizen gehören zum neuen Termin
@@ -814,6 +826,8 @@ interface InterviewBundle extends SubmissionBundle {
   attendees: any[];
   organizer: any | null;
   recruiter: { name: string; email: string | null; phone: string | null; title: string | null } | null;
+  /** Sprache, in der der Kandidat die Antwortseite offen hat (Mehrsprachigkeit) */
+  candidateLang?: Lang | null;
 }
 
 async function loadInterview(db: SupabaseClient, where: { id?: string; tokenHash?: string; legacyToken?: string; clientTokenHash?: string }): Promise<InterviewBundle | null> {
@@ -846,6 +860,31 @@ async function clientRecipients(db: SupabaseClient, b: InterviewBundle): Promise
   const prof = await profileOf(db, b.interview.requested_by ?? b.job.client_id);
   return prof?.email ? [{ user_id: b.interview.requested_by ?? b.job.client_id, email: prof.email, name: prof.name }] : [];
 }
+
+// ---------------------------------------------------------------------------
+// Sprache je Empfänger (Mehrsprachigkeit, 13.11.2026): Kandidat → die Sprache, in der er
+// die Antwortseite offen hat, sonst die seines Headhunters; Headhunter → Profil; Kunde und
+// Kollegen → Profil (Konto oder Mailadresse), sonst die Sprache des Organisators, sonst Deutsch.
+// ---------------------------------------------------------------------------
+
+const langOfCandidate = async (ctx: ServiceCtx, b: SubmissionBundle & { candidateLang?: Lang | null }): Promise<Lang> =>
+  b.candidateLang ?? await candidateLanguage(ctx.db, b.submission.recruiter_id);
+const langOfRecruiter = (ctx: ServiceCtx, b: SubmissionBundle): Promise<Lang> => recruiterLanguage(ctx.db, b.submission.recruiter_id);
+async function langOfClient(ctx: ServiceCtx, r: { user_id?: string | null; email?: string | null }, fallbackUserId?: string | null): Promise<Lang> {
+  return (await languageOfUser(ctx.db, r.user_id))
+    ?? (await languageOfEmail(ctx.db, r.email))
+    ?? (fallbackUserId && fallbackUserId !== r.user_id ? await languageOfUser(ctx.db, fallbackUserId) : null)
+    ?? 'de';
+}
+const organizerIdOf = (b: InterviewBundle): string | null => b.interview.organizer_user_id ?? b.interview.requested_by ?? b.organizer?.user_id ?? null;
+/** Empfänger einer Kalender-Einladung (recipient_key) → Sprache. */
+async function langOfInviteKey(ctx: ServiceCtx, b: InterviewBundle, key: string, email: string): Promise<Lang> {
+  if (key === 'candidate') return langOfCandidate(ctx, b);
+  if (key === 'recruiter') return langOfRecruiter(ctx, b);
+  const att = b.attendees.find((a: any) => `a-${a.id}` === key);
+  return langOfClient(ctx, { user_id: att?.user_id ?? null, email }, organizerIdOf(b));
+}
+const T = (lang: Lang | null | undefined, de: string, en: string, sv: string, nb: string, vars?: Record<string, string | number>) => tr(lang, { de, en, sv, nb }, vars);
 
 const tokenExpired = (b: InterviewBundle, now: number) => !!b.interview.response_token_expires_at && Date.parse(b.interview.response_token_expires_at) < now;
 
@@ -900,10 +939,10 @@ function meetingOf(b: InterviewBundle): mails.MeetingInfo {
   };
 }
 
-function icsLocation(m: mails.MeetingInfo): string {
-  if (m.format === 'phone') return `Telefon: ${m.companyName} ruft an`;
-  if (m.format === 'onsite') return (m.address ?? 'Vor Ort').replace(/\s*\n\s*/g, ', ');
-  return 'Microsoft Teams-Besprechung';
+function icsLocation(m: mails.MeetingInfo, lang?: Lang | null): string {
+  if (m.format === 'phone') return T(lang, 'Telefon: {co} ruft an', 'Phone: {co} will call', 'Telefon: {co} ringer', 'Telefon: {co} ringer', { co: m.companyName });
+  if (m.format === 'onsite') return (m.address ?? mails.formatLabel('onsite', lang)).replace(/\s*\n\s*/g, ', ');
+  return T(lang, 'Microsoft Teams-Besprechung', 'Microsoft Teams meeting', 'Microsoft Teams-möte', 'Microsoft Teams-møte');
 }
 
 /** Telefon-Interview: Nummer des Kandidaten (neu angegeben oder hinterlegt). */
@@ -991,6 +1030,7 @@ function requireConsent(b: InterviewBundle, body: any) {
 
 export async function candidateRespond(ctx: ServiceCtx, body: any) {
   const b = await byCandidateToken(ctx.db, body.token);
+  b.candidateLang = normLang(body?.lang);
   const now = ctx.now();
   const state = stateOf(b, now);
   must(state === 'open', state === 'expired' ? 'Diese Einladung ist abgelaufen.' : 'Diese Einladung wurde bereits beantwortet.', 'conflict');
@@ -1047,14 +1087,14 @@ async function requestAlternative(ctx: ServiceCtx, b: InterviewBundle, start: st
   const agendaUrl = `${ctx.appUrl()}/dashboard/interviews?interview=${iv.id}`;
   const confirmUrl = `${ctx.appUrl()}/interview/bestaetigen/${clientToken}`;
   for (const r of await clientRecipients(ctx.db, b)) {
-    const content = mails.clientAlternative({ candidateLabel: label, jobTitle: b.job.title, startIso: start, durationMinutes: duration, message, confirmUrl, agendaUrl });
+    const content = mails.clientAlternative({ candidateLabel: label, jobTitle: b.job.title, startIso: start, durationMinutes: duration, message, confirmUrl, agendaUrl, lang: await langOfClient(ctx, r, organizerIdOf(b)) });
     await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: r.email, ...content }, { template: 'interview_alternative_client', meta: { interview_id: iv.id } });
     await notify(ctx, r.user_id, 'interview_alternative', 'Der Kandidat fragt eine andere Zeit an', `${label}: ${formatBerlinDateShort(start)}`, iv.id);
   }
-  const receipt = mails.candidateRequestReceived({ firstName: firstName(b.candidate.full_name), companyName: b.job.company_name, startIso: start, durationMinutes: duration, recruiterName: b.recruiter?.name ?? null });
+  const receipt = mails.candidateRequestReceived({ firstName: firstName(b.candidate.full_name), companyName: b.job.company_name, startIso: start, durationMinutes: duration, recruiterName: b.recruiter?.name ?? null, lang: await langOfCandidate(ctx, b) });
   await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: b.candidate.email, ...receipt }, { template: 'interview_alternative_candidate', meta: { interview_id: iv.id } });
   if (b.recruiter?.email) {
-    const content = mails.recruiterUpdate({ kind: 'alternative', candidateName: b.candidate.full_name, companyName: recruiterCompanyLabel(b), jobTitle: b.job.title, startIso: start, durationMinutes: duration, detailUrl: `${ctx.appUrl()}/recruiter/submissions/${b.submission.id}` });
+    const content = mails.recruiterUpdate({ kind: 'alternative', candidateName: b.candidate.full_name, companyName: recruiterCompanyLabel(b), jobTitle: b.job.title, startIso: start, durationMinutes: duration, detailUrl: `${ctx.appUrl()}/recruiter/submissions/${b.submission.id}`, lang: await langOfRecruiter(ctx, b) });
     await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: b.recruiter.email, ...content }, { template: 'interview_alternative_recruiter', meta: { interview_id: iv.id } });
   }
   await notify(ctx, b.submission.recruiter_id, 'interview_alternative', `${b.candidate.full_name} fragt eine andere Zeit an`, b.job.title, iv.id);
@@ -1089,14 +1129,14 @@ async function declineInterview(ctx: ServiceCtx, b: InterviewBundle, reason: str
   await ctx.db.from('submissions').update({ stage: 'interview_declined' }).eq('id', b.submission.id);
   const label = candidateLabel(b);
   for (const r of await clientRecipients(ctx.db, b)) {
-    const content = mails.clientDeclined({ candidateLabel: label, jobTitle: b.job.title, reason, recruiterName: b.recruiter?.name ?? null, agendaUrl: `${ctx.appUrl()}/dashboard/candidates` });
+    const content = mails.clientDeclined({ candidateLabel: label, jobTitle: b.job.title, reason, recruiterName: b.recruiter?.name ?? null, agendaUrl: `${ctx.appUrl()}/dashboard/candidates`, lang: await langOfClient(ctx, r, organizerIdOf(b)) });
     await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: r.email, ...content }, { template: 'interview_declined_client', meta: { interview_id: iv.id } });
     await notify(ctx, r.user_id, 'interview_declined', `${label} hat das Interview abgelehnt`, reason ?? b.job.title, iv.id);
   }
   // Hat der Headhunter selbst abgesagt, braucht er keine Mail über seine eigene Absage
   if (opts.byRecruiter) return;
   if (b.recruiter?.email) {
-    const content = mails.recruiterUpdate({ kind: 'declined', candidateName: b.candidate.full_name, companyName: recruiterCompanyLabel(b), jobTitle: b.job.title, reason, detailUrl: `${ctx.appUrl()}/recruiter/submissions/${b.submission.id}` });
+    const content = mails.recruiterUpdate({ kind: 'declined', candidateName: b.candidate.full_name, companyName: recruiterCompanyLabel(b), jobTitle: b.job.title, reason, detailUrl: `${ctx.appUrl()}/recruiter/submissions/${b.submission.id}`, lang: await langOfRecruiter(ctx, b) });
     await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: b.recruiter.email, ...content }, { template: 'interview_declined_recruiter', meta: { interview_id: iv.id } });
   }
   await notify(ctx, b.submission.recruiter_id, 'interview_declined', `${b.candidate.full_name} hat das Interview abgelehnt`, reason ?? b.job.title, iv.id);
@@ -1108,7 +1148,7 @@ async function keepPreviousTerm(ctx: ServiceCtx, b: InterviewBundle, reason: str
   const label = candidateLabel(b);
   if (!prev?.scheduled_at || prev.status !== 'scheduled') return;
   for (const r of await clientRecipients(ctx.db, b)) {
-    const content = mails.clientRescheduleDeclined({ candidateLabel: label, jobTitle: b.job.title, previousStart: prev.scheduled_at, durationMinutes: prev.duration_minutes ?? 60, reason, agendaUrl: `${ctx.appUrl()}/dashboard/interviews?interview=${prev.id}` });
+    const content = mails.clientRescheduleDeclined({ candidateLabel: label, jobTitle: b.job.title, previousStart: prev.scheduled_at, durationMinutes: prev.duration_minutes ?? 60, reason, agendaUrl: `${ctx.appUrl()}/dashboard/interviews?interview=${prev.id}`, lang: await langOfClient(ctx, r, organizerIdOf(b)) });
     await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: r.email, ...content }, { template: 'interview_reschedule_declined_client', meta: { interview_id: b.interview.id } });
     await notify(ctx, r.user_id, 'interview_reschedule_declined', `${label} bleibt beim bisherigen Termin`, b.job.title, prev.id);
   }
@@ -1228,27 +1268,38 @@ export async function finalizeBooking(ctx: ServiceCtx, b: InterviewBundle, start
   }
 }
 
-function inviteDescription(m: mails.MeetingInfo, extra: string) {
+function inviteDescription(m: mails.MeetingInfo, extra: string, lang?: Lang | null) {
   const how = m.format === 'phone'
-    ? `Telefon-Interview: ${m.companyName} ruft an${m.callPhone ? ` (${m.callPhone})` : ''}.`
+    ? T(lang, 'Telefon-Interview: {co} ruft an{p}.', 'Phone interview: {co} will call{p}.', 'Telefonintervju: {co} ringer{p}.', 'Telefonintervju: {co} ringer{p}.', { co: m.companyName, p: m.callPhone ? ` (${m.callPhone})` : '' })
     : m.format === 'onsite'
-      ? [`Vor Ort: ${(m.address ?? '').replace(/\s*\n\s*/g, ', ')}`, m.note, mails.contactLine(m) ? `Ansprechpartner vor Ort: ${mails.contactLine(m)}` : null, m.address ? `Karte: ${mails.mapsUrl(m.address)}` : null].filter(Boolean).join('\n')
+      ? [`${mails.formatLabel('onsite', lang)}: ${(m.address ?? '').replace(/\s*\n\s*/g, ', ')}`, m.note,
+        mails.contactLine(m) ? `${T(lang, 'Ansprechpartner vor Ort', 'Contact on site', 'Kontaktperson på plats', 'Kontaktperson på stedet')}: ${mails.contactLine(m)}` : null,
+        m.address ? `${T(lang, 'Karte', 'Map', 'Karta', 'Kart')}: ${mails.mapsUrl(m.address)}` : null].filter(Boolean).join('\n')
       : m.joinUrl
-        ? [`Microsoft Teams: ${m.joinUrl}`, 'Teilnahme mit Teams-App oder im Browser, kein Konto nötig.'].join('\n\n')
-        : 'Den Link zum Gespräch bekommen Sie per Mail, sobald er feststeht.';
+        ? [`Microsoft Teams: ${m.joinUrl}`, T(lang, 'Teilnahme mit Teams-App oder im Browser, kein Konto nötig.', 'Join with the Teams app or in your browser, no account needed.', 'Delta via Teams-appen eller i webbläsaren, inget konto behövs.', 'Delta med Teams-appen eller i nettleseren, ingen konto nødvendig.')].join('\n\n')
+        : T(lang, 'Den Link zum Gespräch bekommen Sie per Mail, sobald er feststeht.', 'You will receive the link to the interview by email as soon as it is available.', 'Länken till intervjun får du via mejl så snart den är klar.', 'Lenken til intervjuet får du på e-post så snart den er klar.');
   return [how, extra].filter(Boolean).join('\n\n');
 }
 
-async function sendInvite(ctx: ServiceCtx, b: InterviewBundle, r: { key: string; email: string; name: string }, method: 'REQUEST' | 'CANCEL', content: mails.MailContent, ics: { summary: string; description: string; startMs: number }, template: string) {
+/** Kalendertexte je Empfängerseite (Titel und Zusatzzeilen). */
+const icsText = {
+  candidateSummary: (b: InterviewBundle, l?: Lang | null) => T(l, 'Interview: {job} bei {co}', 'Interview: {job} at {co}', 'Intervju: {job} hos {co}', 'Intervju: {job} hos {co}', { job: b.job.title, co: b.job.company_name }),
+  recruiterSummary: (b: InterviewBundle, l?: Lang | null) => T(l, 'Interview {c} · {co}', 'Interview {c} · {co}', 'Intervju {c} · {co}', 'Intervju {c} · {co}', { c: b.candidate.full_name, co: b.job.company_name }),
+  clientSummary: (b: InterviewBundle, l?: Lang | null) => T(l, 'Interview: {c} · {job}', 'Interview: {c} · {job}', 'Intervju: {c} · {job}', 'Intervju: {c} · {job}', { c: b.candidate.full_name, job: b.job.title }),
+  recruiterExtra: (b: InterviewBundle, l?: Lang | null) => T(l, 'Kandidat: {c}\nStelle: {job}', 'Candidate: {c}\nRole: {job}', 'Kandidat: {c}\nTjänst: {job}', 'Kandidat: {c}\nStilling: {job}', { c: b.candidate.full_name, job: b.job.title }),
+  clientExtra: (url: string, l?: Lang | null) => T(l, 'Lebenslauf und Leitfaden: {u}', 'CV and interview guide: {u}', 'CV och intervjuguide: {u}', 'CV og intervjuguide: {u}', { u: url }),
+};
+
+async function sendInvite(ctx: ServiceCtx, b: InterviewBundle, r: { key: string; email: string; name: string; lang?: Lang | null }, method: 'REQUEST' | 'CANCEL', content: mails.MailContent, ics: { summary: string; description: string; startMs: number }, template: string) {
   const iv = b.interview;
   const { data: existing } = await ctx.db.from('interview_invites').select('id, uid, sequence').eq('interview_id', iv.id).eq('recipient_key', r.key).maybeSingle();
   const uid = existing?.uid ?? inviteUid(iv.id, r.key);
   const sequence = existing ? existing.sequence + 1 : 0;
   const icsContent = buildIcs({
     method, uid, sequence, startIso: new Date(ics.startMs).toISOString(), durationMinutes: iv.duration_minutes ?? 60,
-    summary: ics.summary, description: ics.description, location: icsLocation(meetingOf(b)), url: formatOf(iv) === 'teams' ? iv.teams_join_url ?? undefined : undefined,
+    summary: ics.summary, description: ics.description, location: icsLocation(meetingOf(b), r.lang), url: formatOf(iv) === 'teams' ? iv.teams_join_url ?? undefined : undefined,
     organizerEmail: ctx.fromEmail, organizerName: 'Matchunt Termine', attendeeEmail: r.email, attendeeName: r.name, nowMs: ctx.now(),
-    alarmMinutes: formatOf(iv) === 'onsite' ? 60 : 15,
+    alarmMinutes: formatOf(iv) === 'onsite' ? 60 : 15, lang: r.lang,
   });
   const result = await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt Termine', to: r.email, ...content, ics: { content: icsContent, method } }, { template, meta: { interview_id: iv.id, recipient: r.key } });
   await ctx.db.from('interview_invites').upsert({
@@ -1269,49 +1320,57 @@ async function sendBookingMails(ctx: ServiceCtx, b: InterviewBundle, startMs: nu
   const meeting: mails.MeetingInfo = { ...meetingOf(b), joinUrl };
 
   // Kandidat
-  await sendInvite(ctx, b, { key: 'candidate', email: b.candidate.email, name: candidateName },
+  const candLang = await langOfCandidate(ctx, b);
+  const candExtra = T(candLang, 'Gesprächspartner: {names}', 'Interviewers: {names}', 'Du träffar: {names}', 'Du møter: {names}', { names: interviewerNames })
+    + (recruiterRef ? `\n${T(candLang, 'Fragen', 'Questions', 'Frågor', 'Spørsmål')}: ${recruiterRef.name}${recruiterRef.phone ? `, ${recruiterRef.phone}` : ''}` : '');
+  await sendInvite(ctx, b, { key: 'candidate', email: b.candidate.email, name: candidateName, lang: candLang },
     'REQUEST',
-    mails.candidateBooked({ firstName: firstName(candidateName), companyName: b.job.company_name, jobTitle: b.job.title, startIso, durationMinutes: duration, joinUrl, recruiter: recruiterRef, link: '', meeting, round: iv.round ?? 1 }),
-    { summary: `Interview: ${b.job.title} bei ${b.job.company_name}`, description: inviteDescription(meeting, `Gesprächspartner: ${interviewerNames}${recruiterRef ? `\nFragen: ${recruiterRef.name}${recruiterRef.phone ? `, ${recruiterRef.phone}` : ''}` : ''}`), startMs },
+    mails.candidateBooked({ firstName: firstName(candidateName), companyName: b.job.company_name, jobTitle: b.job.title, startIso, durationMinutes: duration, joinUrl, recruiter: recruiterRef, link: '', meeting, round: iv.round ?? 1, lang: candLang }),
+    { summary: icsText.candidateSummary(b, candLang), description: inviteDescription(meeting, candExtra, candLang), startMs },
     'interview_booked_candidate');
 
   // Headhunter
   if (b.recruiter?.email) {
-    await sendInvite(ctx, b, { key: 'recruiter', email: b.recruiter.email, name: b.recruiter.name }, 'REQUEST',
-      mails.recruiterUpdate({ kind: 'booked', candidateName, companyName: recruiterCompanyLabel(b), jobTitle: b.job.title, startIso, durationMinutes: duration, detailUrl: `${ctx.appUrl()}/recruiter/submissions/${b.submission.id}`, format: meeting.format }),
-      { summary: `Interview ${candidateName} · ${b.job.company_name}`, description: inviteDescription(meeting, `Kandidat: ${candidateName}\nStelle: ${b.job.title}`), startMs },
+    const recLang = await langOfRecruiter(ctx, b);
+    await sendInvite(ctx, b, { key: 'recruiter', email: b.recruiter.email, name: b.recruiter.name, lang: recLang }, 'REQUEST',
+      mails.recruiterUpdate({ kind: 'booked', candidateName, companyName: recruiterCompanyLabel(b), jobTitle: b.job.title, startIso, durationMinutes: duration, detailUrl: `${ctx.appUrl()}/recruiter/submissions/${b.submission.id}`, format: meeting.format, lang: recLang }),
+      { summary: icsText.recruiterSummary(b, recLang), description: inviteDescription(meeting, icsText.recruiterExtra(b, recLang), recLang), startMs },
       'interview_booked_recruiter');
   }
 
   // Kundenseite (alte Anfragen ohne Teilnehmerliste: Ersteller der Stelle als Organisator)
   const clientSide = b.attendees.length ? b.attendees : (await clientRecipients(ctx.db, b)).map((r, i) => ({ ...r, id: `legacy-${i}`, is_organizer: true }));
   for (const a of clientSide) {
+    const aLang = await langOfClient(ctx, a, organizerIdOf(b));
     if (a.is_organizer) {
-      const content = mails.clientBooked({ candidateName, jobTitle: b.job.title, startIso, durationMinutes: duration, inOutlook: provider === 'client_calendar', profileUrl: `${ctx.appUrl()}/dashboard/candidates/${b.submission.id}`, meeting, round: iv.round ?? 1 });
+      const content = mails.clientBooked({ candidateName, jobTitle: b.job.title, startIso, durationMinutes: duration, inOutlook: provider === 'client_calendar', profileUrl: `${ctx.appUrl()}/dashboard/candidates/${b.submission.id}`, meeting, round: iv.round ?? 1, lang: aLang });
       if (provider === 'client_calendar') {
         await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: a.email, ...content }, { template: 'interview_booked_client', meta: { interview_id: iv.id } });
       } else {
-        await sendInvite(ctx, b, { key: `a-${a.id}`, email: a.email, name: a.name }, 'REQUEST', content,
-          { summary: `Interview: ${candidateName} · ${b.job.title}`, description: inviteDescription(meeting, `Lebenslauf und Leitfaden: ${agendaUrl}`), startMs }, 'interview_booked_client');
+        await sendInvite(ctx, b, { key: `a-${a.id}`, email: a.email, name: a.name, lang: aLang }, 'REQUEST', content,
+          { summary: icsText.clientSummary(b, aLang), description: inviteDescription(meeting, icsText.clientExtra(agendaUrl, aLang), aLang), startMs }, 'interview_booked_client');
       }
       await notify(ctx, a.user_id, 'interview_scheduled', `${candidateName} hat das Interview bestätigt`, formatBerlinDateShort(startIso), iv.id);
     } else if (provider !== 'client_calendar') {
       // Im Outlook-Fall verschickt Outlook die Einladung an die Kollegen selbst
-      await sendInvite(ctx, b, { key: `a-${a.id}`, email: a.email, name: a.name }, 'REQUEST',
-        mails.attendeeBooked({ name: a.name, organizerName: b.organizer?.name ?? 'Ihr Team', candidateName, jobTitle: b.job.title, startIso, durationMinutes: duration, joinUrl, agendaUrl, meeting }),
-        { summary: `Interview: ${candidateName} · ${b.job.title}`, description: inviteDescription(meeting, `Lebenslauf und Leitfaden: ${agendaUrl}`), startMs }, 'interview_booked_attendee');
+      await sendInvite(ctx, b, { key: `a-${a.id}`, email: a.email, name: a.name, lang: aLang }, 'REQUEST',
+        mails.attendeeBooked({ name: a.name, organizerName: b.organizer?.name ?? T(aLang, 'Ihr Team', 'Your team', 'Ditt team', 'Teamet ditt'), candidateName, jobTitle: b.job.title, startIso, durationMinutes: duration, joinUrl, agendaUrl, meeting, lang: aLang }),
+        { summary: icsText.clientSummary(b, aLang), description: inviteDescription(meeting, icsText.clientExtra(agendaUrl, aLang), aLang), startMs }, 'interview_booked_attendee');
     }
   }
   await notify(ctx, b.submission.recruiter_id, 'interview_scheduled', `Interview steht: ${candidateName}`, `${b.job.title} · ${formatBerlinDateShort(startIso)}`, iv.id);
 }
 
 /** Gebuchten Termin absagen: Outlook-Termin bzw. Matchunt-Besprechung löschen und Absagen an alle Matchunt-Einladungen. */
-async function cancelBookedMeeting(ctx: ServiceCtx, iv: any, comment: string, kind: 'cancelled' | 'moved' = 'cancelled') {
+/** comment: fester Text oder Text je Sprache des Empfängers (Mehrsprachigkeit). */
+async function cancelBookedMeeting(ctx: ServiceCtx, iv: any, comment: string | ((lang: Lang) => string), kind: 'cancelled' | 'moved' = 'cancelled') {
   const b = await loadInterview(ctx.db, { id: iv.id });
   if (!b) return;
+  const commentIn = (l: Lang) => (typeof comment === 'function' ? comment(l) : comment);
   if (iv.meeting_provider === 'client_calendar' && iv.outlook_event_id) {
     const token = await organizerToken(ctx, iv.organizer_user_id);
-    if (token) await cancelEvent(token, iv.outlook_event_id, comment).catch((e) => console.warn('[interview] Outlook-Absage gescheitert', e?.message));
+    const orgLang = await langOfClient(ctx, { user_id: iv.organizer_user_id ?? null });
+    if (token) await cancelEvent(token, iv.outlook_event_id, commentIn(orgLang)).catch((e) => console.warn('[interview] Outlook-Absage gescheitert', e?.message));
   }
   if (iv.meeting_provider === 'matchunt_teams' && iv.teams_meeting_id && ctx.ms) {
     await deleteMatchuntMeeting(ctx.ms, iv.teams_meeting_id).catch((e) => console.warn('[interview] Besprechung nicht gelöscht', e?.message));
@@ -1319,14 +1378,21 @@ async function cancelBookedMeeting(ctx: ServiceCtx, iv: any, comment: string, ki
   const { data: invites } = await ctx.db.from('interview_invites').select('recipient_key, email').eq('interview_id', iv.id).eq('last_method', 'REQUEST');
   const startMs = Date.parse(iv.scheduled_at);
   for (const inv of invites ?? []) {
-    const verb = kind === 'moved' ? 'verschoben' : 'abgesagt';
+    const l = await langOfInviteKey(ctx, b, inv.recipient_key, inv.email);
+    const moved = kind === 'moved';
+    const c = commentIn(l);
+    const line = moved
+      ? T(l, 'Der Termin am {d} wurde verschoben. {c}', 'The appointment on {d} has been rescheduled. {c}', 'Tiden {d} har flyttats. {c}', 'Avtalen {d} er flyttet. {c}', { d: formatBerlinDateShort(iv.scheduled_at, l), c })
+      : T(l, 'Der Termin am {d} wurde abgesagt. {c}', 'The appointment on {d} has been cancelled. {c}', 'Tiden {d} har ställts in. {c}', 'Avtalen {d} er avlyst. {c}', { d: formatBerlinDateShort(iv.scheduled_at, l), c });
     const content: mails.MailContent = {
-      subject: `${kind === 'moved' ? 'Verschoben' : 'Abgesagt'}: Interview ${b.job.title}`,
-      html: `<p>Der Termin am ${formatBerlinDateShort(iv.scheduled_at)} wurde ${verb}. ${comment}</p>`,
-      text: `Der Termin am ${formatBerlinDateShort(iv.scheduled_at)} wurde ${verb}. ${comment}`,
+      subject: moved
+        ? T(l, 'Verschoben: Interview {job}', 'Rescheduled: interview {job}', 'Flyttad: intervju {job}', 'Flyttet: intervju {job}', { job: b.job.title })
+        : T(l, 'Abgesagt: Interview {job}', 'Cancelled: interview {job}', 'Inställd: intervju {job}', 'Avlyst: intervju {job}', { job: b.job.title }),
+      html: `<p>${line}</p>`,
+      text: line,
     };
-    await sendInvite(ctx, b, { key: inv.recipient_key, email: inv.email, name: inv.email }, 'CANCEL', content,
-      { summary: `Interview ${b.job.title}`, description: comment, startMs }, 'interview_cancelled');
+    await sendInvite(ctx, b, { key: inv.recipient_key, email: inv.email, name: inv.email, lang: l }, 'CANCEL', content,
+      { summary: T(l, 'Interview {job}', 'Interview {job}', 'Intervju {job}', 'Intervju {job}', { job: b.job.title }), description: c, startMs }, 'interview_cancelled');
   }
 }
 
@@ -1391,13 +1457,14 @@ export async function withdraw(ctx: ServiceCtx, user: User, interviewId: string,
   const iv = b.interview;
   must(['pending_response', 'counter_proposed', 'scheduled'].includes(iv.status), 'Dieses Interview ist nicht mehr offen.', 'conflict');
   const text = String(reason ?? '').trim().slice(0, 500) || 'Vom Unternehmen zurückgezogen';
-  if (iv.status === 'scheduled') await cancelBookedMeeting(ctx, iv, text);
+  const given = String(reason ?? '').trim().slice(0, 500);
+  if (iv.status === 'scheduled') await cancelBookedMeeting(ctx, iv, given || ((l) => T(l, 'Vom Unternehmen zurückgezogen', 'Withdrawn by the company', 'Återkallad av företaget', 'Trukket tilbake av selskapet')));
   await ctx.db.from('interviews').update({
     status: 'cancelled', cancelled_at: new Date(ctx.now()).toISOString(), cancelled_by: user.id, cancellation_reason: text,
     response_token_expires_at: new Date(ctx.now()).toISOString(), client_token_hash: null,
   }).eq('id', iv.id);
   if (iv.status !== 'scheduled') {
-    const content = mails.candidateWithdrawn({ firstName: firstName(b.candidate.full_name), companyName: b.job.company_name, jobTitle: b.job.title, recruiterName: b.recruiter?.name ?? null });
+    const content = mails.candidateWithdrawn({ firstName: firstName(b.candidate.full_name), companyName: b.job.company_name, jobTitle: b.job.title, recruiterName: b.recruiter?.name ?? null, lang: await langOfCandidate(ctx, b) });
     await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: b.candidate.email, ...content }, { template: 'interview_withdrawn_candidate', meta: { interview_id: iv.id } });
   }
   await notify(ctx, b.submission.recruiter_id, 'interview_cancelled', `Interview-Anfrage zurückgezogen: ${b.candidate.full_name}`, text, iv.id);
@@ -1468,11 +1535,13 @@ export async function inviteColleague(ctx: ServiceCtx, user: User, body: any) {
   });
   dbFail(inviteErr, 'Die Einladung');
   const me = await personOf(ctx.db, user);
+  // Kollege ohne Konto: Profil zur Adresse, sonst die Sprache dessen, der einlädt
+  const lang = await langOfClient(ctx, { email }, user.id);
   const content = mails.teamInviteForInterview({
-    inviterName: me.name, orgName: org?.name ?? bundle.job.company_name, functionLabel, jobTitle: bundle.job.title, access,
-    inviteUrl: `${ctx.appUrl()}/invite/${token}`, decisionMaker,
+    inviterName: me.name, orgName: org?.name ?? bundle.job.company_name, functionLabel: mails.functionLabelIn(functionKey === 'andere' ? null : functionKey, functionLabel, lang), jobTitle: bundle.job.title, access,
+    inviteUrl: `${ctx.appUrl()}/invite/${token}`, decisionMaker, lang,
   });
-  const result = await ctx.mail({ fromEmail: ctx.fromEmail, fromName: `${me.name} über Matchunt`, to: email, replyTo: me.email || undefined, ...content }, { template: 'team_invite_interview', meta: { organization_id: orgId } });
+  const result = await ctx.mail({ fromEmail: ctx.fromEmail, fromName: viaMatchunt(me.name, lang), to: email, replyTo: me.email || undefined, ...content }, { template: 'team_invite_interview', meta: { organization_id: orgId } });
   return { attendee, emailSent: result.sent, note: result.sent ? null : 'Die Team-Einladung konnte nicht verschickt werden. Bitte später erneut versuchen.' };
 }
 
@@ -1740,6 +1809,7 @@ async function tellRecruiterFeedback(ctx: ServiceCtx, b: InterviewBundle, way: m
   if (nErr) console.warn('[interview] Feedback-Benachrichtigung nicht gespeichert', nErr.code, nErr.message);
   if (b.recruiter?.email) {
     const content = mails.recruiterFeedback({
+      lang: await langOfRecruiter(ctx, b),
       recruiterFirstName: firstName(b.recruiter.name), candidateName: b.candidate.full_name, companyName: company,
       jobTitle: b.job.title, round, way, impression: impression || null, question, submissionId: b.submission.id,
       akteUrl: `${ctx.appUrl()}/recruiter/candidates/${b.candidate.id}`,
@@ -1788,6 +1858,7 @@ async function sendRecommendationReminders(ctx: ServiceCtx) {
     await ctx.db.from('interviews').update({ feedback: JSON.stringify({ ...fb, rec_reminded_at: new Date(ctx.now()).toISOString() }) }).eq('id', row.id);
     if (b.recruiter?.email) {
       const content = mails.recruiterRecommendationReminder({
+        lang: await langOfRecruiter(ctx, b),
         recruiterFirstName: firstName(b.recruiter.name), candidateName: b.candidate.full_name, companyName: recruiterCompanyLabel(b),
         jobTitle: b.job.title, submissionId: b.submission.id, akteUrl: `${ctx.appUrl()}/recruiter/candidates/${b.candidate.id}`,
       });
@@ -1819,19 +1890,22 @@ export async function setMeetingLink(ctx: ServiceCtx, user: User, body: any) {
   const candidateName = b.candidate.full_name;
   const meeting: mails.MeetingInfo = { ...meetingOf(b), joinUrl: url };
   const agendaUrl = `${ctx.appUrl()}/dashboard/interviews?interview=${iv.id}`;
-  const content = (name: string | null, company: string) => mails.linkAdded({ name, companyName: company, jobTitle: b.job.title, startIso, durationMinutes: duration, joinUrl: url });
+  const content = (name: string | null, company: string, lang: Lang) => mails.linkAdded({ name, companyName: company, jobTitle: b.job.title, startIso, durationMinutes: duration, joinUrl: url, lang });
 
-  await sendInvite(ctx, b, { key: 'candidate', email: b.candidate.email, name: candidateName }, 'REQUEST', content(firstName(candidateName), b.job.company_name),
-    { summary: `Interview: ${b.job.title} bei ${b.job.company_name}`, description: inviteDescription(meeting, ''), startMs }, 'interview_link_candidate');
+  const candLang = await langOfCandidate(ctx, b);
+  await sendInvite(ctx, b, { key: 'candidate', email: b.candidate.email, name: candidateName, lang: candLang }, 'REQUEST', content(firstName(candidateName), b.job.company_name, candLang),
+    { summary: icsText.candidateSummary(b, candLang), description: inviteDescription(meeting, '', candLang), startMs }, 'interview_link_candidate');
   if (b.recruiter?.email) {
-    await sendInvite(ctx, b, { key: 'recruiter', email: b.recruiter.email, name: b.recruiter.name }, 'REQUEST', content(firstName(b.recruiter.name), recruiterCompanyLabel(b)),
-      { summary: `Interview ${candidateName} · ${b.job.company_name}`, description: inviteDescription(meeting, `Kandidat: ${candidateName}\nStelle: ${b.job.title}`), startMs }, 'interview_link_recruiter');
+    const recLang = await langOfRecruiter(ctx, b);
+    await sendInvite(ctx, b, { key: 'recruiter', email: b.recruiter.email, name: b.recruiter.name, lang: recLang }, 'REQUEST', content(firstName(b.recruiter.name), recruiterCompanyLabel(b), recLang),
+      { summary: icsText.recruiterSummary(b, recLang), description: inviteDescription(meeting, icsText.recruiterExtra(b, recLang), recLang), startMs }, 'interview_link_recruiter');
   }
   // Im Outlook-Fall steht der Termin beim Kunden selbst; sonst bekommen alle die aktualisierte Einladung
   if (iv.meeting_provider !== 'client_calendar') {
     for (const a of b.attendees) {
-      await sendInvite(ctx, b, { key: `a-${a.id}`, email: a.email, name: a.name }, 'REQUEST', content(firstName(a.name), b.job.company_name),
-        { summary: `Interview: ${candidateName} · ${b.job.title}`, description: inviteDescription(meeting, `Lebenslauf und Leitfaden: ${agendaUrl}`), startMs }, 'interview_link_client');
+      const aLang = await langOfClient(ctx, a, organizerIdOf(b));
+      await sendInvite(ctx, b, { key: `a-${a.id}`, email: a.email, name: a.name, lang: aLang }, 'REQUEST', content(firstName(a.name), b.job.company_name, aLang),
+        { summary: icsText.clientSummary(b, aLang), description: inviteDescription(meeting, icsText.clientExtra(agendaUrl, aLang), aLang), startMs }, 'interview_link_client');
     }
   }
   return { ok: true };
@@ -1869,18 +1943,20 @@ export async function sendDayBeforeReminders(ctx: ServiceCtx) {
     const meeting = meetingOf(b);
     const recruiterRef = b.recruiter ? { name: b.recruiter.name, phone: b.recruiter.phone } : null;
     if (b.candidate.email) {
+      const candLang = await langOfCandidate(ctx, b);
       const content = mails.candidateReminder({
+        lang: candLang,
         firstName: firstName(b.candidate.full_name), companyName: b.job.company_name, jobTitle: b.job.title, startIso, durationMinutes: duration, round, meeting,
         interviewers: b.attendees.map((a: any) => ({ name: a.name, title: a.title ?? null })), recruiter: recruiterRef,
       });
-      await ctx.mail({ fromEmail: ctx.fromEmail, fromName: b.recruiter ? `${b.recruiter.name} über Matchunt` : 'Matchunt', to: b.candidate.email, replyTo: b.recruiter?.email ?? undefined, ...content },
+      await ctx.mail({ fromEmail: ctx.fromEmail, fromName: b.recruiter ? viaMatchunt(b.recruiter.name, candLang) : 'Matchunt', to: b.candidate.email, replyTo: b.recruiter?.email ?? undefined, ...content },
         { template: 'interview_reminder_candidate', meta: { interview_id: iv.id } });
     }
     const agendaUrl = `${ctx.appUrl()}/dashboard/interviews?interview=${iv.id}`;
     const clientSide = b.attendees.length ? b.attendees : await clientRecipients(ctx.db, b);
     for (const a of clientSide as any[]) {
       if (!a.email) continue;
-      const content = mails.clientReminder({ name: a.name ?? null, candidateName: b.candidate.full_name, jobTitle: b.job.title, startIso, durationMinutes: duration, round, meeting, agendaUrl });
+      const content = mails.clientReminder({ name: a.name ?? null, candidateName: b.candidate.full_name, jobTitle: b.job.title, startIso, durationMinutes: duration, round, meeting, agendaUrl, lang: await langOfClient(ctx, a, organizerIdOf(b)) });
       await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: a.email, ...content }, { template: 'interview_reminder_client', meta: { interview_id: iv.id } });
     }
     await notify(ctx, b.submission.recruiter_id, 'interview_reminder', `Morgen: ${round > 1 ? `${round}. Gespräch` : 'Interview'} mit ${b.candidate.full_name}`,

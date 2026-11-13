@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -43,6 +44,7 @@ interface HubSpotImportDialogProps {
 
 export function HubSpotImportDialog({ open, onOpenChange, onImportComplete }: HubSpotImportDialogProps) {
   const { user } = useAuth();
+  const { t } = useTranslation('candidates');
   const [step, setStep] = useState<'fetch' | 'select' | 'gdpr' | 'importing' | 'complete'>('fetch');
   const [contacts, setContacts] = useState<HubSpotContact[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -72,11 +74,11 @@ export function HubSpotImportDialog({ open, onOpenChange, onImportComplete }: Hu
         setSelectedIds(new Set(data.contacts.map((c: HubSpotContact) => c.id)));
         setStep('select');
       } else {
-        throw new Error('Keine Kontakte gefunden');
+        throw new Error(t('hubspot.noContacts'));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Fehler beim Laden der Kontakte');
-      toast.error('Fehler beim Laden der HubSpot-Kontakte');
+      setError(err instanceof Error ? err.message : t('hubspot.loadError'));
+      toast.error(t('hubspot.loadErrorToast'));
     } finally {
       setLoading(false);
     }
@@ -84,7 +86,7 @@ export function HubSpotImportDialog({ open, onOpenChange, onImportComplete }: Hu
 
   const handleImport = async () => {
     if (selectedIds.size === 0) {
-      toast.error('Bitte wählen Sie mindestens einen Kontakt aus');
+      toast.error(t('hubspot.selectAtLeastOne'));
       return;
     }
 
@@ -189,10 +191,10 @@ export function HubSpotImportDialog({ open, onOpenChange, onImportComplete }: Hu
             <div className="w-8 h-8 rounded bg-orange-100 flex items-center justify-center">
               <span className="text-lg">🟠</span>
             </div>
-            HubSpot Import
+            {t('hubspot.title')}
           </DialogTitle>
           <DialogDescription>
-            Importieren Sie Kontakte aus HubSpot als Kandidaten
+            {t('hubspot.description')}
           </DialogDescription>
         </DialogHeader>
 
@@ -204,23 +206,23 @@ export function HubSpotImportDialog({ open, onOpenChange, onImportComplete }: Hu
                 <p className="text-destructive">{error}</p>
                 <Button onClick={fetchContacts} disabled={loading}>
                   <RefreshCw className="h-4 w-4 mr-2" />
-                  Erneut versuchen
+                  {t('hubspot.retry')}
                 </Button>
               </>
             ) : (
               <>
                 <Upload className="h-12 w-12 mx-auto text-muted-foreground" />
                 <p className="text-muted-foreground">
-                  Klicken Sie auf "Kontakte laden", um Ihre HubSpot-Kontakte abzurufen
+                  {t('hubspot.intro')}
                 </p>
                 <Button onClick={fetchContacts} disabled={loading}>
                   {loading ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Lade Kontakte...
+                      {t('hubspot.loading')}
                     </>
                   ) : (
-                    'Kontakte laden'
+                    t('hubspot.load')
                   )}
                 </Button>
               </>
@@ -237,7 +239,7 @@ export function HubSpotImportDialog({ open, onOpenChange, onImportComplete }: Hu
                   onCheckedChange={toggleAll}
                 />
                 <span className="text-sm text-muted-foreground">
-                  Alle auswählen ({selectedIds.size}/{contacts.length})
+                  {t('hubspot.selectAll', { selected: selectedIds.size, total: contacts.length })}
                 </span>
               </div>
             </div>
@@ -285,10 +287,10 @@ export function HubSpotImportDialog({ open, onOpenChange, onImportComplete }: Hu
 
             <DialogFooter>
               <Button variant="outline" onClick={() => handleClose(false)}>
-                Abbrechen
+                {t('actions.cancel')}
               </Button>
               <Button onClick={() => setStep('gdpr')} disabled={selectedIds.size === 0}>
-                Weiter
+                {t('actions.next')}
               </Button>
             </DialogFooter>
           </>
@@ -301,24 +303,23 @@ export function HubSpotImportDialog({ open, onOpenChange, onImportComplete }: Hu
                 <Shield className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
                 <div className="space-y-1">
                   <p className="text-sm">
-                    Sie sind verantwortlich für die rechtmäßige Verarbeitung dieser Kandidatendaten (DSGVO).
-                    Matchunt verarbeitet die Daten in Ihrem Auftrag.
+                    {t('gdpr.responsibility')}
                   </p>
                   <button
                     type="button"
                     className="text-xs text-primary hover:underline flex items-center gap-1"
                     onClick={() => setGdprInfoExpanded(!gdprInfoExpanded)}
                   >
-                    Mehr erfahren
+                    {t('gdpr.learnMore')}
                     {gdprInfoExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                   </button>
                   {gdprInfoExpanded && (
                     <ul className="text-xs text-muted-foreground space-y-1.5 pt-2 border-t mt-2">
-                      <li>• Daten abgelehnter Kandidaten werden nach 6 Monaten automatisch zur Löschung vorgeschlagen.</li>
-                      <li>• Für den Talent-Pool wird eine gesonderte Einwilligung des Kandidaten benötigt.</li>
+                      <li>{t('gdpr.deletionHint')}</li>
+                      <li>{t('gdpr.talentPoolHint')}</li>
                       <li className="pt-1">
                         <a href="/datenschutz" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
-                          Datenschutzerklärung <ExternalLink className="h-3 w-3" />
+                          {t('gdpr.privacyPolicy')} <ExternalLink className="h-3 w-3" />
                         </a>
                       </li>
                     </ul>
@@ -331,30 +332,30 @@ export function HubSpotImportDialog({ open, onOpenChange, onImportComplete }: Hu
               <label className="flex items-start gap-3 cursor-pointer">
                 <Checkbox checked={gdprLegalBasis} onCheckedChange={(v) => setGdprLegalBasis(v === true)} className="mt-0.5" />
                 <span className="text-sm leading-snug">
-                  Eine gültige Rechtsgrundlage für die Verarbeitung liegt vor (z.B. Einwilligung, Bewerbung oder berechtigtes Interesse gem. Art. 6 DSGVO).
+                  {t('gdpr.legalBasis')}
                 </span>
               </label>
               <label className="flex items-start gap-3 cursor-pointer">
                 <Checkbox checked={gdprCandidateInformed} onCheckedChange={(v) => setGdprCandidateInformed(v === true)} className="mt-0.5" />
                 <span className="text-sm leading-snug">
-                  Der Kandidat wurde bzw. wird über die Verarbeitung seiner Daten informiert.
+                  {t('gdpr.informed')}
                 </span>
               </label>
               <label className="flex items-start gap-3 cursor-pointer">
                 <Checkbox checked={gdprDataRelevant} onCheckedChange={(v) => setGdprDataRelevant(v === true)} className="mt-0.5" />
                 <span className="text-sm leading-snug">
-                  Die Daten enthalten nur bewerbungsrelevante Informationen.
+                  {t('gdpr.relevant')}
                 </span>
               </label>
             </div>
 
             <DialogFooter>
               <Button variant="outline" onClick={() => setStep('select')}>
-                Zurück
+                {t('actions.back')}
               </Button>
               <Button onClick={handleImport} disabled={!gdprAllChecked}>
                 <Upload className="h-4 w-4 mr-2" />
-                {selectedIds.size} importieren
+                {t('hubspot.importCount', { count: selectedIds.size })}
               </Button>
             </DialogFooter>
           </div>
@@ -363,10 +364,10 @@ export function HubSpotImportDialog({ open, onOpenChange, onImportComplete }: Hu
         {step === 'importing' && (
           <div className="py-8 text-center space-y-4">
             <Loader2 className="h-12 w-12 mx-auto text-primary animate-spin" />
-            <p className="font-medium">Importiere Kontakte...</p>
+            <p className="font-medium">{t('hubspot.importing')}</p>
             <Progress value={progress} className="max-w-xs mx-auto" />
             <p className="text-sm text-muted-foreground">
-              {Math.round(progress)}% abgeschlossen
+              {t('hubspot.progress', { percent: Math.round(progress) })}
             </p>
           </div>
         )}
@@ -374,22 +375,22 @@ export function HubSpotImportDialog({ open, onOpenChange, onImportComplete }: Hu
         {step === 'complete' && (
           <div className="py-8 text-center space-y-4">
             <CheckCircle className="h-12 w-12 mx-auto text-emerald-500" />
-            <p className="font-medium">Import abgeschlossen!</p>
+            <p className="font-medium">{t('hubspot.done')}</p>
             
             <div className="flex justify-center gap-4">
               {results.imported > 0 && (
                 <Badge variant="secondary" className="bg-emerald-100 text-emerald-700">
-                  {results.imported} importiert
+                  {t('hubspot.imported', { count: results.imported })}
                 </Badge>
               )}
               {results.skipped > 0 && (
                 <Badge variant="secondary" className="bg-amber-100 text-amber-700">
-                  {results.skipped} übersprungen
+                  {t('hubspot.skipped', { count: results.skipped })}
                 </Badge>
               )}
               {results.failed > 0 && (
                 <Badge variant="secondary" className="bg-red-100 text-red-700">
-                  {results.failed} fehlgeschlagen
+                  {t('hubspot.failed', { count: results.failed })}
                 </Badge>
               )}
             </div>
@@ -397,14 +398,14 @@ export function HubSpotImportDialog({ open, onOpenChange, onImportComplete }: Hu
             {results.skipped > 0 && (
               <Alert>
                 <AlertDescription className="text-sm">
-                  Einige Kontakte wurden übersprungen, da sie bereits als Kandidaten existieren.
+                  {t('hubspot.skippedHint')}
                 </AlertDescription>
               </Alert>
             )}
 
             <DialogFooter className="sm:justify-center">
               <Button onClick={() => handleClose(false)}>
-                Schließen
+                {t('actions.close')}
               </Button>
             </DialogFooter>
           </div>

@@ -2,6 +2,7 @@
 // der Kandidat selbst genannt hat; nie geschätzt. Die Untergrenze einer Spanne
 // wird nie automatisch zur Schmerzgrenze.
 
+import i18n from '@/i18n';
 import type { DossierForm } from '@/lib/candidateDossier';
 import type { RoleFamily } from '@/lib/roleFamily';
 
@@ -36,7 +37,7 @@ export function minimumChips(wish: number | null, current: number | null): Salar
     add(roundSalary(wish * 0.95), `${kLabel(roundSalary(wish * 0.95))} (−5 %)`);
     add(roundSalary(wish * 0.9), `${kLabel(roundSalary(wish * 0.9))} (−10 %)`);
   }
-  if (current) add(current, `${kLabel(current)} (wie heute)`);
+  if (current) add(current, i18n.t('candidateDossier:salary.asToday', { amount: kLabel(current) }));
   return out;
 }
 
@@ -45,9 +46,9 @@ export function salaryWarnings(f: Pick<DossierForm, 'current_salary' | 'expected
   const out: string[] = [];
   const { current_salary: cur, expected_salary: wish, salary_minimum: min } = f;
   const monthly = [cur, wish, min].some((v) => v != null && v >= 1_500 && v < 15_000);
-  if (monthly) out.push('Sieht nach Monatsgehalt aus. Bitte als Jahresgehalt eintragen (×12 oder ×13).');
-  if (cur && wish && wish < cur) out.push('Wunschgehalt liegt unter dem heutigen Gehalt. Gewollt?');
-  if (wish && min && min > wish) out.push('Schmerzgrenze liegt über dem Wunschgehalt. Vertauscht?');
-  if (cur && wish && wish > cur * 1.4) out.push('Mehr als 40 % über heute. Fix und Gesamt vermischt?');
+  if (monthly) out.push(i18n.t('candidateDossier:salary.warnMonthly'));
+  if (cur && wish && wish < cur) out.push(i18n.t('candidateDossier:salary.warnBelowCurrent'));
+  if (wish && min && min > wish) out.push(i18n.t('candidateDossier:salary.warnMinAboveWish'));
+  if (cur && wish && wish > cur * 1.4) out.push(i18n.t('candidateDossier:salary.warnOver40'));
   return out;
 }

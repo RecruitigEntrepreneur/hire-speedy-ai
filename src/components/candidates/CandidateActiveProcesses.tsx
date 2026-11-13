@@ -19,7 +19,10 @@ import {
 } from 'lucide-react';
 import { formatSimpleAnonymousCompany } from '@/lib/anonymousCompanyFormat';
 import { format, formatDistanceToNow, isToday, isTomorrow, isPast } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
+import { dateFnsLocale } from '@/lib/candidateDateLocale';
+import { intlLocale } from '@/i18n/languages';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { ScrollMoreHint } from './ScrollMoreHint';
@@ -28,14 +31,13 @@ import { SubmissionDetailDialog } from '@/components/influence/SubmissionDetailD
 import { OfferAnswerDialog } from '@/components/offers/OfferAnswerDialog';
 import { RecommendationDialog } from '@/components/offers/RecommendationDialog';
 import { KundenFrageWindow } from '@/components/recruiter/tasks/KundenFrageWindow';
-import { dayDe } from '@/lib/offerApi';
 
 // Angebot läuft: bei der Kandidatin, Zusage gemeldet oder Gegenwunsch beim Kunden (G + H, 26.10.2026)
 const RUNNING_OFFER = ['with_recruiter', 'considering', 'accept_reported', 'countered'];
 const offerHint = (o: { status: string; response_due: string | null }) =>
-  o.status === 'accept_reported' ? 'Zusage gemeldet'
-    : o.status === 'countered' ? 'Gegenwunsch'
-      : o.response_due ? `bis ${dayDe(o.response_due)}` : '';
+  o.status === 'accept_reported' ? i18n.t('candidateDetail:process.offerAccepted')
+    : o.status === 'countered' ? i18n.t('candidateDetail:process.offerCountered')
+      : o.response_due ? i18n.t('candidateDetail:process.offerUntil', { date: new Date(o.response_due).toLocaleDateString(intlLocale(i18n.language), { day: 'numeric', month: 'numeric' }) }) : '';
 
 interface CandidateActiveProcessesProps {
   candidateId: string;
@@ -74,6 +76,9 @@ function getStageInfo(stage: string | null) {
   return STAGE_CONFIG[stage || 'new'] || STAGE_CONFIG.new;
 }
 
+/** Schlüssel für die Beschriftung: candidateDetail:stage.<stufe> und stageShort.<stufe>. */
+const stageKey = (stage: string | null) => (STAGE_CONFIG[stage || 'new'] ? stage || 'new' : 'new');
+
 function getStageIndex(stage: string | null): number {
   const idx = STAGE_ORDER.indexOf((stage || 'new') as any);
   return idx >= 0 ? idx : 0;
@@ -82,21 +87,22 @@ function getStageIndex(stage: string | null): number {
 function formatInterviewCountdown(scheduledAt: string): { text: string; urgent: boolean } {
   const date = new Date(scheduledAt);
   if (isPast(date)) {
-    return { text: `Vergangen`, urgent: true };
+    return { text: i18n.t('candidateDetail:process.past'), urgent: true };
   }
   if (isToday(date)) {
-    return { text: `Heute ${format(date, 'HH:mm')}`, urgent: true };
+    return { text: i18n.t('candidateDetail:process.today', { time: format(date, 'HH:mm') }), urgent: true };
   }
   if (isTomorrow(date)) {
-    return { text: `Morgen ${format(date, 'HH:mm')}`, urgent: false };
+    return { text: i18n.t('candidateDetail:process.tomorrow', { time: format(date, 'HH:mm') }), urgent: false };
   }
   return {
-    text: `${format(date, 'EEE d. MMM', { locale: de })}`,
+    text: `${format(date, 'EEE d. MMM', { locale: dateFnsLocale(i18n.language) })}`,
     urgent: false,
   };
 }
 
 function MiniStagePipeline({ currentStage }: { currentStage: string | null }) {
+  const { t } = useTranslation('candidateDetail');
   const currentIndex = getStageIndex(currentStage);
   const keyStages = ['submitted', 'screening', 'interview', 'offer', 'hired'];
 
@@ -124,8 +130,8 @@ function MiniStagePipeline({ currentStage }: { currentStage: string | null }) {
               />
             </TooltipTrigger>
             <TooltipContent side="bottom" className="text-xs">
-              {stageConfig.label}
-              {isActive && ' (aktuell)'}
+              {t(`stage.${stageKey(stage)}`)}
+              {isActive && t('process.currentSuffix')}
               {isPassed && ' \u2713'}
             </TooltipContent>
           </Tooltip>
@@ -136,13 +142,14 @@ function MiniStagePipeline({ currentStage }: { currentStage: string | null }) {
 }
 
 function TripleBlindBadge({ companyRevealed, identityUnlocked }: { companyRevealed: boolean; identityUnlocked?: boolean }) {
+  const { t } = useTranslation('candidateDetail');
   if (companyRevealed || identityUnlocked) {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
           <Unlock className="h-3 w-3 text-green-500 shrink-0" />
         </TooltipTrigger>
-        <TooltipContent side="bottom" className="text-xs">Identitäten freigeschaltet</TooltipContent>
+        <TooltipContent side="bottom" className="text-xs">{t('process.identitiesUnlocked')}</TooltipContent>
       </Tooltip>
     );
   }
@@ -151,12 +158,13 @@ function TripleBlindBadge({ companyRevealed, identityUnlocked }: { companyReveal
       <TooltipTrigger asChild>
         <Shield className="h-3 w-3 text-muted-foreground shrink-0" />
       </TooltipTrigger>
-      <TooltipContent side="bottom" className="text-xs">Triple-Blind aktiv</TooltipContent>
+      <TooltipContent side="bottom" className="text-xs">{t('process.tripleBlind')}</TooltipContent>
     </Tooltip>
   );
 }
 
 export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcessesProps) {
+  const { t, i18n: lang } = useTranslation('candidateDetail');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   // Angebots-Fenster je Einreichung: der Weg zurück ins Angebot, solange es läuft
@@ -274,7 +282,7 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
         <div className="flex items-center gap-2">
           <Briefcase className="h-3.5 w-3.5 text-muted-foreground animate-pulse" />
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Aktive Prozesse
+            {t('process.title')}
           </span>
         </div>
         <div className="flex gap-2">
@@ -291,10 +299,10 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
         <div className="flex items-center gap-2">
           <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Aktive Prozesse
+            {t('process.title')}
           </span>
         </div>
-        <p className="text-xs text-muted-foreground pl-5.5">Keine aktiven Prozesse</p>
+        <p className="text-xs text-muted-foreground pl-5.5">{t('process.none')}</p>
       </div>
     );
   }
@@ -335,7 +343,7 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
               ? companyRevealed
                 ? process.job.company_name
                 : formatSimpleAnonymousCompany(process.job.industry)
-              : 'Unbekannt';
+              : t('common.unknown');
 
             const meetingLink = process.nextInterview?.teams_join_url
               || process.nextInterview?.google_meet_link
@@ -347,7 +355,7 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
 
             const isAwaitingOptIn = process.stage === 'interview_requested';
             const timeSinceSubmission = process.submitted_at
-              ? formatDistanceToNow(new Date(process.submitted_at), { locale: de, addSuffix: true })
+              ? formatDistanceToNow(new Date(process.submitted_at), { locale: dateFnsLocale(lang.language), addSuffix: true })
               : null;
 
             return (
@@ -392,7 +400,7 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
 
                 {/* Row 2: Job title */}
                 <p className="text-[11px] text-muted-foreground truncate mt-0.5">
-                  {process.job?.title || 'Unbekannte Stelle'}
+                  {process.job?.title || t('process.unknownRole')}
                 </p>
 
                 {/* Row 3: Stage pipeline */}
@@ -402,7 +410,7 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
                     variant="outline"
                     className={cn('shrink-0 text-[9px] px-1.5 py-0 leading-4', stageInfo.className)}
                   >
-                    {stageInfo.shortLabel}
+                    {t(`stageShort.${stageKey(process.stage)}`)}
                   </Badge>
                 </div>
 
@@ -416,7 +424,7 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
                         className="inline-flex items-center gap-1 rounded border border-primary/40 px-1.5 py-px font-medium text-primary hover:bg-primary/10"
                       >
                         <FileText className="h-2.5 w-2.5" />
-                        Angebot öffnen
+                        {t('process.openOffer')}
                       </button>
                       {offerHint(process.runningOffer)}
                     </span>
@@ -435,7 +443,7 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
                   {!process.runningOffer && isAwaitingOptIn && !interviewInfo && (
                     <span className="inline-flex items-center gap-1 text-amber-600 font-medium">
                       <Clock className="h-2.5 w-2.5" />
-                      Wartet auf Opt-In
+                      {t('process.awaitingOptIn')}
                     </span>
                   )}
 

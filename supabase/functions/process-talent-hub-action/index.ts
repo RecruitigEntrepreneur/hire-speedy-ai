@@ -1,5 +1,11 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { pick } from "../_shared/mail-i18n.ts";
+import type { Lang } from "../_shared/i18n.ts";
+import { recruiterLanguage } from "../_shared/recipient-language.ts";
+
+// Glocke und Mail an den Headhunter in seiner Profilsprache (Mehrsprachigkeit 13.11.2026); Deutsch wortgleich
+const T = (l: Lang, de: string, en: string, sv: string, nb: string) => pick(l, { de, en, sv, nb });
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -62,6 +68,8 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     let result: any = { success: true };
+    // Sprache des Headhunters (Empfänger von Glocke und Mail)
+    const rl: Lang = await recruiterLanguage(supabase as any, submission.recruiter_id);
 
     switch (action) {
       case "request_interview": {
@@ -89,8 +97,8 @@ const handler = async (req: Request): Promise<Response> => {
         await supabase.from("notifications").insert({
           user_id: submission.recruiter_id,
           type: "interview_request",
-          title: "Interview-Anfrage von Kunde",
-          message: `Ein Kunde möchte ein Interview mit einem Ihrer Kandidaten für "${submission.job?.title}" führen.`,
+          title: T(rl, "Interview-Anfrage von Kunde", "Interview request from a client", "Intervjuförfrågan från kund", "Intervjuforespørsel fra kunde"),
+          message: T(rl, `Ein Kunde möchte ein Interview mit einem Ihrer Kandidaten für "${submission.job?.title}" führen.`, `A client would like to interview one of your candidates for "${submission.job?.title}".`, `En kund vill intervjua en av dina kandidater för "${submission.job?.title}".`, `En kunde ønsker å intervjue en av kandidatene dine til "${submission.job?.title}".`),
           metadata: {
             submission_id: submissionId,
             interview_id: interview.id,
@@ -101,11 +109,12 @@ const handler = async (req: Request): Promise<Response> => {
         // Send email to recruiter
         await sendEmail(supabase, {
           to: submission.recruiter_id,
+          lang: rl,
           template: "interview_request_to_recruiter",
           data: {
             jobTitle: submission.job?.title,
-            companyName: submission.job?.client?.company_name || "Unternehmen",
-            candidateAnonymId: `Kandidat #${submission.id.slice(0, 8).toUpperCase()}`,
+            companyName: submission.job?.client?.company_name || T(rl, "Unternehmen", "Company", "Företag", "Firma"),
+            candidateAnonymId: `${T(rl, "Kandidat", "Candidate", "Kandidat", "Kandidat")} #${submission.id.slice(0, 8).toUpperCase()}`,
             proposedSlots: data?.proposedSlots,
             message: data?.message,
             interviewId: interview.id,
@@ -156,8 +165,8 @@ const handler = async (req: Request): Promise<Response> => {
         await supabase.from("notifications").insert({
           user_id: submission.recruiter_id,
           type: "candidate_moved",
-          title: "Kandidat weitergeleitet",
-          message: `Ihr Kandidat wurde zu "${getStageLabel(newStage)}" für "${submission.job?.title}" verschoben.`,
+          title: T(rl, "Kandidat weitergeleitet", "Candidate moved forward", "Kandidaten går vidare", "Kandidaten går videre"),
+          message: T(rl, `Ihr Kandidat wurde zu "${getStageLabel(newStage, rl)}" für "${submission.job?.title}" verschoben.`, `Your candidate was moved to "${getStageLabel(newStage, rl)}" for "${submission.job?.title}".`, `Din kandidat flyttades till "${getStageLabel(newStage, rl)}" för "${submission.job?.title}".`, `Kandidaten din ble flyttet til "${getStageLabel(newStage, rl)}" for "${submission.job?.title}".`),
           metadata: {
             submission_id: submissionId,
             old_stage: submission.stage,
@@ -168,13 +177,14 @@ const handler = async (req: Request): Promise<Response> => {
         // Send email to recruiter
         await sendEmail(supabase, {
           to: submission.recruiter_id,
+          lang: rl,
           template: "candidate_moved_to_recruiter",
           data: {
             candidateName: submission.candidate?.full_name,
             jobTitle: submission.job?.title,
             companyName: submission.job?.client?.company_name,
-            oldStage: getStageLabel(submission.stage),
-            newStage: getStageLabel(newStage),
+            oldStage: getStageLabel(submission.stage, rl),
+            newStage: getStageLabel(newStage, rl),
           },
         });
 
@@ -234,8 +244,8 @@ const handler = async (req: Request): Promise<Response> => {
         await supabase.from("notifications").insert({
           user_id: submission.recruiter_id,
           type: "candidate_rejected",
-          title: "Kandidat abgelehnt",
-          message: `Leider wurde Ihr Kandidat für "${submission.job?.title}" abgelehnt.`,
+          title: T(rl, "Kandidat abgelehnt", "Candidate rejected", "Kandidat avböjd", "Kandidat avslått"),
+          message: T(rl, `Leider wurde Ihr Kandidat für "${submission.job?.title}" abgelehnt.`, `Unfortunately, your candidate for "${submission.job?.title}" was rejected.`, `Tyvärr har din kandidat för "${submission.job?.title}" fått avslag.`, `Dessverre fikk kandidaten din til "${submission.job?.title}" avslag.`),
           metadata: {
             submission_id: submissionId,
             rejection_reason: data?.rejectionReason,
@@ -246,6 +256,7 @@ const handler = async (req: Request): Promise<Response> => {
         // Send email to recruiter
         await sendEmail(supabase, {
           to: submission.recruiter_id,
+          lang: rl,
           template: "candidate_rejected_to_recruiter",
           data: {
             candidateName: submission.candidate?.full_name,
@@ -317,8 +328,8 @@ const handler = async (req: Request): Promise<Response> => {
         await supabase.from("notifications").insert({
           user_id: submission.recruiter_id,
           type: "interview_feedback",
-          title: "Interview-Feedback erhalten",
-          message: `Der Kunde hat Feedback zum Interview mit Ihrem Kandidaten gegeben.`,
+          title: T(rl, "Interview-Feedback erhalten", "Interview feedback received", "Intervjufeedback mottagen", "Intervjutilbakemelding mottatt"),
+          message: T(rl, `Der Kunde hat Feedback zum Interview mit Ihrem Kandidaten gegeben.`, `The client has given feedback on the interview with your candidate.`, `Kunden har gett feedback på intervjun med din kandidat.`, `Kunden har gitt tilbakemelding på intervjuet med kandidaten din.`),
           metadata: {
             submission_id: submissionId,
             interview_id: interview?.id,
@@ -365,7 +376,7 @@ const handler = async (req: Request): Promise<Response> => {
 // Helper function to send emails
 async function sendEmail(
   supabase: any,
-  { to, template, data }: { to: string; template: string; data: Record<string, any> }
+  { to, template, data, lang }: { to: string; template: string; data: Record<string, any>; lang?: Lang }
 ) {
   try {
     // Get user email from profiles
@@ -394,6 +405,7 @@ async function sendEmail(
         to: profile.email,
         template,
         data,
+        ...(lang ? { lang } : {}),
       }),
     });
 
@@ -418,15 +430,16 @@ function getNextStage(currentStage: string): string {
     : currentStage;
 }
 
-function getStageLabel(stage: string): string {
-  const labels: Record<string, string> = {
-    new: "Neu",
-    screening: "Prüfung",
-    interview: "Interview",
-    offer: "Angebot",
-    hired: "Eingestellt",
+function getStageLabel(stage: string, lang: Lang = 'de'): string {
+  const labels: Record<string, [string, string, string, string]> = {
+    new: ["Neu", "New", "Ny", "Ny"],
+    screening: ["Prüfung", "Screening", "Granskning", "Vurdering"],
+    interview: ["Interview", "Interview", "Intervju", "Intervju"],
+    offer: ["Angebot", "Offer", "Erbjudande", "Tilbud"],
+    hired: ["Eingestellt", "Hired", "Anställd", "Ansatt"],
   };
-  return labels[stage] || stage;
+  const l = labels[stage];
+  return l ? T(lang, l[0], l[1], l[2], l[3]) : stage;
 }
 
 serve(handler);

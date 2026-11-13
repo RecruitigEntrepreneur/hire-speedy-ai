@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Building2, Info, Loader2, Lock, Phone, Send, Video } from 'lucide-react';
@@ -91,6 +92,7 @@ function Chip({ active, children, onClick }: { active: boolean; children: React.
 
 /** Inhalt des Fensters „Interview anfragen“, sobald der Kontext geladen ist. */
 export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props) {
+  const { t } = useTranslation(['clientInterviews', 'interviews']);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -123,7 +125,7 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
     setAttendees((cur) => cur.map((a) => (isMe(a) ? { ...a, name: saved.name } : a)));
     setNeedsName(false);
     queryClient.invalidateQueries({ queryKey: ['interview-request-context', ctx.submissionId] });
-    toast.success('Name gespeichert.');
+    toast.success(t('request.nameSaved'));
   };
   const calendarConnected = ctx.calendar.state === 'connected';
   const replaces = replacesInterviewId ?? ctx.openRequest?.interviewId ?? null;
@@ -142,8 +144,8 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
 
   const toggleSlot = (iso: string) =>
     setSelected((cur) => {
-      const t = Date.parse(iso);
-      if (cur.some((s) => Date.parse(s) === t)) return cur.filter((s) => Date.parse(s) !== t);
+      const at = Date.parse(iso);
+      if (cur.some((s) => Date.parse(s) === at)) return cur.filter((s) => Date.parse(s) !== at);
       if (cur.length >= MAX_PROPOSALS) return cur;
       return [...cur, iso];
     });
@@ -172,8 +174,8 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
     onSuccess: (result) => {
       toast.success(
         recruiter
-          ? `Anfrage gesendet. Kandidat und ${recruiter} sind informiert.`
-          : 'Anfrage gesendet. Kandidat und Headhunter sind informiert.',
+          ? t('request.sentNamed', { name: recruiter })
+          : t('request.sent'),
       );
       if (result.warning) toast.warning(result.warning);
       queryClient.invalidateQueries({ queryKey: ['client-interview-agenda'] });
@@ -199,17 +201,17 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
   };
 
   const candidateShown = ctx.identityUnlocked ? ctx.candidateName || ctx.candidateLabel : ctx.candidateLabel;
-  const inviteNames = joinNames(attendees.map((a) => (isMe(a) ? 'Sie' : a.name)));
+  const inviteNames = joinNames(attendees.map((a) => (isMe(a) ? t('request.you') : a.name)));
 
   return (
     <>
       <DialogHeader className="space-y-1 border-b px-4 py-4 pr-12 text-left sm:px-6">
         <DialogTitle>{roundTitle(ctx.round)}</DialogTitle>
         <DialogDescription className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-          {!ctx.identityUnlocked && <Lock className="h-3.5 w-3.5 shrink-0" aria-label="anonym" />}
+          {!ctx.identityUnlocked && <Lock className="h-3.5 w-3.5 shrink-0" aria-label={t('request.anonymous')} />}
           <span className={cn('text-foreground', !ctx.identityUnlocked && 'font-mono')}>{candidateShown}</span>
-          <span>· für „{ctx.jobTitle}“</span>
-          {recruiter && <span>· Headhunter: {recruiter}</span>}
+          <span>{t('request.forJob', { title: ctx.jobTitle })}</span>
+          {recruiter && <span>{t('request.headhunter', { name: recruiter })}</span>}
         </DialogDescription>
       </DialogHeader>
 
@@ -218,38 +220,38 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
           <div className="flex gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
             <p>
-              Es gibt bereits eine offene Anfrage vom {fmtDateDayMonth(ctx.openRequest.createdAt)}. Mit dem Senden ersetzen Sie sie.
+              {t('request.openExists', { date: fmtDateDayMonth(ctx.openRequest.createdAt) })}
             </p>
           </div>
         ) : replacesInterviewId ? (
           <div className="flex gap-2 rounded-lg border bg-muted/40 p-3 text-sm">
             <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-            <p>Diese Anfrage ersetzt den bisherigen Termin. Der Kandidat bestätigt einen der neuen Termine.</p>
+            <p>{t('request.replaces')}</p>
           </div>
         ) : null}
 
         <div className="grid gap-5 sm:grid-cols-2">
-          <Section title="Format">
+          <Section title={t('request.format')}>
             <div className="flex flex-wrap gap-2">
               <Chip active={format === 'teams'} onClick={() => setFormat('teams')}>
                 <Video className="h-3.5 w-3.5" /> Microsoft Teams
               </Chip>
               <Chip active={format === 'phone'} onClick={() => setFormat('phone')}>
-                <Phone className="h-3.5 w-3.5" /> Telefon
+                <Phone className="h-3.5 w-3.5" /> {t('interviews:meeting.phone')}
               </Chip>
               <Chip active={format === 'onsite'} onClick={() => setFormat('onsite')}>
-                <Building2 className="h-3.5 w-3.5" /> Vor Ort
+                <Building2 className="h-3.5 w-3.5" /> {t('interviews:meeting.onsite')}
               </Chip>
             </div>
             <p className="mt-1.5 text-xs text-muted-foreground">
               {format === 'teams' && (ctx.teamsLink === 'manual'
-                ? 'Ohne verbundenes Outlook entsteht kein Teams-Link. Nach der Buchung tragen Sie Ihren Link im Interview-Fenster ein, dann bekommen ihn alle per Mail.'
-                : 'Der Teams-Link entsteht beim Buchen · Teilnahme mit App oder im Browser, kein Konto nötig')}
-              {format === 'phone' && 'Sie rufen den Kandidaten zum Termin an. Seine Nummer sehen Sie, sobald er bestätigt hat.'}
-              {format === 'onsite' && 'Der Kandidat sieht die Adresse schon in der Einladung, mit Link zur Karte.'}
+                ? t('request.teamsManual')
+                : t('request.teamsAuto'))}
+              {format === 'phone' && t('request.phoneHint')}
+              {format === 'onsite' && t('request.onsiteHint')}
             </p>
           </Section>
-          <Section title="Dauer">
+          <Section title={t('request.duration')}>
             <div className="flex flex-wrap gap-2">
               {INTERVIEW_DURATIONS.map((d) => (
                 <Chip key={d} active={duration === d} onClick={() => setDuration(d)}>
@@ -263,45 +265,45 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
         {format === 'onsite' && (
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label htmlFor="onsite-address" className="mb-1.5 block text-sm font-medium">Adresse</label>
+              <label htmlFor="onsite-address" className="mb-1.5 block text-sm font-medium">{t('request.address')}</label>
               <Textarea
                 id="onsite-address"
                 value={onsiteAddress}
                 onChange={(e) => setOnsiteAddress(e.target.value)}
                 rows={3}
                 maxLength={300}
-                placeholder={'Firma\nStraße und Hausnummer\nPLZ Ort'}
+                placeholder={t('request.addressPh')}
                 className="text-sm"
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                {ctx.onsiteDefault ? 'Aus Ihren Firmendaten, änderbar' : 'Bitte die Anschrift für das Gespräch angeben'}
+                {ctx.onsiteDefault ? t('request.addressFromCompany') : t('request.addressNeeded')}
               </p>
             </div>
             <div className="space-y-3">
               <div>
-                <label htmlFor="onsite-note" className="mb-1.5 block text-sm font-medium">Empfang und Anfahrt (optional)</label>
+                <label htmlFor="onsite-note" className="mb-1.5 block text-sm font-medium">{t('request.reception')}</label>
                 <Input
                   id="onsite-note"
                   value={locationNote}
                   onChange={(e) => setLocationNote(e.target.value)}
                   maxLength={300}
-                  placeholder="3. OG, Empfang rechts · Parkhaus nebenan"
+                  placeholder={t('request.receptionPh')}
                   className="text-sm"
                 />
               </div>
               <div>
-                <p className="mb-1.5 text-sm font-medium">Ansprechpartner vor Ort</p>
+                <p className="mb-1.5 text-sm font-medium">{t('request.contact')}</p>
                 <div className="grid grid-cols-2 gap-2">
-                  <Input aria-label="Name des Ansprechpartners" value={contactName} onChange={(e) => setContactName(e.target.value)} maxLength={120} placeholder="Name" className="text-sm" />
-                  <Input aria-label="Telefon des Ansprechpartners" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} maxLength={40} placeholder="Telefon" inputMode="tel" className="text-sm" />
+                  <Input aria-label={t('request.contactNameAria')} value={contactName} onChange={(e) => setContactName(e.target.value)} maxLength={120} placeholder={t('request.contactName')} className="text-sm" />
+                  <Input aria-label={t('request.contactPhoneAria')} value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} maxLength={40} placeholder={t('interviews:meeting.phone')} inputMode="tel" className="text-sm" />
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">Bekommen Kandidat und Headhunter, falls es am Empfang hakt.</p>
+                <p className="mt-1 text-xs text-muted-foreground">{t('request.contactHint')}</p>
               </div>
             </div>
           </div>
         )}
 
-        <Section title="Wer ist dabei">
+        <Section title={t('request.who')}>
           <ParticipantsSection
             submissionId={ctx.submissionId}
             jobTitle={ctx.jobTitle}
@@ -317,7 +319,7 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
           />
         </Section>
 
-        <Section title="1 · Ihre Terminvorschläge">
+        <Section title={t('request.proposals')}>
           <ProposalGrid
             weekStart={weekStart}
             canGoBack={weekStart > minWeek}
@@ -342,7 +344,7 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
           />
         </Section>
 
-        <Section title="2 · Falls keiner passt">
+        <Section title={t('request.noneFits')}>
           <AlternativeSection
             allow={allowAlternative}
             onAllowChange={setAllowAlternative}
@@ -352,23 +354,19 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
           />
         </Section>
 
-        <Section title="Nachricht an den Kandidaten">
+        <Section title={t('request.message')}>
           <Textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={7} maxLength={2000} className="text-sm" />
         </Section>
 
-        <Section title="So geht es weiter">
+        <Section title={t('request.next')}>
           <ol className="space-y-1.5 text-sm">
             {[
-              recruiter ? `Kandidat und Headhunter ${recruiter} werden benachrichtigt` : 'Kandidat und Headhunter werden benachrichtigt',
-              'Der Kandidat bestätigt einen Ihrer Termine, wählt eine andere Zeit oder lehnt ab',
+              recruiter ? t('request.step1Named', { name: recruiter }) : t('request.step1'),
+              t('request.step2'),
               calendarConnected
                 // Mit Outlook legt Matchunt den Termin im Kalender des Organisators an; Kollegen lädt Outlook ein
-                ? `Steht der Termin: Er landet ${format === 'teams' ? 'mit Teams-Link' : format === 'phone' ? 'mit der Nummer des Kandidaten' : 'mit der Adresse'} direkt in Ihrem Outlook${attendees.length > 1 ? ', Kollegen bekommen die Einladung von Ihnen' : ''}, der Kandidat seine eigene`
-                : format === 'teams'
-                  ? `Steht der Termin: ${inviteNames} bekommen die Einladung mit Teams-Link, der Kandidat seine eigene`
-                  : format === 'phone'
-                    ? `Steht der Termin: ${inviteNames} bekommen die Einladung mit der Nummer des Kandidaten, der Kandidat seine eigene`
-                    : `Steht der Termin: ${inviteNames} bekommen die Einladung mit der Adresse, der Kandidat seine eigene`,
+                ? t(attendees.length > 1 ? `request.step3Outlook.${format}Team` : `request.step3Outlook.${format}`)
+                : t(`request.step3Mail.${format}`, { names: inviteNames }),
             ].map((text, i) => (
               <li key={i} className="flex gap-2.5">
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold">
@@ -389,15 +387,15 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
           className="inline-flex items-center gap-1.5 self-start text-sm font-medium text-primary underline underline-offset-2 hover:opacity-80 disabled:opacity-60 sm:self-auto"
         >
           {previewMail.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-          Mail ansehen, so wie der Kandidat sie bekommt
+          {t('request.previewMail')}
         </button>
         <div className="flex flex-col items-stretch gap-1 sm:flex-row sm:items-center sm:gap-3">
           {needsName ? (
-            <span className="text-xs text-muted-foreground sm:text-right">Bitte oben Ihren Namen eintragen.</span>
+            <span className="text-xs text-muted-foreground sm:text-right">{t('request.needName')}</span>
           ) : selected.length === 0 ? (
-            <span className="text-xs text-muted-foreground sm:text-right">Wählen Sie mindestens einen Termin.</span>
+            <span className="text-xs text-muted-foreground sm:text-right">{t('request.needSlot')}</span>
           ) : addressMissing ? (
-            <span className="text-xs text-muted-foreground sm:text-right">Bitte die Adresse angeben.</span>
+            <span className="text-xs text-muted-foreground sm:text-right">{t('request.needAddress')}</span>
           ) : null}
           <Button
             type="button"
@@ -406,7 +404,7 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
             className="gap-1.5"
           >
             {send.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            Anfrage senden
+            {t('request.send')}
           </Button>
         </div>
       </div>

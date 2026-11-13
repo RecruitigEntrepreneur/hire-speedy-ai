@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -16,10 +17,11 @@ export interface InterviewRequestDialogProps {
 }
 
 function LoadingState() {
+  const { t } = useTranslation('clientInterviews');
   return (
     <>
       <DialogHeader className="space-y-2 border-b px-4 py-4 pr-12 text-left sm:px-6">
-        <DialogTitle>Interview anfragen</DialogTitle>
+        <DialogTitle>{t('util.round1')}</DialogTitle>
         <DialogDescription asChild>
           <div>
             <Skeleton className="h-4 w-72 max-w-full" />
@@ -49,6 +51,7 @@ function LoadingState() {
 }
 
 function DialogBody({ submissionId, onOpenChange, onSent, replacesInterviewId }: Omit<InterviewRequestDialogProps, 'open'>) {
+  const { t } = useTranslation(['clientInterviews', 'interviews']);
   const context = useQuery({
     queryKey: ['interview-request-context', submissionId],
     queryFn: () => interviewApi.context(submissionId),
@@ -65,15 +68,15 @@ function DialogBody({ submissionId, onOpenChange, onSent, replacesInterviewId }:
     return (
       <>
         <DialogHeader className="border-b px-4 py-4 pr-12 text-left sm:px-6">
-          <DialogTitle>Interview anfragen</DialogTitle>
-          <DialogDescription>Die Angaben zu dieser Bewerbung konnten nicht geladen werden.</DialogDescription>
+          <DialogTitle>{t('util.round1')}</DialogTitle>
+          <DialogDescription>{t('request.contextError')}</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
           <p className="max-w-md text-sm text-muted-foreground">
-            {context.error?.message || 'Das hat nicht geklappt. Bitte erneut versuchen.'}
+            {context.error?.message || t('interviews:error.generic')}
           </p>
           <Button variant="outline" size="sm" className="gap-1.5" onClick={() => context.refetch()} disabled={context.isFetching}>
-            <RefreshCw className={context.isFetching ? 'h-3.5 w-3.5 animate-spin' : 'h-3.5 w-3.5'} /> Erneut versuchen
+            <RefreshCw className={context.isFetching ? 'h-3.5 w-3.5 animate-spin' : 'h-3.5 w-3.5'} /> {t('page.retry')}
           </Button>
         </div>
       </>
@@ -97,6 +100,7 @@ function DialogBody({ submissionId, onOpenChange, onSent, replacesInterviewId }:
  * beim Öffnen selbst (interview-request › context).
  */
 export function InterviewRequestDialog({ open, onOpenChange, submissionId, onSent, replacesInterviewId }: InterviewRequestDialogProps) {
+  const { t } = useTranslation('clientInterviews');
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[92vh] max-w-3xl flex-col gap-0 overflow-hidden p-0">
@@ -109,7 +113,7 @@ export function InterviewRequestDialog({ open, onOpenChange, submissionId, onSen
           />
         ) : (
           <DialogHeader className="sr-only">
-            <DialogTitle>Interview anfragen</DialogTitle>
+            <DialogTitle>{t('util.round1')}</DialogTitle>
           </DialogHeader>
         )}
       </DialogContent>

@@ -8,6 +8,8 @@
  * kommen aus echten Daten: Rahmenvertrag, Stellen, Firmendaten, Kalender
  * (seit 02.10.2026), Rundgang.
  */
+import i18n from '@/i18n';
+import { intlLocale } from '@/i18n/languages';
 import type { CalendarState } from '@/lib/interviewScheduling';
 
 export type ClientStepId = 'contract' | 'position' | 'company' | 'calendar' | 'tour';
@@ -22,14 +24,15 @@ export interface StartJob { title: string | null; status: string }
 export const CLIENT_START_HIDDEN_KEY = 'client_start_hidden_at';
 
 const datum = (v: string | null) => (v
-  ? new Date(v).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', year: 'numeric' })
+  ? new Date(v).toLocaleDateString(intlLocale(i18n.language), { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', year: 'numeric' })
   : '');
-const titel = (j: StartJob) => j.title?.trim() || 'Ihre Position';
+const t = (key: string, options?: Record<string, unknown>) => i18n.t(`clientDashboard:start.${key}`, options) as string;
+const titel = (j: StartJob) => j.title?.trim() || t('yourPosition');
 
 export function clientStartSteps(input: {
   framework: StartFramework | null;
   jobs: StartJob[];
-  /** Was für die Rechnung an Firmendaten fehlt, als lesbare Bezeichnungen. */
+  /** Was für die Rechnung an Firmendaten fehlt, als lesbare Bezeichnungen (schon übersetzt). */
   missingCompany: string[];
   /** Stand der Kalender-Verbindung; null = unbekannt (noch nicht geladen oder Fehler). */
   calendar: CalendarState | null;
@@ -38,44 +41,44 @@ export function clientStartSteps(input: {
   const { framework: rv, jobs } = input;
 
   const contract: ClientStep = !rv
-    ? { id: 'contract', label: 'Vertrag', state: 'open', detail: 'Der Rahmenvertrag entsteht mit Ihrer ersten Position.' }
+    ? { id: 'contract', label: t('contract'), state: 'open', detail: t('contractNone') }
     : rv.status === 'active'
-    ? { id: 'contract', label: 'Vertrag', state: 'done',
-        detail: ['Rahmenvertrag', rv.agreement_number, 'beidseitig unterzeichnet'].filter(Boolean).join(' ')
-          + (rv.countersigned_at ? ` am ${datum(rv.countersigned_at)}` : '') }
+    ? { id: 'contract', label: t('contract'), state: 'done',
+        detail: (rv.agreement_number ? t('contractActiveNumber', { number: rv.agreement_number }) : t('contractActive'))
+          + (rv.countersigned_at ? t('contractOnDate', { date: datum(rv.countersigned_at) }) : '') }
     : rv.status === 'customer_signed'
-    ? { id: 'contract', label: 'Vertrag', state: 'waiting', detail: 'Ihre Unterschrift liegt vor. Matchunt zeichnet gegen.' }
+    ? { id: 'contract', label: t('contract'), state: 'waiting', detail: t('contractCustomerSigned') }
     : rv.status === 'sent'
-    ? { id: 'contract', label: 'Vertrag', state: 'open', detail: 'Der Rahmenvertrag wartet auf Ihre Unterschrift in DocuSign.' }
-    : { id: 'contract', label: 'Vertrag', state: 'waiting', detail: 'Matchunt bereitet Ihren Rahmenvertrag vor.' };
+    ? { id: 'contract', label: t('contract'), state: 'open', detail: t('contractSent') }
+    : { id: 'contract', label: t('contract'), state: 'waiting', detail: t('contractPreparing') };
 
   const live = jobs.find(j => j.status === 'published');
   const inReview = jobs.find(j => j.status === 'pending_approval');
   const position: ClientStep = live
-    ? { id: 'position', label: 'Erste Position', state: 'done', detail: `${titel(live)} ist für unsere Recruiter freigegeben` }
+    ? { id: 'position', label: t('position'), state: 'done', detail: t('positionLive', { title: titel(live) }) }
     : inReview
-    ? { id: 'position', label: 'Erste Position', state: 'waiting', detail: `${titel(inReview)} wird von Matchunt geprüft` }
-    : { id: 'position', label: 'Erste Position', state: 'open', detail: 'Beschreiben Sie Ihre erste Position, wir kümmern uns um die Suche.', action: 'Position aufnehmen' };
+    ? { id: 'position', label: t('position'), state: 'waiting', detail: t('positionReview', { title: titel(inReview) }) }
+    : { id: 'position', label: t('position'), state: 'open', detail: t('positionOpen'), action: t('positionAction') };
 
   const company: ClientStep = input.missingCompany.length
-    ? { id: 'company', label: 'Firmendaten für Rechnungen', state: 'open', detail: `Es fehlt: ${input.missingCompany.join(', ')}`, action: 'Ergänzen' }
-    : { id: 'company', label: 'Firmendaten für Rechnungen', state: 'done', detail: 'Firmierung und Anschrift sind hinterlegt' };
+    ? { id: 'company', label: t('company'), state: 'open', detail: t('companyMissing', { fields: input.missingCompany.join(', ') }), action: t('companyAction') }
+    : { id: 'company', label: t('company'), state: 'done', detail: t('companyDone') };
 
   // not_configured: Die Microsoft-App von Matchunt fehlt noch. Dann gibt es für
   // den Kunden nichts zu tun, der Schritt erscheint gar nicht.
   const calendar: ClientStep | null = input.calendar === 'not_configured'
     ? null
     : input.calendar === 'connected'
-    ? { id: 'calendar', label: 'Kalender verbinden', state: 'done', detail: 'Outlook ist verbunden' }
+    ? { id: 'calendar', label: t('calendar'), state: 'done', detail: t('calendarConnected') }
     : input.calendar === 'it_pending'
-    ? { id: 'calendar', label: 'Kalender verbinden', state: 'waiting', detail: 'Wartet auf Ihre IT', action: 'Ansehen' }
+    ? { id: 'calendar', label: t('calendar'), state: 'waiting', detail: t('calendarItPending'), action: t('calendarView') }
     : input.calendar === 'expired'
-    ? { id: 'calendar', label: 'Kalender verbinden', state: 'open', detail: 'Die Verbindung zu Outlook ist abgelaufen', action: 'Neu verbinden' }
-    : { id: 'calendar', label: 'Kalender verbinden', state: 'open', detail: 'Damit Kandidaten nur freie Zeiten sehen', action: 'Verbinden' };
+    ? { id: 'calendar', label: t('calendar'), state: 'open', detail: t('calendarExpired'), action: t('calendarReconnect') }
+    : { id: 'calendar', label: t('calendar'), state: 'open', detail: t('calendarOpen'), action: t('calendarConnect') };
 
   const tour: ClientStep = input.tourDone
-    ? { id: 'tour', label: 'Rundgang', state: 'done', detail: 'Das Wichtigste in zwei Minuten', action: 'Nochmal ansehen' }
-    : { id: 'tour', label: 'Rundgang', state: 'open', detail: 'Das Wichtigste in zwei Minuten', action: 'Rundgang starten' };
+    ? { id: 'tour', label: t('tour'), state: 'done', detail: t('tourDetail'), action: t('tourAgain') }
+    : { id: 'tour', label: t('tour'), state: 'open', detail: t('tourDetail'), action: t('tourStart') };
 
   return calendar ? [contract, position, company, calendar, tour] : [contract, position, company, tour];
 }

@@ -1,4 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
+import { intlLocale } from '@/i18n/languages';
+import { frageChapterT, slotLabelNachKeyT, slotLabelT } from '@/lib/briefCatalogText';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
@@ -7,7 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from 'sonner';
 import { ProfileSections, type FlexibilityMap } from '@/components/dashboard/intake/ProfileSections';
 import { CompanyBlock, type CompanyDraft, type Anreicherung } from './CompanyBlock';
-import { BenefitsBlock } from './BenefitsBlock';
+import { BenefitsBlock, benefitAnzeige } from './BenefitsBlock';
 import { DynamicBriefing, EMPTY_DYN_STATE, type DynState } from '@/components/dashboard/intake/DynamicBriefing';
 import { CatalogBriefing } from '@/components/dashboard/intake/CatalogBriefing';
 import { CatalogFields } from '@/components/dashboard/intake/CatalogFields';
@@ -158,9 +161,12 @@ type EntryMode = 'kind' | 'anue' | 'confirm' | 'choose' | 'reselect' | 'paste' |
 export function CaptureStep({
   state, onState, companyDefaults, seedTitle, seedText, contactName,
   askAi, parseText, parseUrl, parsePdf, onNext, onResumeLater, company, onCompany, onEnrich,
-  nextLabel = 'Weiter zu Ihren Kontaktdaten', entrySub, entryExtras, autoBuildText, autoBuildFile,
+  nextLabel: nextLabelProp, entrySub, entryExtras, autoBuildText, autoBuildFile,
   fertigesProfil = false, firmaFest = null, firmen = [], firmaId = null, onFirma, ansicht = 'etappen', speicherStand, kopfRechts, onKopf,
 }: Props) {
+  const { t, i18n } = useTranslation(['intake', 'intakeCatalog']);
+  // Nicht als Default-Parameter: der Text folgt der gewählten Sprache.
+  const nextLabel = nextLabelProp ?? t('capture.nextDefault');
   const [text, setText] = useState(seedText ?? autoBuildText ?? '');
   const [firmaWahlOffen, setFirmaWahlOffen] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -242,7 +248,7 @@ export function CaptureStep({
     }
     const parsed = (res as any)?.data;
     if (!parsed || !parsed.title) {
-      setAiNote('Daraus konnten wir keine Position erkennen. Bitte ergänzen Sie den Text — oder tragen Sie die Eckdaten direkt ein.');
+      setAiNote(t('capture.note.noPosition'));
       return;
     }
     const job = fromParsedJobData(parsed);
@@ -363,7 +369,7 @@ export function CaptureStep({
    */
   const takeFile = async (file: File) => {
     if (file.size > 8 * 1024 * 1024) {
-      setAiNote('Die Datei ist größer als 8 MB. Bitte fügen Sie den Text der Anzeige ein.');
+      setAiNote(t('capture.note.fileTooLarge'));
       return;
     }
     if (isDocx(file)) {
@@ -373,14 +379,14 @@ export function CaptureStep({
         const inhalt = await docxToText(file);
         if (inhalt.length < 10) {
           setBuilding(false);
-          setAiNote('In der Word-Datei steht kaum Text. Bitte fügen Sie die Anzeige ein.');
+          setAiNote(t('capture.note.wordEmpty'));
           return;
         }
         setText(inhalt);
         await buildFrom('text', undefined, inhalt);
       } catch (err) {
         setBuilding(false);
-        setAiNote(err instanceof Error ? err.message : 'Die Word-Datei konnte nicht gelesen werden.');
+        setAiNote(err instanceof Error ? err.message : t('capture.note.wordUnreadable'));
       }
       return;
     }
@@ -388,7 +394,7 @@ export function CaptureStep({
       void buildFrom('pdf', file);
       return;
     }
-    setAiNote('Bitte eine PDF- oder Word-Datei (.docx) wählen — oder den Text einfügen.');
+    setAiNote(t('capture.note.wrongFileType'));
   };
 
   const pickPdf = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -415,7 +421,7 @@ export function CaptureStep({
   const weiter = () => {
     if (sperren.length > 0) {
       zeigeFeld(sperren[0].key);
-      toast.error(`Zum Weitermachen fehlt noch: ${sperren.map((s) => s.label).join(', ')}`);
+      toast.error(t('capture.toast.missingToContinue', { fields: sperren.map((s) => s.label).join(', ') }));
       return;
     }
     onNext();
@@ -685,14 +691,18 @@ export function CaptureStep({
 
   const sperren = useMemo(() => {
     const aus: { key: string; label: string }[] = [];
-    if (!built?.title?.trim()) aus.push({ key: 'title', label: 'Jobtitel' });
+    if (!built?.title?.trim()) aus.push({ key: 'title', label: t('shared.jobTitle') });
     if (!String(company.company_name ?? '').trim()) {
-      aus.push({ key: 'company_name', label: 'Firmenname' });
+      aus.push({ key: 'company_name', label: t('shared.companyName') });
     }
     if (!built?.location?.trim() && built?.remote_type !== 'remote') {
-      aus.push({ key: 'location', label: 'Standort' });
+      aus.push({ key: 'location', label: t('shared.location') });
     }
-    const luecken: { key: string; label: string; kurz?: string }[] = [...aus, ...blockingGaps(katalogKnown, type)];
+    // Die Schlüssel bleiben; die Beschriftung kommt in der Sprache des Lesers.
+    const luecken: { key: string; label: string; kurz?: string }[] = [
+      ...aus,
+      ...blockingGaps(katalogKnown, type).map((g) => ({ ...g, label: slotLabelNachKeyT(g.key, type) })),
+    ];
     if (fertigesProfil && built) {
       const kriterien = [...new Set([...(built.must_haves ?? []), ...(built.nice_to_haves ?? [])]
         .map((k) => String(k).trim()).filter(Boolean))];
@@ -701,12 +711,12 @@ export function CaptureStep({
       if (kriterien.length < 3 || eingestuft.length < kriterien.length || unverzichtbar.length === 0) {
         luecken.push({
           key: 'kriterien',
-          kurz: 'Anforderungen',
+          kurz: t('capture.gap.criteriaShort'),
           label: kriterien.length < 3
-            ? `mindestens 3 Anforderungen (${kriterien.length} da)`
+            ? t('capture.gap.criteriaMin', { count: kriterien.length })
             : eingestuft.length < kriterien.length
-              ? `Anforderungen einstufen (${kriterien.length - eingestuft.length} offen)`
-              : 'eine Anforderung als unverzichtbar',
+              ? t('capture.gap.criteriaRate', { count: kriterien.length - eingestuft.length })
+              : t('capture.gap.criteriaOneFix'),
         });
       }
       if (nextQuestion(katalogKnown, type, dyn.catalog?.askedQuestions ?? [])) {
@@ -714,15 +724,15 @@ export function CaptureStep({
         const f = katalogCompleteness(katalogKnown, type);
         luecken.push({
           key: 'briefing',
-          kurz: `Briefing ${f.dialogGesamt - f.dialogOffen}/${f.dialogGesamt}`,
-          label: `Briefing (${f.dialogGesamt - f.dialogOffen} von ${f.dialogGesamt} Fragen)`,
+          kurz: t('capture.gap.briefingShort', { done: f.dialogGesamt - f.dialogOffen, total: f.dialogGesamt }),
+          label: t('capture.gap.briefing', { done: f.dialogGesamt - f.dialogOffen, total: f.dialogGesamt }),
         });
       }
     }
     return luecken;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [built?.title, built?.location, built?.remote_type, built?.must_haves, built?.nice_to_haves, company.company_name,
-      katalogKnown, type, fertigesProfil, flexibility, dyn.catalog?.askedQuestions]);
+      katalogKnown, type, fertigesProfil, flexibility, dyn.catalog?.askedQuestions, t, i18n.language]);
 
   /**
    * Wie viel in den beiden Firmen-Gruppen noch fehlt.
@@ -757,11 +767,12 @@ export function CaptureStep({
     () =>
       katalogFortschritt.offen.slice(0, 2).map((s) => ({
         id: s.key,
-        text: s.label,
-        chapter: s.q.chapter,
+        text: slotLabelT(s, type),
+        chapter: frageChapterT(s.q),
         weight: s.weight,
       })),
-    [katalogFortschritt.offen],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [katalogFortschritt.offen, type, i18n.language],
   );
 
   const moveSkillToNice = (skill: string) => {
@@ -779,7 +790,7 @@ export function CaptureStep({
           }
         : s,
     );
-    toast.success(`„${skill}" zu Kann verschoben — größerer Kandidaten-Pool.`);
+    toast.success(t('capture.toast.movedToNice', { skill }));
   };
 
   // ---- Einstieg -----------------------------------------------------------
@@ -840,7 +851,7 @@ export function CaptureStep({
         onClick={() => setEntryMode(seedTitle ? 'confirm' : 'choose')}
         className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
       >
-        Zurück zum begonnenen Profil
+        {t('capture.entry.backToProfile')}
       </button>
     ) : null;
 
@@ -854,25 +865,24 @@ export function CaptureStep({
             onClick={() => setEntryMode(seedTitle ? 'confirm' : 'choose')}
             className="-ml-1 flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
           >
-            <ArrowLeft className="h-4 w-4" /> Zurück
+            <ArrowLeft className="h-4 w-4" /> {t('shared.back')}
           </button>
 
           <div>
             <h2 className="text-xl font-bold tracking-tight">
-              {isUrl ? 'Link zur Stellenanzeige' : 'Stellenanzeige einfügen'}
+              {isUrl ? t('capture.entry.urlTitle') : t('capture.entry.pasteTitle')}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
               {isUrl
-                ? 'Wir lesen die Anzeige aus und bauen daraus das Profil.'
-                : 'Der komplette Text genügt — Formatierung ist egal.'}
+                ? t('capture.entry.urlLead')
+                : t('capture.entry.pasteLead')}
             </p>
           </div>
 
           {hasWork && (
             <Alert>
               <AlertDescription className="text-xs">
-                Sie haben bereits ein Profil begonnen. Wenn Sie hier etwas aufbauen, wird es
-                ersetzt. {backToProfile}
+                {t('capture.entry.replaceWarningBuild')} {backToProfile}
               </AlertDescription>
             </Alert>
           )}
@@ -881,7 +891,7 @@ export function CaptureStep({
             <Input
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://karriere.example.com/job/123"
+              placeholder={t('capture.entry.urlPlaceholder')}
               autoFocus
               onKeyDown={(e) => e.key === 'Enter' && url.trim() && buildFrom('url')}
             />
@@ -892,7 +902,7 @@ export function CaptureStep({
               rows={10}
               autoFocus
               className="resize-none text-sm"
-              placeholder={'Anzeige hier einfügen — oder die Rolle in eigenen Worten beschreiben.\n\nz. B. „Senior Konstrukteur in Stuttgart, hybrid, ~85k, SolidWorks und Serienentwicklung, ab August …"'}
+              placeholder={t('capture.entry.pastePlaceholder')}
             />
           )}
 
@@ -907,10 +917,10 @@ export function CaptureStep({
               onClick={() => buildFrom(isUrl ? 'url' : 'text')}
             >
               {building ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              Profil bauen
+              {t('capture.entry.buildProfile')}
             </Button>
             <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => startManual()}>
-              Ohne Vorlage weiter
+              {t('capture.entry.withoutTemplate')}
             </Button>
           </div>
           )}
@@ -920,13 +930,13 @@ export function CaptureStep({
                Anzeige weiter, der Text bleibt erhalten. */
             <Alert>
               <AlertDescription className="space-y-2 text-sm">
-                <p>Wir konnten die Anzeige gerade nicht lesen. Ihr Text bleibt gespeichert.</p>
+                <p>{t('capture.entry.readFailed')}</p>
                 <div className="flex flex-wrap gap-2">
                   <Button size="sm" disabled={building} onClick={() => buildFrom(isUrl ? 'url' : 'text')}>
                     {building ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                    Noch einmal versuchen
+                    {t('capture.entry.tryAgain')}
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => startManual()}>Ohne Anzeige weiter</Button>
+                  <Button size="sm" variant="outline" onClick={() => startManual()}>{t('capture.entry.withoutAd')}</Button>
                 </div>
               </AlertDescription>
             </Alert>
@@ -935,7 +945,7 @@ export function CaptureStep({
               <AlertDescription className="text-xs">
                 {aiNote}{' '}
                 <button type="button" onClick={() => startManual()} className="underline underline-offset-2">
-                  Eckdaten direkt eintragen
+                  {t('capture.entry.enterDirectly')}
                 </button>
               </AlertDescription>
             </Alert>
@@ -951,43 +961,46 @@ export function CaptureStep({
         <div className="mx-auto max-w-xl space-y-6 pt-4">
           <div>
             {contactName && (
-              <p className="mb-3 text-sm text-muted-foreground">Guten Tag, {contactName}.</p>
+              <p className="mb-3 text-sm text-muted-foreground">{t('capture.entry.greeting', { name: contactName })}</p>
             )}
             <h2 className="text-2xl font-bold leading-snug tracking-tight sm:text-3xl">
-              Sie suchen {article(seedTitle)} <span className="text-primary">{seedTitle}</span>
-              {ort ? <> in {ort}</> : null} — richtig?
+              <Trans
+                t={t}
+                i18nKey={`capture.entry.${article(seedTitle) === 'eine' ? 'confirmFem' : 'confirmMasc'}${ort ? 'At' : ''}`}
+                values={{ title: seedTitle, location: ort ?? '' }}
+                components={{ hl: <span className="text-primary" /> }}
+              />
             </h2>
           </div>
 
           <div className="flex flex-wrap gap-3">
             <Button variant="hero" size="lg" className="gap-2" onClick={() => startManual(seedTitle)}>
-              Ja, darum geht es <ArrowRight className="h-4 w-4" />
+              {t('capture.entry.confirmYes')} <ArrowRight className="h-4 w-4" />
             </Button>
             <Button variant="outline" size="lg" onClick={() => setEntryMode('choose')}>
-              Nein, andere Position
+              {t('capture.entry.confirmNo')}
             </Button>
           </div>
 
           <p className="text-sm text-muted-foreground">
-            Danach stellen wir Ihnen ein paar Fragen zur Rolle — meist in drei bis fünf Minuten
-            erledigt. Sie können jederzeit unterbrechen und später weitermachen.
+            {t('capture.entry.confirmAfter')}
           </p>
 
           <div className="border-t pt-5">
-            <p className="text-sm font-medium">Sie haben die Stellenanzeige zur Hand?</p>
+            <p className="text-sm font-medium">{t('capture.entry.adAtHand')}</p>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Einfügen spart Ihnen die Hälfte der Fragen.
+              {t('capture.entry.adSavesHalf')}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEntryMode('paste')}>
-                <FileText className="h-4 w-4" /> Anzeige einfügen
+                <FileText className="h-4 w-4" /> {t('capture.entry.pasteAd')}
               </Button>
               <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setEntryMode('url')}>
-                <Link2 className="h-4 w-4" /> Link
+                <Link2 className="h-4 w-4" /> {t('capture.entry.link')}
               </Button>
               <Button variant="outline" size="sm" className="gap-1.5"
                 disabled={building} onClick={() => fileRef.current?.click()}>
-                {building ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />} PDF
+                {building ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />} {t('capture.entry.pdf')}
               </Button>
             </div>
           </div>
@@ -1009,21 +1022,21 @@ export function CaptureStep({
         {...dropProps}
       >
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Ihre offene Position aufnehmen</h2>
+          <h2 className="text-2xl font-bold tracking-tight">{t('capture.entry.title')}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {entrySub ?? 'Meist in drei bis fünf Minuten. Ohne Registrierung — Ihre Angaben werden dabei fortlaufend gespeichert.'}
+            {entrySub ?? t('capture.entry.subDefault')}
           </p>
         </div>
         {building && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> Ihre Anzeige wird gelesen …
+            <Loader2 className="h-4 w-4 animate-spin" /> {t('capture.entry.readingAd')}
           </div>
         )}
 
         {hasWork && (
           <Alert>
             <AlertDescription className="text-xs">
-              Sie haben bereits ein Profil begonnen. Ein neuer Aufbau ersetzt es. {backToProfile}
+              {t('capture.entry.replaceWarning')} {backToProfile}
             </AlertDescription>
           </Alert>
         )}
@@ -1031,17 +1044,17 @@ export function CaptureStep({
         <div className="space-y-3" data-tour="intake.ways">
           <EntryCard
             icon={FileText}
-            title="Stellenanzeige einfügen"
-            hint="Der schnellste Weg: wir bauen daraus das Profil, Sie prüfen nur noch."
-            badge="empfohlen"
+            title={t('capture.entry.pasteTitle')}
+            hint={t('capture.entry.cardPasteHint')}
+            badge={t('capture.entry.recommended')}
             onClick={() => setEntryMode('paste')}
           />
           <div className="grid gap-3 sm:grid-cols-2">
-            <EntryCard icon={Link2} title="Link zur Anzeige" hint="Wir lesen sie aus." onClick={() => setEntryMode('url')} />
+            <EntryCard icon={Link2} title={t('capture.entry.cardUrlTitle')} hint={t('capture.entry.cardUrlHint')} onClick={() => setEntryMode('url')} />
             <EntryCard
               icon={building ? Loader2 : FileUp}
-              title="PDF oder Word"
-              hint={building ? 'Wird gelesen …' : 'Hochladen oder hierher ziehen · bis 8 MB.'}
+              title={t('capture.entry.cardFileTitle')}
+              hint={building ? t('capture.entry.cardFileReading') : t('capture.entry.cardFileHint')}
               spinning={building}
               onClick={() => !building && fileRef.current?.click()}
             />
@@ -1054,7 +1067,7 @@ export function CaptureStep({
           onClick={() => startManual()}
           className="text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
         >
-          Nichts davon zur Hand? Von Hand beschreiben
+          {t('capture.entry.manualLong')}
         </button>
 
         {aiNote && (
@@ -1062,7 +1075,7 @@ export function CaptureStep({
             <AlertDescription className="text-xs">
               {aiNote}{' '}
               <button type="button" onClick={() => startManual()} className="underline underline-offset-2">
-                Von Hand beschreiben
+                {t('capture.entry.manual')}
               </button>
             </AlertDescription>
           </Alert>
@@ -1090,12 +1103,14 @@ firmaFest ? (
                 <Popover open={firmaWahlOffen} onOpenChange={setFirmaWahlOffen}>
                   <PopoverTrigger asChild>
                     <button type="button" className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 hover:bg-muted">
-                      {ansicht === 'etappen' ? '' : 'für '}{firmaFest.name || company.company_legal_name || company.company_name}
+                      {ansicht === 'etappen'
+                        ? (firmaFest.name || company.company_legal_name || company.company_name)
+                        : t('capture.company.forCompany', { name: firmaFest.name || company.company_legal_name || company.company_name })}
                       <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
                     </button>
                   </PopoverTrigger>
                   <PopoverContent align="start" className="w-80 p-1.5">
-                    <p className="px-2 pb-1.5 pt-1 text-xs font-medium text-muted-foreground">Für welche Firma suchen Sie?</p>
+                    <p className="px-2 pb-1.5 pt-1 text-xs font-medium text-muted-foreground">{t('capture.company.whichCompany')}</p>
                     {firmen.map((f) => (
                       <button
                         key={f.id}
@@ -1109,8 +1124,9 @@ firmaFest ? (
                         <span className="min-w-0">
                           <span className="block truncate">{f.name}</span>
                           <span className="block text-xs text-muted-foreground">
-                            {f.haupt ? 'Hauptfirma' : 'weitere Firma'}
-                            {!f.verifiziert && ' · in Prüfung, Einreichen erst danach'}
+                            {f.verifiziert
+                              ? (f.haupt ? t('capture.company.main') : t('capture.company.further'))
+                              : (f.haupt ? t('capture.company.mainPending') : t('capture.company.furtherPending'))}
                           </span>
                         </span>
                         {f.id === firmaId ? <Check className="mt-0.5 h-4 w-4 shrink-0" />
@@ -1121,7 +1137,7 @@ firmaFest ? (
                       href="/dashboard/settings#firmendaten"
                       className="mt-1 block border-t border-border px-2 pb-1 pt-2 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
                     >
-                      Weitere Firma beantragen
+                      {t('capture.company.requestFurther')}
                     </a>
                   </PopoverContent>
                 </Popover>
@@ -1129,9 +1145,9 @@ firmaFest ? (
                 <span>{firmaFest.name || company.company_legal_name || company.company_name}</span>
               )}
               {firmaFest.inPruefung ? (
-                <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs text-amber-600">in Prüfung durch Matchunt</span>
+                <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs text-amber-600">{t('capture.company.inReview')}</span>
               ) : firmaFest.verifiziertAm && (
-                <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-600">✓ verifiziert</span>
+                <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-600">{t('capture.company.verified')}</span>
               )}
               {built.location && <span className="text-muted-foreground">· {built.location}</span>}
               <Popover>
@@ -1140,7 +1156,7 @@ firmaFest ? (
                     type="button"
                     className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
                   >
-                    Firmendaten ▾
+                    {t('capture.company.details')}
                   </button>
                 </PopoverTrigger>
                 <PopoverContent align="start" className="w-auto max-w-sm p-3 text-xs">
@@ -1149,17 +1165,17 @@ firmaFest ? (
                   {firmaFest.register && <p className="text-muted-foreground">{firmaFest.register}</p>}
                   {firmaFest.verifiziertAm && (
                     <p className="mt-1.5 text-emerald-600">
-                      ✓ von Matchunt verifiziert am {new Date(firmaFest.verifiziertAm).toLocaleDateString('de-DE')}
+                      {t('capture.company.verifiedOn', { date: new Date(firmaFest.verifiziertAm).toLocaleDateString(intlLocale(i18n.language)) })}
                     </p>
                   )}
                   {firmaFest.inPruefung && (
-                    <p className="mt-1.5 text-amber-600">In Prüfung durch Matchunt – Einreichen geht nach der Verifizierung.</p>
+                    <p className="mt-1.5 text-amber-600">{t('capture.company.inReviewLong')}</p>
                   )}
                   <a
                     href="/dashboard/settings#firmendaten"
                     className="mt-2 inline-block text-muted-foreground underline underline-offset-2 hover:text-foreground"
                   >
-                    In den Einstellungen ändern
+                    {t('capture.company.changeInSettings')}
                   </a>
                 </PopoverContent>
               </Popover>
@@ -1167,7 +1183,7 @@ firmaFest ? (
           ) : (
             <p className="mt-1 text-sm text-muted-foreground">
               {[company.company_legal_name || company.company_name, built.location]
-                .filter(Boolean).join(' · ') || 'Alles ist änderbar.'}
+                .filter(Boolean).join(' · ') || t('capture.company.allEditable')}
             </p>
           )
   );
@@ -1179,7 +1195,7 @@ firmaFest ? (
           {/* EIN Titel. Vorher stand er zweimal untereinander: hier als h2 und
               120 px tiefer noch einmal als Eingabefeld in ProfileSections --
               zwei Groessen, gleiches Gewicht, und aenderbar war die kleinere. */}
-          <h2 className="text-2xl font-bold tracking-tight">{built.title || 'Ihre Position'}</h2>
+          <h2 className="text-2xl font-bold tracking-tight">{built.title || t('capture.head.yourPosition')}</h2>
           {firmaZeile}
         </div>
         <div className="flex items-center gap-3">
@@ -1191,11 +1207,11 @@ firmaFest ? (
             onClick={() => setEntryMode('kind')}
             className="rounded-full border border-input px-2.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
-            {type === 'freelance' ? 'Contracting' : 'Festanstellung'} · ändern
+            {type === 'freelance' ? t('capture.head.changeContracting') : t('capture.head.changePermanent')}
           </button>
           <span className="text-xs text-muted-foreground">
-            {erfasst} von {katalogFortschritt.feldGesamt} Angaben · {erfasstPct} %
-            {zuPruefen > 0 && <> · {zuPruefen} zu prüfen</>}
+            {t('capture.head.progress', { done: erfasst, total: katalogFortschritt.feldGesamt, pct: erfasstPct })}
+            {zuPruefen > 0 && <> · {t('capture.head.toCheck', { n: zuPruefen })}</>}
           </span>
           {/* Der Rückweg zur Startauswahl. „Anzeige doch einfügen" stand hier
               vorher allein und als unauffälliger Link — der Wortlaut sagte
@@ -1210,7 +1226,7 @@ firmaFest ? (
             onClick={() => setEntryMode('reselect')}
           >
             <ArrowLeft className="h-3 w-3" />
-            Zurück zur Auswahl
+            {t('capture.head.backToChoice')}
           </Button>
         </div>
       </div>
@@ -1263,21 +1279,21 @@ firmaFest ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-sm">
           <FileText className="h-4 w-4 shrink-0 text-amber-600" />
           <span>
-            Aus Ihrer Anzeige übernommen · <span className="font-medium">{zuPruefen} noch zu prüfen</span>
+            <Trans t={t} i18nKey="capture.adBanner.text" values={{ n: zuPruefen }} components={{ b: <span className="font-medium" /> }} />
           </span>
           <span className="hidden text-xs text-muted-foreground md:inline">
-            markiert mit „aus der Anzeige“, direkt am Feld änderbar
+            {t('capture.adBanner.hint')}
           </span>
           <div className="ml-auto flex gap-2">
             <Button size="sm" variant="outline" className="h-7 px-2.5 text-xs" onClick={zurNaechsten}>
-              Nächste Angabe zeigen ↓
+              {t('capture.adBanner.showNext')}
             </Button>
             <Button
               size="sm"
               className="h-7 px-2.5 text-xs"
               onClick={() => ausAnzeigeOffen.forEach((k) => bestaetige(k))}
             >
-              Alle bestätigen
+              {t('capture.adBanner.confirmAll')}
             </Button>
           </div>
         </div>
@@ -1329,7 +1345,7 @@ firmaFest ? (
           {/* Mit Konto steht die Firma oben in der Kopfzeile (Firmendaten ▾). */}
           {firmaFest ? null : (
           <CollapsibleGroup
-            titel="Ihr Unternehmen"
+            titel={t('capture.group.companyTitle')}
             offen={firmaOffen}
             oeffnenSignal={gruppeSignal.firma}
             zusammenfassung={[
@@ -1337,7 +1353,7 @@ firmaFest ? (
               company.company_industry,
               company.company_city,
             ].filter(Boolean).join(' · ')}
-            fussnote="Diese Angaben stehen später auf der Vereinbarung."
+            fussnote={t('capture.group.companyNote')}
           >
             <CompanyBlock
               werte={company}
@@ -1353,16 +1369,16 @@ firmaFest ? (
           )}
 
           <CollapsibleGroup
-            titel="Rahmendaten"
+            titel={t('capture.group.frameTitle')}
             offen={rahmenOffen}
             oeffnenSignal={gruppeSignal.arbeitszeit}
             zusammenfassung={
-              (built.benefits ?? []).slice(0, 3).join(' · ') ||
+              (built.benefits ?? []).slice(0, 3).map(benefitAnzeige).join(' · ') ||
               (type === 'freelance'
-                ? 'Konditionen, Arbeitszeit, Leistungsnachweis'
-                : 'Benefits, Arbeitszeit, Betriebsrat')
+                ? t('capture.group.frameSummaryContracting')
+                : t('capture.group.frameSummary'))
             }
-            fussnote="Gilt für alle Ihre Stellen — einmal ausfüllen, ab der zweiten Position vorausgewählt."
+            fussnote={t('capture.group.frameNote')}
           >
             <div className="space-y-5">
               <BenefitsBlock
@@ -1434,8 +1450,9 @@ firmaFest ? (
           xl, nicht lg: das Fenster ist schmaler als der Bildschirm. */}
       <div data-tour="intake.footer" className="sticky bottom-0 z-20 -mx-4 flex items-center gap-3 border-t bg-background/95 px-4 py-3 backdrop-blur md:-mx-6 md:px-6">
         <span className="shrink-0 text-sm font-medium">
-          {erfasst}<span className="hidden xl:inline"> von </span><span className="xl:hidden">/</span>{katalogFortschritt.feldGesamt}
-          {zuPruefen > 0 && <span className="hidden font-normal text-muted-foreground xl:inline"> · {zuPruefen} zu prüfen</span>}
+          <span className="hidden xl:inline">{t('capture.footer.count', { done: erfasst, total: katalogFortschritt.feldGesamt })}</span>
+          <span className="xl:hidden">{erfasst}/{katalogFortschritt.feldGesamt}</span>
+          {zuPruefen > 0 && <span className="hidden font-normal text-muted-foreground xl:inline"> · {t('capture.head.toCheck', { n: zuPruefen })}</span>}
         </span>
         <div className="min-w-0 flex-1 truncate">
           {sperren.length === 0 && zuPruefen > 0 ? (
@@ -1448,20 +1465,20 @@ firmaFest ? (
               className="inline-flex max-w-full items-center gap-1.5 truncate text-xs text-amber-600 underline underline-offset-2"
             >
               <Sparkles className="h-3.5 w-3.5 shrink-0" />
-              <span className="hidden xl:inline">{zuPruefen} Angaben aus der Anzeige noch prüfen</span>
-              <span className="xl:hidden">{zuPruefen} aus der Anzeige prüfen</span>
+              <span className="hidden xl:inline">{t('capture.footer.checkAdLong', { n: zuPruefen })}</span>
+              <span className="xl:hidden">{t('capture.footer.checkAdShort', { n: zuPruefen })}</span>
             </button>
           ) : sperren.length === 0 ? (
             <span className="text-xs text-muted-foreground">
               {fertigesProfil
-                ? 'Das Profil ist ausgearbeitet — weitere Angaben lassen sich später ergänzen.'
-                : 'Weitere Lücken lassen sich später ergänzen — Sie können jederzeit übergeben.'}
+                ? t('capture.footer.doneProfile')
+                : t('capture.footer.doneGaps')}
             </span>
           ) : (
             <span className="text-xs text-muted-foreground">
               <AlertTriangle className="mr-1.5 inline h-3.5 w-3.5 -translate-y-px text-warning" />
-              <span className="hidden xl:inline">Zum Weitermachen fehlt noch: </span>
-              <span className="xl:hidden">fehlt: </span>
+              <span className="hidden xl:inline">{t('capture.footer.missingLong')}</span>
+              <span className="xl:hidden">{t('capture.footer.missingShort')}</span>
               {sperren.map((l, i) => (
                 <button
                   key={l.key}
@@ -1480,15 +1497,15 @@ firmaFest ? (
         <button
           type="button"
           onClick={onResumeLater}
-          title="Speichern und später fertigstellen"
+          title={t('capture.footer.saveLater')}
           className="shrink-0 text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
         >
-          <span className="hidden xl:inline">Speichern und später fertigstellen</span>
-          <span className="xl:hidden">Später</span>
+          <span className="hidden xl:inline">{t('capture.footer.saveLater')}</span>
+          <span className="xl:hidden">{t('capture.footer.later')}</span>
         </button>
         <Button onClick={weiter} disabled={sperren.length > 0} className="shrink-0 gap-2">
           <span className="hidden xl:inline">{nextLabel}</span>
-          <span className="xl:hidden">Weiter</span>
+          <span className="xl:hidden">{t('shared.next')}</span>
           <ArrowRight className="h-4 w-4" />
         </Button>
       </div>

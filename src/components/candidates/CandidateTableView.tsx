@@ -1,5 +1,6 @@
 import { format } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { useTranslation } from 'react-i18next';
+import { dateFnsLocale } from '@/lib/candidateDateLocale';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -51,6 +52,7 @@ export function CandidateTableView({
   onAddToPool,
   withCvIds,
 }: CandidateTableViewProps) {
+  const { t, i18n } = useTranslation('candidates');
   const allSelected = candidates.length > 0 && selectedIds.length === candidates.length;
 
   return (
@@ -64,14 +66,14 @@ export function CandidateTableView({
                 onCheckedChange={(checked) => onSelectAll(!!checked)}
               />
             </TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>E-Mail</TableHead>
-            <TableHead>Telefon</TableHead>
-            <TableHead className="text-right">Erfahrung</TableHead>
-            <TableHead className="text-right">Gehalt</TableHead>
-            <TableHead>Skills</TableHead>
-            <TableHead>Tags</TableHead>
-            <TableHead>Hinzugefügt</TableHead>
+            <TableHead>{t('list.name')}</TableHead>
+            <TableHead>{t('list.email')}</TableHead>
+            <TableHead>{t('list.phone')}</TableHead>
+            <TableHead className="text-right">{t('list.experience')}</TableHead>
+            <TableHead className="text-right">{t('list.salary')}</TableHead>
+            <TableHead>{t('list.skills')}</TableHead>
+            <TableHead>{t('list.tags')}</TableHead>
+            <TableHead>{t('list.added')}</TableHead>
             <TableHead className="w-12"></TableHead>
           </TableRow>
         </TableHeader>
@@ -101,7 +103,7 @@ export function CandidateTableView({
                 <TableCell>{candidate.email}</TableCell>
                 <TableCell>{candidate.phone || '-'}</TableCell>
                 <TableCell className="text-right">
-                  {candidate.experience_years !== null ? `${candidate.experience_years}J` : '-'}
+                  {candidate.experience_years !== null ? t('list.yearsShort', { count: candidate.experience_years }) : '-'}
                 </TableCell>
                 <TableCell className="text-right">
                   {candidate.expected_salary
@@ -145,7 +147,7 @@ export function CandidateTableView({
                   </div>
                 </TableCell>
                 <TableCell className="text-muted-foreground text-sm">
-                  {format(new Date(candidate.created_at), 'dd.MM.yy', { locale: de })}
+                  {format(new Date(candidate.created_at), 'P', { locale: dateFnsLocale(i18n.language) })}
                 </TableCell>
                 <TableCell>
                   <DropdownMenu>
@@ -157,19 +159,19 @@ export function CandidateTableView({
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => onView(candidate)}>
                         <Eye className="h-4 w-4 mr-2" />
-                        Details
+                        {t('actions.details')}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => onEdit(candidate)}>
                         <Edit className="h-4 w-4 mr-2" />
-                        Bearbeiten
+                        {t('actions.edit')}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => onAssignTag(candidate.id)}>
                         <Tag className="h-4 w-4 mr-2" />
-                        Tags
+                        {t('actions.tags')}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => onAddToPool(candidate)}>
                         <UserPlus className="h-4 w-4 mr-2" />
-                        Talent Pool
+                        {t('actions.talentPool')}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
@@ -177,7 +179,7 @@ export function CandidateTableView({
                         className="text-destructive"
                       >
                         <Trash2 className="h-4 w-4 mr-2" />
-                        Löschen
+                        {t('actions.delete')}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -188,7 +190,7 @@ export function CandidateTableView({
           {candidates.length === 0 && (
             <TableRow>
               <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                Keine Kandidaten gefunden
+                {t('list.empty')}
               </TableCell>
             </TableRow>
           )}

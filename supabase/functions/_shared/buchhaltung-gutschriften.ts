@@ -20,6 +20,13 @@ import { assertPeriodOpen, bucketFiles, notify, profile, todayKey, type FilePort
 import { BANK, ISSUER, NUMBERING, formatNumber, releaseBlockers } from './billing-config.ts';
 import { eur, renderCreditNotePdf } from './invoice-pdf.ts';
 import { esc, layout } from './intake-mail.ts';
+import { dateKeyIn, eurCentsIn, m, tx, type Lang } from './notify-i18n.ts';
+const eurL = (c: number, l: Lang) => (l === 'de' || l === 'de-AT' || l === 'de-CH' ? eur(c) : eurCentsIn(c, l));
+import { notifyLang } from './notify-i18n.ts';
+/** Monat nach Sprache (für die Mail; deutsch über monthName) */
+const monthIn = (period: string, l: Lang) => new Intl.DateTimeFormat(intlLocale(l), { month: 'long', timeZone: 'UTC' }).format(new Date(`${period}-15T12:00:00Z`));
+const periodIn = (period: string, l: Lang) => new Intl.DateTimeFormat(intlLocale(l), { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${period}-15T12:00:00Z`));
+import { intlLocale } from './i18n.ts';
 import { isPackageKey, splitFor, versionOfSnapshot } from './konditionen.ts';
 import { UUID, namesFor, nowIso, requireAdminUser, rowsIn, text } from './buchhaltung-kern.ts';
 import {
@@ -357,23 +364,47 @@ export async function createCreditRun(ctx: PlacementCtx, user: User, body: any) 
       let mailed = false;
       if (g.email) {
         const first = String((await profile(ctx.db, g.recruiterId))?.name || g.name).split(' ')[0];
-        const what = approved.length === 1
-          ? `für ${approved[0].type === 'initial' ? (approved[0].short === 'Core' ? 'deinen Anteil an' : 'den 1. Teil') : approved[0].type === 'retention' ? 'den 2. Teil' : 'die Auslobung'} der Besetzung von ${approved[0].candidateName}`
-          : `für ${approved.length} Posten: ${approved.map((i) => `${i.short} ${i.candidateName}`).join(', ')}`;
         const later = approved.filter((i) => i.type === 'initial').map((i) => retention.find((t) => t.placement_id === i.placementId && t.tranche_type === 'retention' && ['pending', 'due'].includes(t.status))).filter(Boolean) as any[];
-        const subject = `Deine Gutschrift für ${monthName(period)}: ${eur(net)}${g.taxMode === 'standard' ? ' + USt' : ''}`;
         const url = `${ctx.appUrl()}/recruiter/earnings?reiter=gutschriften`;
-        const p1 = `Hallo ${first}, im Anhang ist deine Gutschrift ${what}. Wir überweisen ${eur(tax.totalCents)} bis ${dateDeShort(payUntil)} auf ${acct.account.masked}.${later.length === 1 ? ` Der 2. Teil (${eur(Number(later[0].amount_cents))}) folgt nach der Garantie.` : later.length > 1 ? ' Die 2. Teile folgen nach der Garantie.' : ''}`;
+        // Mailtext in der Sprache des Headhunters (Profil); die Gutschrift (PDF) bleibt deutsch
+        const l = await notifyLang(ctx.db, g.recruiterId);
+        const lde = l === 'de' || l === 'de-AT' || l === 'de-CH';
+        let subject: string, p1: string, legal: string, cta: string, heading: string;
+        if (lde) {
+          const what = approved.length === 1
+            ? `für ${approved[0].type === 'initial' ? (approved[0].short === 'Core' ? 'deinen Anteil an' : 'den 1. Teil') : approved[0].type === 'retention' ? 'den 2. Teil' : 'die Auslobung'} der Besetzung von ${approved[0].candidateName}`
+            : `für ${approved.length} Posten: ${approved.map((i) => `${i.short} ${i.candidateName}`).join(', ')}`;
+          subject = tx(l, `Deine Gutschrift für ${monthName(period)}: ${eur(net)}${g.taxMode === 'standard' ? ' + USt' : ''}`, '', '', '');
+          p1 = tx(l, m`Hallo ${first}, im Anhang ist deine Gutschrift ${what}. Wir überweisen ${eur(tax.totalCents)} bis ${dateDeShort(payUntil)} auf ${acct.account.masked}.${later.length === 1 ? ` Der 2. Teil (${eur(Number(later[0].amount_cents))}) folgt nach der Garantie.` : later.length > 1 ? ' Die 2. Teile folgen nach der Garantie.' : ''}`, '', '', '');
+          legal = tx(l, 'Gutschrift im Sinne von § 14 Abs. 2 Satz 2 UStG. Einwände binnen 30 Tagen.', '', '', '');
+          cta = tx(l, 'Gutschrift ansehen', '', '', '');
+          heading = `Gutschrift ${number}`;
+        } else {
+          const part = (i: any) => i.type === 'initial' ? (i.short === 'Core' ? tx(l, '', 'your share of', 'din andel av', 'din andel av') : tx(l, '', 'the 1st part of', 'första delen av', 'første del av')) : i.type === 'retention' ? tx(l, '', 'the 2nd part of', 'andra delen av', 'andre del av') : tx(l, '', 'the bounty for', 'ersättningen för', 'dusøren for');
+          const what = approved.length === 1
+            ? tx(l, '', m`for ${part(approved[0])} the placement of ${approved[0].candidateName}`, m`för ${part(approved[0])} placeringen av ${approved[0].candidateName}`, m`for ${part(approved[0])} ansettelsen av ${approved[0].candidateName}`)
+            : tx(l, '', m`for ${approved.length} items: ${approved.map((i) => `${i.short} ${i.candidateName}`).join(', ')}`, m`för ${approved.length} poster: ${approved.map((i) => `${i.short} ${i.candidateName}`).join(', ')}`, m`for ${approved.length} poster: ${approved.map((i) => `${i.short} ${i.candidateName}`).join(', ')}`);
+          const vat = g.taxMode === 'standard' ? tx(l, '', ' + VAT', ' + moms', ' + MVA') : '';
+          const total = eurL(tax.totalCents, l), until = dateKeyIn(payUntil, l), month = monthIn(period, l);
+          const rest = later.length === 1 ? tx(l, '', m` The 2nd part (${eurL(Number(later[0].amount_cents), l)}) follows after the guarantee.`, m` Andra delen (${eurL(Number(later[0].amount_cents), l)}) följer efter garantin.`, m` Andre del (${eurL(Number(later[0].amount_cents), l)}) følger etter garantien.`)
+            : later.length > 1 ? tx(l, '', ' The 2nd parts follow after the guarantee.', ' De andra delarna följer efter garantin.', ' De andre delene følger etter garantien.') : '';
+          subject = tx(l, '', m`Your credit note for ${month}: ${eurL(net, l)}${vat}`, m`Din kreditnota för ${month}: ${eurL(net, l)}${vat}`, m`Kreditnotaen din for ${month}: ${eurL(net, l)}${vat}`);
+          p1 = tx(l, '', m`Hi ${first}, attached is your credit note ${what}. We will transfer ${total} by ${until} to ${acct.account.masked}.${rest}`, m`Hej ${first}, bifogat finns din kreditnota ${what}. Vi överför ${total} senast ${until} till ${acct.account.masked}.${rest}`, m`Hei ${first}, vedlagt er kreditnotaen din ${what}. Vi overfører ${total} innen ${until} til ${acct.account.masked}.${rest}`);
+          legal = tx(l, '', 'Self-billed credit note under § 14 (2) sentence 2 of the German VAT Act (UStG); the document itself is in German. Objections within 30 days.', 'Självfaktura (Gutschrift) enligt § 14.2 andra meningen i tyska momslagen (UStG); själva dokumentet är på tyska. Invändningar inom 30 dagar.', 'Selvfakturering (Gutschrift) etter § 14 nr. 2 annet punktum i tysk merverdiavgiftslov (UStG); selve dokumentet er på tysk. Innsigelser innen 30 dager.');
+          cta = tx(l, '', 'View credit note', 'Visa kreditnotan', 'Se kreditnotaen');
+          heading = tx(l, '', m`Credit note ${number}`, m`Kreditnota ${number}`, m`Kreditnota ${number}`);
+        }
         const r = await ctx.mail({
           fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: g.email, replyTo: 'info@bluewater-bridge.de', subject,
-          html: layout({ preheader: subject, heading: `Gutschrift ${number}`, body: `<p style="margin:0 0 12px 0;">${esc(p1)}</p><p style="margin:0 0 12px 0;color:#6b7280;font-size:13px;">Gutschrift im Sinne von § 14 Abs. 2 Satz 2 UStG. Einwände binnen 30 Tagen.</p>`, cta: { label: 'Gutschrift ansehen', url } }),
-          text: `${p1}\n\nGutschrift ansehen: ${url}`,
+          html: layout({ ...(lde ? {} : { lang: l }), preheader: subject, heading, body: `<p style="margin:0 0 12px 0;">${esc(p1)}</p><p style="margin:0 0 12px 0;color:#6b7280;font-size:13px;">${legal}</p>`, cta: { label: cta, url } }),
+          text: `${p1}\n\n${cta}: ${url}`,
           attachments: [{ filename: `${number.replace(/[^\w.-]/g, '_')}.pdf`, contentBase64: encodeBase64(bytes), contentType: 'application/pdf' }],
         }, { template: 'credit_note_issued', meta: { credit_note_id: noteId } });
         mailed = r.sent;
         if (r.sent) await ctx.db.from('recruiter_credit_notes').update({ sent_at: nowIso(ctx) }).eq('id', noteId);
       }
-      await notify(ctx, g.recruiterId, 'credit_note_issued', `Gutschrift ${number}: ${eur(tax.totalCents)}`, `Für ${periodLabel(period)}. Zahlung bis ${dateDeShort(payUntil)}.`, 'credit_note', noteId);
+      await notify(ctx, g.recruiterId, 'credit_note_issued', (l) => tx(l, m`Gutschrift ${number}: ${eurL(tax.totalCents, l)}`, m`Credit note ${number}: ${eurL(tax.totalCents, l)}`, m`Kreditnota ${number}: ${eurL(tax.totalCents, l)}`, m`Kreditnota ${number}: ${eurL(tax.totalCents, l)}`),
+        (l) => tx(l, `Für ${periodLabel(period)}. Zahlung bis ${dateDeShort(payUntil)}.`, `For ${periodIn(period, l)}. Payment by ${dateKeyIn(payUntil, l)}.`, `För ${periodIn(period, l)}. Betalning senast ${dateKeyIn(payUntil, l)}.`, `For ${periodIn(period, l)}. Betaling innen ${dateKeyIn(payUntil, l)}.`), 'credit_note', noteId);
       out.push({ number, name: g.name, totalCents: tax.totalCents, mailed, skipped: g.items.length - approved.length });
     } catch (e) {
       await revert();
@@ -464,7 +495,8 @@ export async function markCreditNotePaid(ctx: PlacementCtx, noteId: string, paid
     const { data: rest } = await ctx.db.from('recruiter_credit_notes').select('id').eq('run_id', (n as any).run_id).eq('status', 'issued').limit(1);
     if (!(rest ?? []).length) await ctx.db.from('credit_note_runs').update({ status: 'paid' }).eq('id', (n as any).run_id);
   }
-  await notify(ctx, (n as any).recruiter_id, 'credit_note_paid', `Gutschrift ${(n as any).number} ausgezahlt`, `${eur(Number((n as any).total_cents))} sind am ${dateDe(paidOn)} an dich überwiesen worden.`, 'credit_note', noteId);
+  await notify(ctx, (n as any).recruiter_id, 'credit_note_paid', (l) => tx(l, m`Gutschrift ${(n as any).number} ausgezahlt`, m`Credit note ${(n as any).number} paid out`, m`Kreditnota ${(n as any).number} utbetald`, m`Kreditnota ${(n as any).number} utbetalt`),
+    (l) => tx(l, `${eur(Number((n as any).total_cents))} sind am ${dateDe(paidOn)} an dich überwiesen worden.`, `${eurL(Number((n as any).total_cents), l)} was transferred to you on ${dateKeyIn(paidOn, l)}.`, `${eurL(Number((n as any).total_cents), l)} har överförts till dig ${dateKeyIn(paidOn, l)}.`, `${eurL(Number((n as any).total_cents), l)} ble overført til deg ${dateKeyIn(paidOn, l)}.`), 'credit_note', noteId);
   return { ok: true };
 }
 
@@ -490,7 +522,7 @@ export async function resolveObjection(ctx: PlacementCtx, user: User, body: any)
   const { data: o, error } = await ctx.db.from('credit_note_objections').update({ status: 'resolved', resolution, resolved_at: nowIso(ctx), resolved_by: user.id }).eq('id', body.objectionId).eq('status', 'open').select('recruiter_id, credit_note_id').maybeSingle();
   dbFail(error, 'Der Einwand');
   must(o, 'Der Einwand ist schon geklärt.', 'conflict');
-  await notify(ctx, (o as any).recruiter_id, 'credit_note_objection_resolved', 'Dein Einwand ist geklärt', resolution.slice(0, 300), 'credit_note', (o as any).credit_note_id);
+  await notify(ctx, (o as any).recruiter_id, 'credit_note_objection_resolved', (l) => tx(l, 'Dein Einwand ist geklärt', 'Your objection has been resolved', 'Din invändning är utredd', 'Innsigelsen din er avklart'), resolution.slice(0, 300), 'credit_note', (o as any).credit_note_id);
   return { ok: true };
 }
 

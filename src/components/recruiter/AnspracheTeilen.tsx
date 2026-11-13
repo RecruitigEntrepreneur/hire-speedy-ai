@@ -3,7 +3,8 @@ import { Check, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import type { AnspracheTexte } from '@/lib/jobPosting';
+import { anspracheTrenner, type AnspracheTexte } from '@/lib/jobPosting';
+import { useTranslation } from 'react-i18next';
 
 export type Kanal = 'linkedin' | 'email' | 'telefon';
 
@@ -27,6 +28,7 @@ export function AnspracheTeilen({
   kanal: Kanal;
   onKanal: (kanal: Kanal) => void;
 }) {
+  const { t: tr } = useTranslation('recruiterJobDetail');
   const [kopiert, setKopiert] = useState<string | null>(null);
   const [fehler, setFehler] = useState(false);
 
@@ -41,28 +43,28 @@ export function AnspracheTeilen({
     }
   };
 
-  const KopierKnopf = ({ id, text, label = 'Kopieren' }: { id: string; text: string; label?: string }) => (
+  const KopierKnopf = ({ id, text, label = tr('outreach.copy') }: { id: string; text: string; label?: string }) => (
     <Button size="sm" variant={id === 'linkedin' || id === 'email' ? 'default' : 'outline'} onClick={() => kopieren(id, text)} className="gap-1.5">
       {kopiert === id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-      {kopiert === id ? 'Kopiert' : label}
+      {kopiert === id ? tr('ws.copied') : label}
     </Button>
   );
 
   const zeichen = ansprache.linkedin.length;
   const t = ansprache.telefon;
-  const emailKern = ansprache.email.text.split('\n— Die ausführliche Beschreibung —')[0].trim();
+  const emailKern = ansprache.email.text.split(`\n${anspracheTrenner()}`)[0].trim();
 
   return (
     <div className="space-y-4">
       {(onVorname || onAufhaenger) && (
         <div className="grid gap-3 sm:grid-cols-2">
           {onVorname && <label className="block space-y-1.5">
-            <span className="text-xs text-muted-foreground">Vorname des Kandidaten (optional)</span>
-            <Input value={vorname ?? ''} onChange={e => onVorname(e.target.value)} placeholder="z. B. Lena" />
+            <span className="text-xs text-muted-foreground">{tr('outreach.firstName')}</span>
+            <Input value={vorname ?? ''} onChange={e => onVorname(e.target.value)} placeholder={tr('outreach.firstNameExample')} />
           </label>}
           {onAufhaenger && <label className="block space-y-1.5">
-            <span className="text-xs text-muted-foreground">Aufhänger (optional)</span>
-            <Input value={aufhaenger ?? ''} onChange={e => onAufhaenger(e.target.value)} placeholder="z. B. 5 Jahre WP-Gesellschaft" maxLength={60} />
+            <span className="text-xs text-muted-foreground">{tr('outreach.hook')}</span>
+            <Input value={aufhaenger ?? ''} onChange={e => onAufhaenger(e.target.value)} placeholder={tr('outreach.hookExample')} maxLength={60} />
           </label>}
         </div>
       )}
@@ -70,15 +72,15 @@ export function AnspracheTeilen({
       <Tabs value={kanal} onValueChange={v => onKanal(v as Kanal)}>
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="linkedin">LinkedIn</TabsTrigger>
-          <TabsTrigger value="email">E-Mail</TabsTrigger>
-          <TabsTrigger value="telefon">Telefon</TabsTrigger>
+          <TabsTrigger value="email">{tr('ws.email')}</TabsTrigger>
+          <TabsTrigger value="telefon">{tr('ws.phone')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="linkedin" className="space-y-3">
           <p className="whitespace-pre-line rounded-lg border border-border bg-card p-3 text-sm leading-6">{ansprache.linkedin}</p>
           <div className="flex items-center justify-between gap-3">
             <span className={`text-xs ${zeichen > LINKEDIN_GRENZE ? 'text-destructive' : 'text-muted-foreground'}`}>
-              {zeichen} / {LINKEDIN_GRENZE} Zeichen{zeichen > LINKEDIN_GRENZE ? ' · zu lang für eine Kontaktanfrage' : ' · passt in eine Kontaktanfrage'}
+              {zeichen > LINKEDIN_GRENZE ? tr('outreach.charsTooLong', { count: zeichen, max: LINKEDIN_GRENZE }) : tr('outreach.charsFit', { count: zeichen, max: LINKEDIN_GRENZE })}
             </span>
             <KopierKnopf id="linkedin" text={ansprache.linkedin} />
           </div>
@@ -86,32 +88,32 @@ export function AnspracheTeilen({
 
         <TabsContent value="email" className="space-y-3">
           <div className="rounded-lg border border-border bg-card p-3 text-sm leading-6">
-            <p><span className="font-medium">Betreff:</span> {ansprache.email.betreff}</p>
+            <p><span className="font-medium">{tr('outreach.subject')}</span> {ansprache.email.betreff}</p>
             <p className="mt-2 whitespace-pre-line">{emailKern}</p>
-            <p className="mt-2 text-xs text-muted-foreground">— darunter die ganze Anzeige —</p>
+            <p className="mt-2 text-xs text-muted-foreground">{tr('outreach.adBelow')}</p>
           </div>
           <div className="flex flex-wrap justify-end gap-2">
-            <KopierKnopf id="betreff" text={ansprache.email.betreff} label="Betreff kopieren" />
-            <KopierKnopf id="email" text={ansprache.email.text} label="Text + Anzeige kopieren" />
+            <KopierKnopf id="betreff" text={ansprache.email.betreff} label={tr('outreach.copySubject')} />
+            <KopierKnopf id="email" text={ansprache.email.text} label={tr('outreach.copyTextAndAd')} />
           </div>
         </TabsContent>
 
         <TabsContent value="telefon" className="space-y-3">
           <div className="space-y-3 rounded-lg border border-border bg-card p-3 text-sm leading-6">
-            <p><span className="font-medium">Einstieg:</span> „{t.einstieg}“</p>
+            <p><span className="font-medium">{tr('outreach.opening')}</span> „{t.einstieg}“</p>
             {t.argumente.length > 0 && (
-              <div><p className="font-medium">Argumente</p><ul className="list-disc pl-5">{t.argumente.map(a => <li key={a}>{a}</li>)}</ul></div>
+              <div><p className="font-medium">{tr('outreach.arguments')}</p><ul className="list-disc pl-5">{t.argumente.map(a => <li key={a}>{a}</li>)}</ul></div>
             )}
             {t.fragen.length > 0 && (
-              <div><p className="font-medium">Passung prüfen</p><ul className="list-disc pl-5">{t.fragen.map(f => <li key={f}>{f}</li>)}</ul></div>
+              <div><p className="font-medium">{tr('outreach.checkFit')}</p><ul className="list-disc pl-5">{t.fragen.map(f => <li key={f}>{f}</li>)}</ul></div>
             )}
-            {t.konditionen && <p><span className="font-medium">Konditionen:</span> {t.konditionen}</p>}
-            <p><span className="font-medium">Nächster Schritt:</span> {t.naechster}</p>
+            {t.konditionen && <p><span className="font-medium">{tr('outreach.terms')}</span> {t.konditionen}</p>}
+            <p><span className="font-medium">{tr('outreach.nextStep')}</span> {t.naechster}</p>
           </div>
-          <p className="text-xs text-muted-foreground">Spickzettel fürs Gespräch, nicht zum Versenden.</p>
+          <p className="text-xs text-muted-foreground">{tr('outreach.cheatSheet')}</p>
         </TabsContent>
       </Tabs>
-      {fehler && <p role="alert" className="text-xs text-muted-foreground">Kopieren nicht möglich. Bitte den Text markieren und kopieren.</p>}
+      {fehler && <p role="alert" className="text-xs text-muted-foreground">{tr('ws.copyFailed')}</p>}
     </div>
   );
 }

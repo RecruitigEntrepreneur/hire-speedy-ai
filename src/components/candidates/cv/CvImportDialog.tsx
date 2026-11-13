@@ -11,7 +11,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, FileUp, Loader2, Plus, ShieldCheck, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
+import i18next from '@/i18n';
 import { useAuth } from '@/lib/auth';
+import { intlLocale } from '@/i18n/languages';
+import { term } from '@/lib/candidateTerms';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -62,35 +66,35 @@ import {
 
 type Step = 'start' | 'reading' | 'review' | 'saving';
 
-const READING_STEPS = ['Liest den Lebenslauf …', 'Entfernt Name, Kontakt und geschützte Angaben …', 'Sucht Stationen, Skills und Sprachen …', 'Prüft jedes Zitat …'];
+// Texte: candidateImport:reading.<nr>
+const READING_STEPS = 4;
 
-const FIELD_LABELS: Partial<Record<keyof DossierForm, string>> = {
-  full_name: 'Name', email: 'E-Mail', phone: 'Telefon', city: 'Wohnort', job_title: 'Rolle', company: 'Arbeitgeber',
-  experience_years: 'Berufsjahre', seniority: 'Seniorität', skills: 'Skills', industries: 'Branchen', certificates: 'Zertifikate',
-  current_salary: 'Aktuelles Gehalt', expected_salary: 'Wunschgehalt', salary_minimum: 'Schmerzgrenze', notice_period: 'Kündigungsfrist',
-  availability_date: 'Verfügbar ab', remote_preference: 'Arbeitsmodell', max_commute_minutes: 'Max. Pendelzeit', employment_type: 'Anstellung',
-  relocation_willing: 'Umzugsbereit', target_roles: 'Wunschrollen', target_industries: 'Zielbranchen', target_locations: 'Zielorte',
-  work_permit: 'Arbeitserlaubnis', linkedin_url: 'LinkedIn', github_url: 'GitHub', portfolio_url: 'Portfolio', website_url: 'Website',
-  expose_summary: 'Kurzprofil', expose_highlights: 'Highlights', languages: 'Sprachen', change_motivation: 'Wechselmotivation',
-  career_3_5_year_plan: 'Karriereziel', blocked_companies: 'Nicht vorstellen bei', leadership_scope: 'Führung', leadership_team_size: 'Teamgröße',
-};
+// Feldnamen der Änderungsliste: candidateImport:field.<feld>
+const FIELD_KEYS: (keyof DossierForm)[] = [
+  'full_name', 'email', 'phone', 'city', 'job_title', 'company', 'experience_years', 'seniority', 'skills', 'industries', 'certificates',
+  'current_salary', 'expected_salary', 'salary_minimum', 'notice_period', 'availability_date', 'remote_preference', 'max_commute_minutes',
+  'employment_type', 'relocation_willing', 'target_roles', 'target_industries', 'target_locations', 'work_permit', 'linkedin_url', 'github_url',
+  'portfolio_url', 'website_url', 'expose_summary', 'expose_highlights', 'languages', 'change_motivation', 'career_3_5_year_plan',
+  'blocked_companies', 'leadership_scope', 'leadership_team_size',
+];
+const fieldLabel = (key: keyof DossierForm) => (FIELD_KEYS.includes(key) ? i18next.t(`candidateImport:field.${String(key)}`) : String(key));
 
 function display(key: keyof DossierForm, v: unknown): string {
   if (v == null || v === '') return '–';
-  if (Array.isArray(v)) return v.map((x) => (typeof x === 'object' && x && 'language' in x ? `${(x as { language: string }).language} ${(x as { proficiency: string }).proficiency}`.trim() : String(x))).join(', ');
-  if (typeof v === 'boolean') return v ? 'Ja' : 'Nein';
-  if (typeof v === 'number') return ['current_salary', 'expected_salary', 'salary_minimum'].includes(key) ? `${v.toLocaleString('de-DE')} €` : String(v);
+  if (Array.isArray(v)) return v.map((x) => (typeof x === 'object' && x && 'language' in x ? `${term((x as { language: string }).language)} ${term((x as { proficiency: string }).proficiency)}`.trim() : term(String(x)))).join(', ');
+  if (typeof v === 'boolean') return term(v ? 'Ja' : 'Nein');
+  if (typeof v === 'number') return ['current_salary', 'expected_salary', 'salary_minimum'].includes(key) ? `${v.toLocaleString(intlLocale(i18next.language))} €` : String(v);
   const map: Partial<Record<keyof DossierForm, typeof NOTICE_OPTIONS>> = {
     notice_period: NOTICE_OPTIONS, remote_preference: WORK_MODEL_OPTIONS, employment_type: EMPLOYMENT_OPTIONS,
     work_permit: PERMIT_OPTIONS, seniority: SENIORITY_OPTIONS, leadership_scope: LEADERSHIP_OPTIONS,
   };
-  return map[key] ? optionLabel(map[key]!, String(v)) ?? String(v) : String(v);
+  return map[key] ? term(optionLabel(map[key]!, String(v)) ?? String(v)) : String(v);
 }
 
 const period = (s: CvStation) => {
   // Steht im Lebenslauf nur das Jahr, zeigen wir auch nur das Jahr (kein erfundenes „01/“).
   const f = (ym: string | null, yearOnly?: boolean) => (ym ? (yearOnly ? ym.slice(0, 4) : `${ym.slice(5, 7)}/${ym.slice(0, 4)}`) : '?');
-  return `${f(s.start, s.start_year_only)} – ${s.is_current ? 'heute' : f(s.end, s.end_year_only)}`;
+  return `${f(s.start, s.start_year_only)} – ${s.is_current ? i18next.t('candidateImport:today') : f(s.end, s.end_year_only)}`;
 };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -117,6 +121,7 @@ export function CvImportDialog({
   startWithText?: boolean;
 }) {
   const { user } = useAuth();
+  const { t } = useTranslation(['candidateImport', 'candidateTerms', 'candidateDossier']);
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<Step>('start');
@@ -160,15 +165,15 @@ export function CvImportDialog({
 
   useEffect(() => {
     if (step !== 'reading') return;
-    const t = window.setInterval(() => setReadingIdx((i) => (i + 1) % READING_STEPS.length), 2500);
-    return () => window.clearInterval(t);
+    const timer = window.setInterval(() => setReadingIdx((i) => (i + 1) % READING_STEPS), 2500);
+    return () => window.clearInterval(timer);
   }, [step]);
 
   const pick = (f: File | undefined | null) => {
     if (!f) return;
     const okType = /\.(pdf|docx|txt)$/i.test(f.name);
-    if (!okType) { toast.error('Bitte PDF, Word (.docx) oder Text (.txt).'); return; }
-    if (f.size > 10 * 1024 * 1024) { toast.error('Die Datei darf höchstens 10 MB groß sein.'); return; }
+    if (!okType) { toast.error(t('err.fileType')); return; }
+    if (f.size > 10 * 1024 * 1024) { toast.error(t('err.fileSize')); return; }
     setFile(f);
   };
 
@@ -192,7 +197,7 @@ export function CvImportDialog({
       setForm(current);
     } else {
       setForm(fromCv.form); setOrigins(fromCv.origins); setStations(result?.stations ?? []);
-      setNameError(result && !fromCv.form.full_name.trim() ? 'Name nicht sicher erkannt · bitte eintragen' : null);
+      setNameError(result && !fromCv.form.full_name.trim() ? t('err.nameUnsure') : null);
       setDuplicate(await findDuplicate(user.id, fromCv.form));
     }
     setStep('review');
@@ -205,14 +210,14 @@ export function CvImportDialog({
       const { cv: result, fileInfo: info } = await extractCv({ userId: user.id, file, text: pasteOpen ? text : '', notes, candidateId: existingCandidateId });
       await startReview(result, info);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Lebenslauf konnte nicht ausgelesen werden.');
+      toast.error(e instanceof Error ? e.message : t('err.read'));
       setStep('start');
     }
   };
 
   const saveNew = async () => {
     if (!user || !cv && !form.full_name.trim()) return;
-    if (!form.full_name.trim()) { setNameError('Bitte einen Namen eintragen.'); return; }
+    if (!form.full_name.trim()) { setNameError(t('err.name')); return; }
     setStep('saving');
     try {
       const res = await saveNewCandidateFromCv({
@@ -220,12 +225,12 @@ export function CvImportDialog({
         cv: cv ?? manualCv(),
       });
       // Die Erfolgsmeldung zeigt der Aufrufer; hier nur, was schiefging – nie verschluckt.
-      if (res.failed.length) toast.warning(`Kandidat angelegt, aber nicht gespeichert: ${res.failed.join(', ')}. Bitte in der Akte nachtragen.`);
+      if (res.failed.length) toast.warning(t('err.partNew', { list: res.failed.map((x) => term(x)).join(', ') }));
       onCandidateCreated?.(res.candidateId);
       onOpenChange(false);
       navigate(`/recruiter/candidates/${res.candidateId}`);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Speichern fehlgeschlagen');
+      toast.error(e instanceof Error ? e.message : t('err.save'));
       setStep('review');
     }
   };
@@ -244,12 +249,12 @@ export function CvImportDialog({
       }
       const stationsToAdd = addStations.filter((s) => accepted.has(`station:${s.company_name}:${s.start}`));
       const res = await saveCvIntoExisting({ userId: user.id, candidateId: existingCandidateId, before, merged, cv, fileInfo, addStations: stationsToAdd, notesId });
-      if (res.failed.length) toast.warning(`Teilweise gespeichert. Nicht übernommen: ${res.failed.join(', ')}.`);
-      else toast.success('Lebenslauf übernommen');
+      if (res.failed.length) toast.warning(t('err.partUpdate', { list: res.failed.map((x) => term(x)).join(', ') }));
+      else toast.success(t('applied'));
       onCandidateCreated?.(existingCandidateId);
       onOpenChange(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Speichern fehlgeschlagen');
+      toast.error(e instanceof Error ? e.message : t('err.save'));
       setStep('review');
     }
   };
@@ -269,8 +274,8 @@ export function CvImportDialog({
         {step === 'start' && (
           <>
             <DialogHeader>
-              <DialogTitle>{isUpdate ? 'Neuer Lebenslauf' : 'Kandidat anlegen'}</DialogTitle>
-              <DialogDescription>Lebenslauf rein, den Rest liest die KI aus. Du prüfst nur noch.</DialogDescription>
+              <DialogTitle>{isUpdate ? t('start.titleUpdate') : t('start.titleNew')}</DialogTitle>
+              <DialogDescription>{t('start.description')}</DialogDescription>
             </DialogHeader>
             <div
               role="button"
@@ -285,37 +290,33 @@ export function CvImportDialog({
               <input ref={fileRef} type="file" accept=".pdf,.docx,.txt,application/pdf" className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
               <FileUp className="mx-auto mb-2 h-7 w-7 text-muted-foreground" />
               {file ? (
-                <p className="text-sm font-medium">{file.name} <button type="button" className="ml-1 text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); setFile(null); }} aria-label="Datei entfernen"><X className="inline h-3.5 w-3.5" /></button></p>
+                <p className="text-sm font-medium">{file.name} <button type="button" className="ml-1 text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); setFile(null); }} aria-label={t('start.removeFile')}><X className="inline h-3.5 w-3.5" /></button></p>
               ) : (
                 <>
-                  <p className="text-sm font-medium">Lebenslauf hier ablegen</p>
-                  <p className="text-xs text-muted-foreground">PDF oder Word, bis 10 MB</p>
+                  <p className="text-sm font-medium">{t('start.drop')}</p>
+                  <p className="text-xs text-muted-foreground">{t('start.formats')}</p>
                 </>
               )}
             </div>
             <div className="space-y-2">
               <button type="button" className="text-sm text-muted-foreground hover:text-foreground" onClick={() => setPasteOpen((v) => !v)}>
-                <Plus className="mr-1 inline h-3.5 w-3.5" /> Text oder LinkedIn-Profil einfügen
+                <Plus className="mr-1 inline h-3.5 w-3.5" /> {t('start.pasteToggle')}
               </button>
-              {pasteOpen && <Textarea value={text} onChange={(e) => setText(e.target.value)} rows={6} placeholder="Lebenslauf oder LinkedIn-Profil hier einfügen" />}
+              {pasteOpen && <Textarea value={text} onChange={(e) => setText(e.target.value)} rows={6} placeholder={t('start.pastePlaceholder')} />}
               {((pasteOpen && !file) || (file && !isCvFileName(file.name))) && (
                 <p className="rounded-md bg-warning/10 px-3 py-2 text-xs text-warning">
-                  Text zählt nicht als Lebenslauf. Zum Einreichen brauchst du die Datei (PDF oder Word).
+                  {t('start.textNoCv')}
                 </p>
               )}
               <button type="button" className="block text-sm text-muted-foreground hover:text-foreground" onClick={() => setNotesOpen((v) => !v)}>
-                <Plus className="mr-1 inline h-3.5 w-3.5" /> Gesprächsnotizen gleich mit einwerfen (optional)
+                <Plus className="mr-1 inline h-3.5 w-3.5" /> {t('start.notesToggle')}
               </button>
-              {notesOpen && <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={4} placeholder="z. B. will 85k, min 80k, 3 Monate zum Quartalsende, nicht zu Firma X" />}
+              {notesOpen && <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={4} placeholder={t('start.notesPlaceholder')} />}
             </div>
             {!isUpdate && (
               <div className="space-y-2 rounded-md bg-muted/50 p-3 text-xs">
-                {[
-                  'Eine gültige Rechtsgrundlage für die Verarbeitung liegt vor (z. B. Einwilligung, Bewerbung oder berechtigtes Interesse nach Art. 6 DSGVO).',
-                  'Der Kandidat wurde bzw. wird über die Verarbeitung seiner Daten informiert.',
-                  'Ich übernehme nur bewerbungsrelevante Angaben. Geburtsdatum, Familienstand und Herkunft werden automatisch nicht übernommen.',
-                ].map((label, i) => (
-                  <label key={label} className="flex cursor-pointer items-start gap-2">
+                {[t('consent.0'), t('consent.1'), t('consent.2')].map((label, i) => (
+                  <label key={i} className="flex cursor-pointer items-start gap-2">
                     <Checkbox className="mt-0.5" checked={consent[i]} onCheckedChange={(v) => setConsent((c) => c.map((x, j) => (j === i ? v === true : x)))} />
                     <span>{label}</span>
                   </label>
@@ -323,8 +324,8 @@ export function CvImportDialog({
               </div>
             )}
             <div className="flex flex-wrap justify-end gap-2">
-              {!isUpdate && <Button variant="outline" disabled={!allConsent} onClick={() => startReview(null, null)}>Ohne Lebenslauf anlegen</Button>}
-              <Button disabled={(!file && !(pasteOpen && text.trim().length > 40)) || (!isUpdate && !allConsent)} onClick={read}>Auslesen</Button>
+              {!isUpdate && <Button variant="outline" disabled={!allConsent} onClick={() => startReview(null, null)}>{t('start.withoutCv')}</Button>}
+              <Button disabled={(!file && !(pasteOpen && text.trim().length > 40)) || (!isUpdate && !allConsent)} onClick={read}>{t('start.read')}</Button>
             </div>
           </>
         )}
@@ -332,37 +333,37 @@ export function CvImportDialog({
         {step === 'reading' && (
           <div className="flex flex-col items-center gap-3 py-14 text-center">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-sm font-medium">{READING_STEPS[readingIdx]}</p>
-            <p className="text-xs text-muted-foreground">Dauert meist 20–40 Sekunden.</p>
+            <p className="text-sm font-medium">{t(`reading.${readingIdx}`)}</p>
+            <p className="text-xs text-muted-foreground">{t('reading.duration')}</p>
           </div>
         )}
 
         {step === 'saving' && (
           <div className="flex flex-col items-center gap-3 py-14">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-sm">Wird gespeichert …</p>
+            <p className="text-sm">{t('saving')}</p>
           </div>
         )}
 
         {step === 'review' && !isUpdate && (
           <FieldOriginContext.Provider value={origins}>
             <DialogHeader>
-              <DialogTitle>{form.full_name ? `${form.full_name} prüfen` : 'Kandidat prüfen'}</DialogTitle>
+              <DialogTitle>{form.full_name ? t('review.titleName', { name: form.full_name }) : t('review.title')}</DialogTitle>
               <DialogDescription>
                 {fileInfo && isCvFileName(fileInfo.fileName)
                   ? fileInfo.fileName
-                  : `${fileInfo?.fileName ?? (cv ? 'Eingefügter Text' : 'Ohne Lebenslauf')} · Lebenslauf fehlt, zum Einreichen bitte später die Datei hochladen.`}
+                  : t('review.cvMissing', { source: fileInfo?.fileName ?? (cv ? t('review.pastedText') : t('review.noCv')) })}
               </DialogDescription>
             </DialogHeader>
             <div className="flex flex-wrap gap-2 text-xs">
-              {cv && <span className="rounded-md bg-success/15 px-2.5 py-1 text-success">{counts.taken} Angaben übernommen</span>}
-              {counts.check > 0 && <span className="rounded-md bg-warning/15 px-2.5 py-1 text-warning">{counts.check} bitte prüfen</span>}
-              <span className="rounded-md bg-muted px-2.5 py-1 text-muted-foreground">{counts.gaps} fehlen · fragen wir im Interview</span>
+              {cv && <span className="rounded-md bg-success/15 px-2.5 py-1 text-success">{t('review.taken', { n: counts.taken })}</span>}
+              {counts.check > 0 && <span className="rounded-md bg-warning/15 px-2.5 py-1 text-warning">{t('review.check', { n: counts.check })}</span>}
+              <span className="rounded-md bg-muted px-2.5 py-1 text-muted-foreground">{t('review.gaps', { n: counts.gaps })}</span>
             </div>
             {cv && cv.removed_sensitive.length > 0 && (
               <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
                 <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
-                Nicht übernommen, weil geschützt: {cv.removed_sensitive.join(', ')}.
+                {t('review.protected', { list: cv.removed_sensitive.map((x) => term(x)).join(', ') })}
               </p>
             )}
             {duplicate && (
@@ -370,65 +371,65 @@ export function CvImportDialog({
                 <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-warning" />
                 <span className="flex-1">
                   {duplicate.reason === 'name'
-                    ? `„${duplicate.full_name}“ gibt es in deinen Kandidaten schon – lieber dort den Lebenslauf aktualisieren?`
-                    : `Diese E-Mail gehört schon zu „${duplicate.full_name}“.`}
+                    ? t('review.dupName', { name: duplicate.full_name })
+                    : t('review.dupEmail', { name: duplicate.full_name })}
                 </span>
-                <button type="button" className="text-primary hover:underline" onClick={() => { onOpenChange(false); navigate(`/recruiter/candidates/${duplicate.id}`); }}>Öffnen</button>
+                <button type="button" className="text-primary hover:underline" onClick={() => { onOpenChange(false); navigate(`/recruiter/candidates/${duplicate.id}`); }}>{t('review.open')}</button>
               </p>
             )}
 
             <div className="space-y-5">
-              <Section title="Kontakt"><KontaktBlock form={form} set={(p) => { setNameError(null); set(p); }} errors={nameError ? { full_name: nameError } : undefined} /></Section>
-              <Section title="Rolle und Erfahrung">
+              <Section title={t('section.contact')}><KontaktBlock form={form} set={(p) => { setNameError(null); set(p); }} errors={nameError ? { full_name: nameError } : undefined} /></Section>
+              <Section title={t('section.role')}>
                 <BerufBlock form={form} set={set} />
-                <FuehrungFeld value={form} onChange={set} label="Führungsverantwortung" />
+                <FuehrungFeld value={form} onChange={set} label={t('section.lead')} />
               </Section>
               {(stations.length > 0 || (cv?.educations.length ?? 0) > 0) && (
-                <Section title="Stationen und Ausbildung">
+                <Section title={t('section.stations')}>
                   <ul className="divide-y divide-border rounded-md border border-border text-sm">
                     {stations.map((s, i) => (
                       <li key={`${s.company_name}-${s.start}-${i}`} className="flex items-start justify-between gap-3 px-3 py-2">
                         <span className="min-w-0">
-                          <span className="block font-medium">{s.job_title || 'Position'}{s.company_name && <span className="font-normal text-muted-foreground"> · {s.company_name}</span>}</span>
+                          <span className="block font-medium">{s.job_title || t('station.position')}{s.company_name && <span className="font-normal text-muted-foreground"> · {s.company_name}</span>}</span>
                           <span className="block text-xs text-muted-foreground">{period(s)}{s.location ? ` · ${s.location}` : ''}{s.industry ? ` · ${s.industry}` : ''}</span>
                         </span>
-                        <button type="button" aria-label="Station entfernen" className="text-muted-foreground hover:text-destructive" onClick={() => setStations((list) => list.filter((_, j) => j !== i))}><X className="h-4 w-4" /></button>
+                        <button type="button" aria-label={t('station.remove')} className="text-muted-foreground hover:text-destructive" onClick={() => setStations((list) => list.filter((_, j) => j !== i))}><X className="h-4 w-4" /></button>
                       </li>
                     ))}
                     {(cv?.educations ?? []).map((e, i) => (
                       <li key={`edu-${i}`} className="px-3 py-2">
-                        <span className="block font-medium">{e.degree || 'Abschluss'}{e.field_of_study && ` – ${e.field_of_study}`}</span>
-                        <span className="block text-xs text-muted-foreground">{e.institution}{e.graduation_year ? ` · ${e.graduation_year}` : ''}{e.grade ? ` · Note ${e.grade}` : ''}</span>
+                        <span className="block font-medium">{e.degree || t('station.degree')}{e.field_of_study && ` – ${e.field_of_study}`}</span>
+                        <span className="block text-xs text-muted-foreground">{e.institution}{e.graduation_year ? ` · ${e.graduation_year}` : ''}{e.grade ? ` · ${t('station.grade', { grade: e.grade })}` : ''}</span>
                       </li>
                     ))}
                   </ul>
                 </Section>
               )}
-              <Section title="Sprachen"><SprachenBlock form={form} set={set} /></Section>
-              <Section title="Wechselwunsch">
+              <Section title={t('section.languages')}><SprachenBlock form={form} set={set} /></Section>
+              <Section title={t('section.wish')}>
                 <GehaltBlock form={form} set={set} />
                 <VerfuegbarkeitBlock form={form} set={set} />
                 <ArbeitsortBlock form={form} set={set} />
                 <ZieleBlock form={form} set={set} />
-                <Field label="Arbeitserlaubnis" field="work_permit"><ArbeitserlaubnisBlock form={form} set={set} /></Field>
+                <Field label={t('section.permit')} field="work_permit"><ArbeitserlaubnisBlock form={form} set={set} /></Field>
                 <MotivationBlock form={form} set={set} />
-                <Field label="Karriereziel" field="career_3_5_year_plan">
+                <Field label={t('section.goal')} field="career_3_5_year_plan">
                   <AreaField field="career_3_5_year_plan" value={form.career_3_5_year_plan} onChange={(v) => set({ career_3_5_year_plan: v })} rows={2} />
                 </Field>
                 <SperrlisteBlock form={form} set={set} formerEmployers={stations.map((s) => s.company_name)} />
               </Section>
               {gaps.length > 0 && (
                 <div className="rounded-md bg-muted/60 p-3 text-sm">
-                  <p className="font-medium">Steht nicht im Lebenslauf – fragen wir im Interview</p>
-                  <p className="text-muted-foreground">{gaps.join(' · ')}</p>
+                  <p className="font-medium">{t('review.notInCv')}</p>
+                  <p className="text-muted-foreground">{gaps.map((g) => term(g)).join(' · ')}</p>
                 </div>
               )}
-              <Section title="Für den Kunden (Vorschlag)"><KundeBlock form={form} set={set} /></Section>
-              <Section title="Links"><LinksBlock form={form} set={set} /></Section>
+              <Section title={t('section.client')}><KundeBlock form={form} set={set} /></Section>
+              <Section title={t('section.links')}><LinksBlock form={form} set={set} /></Section>
             </div>
             <div className="sticky bottom-0 z-10 -mx-6 flex justify-between gap-2 border-t border-border bg-background px-6 py-3">
-              <Button variant="outline" onClick={() => setStep('start')}>Zurück</Button>
-              <Button onClick={saveNew}>Kandidat anlegen</Button>
+              <Button variant="outline" onClick={() => setStep('start')}>{t('review.back')}</Button>
+              <Button onClick={saveNew}>{t('review.create')}</Button>
             </div>
           </FieldOriginContext.Provider>
         )}
@@ -436,20 +437,20 @@ export function CvImportDialog({
         {step === 'review' && isUpdate && before && (
           <>
             <DialogHeader>
-              <DialogTitle>Neuer Lebenslauf für {before.full_name.split(' ')[0] || before.full_name}</DialogTitle>
-              <DialogDescription>Gehalt, Kündigungsfrist, Motivation und alles aus dem Interview bleiben unverändert.</DialogDescription>
+              <DialogTitle>{t('update.title', { name: before.full_name.split(' ')[0] || before.full_name })}</DialogTitle>
+              <DialogDescription>{t('update.description')}</DialogDescription>
             </DialogHeader>
             {changes.length === 0 && addStations.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">Keine neuen Angaben im Lebenslauf.</p>
+              <p className="py-6 text-center text-sm text-muted-foreground">{t('update.nothing')}</p>
             ) : (
               <ul className="divide-y divide-border text-sm">
                 {changes.map((c) => (
                   <li key={String(c.key)} className="flex items-start gap-3 py-2.5">
                     <Checkbox className="mt-0.5" checked={accepted.has(String(c.key))} onCheckedChange={() => toggleAccepted(String(c.key))} />
                     <span className="min-w-0 flex-1">
-                      <span className={cn('mr-2 rounded px-1.5 py-0.5 text-[11px]', c.kind === 'new' ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning')}>{c.kind === 'new' ? 'neu' : 'anders'}</span>
-                      <span className="font-medium">{FIELD_LABELS[c.key] ?? String(c.key)}:</span> {display(c.key, c.incoming)}
-                      {c.kind === 'conflict' && <span className="block text-xs text-muted-foreground">bisher: {display(c.key, c.current)} · angehakt = neuen Wert übernehmen</span>}
+                      <span className={cn('mr-2 rounded px-1.5 py-0.5 text-[11px]', c.kind === 'new' ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning')}>{c.kind === 'new' ? t('update.new') : t('update.different')}</span>
+                      <span className="font-medium">{fieldLabel(c.key)}:</span> {display(c.key, c.incoming)}
+                      {c.kind === 'conflict' && <span className="block text-xs text-muted-foreground">{t('update.before', { value: display(c.key, c.current) })}</span>}
                     </span>
                   </li>
                 ))}
@@ -458,16 +459,16 @@ export function CvImportDialog({
                   return (
                     <li key={key} className="flex items-start gap-3 py-2.5">
                       <Checkbox className="mt-0.5" checked={accepted.has(key)} onCheckedChange={() => toggleAccepted(key)} />
-                      <span><span className="mr-2 rounded bg-success/15 px-1.5 py-0.5 text-[11px] text-success">neu</span><span className="font-medium">Station:</span> {s.job_title} · {s.company_name} ({period(s)})</span>
+                      <span><span className="mr-2 rounded bg-success/15 px-1.5 py-0.5 text-[11px] text-success">{t('update.new')}</span><span className="font-medium">{t('update.station')}</span> {s.job_title} · {s.company_name} ({period(s)})</span>
                     </li>
                   );
                 })}
               </ul>
             )}
-            <p className="text-xs text-muted-foreground">{unchanged} Angaben unverändert</p>
+            <p className="text-xs text-muted-foreground">{t('update.unchanged', { n: unchanged })}</p>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>Abbrechen</Button>
-              <Button onClick={saveUpdate} disabled={changes.length === 0 && addStations.length === 0}>Änderungen übernehmen</Button>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>{t('update.cancel')}</Button>
+              <Button onClick={saveUpdate} disabled={changes.length === 0 && addStations.length === 0}>{t('update.apply')}</Button>
             </div>
           </>
         )}

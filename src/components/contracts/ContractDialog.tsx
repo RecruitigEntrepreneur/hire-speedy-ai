@@ -10,6 +10,11 @@ import { useAuth } from '@/lib/auth';
 import {
   contractApi, contractData, contractDataPdf, contractDataText, dateDe, download, euro, fileToBase64, todayIso, type ContractContext,
 } from '@/lib/contractApi';
+import i18n from '@/i18n';
+import { useTranslation } from 'react-i18next';
+import { fmtNumber } from '@/lib/localeFormat';
+
+const td = (key: string, options?: Record<string, unknown>): string => i18n.t(`contracts:client.dialog.${key}`, options);
 
 interface Props {
   ctx: ContractContext | null;
@@ -27,12 +32,13 @@ interface Props {
 
 /** „1 · Weg  2 · Vertrag  3 · Fertig“ */
 export function ContractSteps({ at }: { at: 1 | 2 | 3 }) {
-  const steps = ['Weg', 'Vertrag', 'Fertig'];
+  useTranslation('contracts');
+  const steps = [td('steps.1'), td('steps.2'), td('steps.3')];
   return (
     <ol className="flex gap-1.5 text-[11px]">
       {steps.map((label, i) => (
-        <li key={label} className={cn('flex-1 rounded-md border px-2 py-1 text-center', i + 1 === at ? 'border-foreground bg-foreground font-medium text-background' : i + 1 < at ? 'border-border text-muted-foreground line-through decoration-muted-foreground/40' : 'border-border text-muted-foreground')}>
-          {i + 1} · {label}
+        <li key={i} className={cn('flex-1 rounded-md border px-2 py-1 text-center', i + 1 === at ? 'border-foreground bg-foreground font-medium text-background' : i + 1 < at ? 'border-border text-muted-foreground line-through decoration-muted-foreground/40' : 'border-border text-muted-foreground')}>
+          {td('stepLabel', { n: i + 1, label })}
         </li>
       ))}
     </ol>
@@ -44,10 +50,11 @@ const digits = (v: string) => {
   const n = Number(v.replace(/[^\d]/g, ''));
   return Number.isFinite(n) && n > 0 ? n : null;
 };
-const fmt = (n: number | null) => (n ? new Intl.NumberFormat('de-DE').format(n) : '');
+const fmt = (n: number | null) => (n ? fmtNumber(n) : '');
 
 /** Arbeitsvertrag schicken (Kunde, Paket 3): digital über Matchunt oder selbst. Fenster in der Mitte. */
 export function ContractDialog({ ctx, open, onOpenChange, initialWay = null, inline = false, onDone, footerExtra }: Props) {
+  const { t } = useTranslation('contracts');
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [way, setWay] = useState<'digital' | 'self'>('digital');
@@ -89,8 +96,8 @@ export function ContractDialog({ ctx, open, onOpenChange, initialWay = null, inl
 
   if (!ctx) return null;
   const first = ctx.candidateName.split(' ')[0];
-  const myName = ((user?.user_metadata as any)?.full_name as string | undefined)?.trim() || user?.email || 'Ihr Konto';
-  const hh = ctx.recruiterName ?? 'Ihr Headhunter';
+  const myName = ((user?.user_metadata as any)?.full_name as string | undefined)?.trim() || user?.email || t('client.yourAccount');
+  const hh = ctx.recruiterName ?? t('client.yourRecruiter');
   const o = ctx.offer;
   const strict = fixedTerm === true || nonCompete === true;
 
@@ -104,13 +111,13 @@ export function ContractDialog({ ctx, open, onOpenChange, initialWay = null, inl
     setBusy(true);
     try {
       await contractApi.sendSelf(ctx.submissionId, sentOn || null);
-      const text = sentOn ? `Gespeichert. ${hh} weiß Bescheid und hakt bei ${first} nach.` : `Gespeichert. Sobald ${first} unterschrieben hat, melden Sie es im Bewerberprofil.`;
+      const text = sentOn ? td('savedSent', { hh, first }) : td('savedNotSent', { first });
       refresh();
       if (inline && onDone) { onDone(text); return; }
       toast.success(text);
       onOpenChange(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Das hat nicht geklappt.');
+      toast.error(e instanceof Error ? e.message : t('common.failed'));
     } finally {
       setBusy(false);
     }
@@ -129,16 +136,16 @@ export function ContractDialog({ ctx, open, onOpenChange, initialWay = null, inl
       refresh();
       if (r.signUrl) {
         // Gleiches Fenster: DocuSign springt danach ins Bewerberprofil zurück
-        toast.success('Hochgeladen. Sie werden zur Unterschrift weitergeleitet …');
+        toast.success(td('uploadedRedirect'));
         window.location.assign(r.signUrl);
         return;
       }
-      const text = `Hochgeladen. ${signerName.trim()} bekommt jetzt eine Mail mit Link; danach ist ${first} dran.`;
+      const text = td('uploadedLink', { name: signerName.trim(), first });
       if (inline && onDone) { onDone(text); return; }
       toast.success(text);
       onOpenChange(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Das hat nicht geklappt.');
+      toast.error(e instanceof Error ? e.message : t('common.failed'));
     } finally {
       setBusy(false);
     }
@@ -146,14 +153,14 @@ export function ContractDialog({ ctx, open, onOpenChange, initialWay = null, inl
 
   const copy = async () => {
     await navigator.clipboard.writeText(contractDataText(ctx));
-    toast.success('Vertragsdaten kopiert.');
+    toast.success(td('copied'));
   };
   const pdf = async () => download(await contractDataPdf(ctx), `Vertragsdaten_${ctx.candidateName.replace(/\s+/g, '_')}.pdf`);
 
   const pickFile = (f: File | null) => {
     if (!f) return;
-    if (f.type !== 'application/pdf' && !f.name.toLowerCase().endsWith('.pdf')) { toast.error('Bitte eine PDF-Datei wählen.'); return; }
-    if (f.size > MAX_MB * 1024 * 1024) { toast.error(`Die Datei ist größer als ${MAX_MB} MB.`); return; }
+    if (f.type !== 'application/pdf' && !f.name.toLowerCase().endsWith('.pdf')) { toast.error(td('pdfOnly')); return; }
+    if (f.size > MAX_MB * 1024 * 1024) { toast.error(td('tooBig', { mb: MAX_MB })); return; }
     setFile(f);
   };
 
@@ -163,7 +170,7 @@ export function ContractDialog({ ctx, open, onOpenChange, initialWay = null, inl
       <div className="inline-flex rounded-md border border-border/60 bg-muted/30 p-0.5">
         {[true, false].map((v) => (
           <button key={String(v)} type="button" onClick={() => set(v)}
-            className={cn('rounded px-3 py-1 text-xs', value === v ? 'bg-background font-medium shadow-sm' : 'text-muted-foreground')}>{v ? 'ja' : 'nein'}</button>
+            className={cn('rounded px-3 py-1 text-xs', value === v ? 'bg-background font-medium shadow-sm' : 'text-muted-foreground')}>{v ? td('yes') : td('no')}</button>
         ))}
       </div>
     </div>
@@ -180,18 +187,18 @@ export function ContractDialog({ ctx, open, onOpenChange, initialWay = null, inl
             <div className="grid gap-2 sm:grid-cols-2">
               <button type="button" disabled={!ctx.digitalAvailable} onClick={() => setWay('digital')}
                 className={cn('rounded-lg border p-3 text-left text-sm transition-colors', way === 'digital' ? 'border-primary bg-primary/[0.04]' : 'border-border/60 hover:bg-muted/40', !ctx.digitalAvailable && 'opacity-50')}>
-                <p className="font-medium">Digital über Matchunt <span className="ml-1 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-600">empfohlen</span></p>
-                <p className="mt-1 text-muted-foreground">{ctx.digitalAvailable ? `Sie laden Ihren Vertrag hoch. Erst unterschreiben Sie, dann ${first}, per DocuSign. Kostenlos, meist am selben Tag erledigt.` : 'Die digitale Unterschrift ist gerade nicht eingerichtet.'}</p>
+                <p className="font-medium">{td('digital')} <span className="ml-1 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-600">{td('recommended')}</span></p>
+                <p className="mt-1 text-muted-foreground">{ctx.digitalAvailable ? td('digitalHint', { first }) : td('digitalOff')}</p>
               </button>
               <button type="button" onClick={() => { setWay('self'); if (!sentOn) setSentOn(todayIso()); }}
                 className={cn('rounded-lg border p-3 text-left text-sm transition-colors', way === 'self' ? 'border-primary bg-primary/[0.04]' : 'border-border/60 hover:bg-muted/40')}>
-                <p className="font-medium">Selbst verschicken</p>
-                <p className="mt-1 text-muted-foreground">Papier oder Ihr eigenes Tool. Sie melden die Unterschrift hier mit einem Klick.</p>
+                <p className="font-medium">{td('self')}</p>
+                <p className="mt-1 text-muted-foreground">{td('selfHint')}</p>
               </button>
             </div>
 
             <div className="rounded-lg border border-border/60 bg-muted/30 p-3 text-sm">
-              <p className="mb-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Vertragsdaten aus der Zusage (zum Übernehmen in Ihren Vertrag)</p>
+              <p className="mb-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{td('dataTitle')}</p>
               <dl className="grid grid-cols-[9rem_1fr] gap-x-3 gap-y-1">
                 {contractData(ctx).map((r) => (
                   <div key={r.label} className="contents">
@@ -200,31 +207,31 @@ export function ContractDialog({ ctx, open, onOpenChange, initialWay = null, inl
                   </div>
                 ))}
               </dl>
-              <p className="mt-2 text-xs text-muted-foreground">Übliche Angaben für Vertrag bzw. Nachweis. Ihren Vertragstext formulieren Sie selbst; wir geben keine Rechtsberatung.</p>
+              <p className="mt-2 text-xs text-muted-foreground">{td('dataHint')}</p>
               <div className="mt-2 flex flex-wrap gap-2">
-                <Button size="sm" variant="outline" className="h-8 gap-1 text-xs" onClick={pdf}><FileDown className="h-3.5 w-3.5" />Vertragsdaten als PDF</Button>
-                <Button size="sm" variant="outline" className="h-8 gap-1 text-xs" onClick={copy}><Copy className="h-3.5 w-3.5" />Kopieren</Button>
+                <Button size="sm" variant="outline" className="h-8 gap-1 text-xs" onClick={pdf}><FileDown className="h-3.5 w-3.5" />{td('dataPdf')}</Button>
+                <Button size="sm" variant="outline" className="h-8 gap-1 text-xs" onClick={copy}><Copy className="h-3.5 w-3.5" />{td('copy')}</Button>
               </div>
             </div>
 
             {way === 'digital' && ctx.digitalDemo && (
               <p className="flex gap-2 rounded-md border border-amber-500/30 bg-amber-500/[0.06] p-2 text-xs text-amber-700 dark:text-amber-400"><TriangleAlert className="h-4 w-4 shrink-0" />
-                DocuSign läuft noch im Testbetrieb: Darüber unterschriebene Verträge sind nicht rechtsverbindlich. Für eine echte Einstellung bitte „Selbst verschicken“.</p>
+                {td('demo')}</p>
             )}
             {way === 'self' && (
               <label className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="text-muted-foreground">Verschickt am</span>
+                <span className="text-muted-foreground">{td('sentOn')}</span>
                 <Input type="date" value={sentOn} max={todayIso()} onChange={(e) => setSentOn(e.target.value)} className="h-8 w-44" />
-                <span className="text-xs text-muted-foreground">{first} bekommt von uns Bescheid und meldet, wenn der Vertrag da ist; {hh} hakt nach. Noch nicht verschickt? Dann einfach schließen, die Aufgabe bleibt.</span>
+                <span className="text-xs text-muted-foreground">{td('sentOnHint', { first, hh })}</span>
               </label>
             )}
 
             <div className="flex flex-wrap items-center justify-end gap-2 border-t pt-3">
               {inline && footerExtra && <div className="mr-auto flex flex-wrap gap-3 text-xs">{footerExtra}</div>}
-              <Button variant="ghost" onClick={() => onOpenChange(false)}>Abbrechen</Button>
+              <Button variant="ghost" onClick={() => onOpenChange(false)}>{t('common.cancel')}</Button>
               {way === 'digital'
-                ? <Button disabled={!ctx.digitalAvailable} onClick={() => setStep('upload')}>Weiter: Vertrag hochladen</Button>
-                : <Button disabled={busy || !sentOn} onClick={saveSelf}>{busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}Als verschickt speichern</Button>}
+                ? <Button disabled={!ctx.digitalAvailable} onClick={() => setStep('upload')}>{td('nextUpload')}</Button>
+                : <Button disabled={busy || !sentOn} onClick={saveSelf}>{busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}{td('saveSent')}</Button>}
             </div>
           </>
         ) : (
@@ -233,61 +240,61 @@ export function ContractDialog({ ctx, open, onOpenChange, initialWay = null, inl
             <button type="button" onClick={() => fileInput.current?.click()}
               className="flex w-full items-center gap-3 rounded-lg border border-dashed p-4 text-left text-sm hover:bg-muted/40">
               <Upload className="h-5 w-5 text-muted-foreground" />
-              {file ? <span><span className="font-medium">{file.name}</span> · {(file.size / 1024 / 1024).toFixed(1)} MB · <span className="text-muted-foreground">ersetzen</span></span>
-                : <span>Ihren fertigen Arbeitsvertrag als PDF hochladen (bis {MAX_MB} MB)</span>}
+              {file ? <span><span className="font-medium">{file.name}</span> · {(file.size / 1024 / 1024).toFixed(1)} MB · <span className="text-muted-foreground">{td('replace')}</span></span>
+                : <span>{td('uploadHint', { mb: MAX_MB })}</span>}
             </button>
 
             <div className="grid gap-3 text-sm sm:grid-cols-3">
-              <label className="block"><span className="text-muted-foreground">Gehalt fix laut Vertrag</span>
+              <label className="block"><span className="text-muted-foreground">{td('salary')}</span>
                 <Input inputMode="numeric" value={salary} onChange={(e) => setSalary(fmt(digits(e.target.value)))} className="mt-1 h-9" /></label>
-              <label className="block"><span className="text-muted-foreground">Variabel</span>
-                <Input inputMode="numeric" value={variable} onChange={(e) => setVariable(fmt(digits(e.target.value)))} placeholder="keins" className="mt-1 h-9" /></label>
-              <label className="block"><span className="text-muted-foreground">Beginn laut Vertrag</span>
+              <label className="block"><span className="text-muted-foreground">{td('variable')}</span>
+                <Input inputMode="numeric" value={variable} onChange={(e) => setVariable(fmt(digits(e.target.value)))} placeholder={td('none')} className="mt-1 h-9" /></label>
+              <label className="block"><span className="text-muted-foreground">{td('start')}</span>
                 <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="mt-1 h-9" /></label>
             </div>
             <div className="grid gap-3 text-sm sm:grid-cols-2">
               <div>
-                <span className="text-muted-foreground">Wer unterschreibt für {ctx.companyName}?</span>
+                <span className="text-muted-foreground">{td('whoSigns', { company: ctx.companyName })}</span>
                 <div className="mt-1 inline-flex w-full rounded-md border border-border/60 bg-muted/30 p-0.5">
                   {[true, false].map((v) => (
                     <button key={String(v)} type="button" onClick={() => setSignerSelf(v)}
                       className={cn('flex-1 truncate rounded px-2 py-1 text-xs', signerSelf === v ? 'bg-background font-medium shadow-sm' : 'text-muted-foreground')}>
-                      {v ? 'Ich selbst' : 'Jemand anderes'}
+                      {v ? td('me') : td('someoneElse')}
                     </button>
                   ))}
                 </div>
                 {signerSelf ? (
-                  <span className="mt-1 block text-xs text-muted-foreground">Sie unterschreiben als {myName} gleich nach dem Hochladen hier in Matchunt, ohne auf eine Mail zu warten.</span>
+                  <span className="mt-1 block text-xs text-muted-foreground">{td('meHint', { name: myName })}</span>
                 ) : (
                   <>
-                    <Input value={signerName} onChange={(e) => setSignerName(e.target.value)} placeholder="Name, z. B. Dr. Petra Weber" className="mt-1 h-9" aria-label="Name des Unterzeichners" />
-                    <Input value={signerEmail} onChange={(e) => setSignerEmail(e.target.value)} placeholder="Mail" className="mt-1 h-9" aria-label="Mail des Unterzeichners" />
-                    <span className="mt-1 block text-xs text-muted-foreground">Bekommt eine Mail von Matchunt mit persönlichem Link, ganz ohne Konto.</span>
+                    <Input value={signerName} onChange={(e) => setSignerName(e.target.value)} placeholder={td('signerName')} className="mt-1 h-9" aria-label={td('signerNameLabel')} />
+                    <Input value={signerEmail} onChange={(e) => setSignerEmail(e.target.value)} placeholder={td('mail')} className="mt-1 h-9" aria-label={td('signerMailLabel')} />
+                    <span className="mt-1 block text-xs text-muted-foreground">{td('signerHint')}</span>
                   </>
                 )}
               </div>
-              <label className="block"><span className="text-muted-foreground">Danach unterschreibt {ctx.candidateName}</span>
-                <Input value={candidateEmail} onChange={(e) => setCandidateEmail(e.target.value)} placeholder="Mail" className="mt-1 h-9" />
-                <span className="mt-1 block text-xs text-muted-foreground">Mail aus der Freigabe. {first} bekommt von Matchunt einen Link, sobald die Firma unterschrieben hat.</span></label>
+              <label className="block"><span className="text-muted-foreground">{td('thenSigns', { name: ctx.candidateName })}</span>
+                <Input value={candidateEmail} onChange={(e) => setCandidateEmail(e.target.value)} placeholder={td('mail')} className="mt-1 h-9" />
+                <span className="mt-1 block text-xs text-muted-foreground">{td('candidateMailHint', { first })}</span></label>
             </div>
             <div className="space-y-2 rounded-lg border border-border/60 bg-muted/30 p-3">
-              {yesNo(fixedTerm, setFixedTerm, 'Ist der Vertrag befristet?')}
-              {yesNo(nonCompete, setNonCompete, 'Enthält er ein Wettbewerbsverbot nach dem Ende?')}
+              {yesNo(fixedTerm, setFixedTerm, td('fixedTermQ'))}
+              {yesNo(nonCompete, setNonCompete, td('nonCompeteQ'))}
               {strict && (
                 <p className="flex gap-2 text-xs text-amber-700 dark:text-amber-400"><TriangleAlert className="h-4 w-4 shrink-0" />
-                  Dafür gilt die strenge Schriftform; eine einfache digitale Unterschrift reicht nicht. Bitte „Selbst verschicken“ wählen.</p>
+                  {td('strict')}</p>
               )}
-              <p className="text-xs text-muted-foreground">{first} kann zusätzlich eine Papierfassung verlangen. Wir hängen eine Unterschriftenseite an, auf der beide unterschreiben.</p>
+              <p className="text-xs text-muted-foreground">{td('paper', { first })}</p>
             </div>
             <label className="flex items-start gap-2 text-sm">
               <input type="checkbox" className="mt-1" checked={closeJob} onChange={(e) => setCloseJob(e.target.checked)} />
-              <span>Nach der Unterschrift die Stelle als besetzt schließen. <span className="text-muted-foreground">Bei mehreren Plätzen den Haken entfernen.</span></span>
+              <span>{td('closeJob')} <span className="text-muted-foreground">{td('closeJobHint')}</span></span>
             </label>
 
             <div className="flex flex-wrap justify-end gap-2 border-t pt-3">
-              <Button variant="ghost" onClick={() => setStep('choose')}>Zurück</Button>
-              {strict && <Button variant="outline" onClick={() => { setWay('self'); setStep('choose'); }}>Selbst verschicken</Button>}
-              <Button disabled={busy || !readyDigital} onClick={sendDigital}>{busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}{signerSelf ? 'Hochladen und jetzt unterschreiben' : 'Hochladen und Link senden'}</Button>
+              <Button variant="ghost" onClick={() => setStep('choose')}>{td('back')}</Button>
+              {strict && <Button variant="outline" onClick={() => { setWay('self'); setStep('choose'); }}>{td('self')}</Button>}
+              <Button disabled={busy || !readyDigital} onClick={sendDigital}>{busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}{signerSelf ? td('uploadSign') : td('uploadLink')}</Button>
             </div>
           </>
         )}
@@ -299,9 +306,12 @@ export function ContractDialog({ ctx, open, onOpenChange, initialWay = null, inl
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader className="text-left">
-          <DialogTitle>Arbeitsvertrag für {ctx.candidateName}</DialogTitle>
+          <DialogTitle>{td('title', { name: ctx.candidateName })}</DialogTitle>
           <DialogDescription>
-            {o ? `Zusage${o.acceptedAt ? ` vom ${dateDe(o.acceptedAt)}` : ''}: ${euro(o.salary)}${o.variable ? ` + ${euro(o.variable)}` : ''}${o.startDate ? `, Start ${dateDe(o.startDate)}` : ''}` : ctx.jobTitle}
+            {o ? (() => {
+              const values = `${o.variable ? t('client.valuesVariable', { salary: euro(o.salary), variable: euro(o.variable) }) : euro(o.salary)}${o.startDate ? td('startSuffix', { date: dateDe(o.startDate) }) : ''}`;
+              return o.acceptedAt ? td('acceptedOn', { date: dateDe(o.acceptedAt), values }) : td('accepted', { values });
+            })() : ctx.jobTitle}
           </DialogDescription>
         </DialogHeader>
         {body}

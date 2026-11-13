@@ -1,7 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { NOTICE_OPTIONS, optionLabel } from '@/lib/candidateDossier';
-import { fuehrungText } from '@/lib/fuehrung';
+import { fuehrungArten, fuehrungText, fuehrungZahl } from '@/lib/fuehrung';
+import { isGermanUi, term } from '@/lib/candidateTerms';
+import { fmtDate } from '@/lib/localeFormat';
+import { availableFromLabel } from '@/lib/clientCandidateLabels';
+import i18n from '@/i18n';
 
 export type InterviewInsights = {
   interview_date: string | null;
@@ -50,17 +54,33 @@ export function useCandidateInsights(submissionId: string | undefined) {
   });
 }
 
-const fmt = (iso: string) => new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+const fmt = (iso: string) => fmtDate(iso);
 
 /** „ab 01.01.2027 · 3 Monate zum Quartalsende“ -- oder nur eines davon, oder null. Nie den Rohwert („3_months_eoq“). */
 export function verfuegbarAus(i: InterviewInsights | null): string | null {
   if (!i) return null;
-  const frist = i.notice_period?.trim() ? optionLabel(NOTICE_OPTIONS, i.notice_period.trim()) : null;
-  const parts = [i.earliest_start_date ? `ab ${fmt(i.earliest_start_date)}` : null, frist].filter(Boolean);
+  const frist = i.notice_period?.trim() ? term(optionLabel(NOTICE_OPTIONS, i.notice_period.trim())) : null;
+  const parts = [i.earliest_start_date ? availableFromLabel(i.earliest_start_date) : null, frist].filter(Boolean);
   return parts.length ? parts.join(' · ') : null;
 }
 
-export const GESPRAECH: Record<string, string> = { phone: 'Telefon', video: 'Video', onsite: 'Persönlich' };
-export const WEITERE: Record<string, string> = { none: 'keine', early: 'in frühen Gesprächen', advanced: 'in fortgeschrittenen Gesprächen', offer: 'hat ein Angebot' };
-export const fuehrung = (i: InterviewInsights) => fuehrungText(i);
+/** Art des Gesprächs mit dem Headhunter: Telefon, Video, Persönlich. */
+export const gespraechLabel = (type: string | null | undefined) =>
+  type && ['phone', 'video', 'onsite'].includes(type) ? i18n.t(`clientCandidates:insights.talk.${type}`) : '';
+
+/** Führung in der Sprache der Oberfläche; auf Deutsch genau fuehrungText. */
+export function fuehrung(i: InterviewInsights): string | null {
+  if (isGermanUi()) return fuehrungText(i);
+  if (!i.leadership_scope) return null;
+  const a = fuehrungArten(i);
+  const l = (key: string, options?: Record<string, unknown>) => i18n.t(`clientCandidates:insights.lead.${key}`, options ?? {});
+  if (a.keine) return l('none');
+  const d = fuehrungZahl(i, 'disciplinary');
+  const fz = fuehrungZahl(i, 'functional');
+  if (a.disziplinarisch && a.fachlich) {
+    return `${l('disciplinary')}${d ? ` ${l('persons', { count: d })}` : ''}, ${l('functional')}${fz ? ` ${l('persons', { count: fz })}` : ''}`;
+  }
+  const n = a.disziplinarisch ? d : fz;
+  return `${a.disziplinarisch ? l('disciplinary') : l('functional')}${n ? `, ${l('persons', { count: n })}` : ''}`;
+}
 export { fmt as fmtDatum };

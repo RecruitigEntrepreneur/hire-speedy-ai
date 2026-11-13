@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -27,44 +28,42 @@ interface CommutePreferencesCardProps {
   showAddress?: boolean;
 }
 
+// Beschriftung: candidates:commute.mode.<wert> und candidates:commute.flexibility.<wert>
 const commuteModeOptions = [
-  { value: 'car', label: 'Auto', icon: Car },
-  { value: 'public_transit', label: 'ÖPNV', icon: Train },
-  { value: 'bike', label: 'Fahrrad', icon: Bike },
-  { value: 'any', label: 'Egal', icon: MapPin },
+  { value: 'car', icon: Car },
+  { value: 'public_transit', icon: Train },
+  { value: 'bike', icon: Bike },
+  { value: 'any', icon: MapPin },
 ];
 
-const remoteFlexibilityOptions = [
-  { value: 'strict', label: 'Strikt (nur diese Option)' },
-  { value: 'flexible', label: 'Flexibel (verhandelbar)' },
-  { value: 'negotiable', label: 'Offen für Alternativen' },
-];
+const remoteFlexibilityOptions = ['strict', 'flexible', 'negotiable'];
 
 export function CommutePreferencesCard({ 
   data, 
   onChange,
   showAddress = true 
 }: CommutePreferencesCardProps) {
+  const { t } = useTranslation('candidates');
   const [geocoding, setGeocoding] = useState(false);
   const [geocoded, setGeocoded] = useState(false);
 
   const getCommuteLabel = (minutes: number) => {
-    if (minutes <= 15) return 'Sehr kurz';
-    if (minutes <= 30) return 'Kurz';
-    if (minutes <= 45) return 'Mittel';
-    if (minutes <= 60) return 'Lang';
-    return 'Sehr lang';
+    if (minutes <= 15) return t('commute.length.veryShort');
+    if (minutes <= 30) return t('commute.length.short');
+    if (minutes <= 45) return t('commute.length.medium');
+    if (minutes <= 60) return t('commute.length.long');
+    return t('commute.length.veryLong');
   };
 
   const getRemoteDaysLabel = (days: number) => {
-    if (days === 0) return 'Nur vor Ort';
-    if (days === 5) return 'Vollständig Remote';
-    return `${days} Tag${days > 1 ? 'e' : ''} Remote`;
+    if (days === 0) return t('commute.onsiteOnly');
+    if (days === 5) return t('commute.fullyRemote');
+    return t('commute.remoteDays', { count: days });
   };
 
   const handleGeocode = useCallback(async () => {
     if (!data.address_street || !data.address_city) {
-      toast.error('Bitte Straße und Stadt eingeben');
+      toast.error(t('commute.needStreetCity'));
       return;
     }
 
@@ -95,24 +94,24 @@ export function CommutePreferencesCard({
           address_lng: parseFloat(lon),
         });
         setGeocoded(true);
-        toast.success('Koordinaten erfolgreich ermittelt');
+        toast.success(t('commute.geocodeSuccess'));
       } else {
-        toast.error('Adresse nicht gefunden');
+        toast.error(t('commute.addressNotFound'));
       }
     } catch (error) {
       console.error('Geocoding error:', error);
-      toast.error('Fehler bei der Adresssuche');
+      toast.error(t('commute.geocodeError'));
     } finally {
       setGeocoding(false);
     }
-  }, [data.address_street, data.address_zip, data.address_city, onChange]);
+  }, [data.address_street, data.address_zip, data.address_city, onChange, t]);
 
   return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-sm flex items-center gap-2">
           <Car className="h-4 w-4" />
-          Pendel & Remote-Präferenzen
+          {t('commute.title')}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -121,10 +120,10 @@ export function CommutePreferencesCard({
           <div className="flex justify-between items-center">
             <Label className="flex items-center gap-2">
               <MapPin className="h-3 w-3" />
-              Max. Pendelzeit
+              {t('commute.maxCommute')}
             </Label>
             <span className="text-sm font-medium">
-              {data.max_commute_minutes} Min ({getCommuteLabel(data.max_commute_minutes)})
+              {t('commute.minutesWithLabel', { count: data.max_commute_minutes, label: getCommuteLabel(data.max_commute_minutes) })}
             </span>
           </div>
           <Slider
@@ -136,16 +135,16 @@ export function CommutePreferencesCard({
             className="w-full"
           />
           <div className="flex justify-between text-xs text-muted-foreground">
-            <span>10 Min</span>
-            <span>30 Min</span>
-            <span>60 Min</span>
-            <span>90 Min</span>
+            <span>{t('commute.minutes', { count: 10 })}</span>
+            <span>{t('commute.minutes', { count: 30 })}</span>
+            <span>{t('commute.minutes', { count: 60 })}</span>
+            <span>{t('commute.minutes', { count: 90 })}</span>
           </div>
         </div>
 
         {/* Commute Mode */}
         <div className="space-y-2">
-          <Label>Bevorzugtes Transportmittel</Label>
+          <Label>{t('commute.preferredMode')}</Label>
           <div className="grid grid-cols-4 gap-2">
             {commuteModeOptions.map((option) => {
               const Icon = option.icon;
@@ -164,7 +163,7 @@ export function CommutePreferencesCard({
                   `}
                 >
                   <Icon className="h-5 w-5 mb-1" />
-                  <span className="text-xs">{option.label}</span>
+                  <span className="text-xs">{t(`commute.mode.${option.value}`)}</span>
                 </button>
               );
             })}
@@ -176,7 +175,7 @@ export function CommutePreferencesCard({
           <div className="flex justify-between items-center">
             <Label className="flex items-center gap-2">
               <Home className="h-3 w-3" />
-              Remote-Tage pro Woche
+              {t('commute.remoteDaysPerWeek')}
             </Label>
             <span className="text-sm font-medium">
               {getRemoteDaysLabel(data.remote_days_preferred)}
@@ -193,30 +192,30 @@ export function CommutePreferencesCard({
           <div className="flex justify-between text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
               <Building2 className="h-3 w-3" />
-              Vor Ort
+              {t('commute.onsite')}
             </span>
-            <span>Hybrid</span>
+            <span>{t('commute.hybrid')}</span>
             <span className="flex items-center gap-1">
               <Home className="h-3 w-3" />
-              Remote
+              {t('commute.remote')}
             </span>
           </div>
         </div>
 
         {/* Remote Flexibility */}
         <div className="space-y-2">
-          <Label>Flexibilität bei Remote</Label>
+          <Label>{t('commute.remoteFlexibility')}</Label>
           <Select 
             value={data.remote_flexibility} 
             onValueChange={(value) => onChange({ remote_flexibility: value })}
           >
             <SelectTrigger>
-              <SelectValue placeholder="Flexibilität wählen" />
+              <SelectValue placeholder={t('commute.chooseFlexibility')} />
             </SelectTrigger>
             <SelectContent>
               {remoteFlexibilityOptions.map(option => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
+                <SelectItem key={option} value={option}>
+                  {t(`commute.flexibility.${option}`)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -229,12 +228,12 @@ export function CommutePreferencesCard({
             <div className="flex items-center justify-between">
               <Label className="flex items-center gap-2 text-muted-foreground">
                 <MapPin className="h-3 w-3" />
-                Wohnadresse (für Routenberechnung)
+                {t('commute.homeAddress')}
               </Label>
               {data.address_lat && data.address_lng && (
                 <span className="text-xs text-green-600 flex items-center gap-1">
                   <Check className="h-3 w-3" />
-                  Koordinaten vorhanden
+                  {t('commute.hasCoordinates')}
                 </span>
               )}
             </div>
@@ -245,7 +244,7 @@ export function CommutePreferencesCard({
                   onChange({ address_street: e.target.value });
                   setGeocoded(false);
                 }}
-                placeholder="Straße und Hausnummer"
+                placeholder={t('commute.streetPlaceholder')}
               />
               <div className="grid grid-cols-3 gap-2">
                 <Input
@@ -254,7 +253,7 @@ export function CommutePreferencesCard({
                     onChange({ address_zip: e.target.value });
                     setGeocoded(false);
                   }}
-                  placeholder="PLZ"
+                  placeholder={t('commute.zipPlaceholder')}
                   className="col-span-1"
                 />
                 <Input
@@ -263,7 +262,7 @@ export function CommutePreferencesCard({
                     onChange({ address_city: e.target.value });
                     setGeocoded(false);
                   }}
-                  placeholder="Stadt"
+                  placeholder={t('commute.cityPlaceholder')}
                   className="col-span-2"
                 />
               </div>
@@ -278,17 +277,17 @@ export function CommutePreferencesCard({
                 {geocoding ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Suche Koordinaten...
+                    {t('commute.geocoding')}
                   </>
                 ) : geocoded ? (
                   <>
                     <Check className="h-4 w-4 mr-2 text-green-600" />
-                    Koordinaten ermittelt
+                    {t('commute.geocoded')}
                   </>
                 ) : (
                   <>
                     <MapPin className="h-4 w-4 mr-2" />
-                    Koordinaten ermitteln
+                    {t('commute.geocode')}
                   </>
                 )}
               </Button>

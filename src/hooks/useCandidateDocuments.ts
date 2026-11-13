@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import i18n from '@/i18n';
 import { useAuth } from '@/lib/auth';
 
 export interface CandidateDocument {
@@ -143,8 +144,8 @@ export function useCandidateDocuments(candidateId?: string) {
       if (error) throw error;
 
       toast({
-        title: 'Dokument hochgeladen',
-        description: `${file.name} wurde erfolgreich hochgeladen (Version ${newVersion}).`,
+        title: i18n.t('candidateDetail:hooks.docUploaded'),
+        description: i18n.t('candidateDetail:hooks.docUploadedText', { name: file.name, version: newVersion }),
       });
 
       await fetchDocuments();
@@ -152,8 +153,8 @@ export function useCandidateDocuments(candidateId?: string) {
     } catch (error) {
       console.error('Error uploading document:', error);
       toast({
-        title: 'Upload fehlgeschlagen',
-        description: 'Das Dokument konnte nicht hochgeladen werden.',
+        title: i18n.t('candidateDetail:hooks.uploadFailed'),
+        description: i18n.t('candidateDetail:hooks.uploadFailedText'),
         variant: 'destructive',
       });
       return null;
@@ -172,16 +173,16 @@ export function useCandidateDocuments(candidateId?: string) {
       if (error) throw error;
 
       toast({
-        title: 'Dokument gelöscht',
-        description: 'Das Dokument wurde erfolgreich gelöscht.',
+        title: i18n.t('candidateDetail:hooks.docDeleted'),
+        description: i18n.t('candidateDetail:hooks.docDeletedText'),
       });
 
       await fetchDocuments();
     } catch (error) {
       console.error('Error deleting document:', error);
       toast({
-        title: 'Löschen fehlgeschlagen',
-        description: 'Das Dokument konnte nicht gelöscht werden.',
+        title: i18n.t('candidateDetail:hooks.deleteFailed'),
+        description: i18n.t('candidateDetail:hooks.deleteFailedText'),
         variant: 'destructive',
       });
     }

@@ -6,11 +6,14 @@
  * steht an der Stelle des Gehaltswunschs dieser Satz. Sonst läse der Kunde
  * „Wunschgehalt um 780 € im Jahr“ -- falsch und mit dem Satz des Spezialisten.
  */
-export const TAGESSATZ_ABSTIMMUNG = 'stimmt Matchunt vor dem Einsatz mit Ihnen ab';
+import i18n from '@/i18n';
+
+/** Der Hinweis statt des Satzes, in der Sprache der Oberfläche („stimmt Matchunt vor dem Einsatz mit Ihnen ab“). */
+export const tagessatzAbstimmung = () => i18n.t('clientCandidates:cards.dayRateValue');
 
 /** Die Geld-Angabe im Kandidatenprofil des Kunden: Gehaltswunsch, bei Contracting der Hinweis. */
 export function kundenGeld(employmentType: string | null | undefined, gehalt: string | null | undefined): { label: string; value: string | null | undefined } {
   return employmentType === 'freelance'
-    ? { label: 'Tagessatz', value: TAGESSATZ_ABSTIMMUNG }
-    : { label: 'Gehaltswunsch', value: gehalt };
+    ? { label: i18n.t('clientCandidates:cards.dayRate'), value: tagessatzAbstimmung() }
+    : { label: i18n.t('clientCandidates:cards.salaryWish'), value: gehalt };
 }

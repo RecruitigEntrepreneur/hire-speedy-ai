@@ -1,5 +1,6 @@
 import { KeyboardEvent, useContext, useState } from 'react';
 import { AlertTriangle, Plus, Sparkles, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -25,7 +26,9 @@ import {
   noticeParts,
 } from '@/lib/candidateDossier';
 import { blockedSuggestions, industrySuggestions, locationSuggestions, offerSuggestions, roleSuggestions } from '@/lib/interviewSuggestions';
-import { haeufigFehlend, sprachVorschlaege } from '@/lib/sprachen';
+import { SPRACHEN, haeufigFehlend, istBekannteSprache, sprachVorschlaege } from '@/lib/sprachen';
+import { isGermanUi, term } from '@/lib/candidateTerms';
+import { intlLocale } from '@/i18n/languages';
 import { cn } from '@/lib/utils';
 import type { RoleFamily } from '@/lib/roleFamily';
 import { minimumChips, salaryWarnings, wishChips, type SalaryChip } from '@/lib/salaryChips';
@@ -41,59 +44,62 @@ export interface BlockProps {
 }
 
 export function KontaktBlock({ form, set, errors }: BlockProps) {
+  const { t } = useTranslation(['candidateDossier', 'candidateTerms']);
   return (
     <div className="space-y-2">
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Name *" field="full_name" error={errors?.full_name}>
+        <Field label={t('blocks.name')} field="full_name" error={errors?.full_name}>
           <TextField field="full_name" value={form.full_name} onChange={(v) => set({ full_name: v })} />
         </Field>
-        <Field label="Wohnort" field="city">
-          <TextField field="city" value={form.city} onChange={(v) => set({ city: v })} placeholder="München" />
+        <Field label={t('blocks.city')} field="city">
+          <TextField field="city" value={form.city} onChange={(v) => set({ city: v })} placeholder={t('blocks.cityPlaceholder')} />
         </Field>
-        <Field label="E-Mail" field="email" error={errors?.email}>
-          <TextField field="email" type="email" value={form.email} onChange={(v) => set({ email: v })} placeholder="name@beispiel.de" />
+        <Field label={t('blocks.email')} field="email" error={errors?.email}>
+          <TextField field="email" type="email" value={form.email} onChange={(v) => set({ email: v })} placeholder={t('blocks.emailPlaceholder')} />
         </Field>
-        <Field label="Telefon" field="phone" error={errors?.phone}>
+        <Field label={t('blocks.phone')} field="phone" error={errors?.phone}>
           <TextField field="phone" value={form.phone} onChange={(v) => set({ phone: v })} placeholder="+49 …" />
         </Field>
       </div>
-      <p className="text-xs text-muted-foreground">E-Mail oder Telefon reicht.</p>
+      <p className="text-xs text-muted-foreground">{t('blocks.contactHint')}</p>
     </div>
   );
 }
 
 export function RolleBlock({ form, set }: BlockProps) {
+  const { t } = useTranslation(['candidateDossier', 'candidateTerms']);
   return (
     <div className="grid gap-3 sm:grid-cols-3">
-      <Field label="Aktuelle Rolle" field="job_title">
-        <TextField field="job_title" value={form.job_title} onChange={(v) => set({ job_title: v })} placeholder="z. B. Senior Controller" />
+      <Field label={t('blocks.currentRole')} field="job_title">
+        <TextField field="job_title" value={form.job_title} onChange={(v) => set({ job_title: v })} placeholder={t('blocks.currentRolePlaceholder')} />
       </Field>
-      <Field label="Arbeitgeber" field="company">
+      <Field label={t('blocks.employer')} field="company">
         <TextField field="company" value={form.company} onChange={(v) => set({ company: v })} />
       </Field>
-      <Field label="Berufserfahrung" field="experience_years">
-        <NumberField field="experience_years" value={form.experience_years} onChange={(v) => set({ experience_years: v })} suffix="Jahre" />
+      <Field label={t('blocks.experience')} field="experience_years">
+        <NumberField field="experience_years" value={form.experience_years} onChange={(v) => set({ experience_years: v })} suffix={t('blocks.years')} />
       </Field>
     </div>
   );
 }
 
 export function BerufBlock({ form, set }: BlockProps) {
+  const { t } = useTranslation(['candidateDossier', 'candidateTerms']);
   return (
     <div className="space-y-4">
       <RolleBlock form={form} set={set} />
-      <Field label="Seniorität" field="seniority">
+      <Field label={t('blocks.seniority')} field="seniority">
         <ChipGroup field="seniority" options={SENIORITY_OPTIONS} value={form.seniority} onChange={(v) => set({ seniority: v })} />
       </Field>
-      <Field label="Skills" field="skills" hint="Enter oder Komma fügt einen Skill hinzu.">
-        <TagInput field="skills" values={form.skills} onChange={(v) => set({ skills: v })} placeholder="z. B. SAP FI/CO, Excel …" />
+      <Field label={t('blocks.skills')} field="skills" hint={t('blocks.skillsHint')}>
+        <TagInput field="skills" values={form.skills} onChange={(v) => set({ skills: v })} placeholder={t('blocks.skillsPlaceholder')} />
       </Field>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Branchenerfahrung" field="industries">
-          <TagInput field="industries" values={form.industries} onChange={(v) => set({ industries: v })} placeholder="z. B. Maschinenbau" />
+        <Field label={t('blocks.industries')} field="industries">
+          <TagInput field="industries" values={form.industries} onChange={(v) => set({ industries: v })} placeholder={t('blocks.industriesPlaceholder')} />
         </Field>
-        <Field label="Zertifikate" field="certificates">
-          <TagInput field="certificates" values={form.certificates} onChange={(v) => set({ certificates: v })} placeholder="z. B. Bilanzbuchhalter IHK" />
+        <Field label={t('blocks.certificates')} field="certificates">
+          <TagInput field="certificates" values={form.certificates} onChange={(v) => set({ certificates: v })} placeholder={t('blocks.certificatesPlaceholder')} />
         </Field>
       </div>
     </div>
@@ -119,25 +125,26 @@ function SalaryChipRow({ chips, value, onPick }: { chips: SalaryChip[]; value: n
  * heutigen Gehalt, dazu fix oder mit Bonus und Hinweise bei Unstimmigem.
  */
 export function GehaltBlock({ form, set, family }: BlockProps & { family?: RoleFamily }) {
+  const { t } = useTranslation(['candidateDossier', 'candidateTerms']);
   const warnings = family ? salaryWarnings(form) : [];
   return (
     <div className="space-y-2">
       <div className="grid gap-3 sm:grid-cols-3">
-        <Field label="Aktuelles Gehalt" field="current_salary" hint={family ? 'Nur wenn freiwillig genannt.' : undefined}>
+        <Field label={t('blocks.currentSalary')} field="current_salary" hint={family ? t('blocks.currentSalaryHint') : undefined}>
           <MoneyInput field="current_salary" value={form.current_salary} onChange={(v) => set({ current_salary: v })} />
         </Field>
-        <Field label="Wunschgehalt" field="expected_salary">
+        <Field label={t('blocks.expectedSalary')} field="expected_salary">
           <MoneyInput field="expected_salary" value={form.expected_salary} onChange={(v) => set({ expected_salary: v })} />
           {family && <SalaryChipRow chips={wishChips(form.current_salary, family)} value={form.expected_salary} onPick={(v) => set({ expected_salary: v })} />}
         </Field>
-        <Field label="Schmerzgrenze" field="salary_minimum">
+        <Field label={t('blocks.salaryMinimum')} field="salary_minimum">
           <MoneyInput field="salary_minimum" value={form.salary_minimum} onChange={(v) => set({ salary_minimum: v })} />
           {family && <SalaryChipRow chips={minimumChips(form.expected_salary, form.current_salary)} value={form.salary_minimum} onPick={(v) => set({ salary_minimum: v })} />}
         </Field>
       </div>
       {family && (
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span>Beträge sind</span>
+          <span>{t('blocks.amountsAre')}</span>
           <ChipGroup field="salary_basis" options={SALARY_BASIS_OPTIONS} value={form.salary_basis} onChange={(v) => set({ salary_basis: v })} />
         </div>
       )}
@@ -149,6 +156,7 @@ export function GehaltBlock({ form, set, family }: BlockProps & { family?: RoleF
 }
 
 export function VerfuegbarkeitBlock({ form, set, hint }: BlockProps & { hint?: { duration: string; anchor: string | null; label: string } | null }) {
+  const { t, i18n } = useTranslation(['candidateDossier', 'candidateTerms']);
   const today = new Date();
   const { duration, anchor } = noticeParts(form.notice_period);
   const computed = earliestStart(form.notice_period, today);
@@ -160,20 +168,20 @@ export function VerfuegbarkeitBlock({ form, set, hint }: BlockProps & { hint?: {
     const start = earliestStart(next, today);
     set({ notice_period: next, ...(start ? { availability_date: start } : {}) });
   };
-  const fmt = (iso: string) => new Date(iso).toLocaleDateString('de-DE');
+  const fmt = (iso: string) => new Date(iso).toLocaleDateString(intlLocale(i18n.language));
   const abweichend = !!computed && !!form.availability_date && form.availability_date !== computed;
   const zuFrueh = abweichend && form.availability_date! < computed!;
   return (
     <div className="space-y-3">
-      <Field label="Kündigungsfrist" field="notice_period" hint="Ergibt den frühesten Start beim neuen Arbeitgeber.">
+      <Field label={t('blocks.notice')} field="notice_period" hint={t('blocks.noticeHint')}>
         <div className="space-y-1.5">
           {hint && !form.notice_period && (
             <p className="flex flex-wrap items-center gap-2 rounded-md bg-primary/10 px-2.5 py-1.5 text-xs text-primary">
-              {hint.label}
-              <button type="button" className="underline underline-offset-2" onClick={() => choose(hint.duration, hint.anchor)}>übernehmen</button>
+              {term(hint.label)}
+              <button type="button" className="underline underline-offset-2" onClick={() => choose(hint.duration, hint.anchor)}>{t('blocks.apply')}</button>
             </p>
           )}
-          <ChipGroup field="notice_period" options={NOTICE_DURATIONS} value={duration} onChange={(d) => choose(d, d === 'immediate' ? null : anchor)} noneLabel="Keine Angabe" />
+          <ChipGroup field="notice_period" options={NOTICE_DURATIONS} value={duration} onChange={(d) => choose(d, d === 'immediate' ? null : anchor)} noneLabel={t('blocks.noAnswer')} />
           {duration && duration !== 'immediate' && (
             <ChipGroup options={NOTICE_ANCHORS} value={anchor} onChange={(a) => choose(duration, a)} />
           )}
@@ -181,16 +189,16 @@ export function VerfuegbarkeitBlock({ form, set, hint }: BlockProps & { hint?: {
       </Field>
       {computed && duration !== 'immediate' && (
         <p className={cn('rounded-md px-2.5 py-1.5 text-xs', zuFrueh ? 'bg-warning/10 text-warning' : 'bg-muted/60 text-muted-foreground')}>
-          Frühester Start bei Kündigung heute: <span className={cn('font-medium', !zuFrueh && 'text-foreground')}>{fmt(computed)}</span>
+          {t('blocks.earliestStart')} <span className={cn('font-medium', !zuFrueh && 'text-foreground')}>{fmt(computed)}</span>
           {abweichend && (
             <>
-              {' · '}„Verfügbar ab“ steht auf {fmt(form.availability_date!)}{zuFrueh && ', früher als möglich'}{' · '}
-              <button type="button" className="underline underline-offset-2 hover:text-foreground" onClick={() => set({ availability_date: computed })}>übernehmen</button>
+              {' · '}{t(zuFrueh ? 'blocks.availableFromIsEarly' : 'blocks.availableFromIs', { date: fmt(form.availability_date!) })}{' · '}
+              <button type="button" className="underline underline-offset-2 hover:text-foreground" onClick={() => set({ availability_date: computed })}>{t('blocks.apply')}</button>
             </>
           )}
         </p>
       )}
-      <Field label="Verfügbar ab" field="availability_date">
+      <Field label={t('blocks.availableFrom')} field="availability_date">
         <Input id={fieldId('availability_date')} type="date" value={form.availability_date ?? ''} onChange={(e) => set({ availability_date: e.target.value || null })} />
       </Field>
     </div>
@@ -199,6 +207,7 @@ export function VerfuegbarkeitBlock({ form, set, hint }: BlockProps & { hint?: {
 
 /** Was das nächste Angebot haben muss (Top 3): Vorschläge aus Motivation und Akte, eigener Eintrag möglich. */
 export function AngebotBlock({ form, set }: BlockProps) {
+  const { t } = useTranslation(['candidateDossier', 'candidateTerms']);
   const values = form.offer_requirements;
   const full = values.length >= 3;
   const suggested = offerSuggestions(form);
@@ -223,22 +232,22 @@ export function AngebotBlock({ form, set }: BlockProps) {
         )}
       >
         {active && <span className="mr-1">{values.indexOf(o) + 1}</span>}
-        {isSuggested && <span className="mr-1">Vorschlag:</span>}
-        {o}
+        {isSuggested && <span className="mr-1">{t('fields.suggestionPrefix')}</span>}
+        {term(o)}
       </button>
     );
   };
   return (
-    <Field label="Was muss das nächste Angebot haben? (Top 3)" field="offer_requirements" hint={`${values.length} von 3 gewählt`}>
+    <Field label={t('blocks.offerQuestion')} field="offer_requirements" hint={t('blocks.offerCount', { n: values.length })}>
       <div className="space-y-1.5" id={fieldId('offer_requirements')}>
         {OFFER_GROUPS.map((g) => (
           <div key={g.label} className="flex flex-wrap items-center gap-1.5">
-            <span className="w-24 shrink-0 text-xs text-muted-foreground">{g.label}</span>
+            <span className="w-24 shrink-0 text-xs text-muted-foreground">{term(g.label)}</span>
             {g.options.map(chip)}
           </div>
         ))}
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="w-24 shrink-0 text-xs text-muted-foreground">Eigenes</span>
+          <span className="w-24 shrink-0 text-xs text-muted-foreground">{t('fields.custom')}</span>
           <MultiChips options={[]} values={custom} onChange={(next) => set({ offer_requirements: [...values.filter((v) => known.has(v)), ...next].slice(0, 3) })} allowCustom max={3 - (values.length - custom.length)} />
         </div>
       </div>
@@ -248,24 +257,26 @@ export function AngebotBlock({ form, set }: BlockProps) {
 
 /** Nicht vorstellen bei: aktueller Arbeitgeber als Vorschlag, frühere Arbeitgeber zum Antippen. */
 export function SperrlisteBlock({ form, set, formerEmployers = [] }: BlockProps & { formerEmployers?: string[] }) {
+  const { t } = useTranslation(['candidateDossier', 'candidateTerms']);
   return (
-    <Field label="Nicht vorstellen bei" field="blocked_companies" hint="Wirkt sofort im Matching: Stellen dieser Firmen werden nicht vorgeschlagen.">
+    <Field label={t('blocks.blocked')} field="blocked_companies" hint={t('blocks.blockedHint')}>
       <TagInput
         field="blocked_companies"
         values={form.blocked_companies}
         onChange={(v) => set({ blocked_companies: v })}
-        placeholder="Firma eintippen"
+        placeholder={t('blocks.blockedPlaceholder')}
         suggestions={blockedSuggestions(form, formerEmployers)}
       />
     </Field>
   );
 }
 
-export function MotivationBlock({ form, set, label = 'Wechselmotivation' }: BlockProps & { label?: string }) {
+export function MotivationBlock({ form, set, label }: BlockProps & { label?: string }) {
+  const { t } = useTranslation(['candidateDossier', 'candidateTerms']);
   return (
     <div className="space-y-2">
-      <Field label={label} field="change_motivation">
-        <AreaField field="change_motivation" value={form.change_motivation} onChange={(v) => set({ change_motivation: v })} placeholder="Warum will sie oder er wechseln? In ihren oder seinen Worten." rows={2} />
+      <Field label={label ?? t('blocks.motivation')} field="change_motivation">
+        <AreaField field="change_motivation" value={form.change_motivation} onChange={(v) => set({ change_motivation: v })} placeholder={t('blocks.motivationPlaceholder')} rows={2} />
       </Field>
       <MultiChips options={MOTIVATION_TAGS} values={form.change_motivation_tags} onChange={(v) => set({ change_motivation_tags: v })} />
     </div>
@@ -274,32 +285,33 @@ export function MotivationBlock({ form, set, label = 'Wechselmotivation' }: Bloc
 
 /** hideRelocation: im Interview steht „Umzug“ schon bei „Wie soll das neue Unternehmen sein?“. */
 export function ArbeitsortBlock({ form, set, hideRelocation = false }: BlockProps & { hideRelocation?: boolean }) {
+  const { t } = useTranslation(['candidateDossier', 'candidateTerms']);
   return (
     <div className="space-y-4">
-      <Field label="Arbeitsmodell" field="remote_preference">
-        <ChipGroup field="remote_preference" options={WORK_MODEL_OPTIONS} value={form.remote_preference} onChange={(v) => set({ remote_preference: v })} noneLabel="Keine Angabe" />
+      <Field label={t('blocks.workModel')} field="remote_preference">
+        <ChipGroup field="remote_preference" options={WORK_MODEL_OPTIONS} value={form.remote_preference} onChange={(v) => set({ remote_preference: v })} noneLabel={t('blocks.noAnswer')} />
       </Field>
-      <Field label="Max. Pendelzeit" field="max_commute_minutes">
+      <Field label={t('blocks.maxCommute')} field="max_commute_minutes">
         <ChipGroup
           field="max_commute_minutes"
           options={COMMUTE_OPTIONS}
           value={form.max_commute_minutes != null ? String(form.max_commute_minutes) : null}
           onChange={(v) => set({ max_commute_minutes: v ? parseInt(v, 10) : null })}
-          noneLabel="Keine Angabe"
+          noneLabel={t('blocks.noAnswer')}
         />
       </Field>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Beschäftigungsart" field="employment_type">
+        <Field label={t('blocks.employmentType')} field="employment_type">
           <ChipGroup field="employment_type" options={EMPLOYMENT_OPTIONS} value={form.employment_type} onChange={(v) => set({ employment_type: v })} />
         </Field>
         {!hideRelocation && (
-          <Field label="Umzugsbereit" field="relocation_willing">
+          <Field label={t('blocks.relocation')} field="relocation_willing">
             <ChipGroup
               field="relocation_willing"
               options={RELOCATION_OPTIONS}
               value={form.relocation_willing == null ? null : form.relocation_willing ? 'yes' : 'no'}
               onChange={(v) => set({ relocation_willing: v == null ? null : v === 'yes' })}
-              noneLabel="Keine Angabe"
+              noneLabel={t('blocks.noAnswer')}
             />
           </Field>
         )}
@@ -309,16 +321,17 @@ export function ArbeitsortBlock({ form, set, hideRelocation = false }: BlockProp
 }
 
 export function ZieleBlock({ form, set }: BlockProps) {
+  const { t } = useTranslation(['candidateDossier', 'candidateTerms']);
   return (
     <div className="grid gap-3 sm:grid-cols-3">
-      <Field label="Wunschrollen" field="target_roles">
-        <TagInput field="target_roles" values={form.target_roles} onChange={(v) => set({ target_roles: v })} placeholder="Rolle eintippen" suggestions={roleSuggestions(form)} />
+      <Field label={t('blocks.targetRoles')} field="target_roles">
+        <TagInput field="target_roles" values={form.target_roles} onChange={(v) => set({ target_roles: v })} placeholder={t('blocks.targetRolesPlaceholder')} suggestions={roleSuggestions(form)} />
       </Field>
-      <Field label="Zielbranchen" field="target_industries">
-        <TagInput field="target_industries" values={form.target_industries} onChange={(v) => set({ target_industries: v })} placeholder="Branche eintippen" suggestions={industrySuggestions(form)} />
+      <Field label={t('blocks.targetIndustries')} field="target_industries">
+        <TagInput field="target_industries" values={form.target_industries} onChange={(v) => set({ target_industries: v })} placeholder={t('blocks.targetIndustriesPlaceholder')} suggestions={industrySuggestions(form)} />
       </Field>
-      <Field label="Zielorte" field="target_locations">
-        <TagInput field="target_locations" values={form.target_locations} onChange={(v) => set({ target_locations: v })} placeholder="Ort eintippen" suggestions={locationSuggestions(form)} />
+      <Field label={t('blocks.targetLocations')} field="target_locations">
+        <TagInput field="target_locations" values={form.target_locations} onChange={(v) => set({ target_locations: v })} placeholder={t('blocks.targetLocationsPlaceholder')} suggestions={locationSuggestions(form)} />
       </Field>
     </div>
   );
@@ -329,10 +342,26 @@ export function ZieleBlock({ form, set }: BlockProps) {
  * übernimmt den markierten Vorschlag; was nicht in der Liste steht, bleibt wie getippt.
  */
 function SprachFeld({ value, andere, onChange }: { value: string; andere: string[]; onChange: (v: string) => void }) {
+  const { t } = useTranslation(['candidateDossier', 'candidateTerms']);
   const [offen, setOffen] = useState(false);
   const [markiert, setMarkiert] = useState(0);
-  const liste = offen ? sprachVorschlaege(value, andere) : [];
+  // Gespeichert bleibt der deutsche Name der Sprache (Matching, Kundenansicht); angezeigt und
+  // gesucht wird in der Sprache der Oberfläche.
+  const deutsch = isGermanUi();
+  const norm = (s: string) => s.trim().toLowerCase();
+  const kanon = (s: string) => SPRACHEN.find((x) => norm(x) === norm(s)) ?? null;
+  const gezeigt = deutsch ? value : kanon(value) ? term(kanon(value)) : value;
+  const fremdListe = () => {
+    const n = norm(value);
+    if (!n || istBekannteSprache(value)) return [];
+    const frei = SPRACHEN.filter((x) => !andere.some((a) => norm(a) === norm(x)));
+    const anfang = frei.filter((x) => norm(term(x)).startsWith(n));
+    const enthalten = n.length >= 3 ? frei.filter((x) => norm(term(x)).includes(n)) : [];
+    return [...new Set([...anfang, ...enthalten, ...sprachVorschlaege(value, andere)])].slice(0, 6);
+  };
+  const liste = !offen ? [] : deutsch ? sprachVorschlaege(value, andere) : fremdListe();
   const nimm = (v: string) => { onChange(v); setOffen(false); };
+  const tippen = (v: string) => (deutsch ? v : SPRACHEN.find((x) => norm(term(x)) === norm(v)) ?? v);
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (!liste.length) return;
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
@@ -349,14 +378,14 @@ function SprachFeld({ value, andere, onChange }: { value: string; andere: string
   return (
     <div className="relative">
       <Input
-        value={value}
-        placeholder="Sprache"
-        aria-label="Sprache"
+        value={gezeigt}
+        placeholder={t('blocks.language')}
+        aria-label={t('blocks.language')}
         role="combobox"
         aria-expanded={liste.length > 0}
         aria-autocomplete="list"
         autoComplete="off"
-        onChange={(e) => { onChange(e.target.value); setOffen(true); setMarkiert(0); }}
+        onChange={(e) => { onChange(tippen(e.target.value)); setOffen(true); setMarkiert(0); }}
         onKeyDown={onKeyDown}
         onBlur={() => setOffen(false)}
       />
@@ -371,7 +400,7 @@ function SprachFeld({ value, andere, onChange }: { value: string; andere: string
               onMouseDown={(e) => { e.preventDefault(); nimm(x); }}
               onMouseEnter={() => setMarkiert(i)}
             >
-              {x}
+              {term(x)}
             </li>
           ))}
         </ul>
@@ -381,35 +410,36 @@ function SprachFeld({ value, andere, onChange }: { value: string; andere: string
 }
 
 export function SprachenBlock({ form, set }: BlockProps) {
+  const { t } = useTranslation(['candidateDossier', 'candidateTerms']);
   const fehlt = !!useContext(FieldMissingContext)?.has('languages');
   const update = (i: number, patch: Partial<DossierForm['languages'][number]>) =>
     set({ languages: form.languages.map((l, idx) => (idx === i ? { ...l, ...patch } : l)) });
   const haeufig = haeufigFehlend(form.languages.map((l) => l.language));
   return (
     <div className={cn('space-y-2', fehlt && 'border-l-2 border-warning pl-3')} data-dossier-field="languages">
-      {form.languages.length === 0 && <p className={cn('text-xs', fehlt ? 'text-warning' : 'text-muted-foreground')}>{fehlt ? 'fehlt · ' : ''}Noch keine Sprache eingetragen.</p>}
+      {form.languages.length === 0 && <p className={cn('text-xs', fehlt ? 'text-warning' : 'text-muted-foreground')}>{fehlt ? t('blocks.noLanguageMissing') : t('blocks.noLanguage')}</p>}
       {form.languages.map((l, i) => (
         <div key={i} className="grid grid-cols-[minmax(0,1fr)_minmax(0,11rem)_auto] items-center gap-2">
           <SprachFeld value={l.language} andere={form.languages.filter((_, idx) => idx !== i).map((x) => x.language)} onChange={(v) => update(i, { language: v })} />
           <Select value={l.proficiency || '__none'} onValueChange={(v) => update(i, { proficiency: v === '__none' ? '' : v })}>
-            <SelectTrigger aria-label="Niveau">
-              <SelectValue placeholder="Niveau" />
+            <SelectTrigger aria-label={t('blocks.level')}>
+              <SelectValue placeholder={t('blocks.level')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__none">Niveau offen</SelectItem>
+              <SelectItem value="__none">{t('blocks.levelOpen')}</SelectItem>
               {LANGUAGE_LEVELS.map((lvl) => (
-                <SelectItem key={lvl} value={lvl}>{lvl}</SelectItem>
+                <SelectItem key={lvl} value={lvl}>{term(lvl)}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <Button type="button" variant="ghost" size="icon" aria-label="Sprache entfernen" onClick={() => set({ languages: form.languages.filter((_, idx) => idx !== i) })}>
+          <Button type="button" variant="ghost" size="icon" aria-label={t('blocks.removeLanguage')} onClick={() => set({ languages: form.languages.filter((_, idx) => idx !== i) })}>
             <X className="h-4 w-4" />
           </Button>
         </div>
       ))}
       {haeufig.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-xs text-muted-foreground">Häufig:</span>
+          <span className="text-xs text-muted-foreground">{t('blocks.frequent')}</span>
           {haeufig.map((x) => (
             <button
               key={x}
@@ -417,7 +447,7 @@ export function SprachenBlock({ form, set }: BlockProps) {
               className="rounded-md border border-dashed border-primary px-2 py-0.5 text-xs text-primary hover:bg-primary/10"
               onClick={() => set({ languages: [...form.languages, { language: x, proficiency: '' }] })}
             >
-              + {x}
+              + {term(x)}
             </button>
           ))}
         </div>
@@ -429,18 +459,19 @@ export function SprachenBlock({ form, set }: BlockProps) {
         className="px-0 text-muted-foreground hover:bg-transparent hover:text-foreground"
         onClick={() => set({ languages: [...form.languages, { language: form.languages.length ? '' : 'Deutsch', proficiency: '' }] })}
       >
-        <Plus className="mr-1 h-3.5 w-3.5" /> Sprache hinzufügen
+        <Plus className="mr-1 h-3.5 w-3.5" /> {t('blocks.addLanguage')}
       </Button>
     </div>
   );
 }
 
 export function ArbeitserlaubnisBlock({ form, set }: BlockProps) {
+  const { t } = useTranslation(['candidateDossier', 'candidateTerms']);
   return (
     <div className="space-y-3">
-      <ChipGroup field="work_permit" options={PERMIT_OPTIONS} value={form.work_permit} onChange={(v) => set({ work_permit: v })} noneLabel="Keine Angabe" />
+      <ChipGroup field="work_permit" options={PERMIT_OPTIONS} value={form.work_permit} onChange={(v) => set({ work_permit: v })} noneLabel={t('blocks.noAnswer')} />
       {(form.work_permit === 'needs_visa' || form.work_permit === 'pending') && (
-        <Field label="Hinweis zu Visum oder Erlaubnis" field="work_permit_notes">
+        <Field label={t('blocks.permitNote')} field="work_permit_notes">
           <AreaField field="work_permit_notes" value={form.work_permit_notes} onChange={(v) => set({ work_permit_notes: v })} rows={2} />
         </Field>
       )}
@@ -448,50 +479,53 @@ export function ArbeitserlaubnisBlock({ form, set }: BlockProps) {
   );
 }
 
-export function EmpfehlungBlock({ form, set, question = 'Würdest du sie oder ihn empfehlen?' }: BlockProps & { question?: string }) {
+export function EmpfehlungBlock({ form, set, question }: BlockProps & { question?: string }) {
+  const { t } = useTranslation(['candidateDossier', 'candidateTerms']);
   return (
     <div className="space-y-3">
-      <Field label={question} field="recommendation">
+      <Field label={question ?? t('blocks.recommendQuestion')} field="recommendation">
         <ChipGroup field="recommendation" options={RECOMMENDATION_OPTIONS} value={form.recommendation} onChange={(v) => set({ recommendation: v })} />
       </Field>
-      <Field label="Begründung (intern)" field="recommendation_notes">
-        <AreaField field="recommendation_notes" value={form.recommendation_notes} onChange={(v) => set({ recommendation_notes: v })} placeholder="Was spricht dafür, was dagegen?" rows={2} />
+      <Field label={t('blocks.reasonInternal')} field="recommendation_notes">
+        <AreaField field="recommendation_notes" value={form.recommendation_notes} onChange={(v) => set({ recommendation_notes: v })} placeholder={t('blocks.reasonPlaceholder')} rows={2} />
       </Field>
     </div>
   );
 }
 
 export function KundeBlock({ form, set }: BlockProps) {
+  const { t } = useTranslation(['candidateDossier', 'candidateTerms']);
   const issues = exposeSummaryIssues(form);
   return (
     <div className="space-y-3">
       <Field
         label={
           <span className="flex items-center justify-between gap-2">
-            <span>Kurzprofil</span>
+            <span>{t('blocks.shortProfile')}</span>
           </span>
         }
         field="expose_summary"
-        hint="Name, Arbeitgeber und Kontaktdaten gehören hier nie hinein."
+        hint={t('blocks.shortProfileHint')}
       >
-        <AreaField field="expose_summary" value={form.expose_summary} onChange={(v) => set({ expose_summary: v })} placeholder="Wird im Exposé und beim Einreichen gezeigt." rows={4} />
+        <AreaField field="expose_summary" value={form.expose_summary} onChange={(v) => set({ expose_summary: v })} placeholder={t('blocks.shortProfilePlaceholder')} rows={4} />
       </Field>
       {issues.map((i) => (
         <p key={i.message} className={`flex items-start gap-1.5 text-xs ${i.level === 'danger' ? 'text-destructive' : 'text-warning'}`}>
-          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {i.message}
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {term(i.message)}
         </p>
       ))}
       <Button type="button" variant="outline" size="sm" onClick={() => set({ expose_summary: buildExposeDraft(form) })}>
-        <Sparkles className="mr-1.5 h-3.5 w-3.5" /> {issues.length ? 'Neu aus der Akte' : 'Entwurf aus der Akte'}
+        <Sparkles className="mr-1.5 h-3.5 w-3.5" /> {issues.length ? t('blocks.redraft') : t('blocks.draft')}
       </Button>
-      <Field label="Highlights" field="expose_highlights">
-        <TagInput field="expose_highlights" values={form.expose_highlights} onChange={(v) => set({ expose_highlights: v })} placeholder="z. B. Abschlussdauer von 8 auf 5 Tage verkürzt" />
+      <Field label={t('blocks.highlights')} field="expose_highlights">
+        <TagInput field="expose_highlights" values={form.expose_highlights} onChange={(v) => set({ expose_highlights: v })} placeholder={t('blocks.highlightsPlaceholder')} />
       </Field>
     </div>
   );
 }
 
 export function LinksBlock({ form, set }: BlockProps) {
+  const { t } = useTranslation(['candidateDossier', 'candidateTerms']);
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <Field label="LinkedIn" field="linkedin_url">
@@ -503,7 +537,7 @@ export function LinksBlock({ form, set }: BlockProps) {
       <Field label="GitHub" field="github_url">
         <TextField field="github_url" value={form.github_url} onChange={(v) => set({ github_url: v })} />
       </Field>
-      <Field label="Website" field="website_url">
+      <Field label={t('blocks.website')} field="website_url">
         <TextField field="website_url" value={form.website_url} onChange={(v) => set({ website_url: v })} />
       </Field>
     </div>

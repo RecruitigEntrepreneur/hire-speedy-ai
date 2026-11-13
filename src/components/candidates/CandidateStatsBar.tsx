@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent } from '@/components/ui/card';
 import { Users, UserPlus, Calendar, Briefcase } from 'lucide-react';
 
@@ -14,30 +15,31 @@ export function CandidateStatsBar({
   availableSoon,
   activeAssignments,
 }: CandidateStatsBarProps) {
+  const { t } = useTranslation('candidates');
   const stats = [
     {
-      label: 'Gesamt',
+      label: t('stats.total'),
       value: totalCandidates,
       icon: Users,
       color: 'text-primary',
       bgColor: 'bg-primary/10',
     },
     {
-      label: 'Diese Woche',
+      label: t('stats.thisWeek'),
       value: addedThisWeek,
       icon: UserPlus,
       color: 'text-success',
       bgColor: 'bg-success/10',
     },
     {
-      label: 'Bald verfügbar',
+      label: t('stats.availableSoon'),
       value: availableSoon,
       icon: Calendar,
       color: 'text-warning',
       bgColor: 'bg-warning/10',
     },
     {
-      label: 'Aktive Jobs',
+      label: t('stats.activeJobs'),
       value: activeAssignments,
       icon: Briefcase,
       color: 'text-secondary',

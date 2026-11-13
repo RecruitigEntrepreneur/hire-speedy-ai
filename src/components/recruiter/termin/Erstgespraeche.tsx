@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
+import { intlLocale } from '@/i18n/languages';
 
 /**
  * Erstgespräche aus der Terminseite (21.10.2026): gebuchte Gespräche mit
@@ -17,7 +19,7 @@ export interface Erstgespraech {
   candidate_id: string | null; job_id: string | null; source: 'linkedin_beitrag' | 'terminseite'; job_title: string | null; note: string | null;
 }
 
-const tabelle = (t: string) => (supabase as unknown as { from: (t: string) => any }).from(t); // eslint-disable-line @typescript-eslint/no-explicit-any
+const tabelle = (name: string) => (supabase as unknown as { from: (t: string) => any }).from(name); // eslint-disable-line @typescript-eslint/no-explicit-any
 
 export function useErstgespraeche(filter: { candidateId?: string; jobId?: string; kommende?: boolean } = {}) {
   const { user } = useAuth();
@@ -46,10 +48,24 @@ export function useErstgespraeche(filter: { candidateId?: string; jobId?: string
   });
 }
 
-const ZEIT = new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' });
-const TAG = new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', weekday: 'short', day: '2-digit', month: '2-digit' });
+// Uhrzeit und Tag in der Sprache der Oberfläche, immer in Berliner Zeit.
+const formate = new Map<string, { zeit: Intl.DateTimeFormat; tag: Intl.DateTimeFormat }>();
+function zeitFormate(language: string) {
+  const region = intlLocale(language);
+  let f = formate.get(region);
+  if (!f) {
+    f = {
+      zeit: new Intl.DateTimeFormat(region, { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' }),
+      tag: new Intl.DateTimeFormat(region, { timeZone: 'Europe/Berlin', weekday: 'short', day: '2-digit', month: '2-digit' }),
+    };
+    formate.set(region, f);
+  }
+  return f;
+}
 
 export function ErstgespraechZeile({ g, ohneStelle, ohneAkte }: { g: Erstgespraech; ohneStelle?: boolean; ohneAkte?: boolean }) {
+  const { t, i18n } = useTranslation('recruiterTermin');
+  const { zeit: ZEIT, tag: TAG } = zeitFormate(i18n.language);
   const jetzt = Date.now();
   const laeuft = Date.parse(g.starts_at) - 10 * 60000 <= jetzt && Date.parse(g.ends_at) >= jetzt;
   return <div className={cn('flex flex-wrap items-center gap-3 rounded-lg border p-3', laeuft ? 'border-emerald-500/40 bg-emerald-500/[0.05]' : 'border-border bg-card')}>
@@ -57,29 +73,30 @@ export function ErstgespraechZeile({ g, ohneStelle, ohneAkte }: { g: Erstgesprae
       <div className="text-sm font-semibold tabular-nums">{ZEIT.format(new Date(g.starts_at))}</div>
       <div className="text-[10px] text-muted-foreground">{TAG.format(new Date(g.starts_at)).replace(',', '')}</div>
     </div>
-    {g.mode === 'teams' ? <Video className="h-4 w-4 shrink-0 text-muted-foreground" aria-label="Teams"/> : <Phone className="h-4 w-4 shrink-0 text-muted-foreground" aria-label="Telefon"/>}
+    {g.mode === 'teams' ? <Video className="h-4 w-4 shrink-0 text-muted-foreground" aria-label={t('erst.teams')}/> : <Phone className="h-4 w-4 shrink-0 text-muted-foreground" aria-label={t('erst.phone')}/>}
     <div className="min-w-0 flex-1">
-      <p className="truncate text-sm font-medium">{g.first_name} {g.last_name} <span className="ml-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">Erstgespräch</span></p>
+      <p className="truncate text-sm font-medium">{g.first_name} {g.last_name} <span className="ml-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">{t('erst.badge')}</span></p>
       <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
         {[
           !ohneStelle && g.job_title ? <span key="s" className="truncate">{g.job_title}</span> : null,
-          <span key="m">{g.mode === 'teams' ? 'Teams' : `Telefon${g.phone ? ` ${g.phone}` : ''}`}</span>,
-          g.source === 'linkedin_beitrag' ? <span key="l" className="inline-flex items-center gap-1 text-[#0A66C2]"><Linkedin className="h-3 w-3"/>über LinkedIn</span> : null,
+          <span key="m">{g.mode === 'teams' ? t('erst.teams') : g.phone ? t('erst.phoneWith', { phone: g.phone }) : t('erst.phone')}</span>,
+          g.source === 'linkedin_beitrag' ? <span key="l" className="inline-flex items-center gap-1 text-[#0A66C2]"><Linkedin className="h-3 w-3"/>{t('erst.viaLinkedin')}</span> : null,
         ].filter(Boolean).flatMap((el, i) => (i ? [<span key={`t${i}`} aria-hidden="true">·</span>, el] : [el]))}
       </p>
     </div>
     <div className="flex shrink-0 gap-1.5">
-      {g.mode === 'teams' && g.join_url && <Button size="sm" variant={laeuft ? 'default' : 'outline'} asChild><a href={g.join_url} target="_blank" rel="noreferrer"><Video className="mr-1.5 h-3.5 w-3.5"/>Beitreten</a></Button>}
-      {g.mode === 'phone' && g.phone && <Button size="sm" variant={laeuft ? 'default' : 'outline'} asChild><a href={`tel:${g.phone.replace(/[^\d+]/g, '')}`}><Phone className="mr-1.5 h-3.5 w-3.5"/>Anrufen</a></Button>}
-      {!ohneAkte && g.candidate_id && <Button size="sm" variant="outline" asChild><Link to={`/recruiter/candidates/${g.candidate_id}`}>Akte</Link></Button>}
+      {g.mode === 'teams' && g.join_url && <Button size="sm" variant={laeuft ? 'default' : 'outline'} asChild><a href={g.join_url} target="_blank" rel="noreferrer"><Video className="mr-1.5 h-3.5 w-3.5"/>{t('erst.join')}</a></Button>}
+      {g.mode === 'phone' && g.phone && <Button size="sm" variant={laeuft ? 'default' : 'outline'} asChild><a href={`tel:${g.phone.replace(/[^\d+]/g, '')}`}><Phone className="mr-1.5 h-3.5 w-3.5"/>{t('erst.call')}</a></Button>}
+      {!ohneAkte && g.candidate_id && <Button size="sm" variant="outline" asChild><Link to={`/recruiter/candidates/${g.candidate_id}`}>{t('erst.dossier')}</Link></Button>}
     </div>
   </div>;
 }
 
-export function ErstgespraecheAbschnitt({ liste, titel = 'Erstgespräche', ohneStelle, ohneAkte }: { liste: Erstgespraech[]; titel?: string; ohneStelle?: boolean; ohneAkte?: boolean }) {
+export function ErstgespraecheAbschnitt({ liste, titel, ohneStelle, ohneAkte }: { liste: Erstgespraech[]; titel?: string; ohneStelle?: boolean; ohneAkte?: boolean }) {
+  const { t } = useTranslation('recruiterTermin');
   if (!liste.length) return null;
   return <div className="space-y-2">
-    <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-primary"><CalendarCheck className="h-3.5 w-3.5"/>{titel} ({liste.length})</p>
+    <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-primary"><CalendarCheck className="h-3.5 w-3.5"/>{titel ?? t('erst.title')} ({liste.length})</p>
     <div className="space-y-2">{liste.map(g => <ErstgespraechZeile key={g.id} g={g} ohneStelle={ohneStelle} ohneAkte={ohneAkte}/>)}</div>
   </div>;
 }

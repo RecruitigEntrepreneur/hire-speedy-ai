@@ -6211,6 +6211,7 @@ export type Database = {
           ip_hash: string | null
           is_freemail: boolean
           job_id: string | null
+          language: string | null
           last_activity_at: string
           link_id: string | null
           match_confidence: string | null
@@ -6279,6 +6280,7 @@ export type Database = {
           ip_hash?: string | null
           is_freemail?: boolean
           job_id?: string | null
+          language?: string | null
           last_activity_at?: string
           link_id?: string | null
           match_confidence?: string | null
@@ -6347,6 +6349,7 @@ export type Database = {
           ip_hash?: string | null
           is_freemail?: boolean
           job_id?: string | null
+          language?: string | null
           last_activity_at?: string
           link_id?: string | null
           match_confidence?: string | null
@@ -6559,6 +6562,7 @@ export type Database = {
           id: string
           internal_note: string | null
           label: string
+          language: string | null
           link_type: string
           max_uses: number | null
           organization_id: string | null
@@ -6589,6 +6593,7 @@ export type Database = {
           id?: string
           internal_note?: string | null
           label: string
+          language?: string | null
           link_type: string
           max_uses?: number | null
           organization_id?: string | null
@@ -6619,6 +6624,7 @@ export type Database = {
           id?: string
           internal_note?: string | null
           label?: string
+          language?: string | null
           link_type?: string
           max_uses?: number | null
           organization_id?: string | null
@@ -12630,6 +12636,7 @@ export type Database = {
           full_name: string | null
           id: string
           internal_notes: string | null
+          language: string | null
           linkedin_url: string | null
           phone: string | null
           placements_count: number | null
@@ -12655,6 +12662,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           internal_notes?: string | null
+          language?: string | null
           linkedin_url?: string | null
           phone?: string | null
           placements_count?: number | null
@@ -12680,6 +12688,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           internal_notes?: string | null
+          language?: string | null
           linkedin_url?: string | null
           phone?: string | null
           placements_count?: number | null
@@ -13670,12 +13679,14 @@ export type Database = {
           id: string
           internal_note: string
           kind: string
+          language: string | null
           last_mail_at: string | null
           profile: Json
           reviewed_at: string | null
           reviewed_by: string | null
           revision: number
           revoked_at: string | null
+          source_key: string | null
           state: string
           token_hash: string
           updated_at: string
@@ -13694,12 +13705,14 @@ export type Database = {
           id?: string
           internal_note?: string
           kind: string
+          language?: string | null
           last_mail_at?: string | null
           profile?: Json
           reviewed_at?: string | null
           reviewed_by?: string | null
           revision?: number
           revoked_at?: string | null
+          source_key?: string | null
           state?: string
           token_hash: string
           updated_at?: string
@@ -13718,12 +13731,14 @@ export type Database = {
           id?: string
           internal_note?: string
           kind?: string
+          language?: string | null
           last_mail_at?: string | null
           profile?: Json
           reviewed_at?: string | null
           reviewed_by?: string | null
           revision?: number
           revoked_at?: string | null
+          source_key?: string | null
           state?: string
           token_hash?: string
           updated_at?: string
@@ -13969,6 +13984,42 @@ export type Database = {
           recruiter_id?: string
           sort_by?: string | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      recruiter_public_links: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          key: string
+          label: string
+          language: string | null
+          opened_count: number
+          revoked_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          key: string
+          label: string
+          language?: string | null
+          opened_count?: number
+          revoked_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          key?: string
+          label?: string
+          language?: string | null
+          opened_count?: number
+          revoked_at?: string | null
         }
         Relationships: []
       }
@@ -17294,6 +17345,13 @@ export type Database = {
         }[]
       }
       recruiter_partner_number: { Args: never; Returns: string }
+      recruiter_public_link_open: {
+        Args: { _key: string }
+        Returns: {
+          link_key: string
+          link_language: string
+        }[]
+      }
       recruiter_tier_metrics: { Args: { p_user_id: string }; Returns: Json }
       report_direct_contact: {
         Args: {

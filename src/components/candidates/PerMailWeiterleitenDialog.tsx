@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Check, Copy, FileText, MessageSquare, Users } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -8,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 /** „Per E-Mail weiterleiten“ aus dem Menü „Kandidaten anlegen“: die persönliche Eingangsadresse. */
 export function PerMailWeiterleitenDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const { user } = useAuth();
+  const { t } = useTranslation('candidates');
   const [copied, setCopied] = useState(false);
 
   const inboundEmail = useMemo(() => {
@@ -20,10 +22,10 @@ export function PerMailWeiterleitenDialog({ open, onOpenChange }: { open: boolea
     try {
       await navigator.clipboard.writeText(inboundEmail);
       setCopied(true);
-      toast.success('E-Mail-Adresse kopiert');
+      toast.success(t('perMail.copied'));
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error('Kopieren fehlgeschlagen');
+      toast.error(t('perMail.copyFailed'));
     }
   };
 
@@ -31,9 +33,9 @@ export function PerMailWeiterleitenDialog({ open, onOpenChange }: { open: boolea
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Kandidaten per E-Mail einreichen</DialogTitle>
+          <DialogTitle>{t('perMail.title')}</DialogTitle>
           <DialogDescription>
-            Leite CVs einfach als PDF-Anhang an deine persoenliche Matchunt-Adresse weiter.
+            {t('perMail.description')}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -48,19 +50,19 @@ export function PerMailWeiterleitenDialog({ open, onOpenChange }: { open: boolea
           <div className="text-xs text-muted-foreground space-y-2 bg-muted/30 rounded-lg p-3">
             <div className="flex gap-2">
               <FileText className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-              <span>PDF-Lebenslaeufe werden automatisch analysiert und als Kandidaten angelegt – auch mehrere auf einmal.</span>
+              <span>{t('perMail.hintPdf')}</span>
             </div>
             <div className="flex gap-2">
               <MessageSquare className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-              <span>Schreibe Notizen einfach in den E-Mail-Text dazu – sie werden automatisch erkannt und dem Kandidaten zugeordnet.</span>
+              <span>{t('perMail.hintNotes')}</span>
             </div>
             <div className="flex gap-2">
               <Users className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-              <span>Notizen ohne CV? Das System erkennt den Kandidatennamen und ordnet alles automatisch zu.</span>
+              <span>{t('perMail.hintNoCv')}</span>
             </div>
             <div className="flex gap-2">
               <Check className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-              <span>Bereits vorhandene Kandidaten werden erkannt und aktualisiert statt doppelt angelegt.</span>
+              <span>{t('perMail.hintExisting')}</span>
             </div>
           </div>
         </div>

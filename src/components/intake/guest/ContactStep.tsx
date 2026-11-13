@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,7 +9,7 @@ import { isFreemailAddress, isPlausibleEmail } from '@/lib/domain';
 import { Info, Building2, User, ArrowRight, Check, Loader2 } from 'lucide-react';
 import { isFailure, type GuestDraft } from '@/hooks/useGuestIntake';
 import {
-  FIRMA_LABEL, fehlendeFirmenangaben, hatRechtsform,
+  fehlendeFirmenangaben, hatRechtsform,
 } from '../../../../supabase/functions/_shared/firma-pflicht';
 
 /**
@@ -41,11 +42,9 @@ interface Props {
 }
 
 const REQUIRED = ['contact_name', 'contact_email', 'company_name'] as const;
-const LABEL: Record<string, string> = {
-  contact_name: 'Name', contact_email: 'E-Mail', company_name: 'Firmenname', ...FIRMA_LABEL,
-};
 
 export function ContactStep({ draft, freemailBlocked, onChange, onNext, onEnrich }: Props) {
+  const { t } = useTranslation('clientFunnel');
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   /**
@@ -178,23 +177,23 @@ export function ContactStep({ draft, freemailBlocked, onChange, onNext, onEnrich
   return (
     <div className="mx-auto max-w-2xl space-y-5">
       <div>
-        <h2 className="text-xl font-bold tracking-tight">Wer sind Sie, und für wen suchen wir?</h2>
+        <h2 className="text-xl font-bold tracking-tight">{t('contact.title')}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Diese Angaben brauchen wir, um Ihnen zu antworten und die Vereinbarung auszustellen.
+          {t('contact.lead')}
         </p>
       </div>
 
       <Card>
         <CardContent className="space-y-4 p-5">
           <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <User className="h-3.5 w-3.5" /> Ansprechpartner
+            <User className="h-3.5 w-3.5" /> {t('contact.person')}
           </p>
           <div className="grid gap-4 sm:grid-cols-2">
-            {field('contact_name', 'Name', { required: true, placeholder: 'Vor- und Nachname' })}
-            {field('contact_role', 'Funktion', { placeholder: 'z. B. Geschäftsführung, HR-Leitung' })}
+            {field('contact_name', t('contact.name'), { required: true, placeholder: t('common.namePlaceholder') })}
+            {field('contact_role', t('contact.role'), { placeholder: t('contact.rolePlaceholder') })}
             <div className="sm:col-span-2">
               <Label htmlFor="contact_email" className="text-xs text-muted-foreground">
-                Geschäftliche E-Mail-Adresse <span className="text-destructive">*</span>
+                {t('common.businessEmail')} <span className="text-destructive">*</span>
               </Label>
               <Input
                 id="contact_email"
@@ -202,32 +201,32 @@ export function ContactStep({ draft, freemailBlocked, onChange, onNext, onEnrich
                 inputMode="email"
                 autoComplete="email"
                 value={email}
-                placeholder="name@ihrunternehmen.de"
+                placeholder={t('common.emailPlaceholder')}
                 onChange={(e) => update('contact_email', e.target.value)}
                 onBlur={nachEmail}
                 className="mt-1"
                 aria-invalid={emailInvalid || freemailRejected || undefined}
               />
               {emailInvalid && (
-                <p className="mt-1 text-[11px] text-destructive">Diese Adresse sieht nicht vollständig aus.</p>
+                <p className="mt-1 text-[11px] text-destructive">{t('contact.emailInvalid')}</p>
               )}
               {freemailRejected && (
                 <p className="mt-1 text-[11px] text-destructive">
-                  Bitte eine geschäftliche Adresse — über eine private können wir das Unternehmen nicht zuordnen.
+                  {t('contact.freemailRejected')}
                 </p>
               )}
               {freemail && !freemailRejected && (
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                  Eine Firmenadresse hilft uns, Ihr Unternehmen eindeutig zuzuordnen.
+                  {t('contact.freemailHint')}
                 </p>
               )}
               {!emailInvalid && !freemail && (
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                  Wir senden gleich einen sechsstelligen Code an diese Adresse.
+                  {t('contact.codeHint')}
                 </p>
               )}
             </div>
-            {field('contact_phone', 'Telefon', { placeholder: 'für Rückfragen, optional' })}
+            {field('contact_phone', t('contact.phone'), { placeholder: t('contact.phonePlaceholder') })}
           </div>
         </CardContent>
       </Card>
@@ -235,32 +234,32 @@ export function ContactStep({ draft, freemailBlocked, onChange, onNext, onEnrich
       <Card>
         <CardContent className="space-y-4 p-5">
           <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <Building2 className="h-3.5 w-3.5" /> Unternehmen
+            <Building2 className="h-3.5 w-3.5" /> {t('contact.company')}
           </p>
           <div className="grid gap-4 sm:grid-cols-2">
-            {field('company_name', 'Firmenname', {
-              required: true, placeholder: 'wie er im Alltag verwendet wird',
-              hint: rechtsformImNamen ? 'Rechtsform erkannt — gilt als vollständige Firmierung.' : undefined,
+            {field('company_name', t('contact.companyName'), {
+              required: true, placeholder: t('contact.companyNamePlaceholder'),
+              hint: rechtsformImNamen ? t('contact.legalFormDetected') : undefined,
             })}
-            {field('company_legal_name', 'Vollständige Firmierung', {
+            {field('company_legal_name', t('contact.legalName'), {
               required: !rechtsformImNamen,
-              placeholder: rechtsformImNamen ? String(values.company_name) : 'z. B. Muster GmbH',
-              hint: 'Steht so auf der Vereinbarung.',
+              placeholder: rechtsformImNamen ? String(values.company_name) : t('contact.legalNamePlaceholder'),
+              hint: t('contact.legalNameHint'),
             })}
-            {field('company_website', 'Website', {
-              placeholder: 'https://…',
-              hint: domain && values.company_website === domain ? 'Aus Ihrer E-Mail-Adresse.' : undefined,
+            {field('company_website', t('contact.website'), {
+              placeholder: t('contact.websitePlaceholder'),
+              hint: domain && values.company_website === domain ? t('contact.websiteFromEmail') : undefined,
             })}
-            {field('company_industry', 'Branche', { placeholder: 'z. B. Maschinenbau' })}
+            {field('company_industry', t('contact.industry'), { placeholder: t('contact.industryPlaceholder') })}
 
             {impressum.stand === 'laeuft' && (
               <p className="flex items-center gap-2 text-xs text-muted-foreground sm:col-span-2">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Wir suchen die Anschrift im Impressum von {domain} …
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t('contact.imprintSearching', { domain })}
               </p>
             )}
             {impressum.stand === 'gefunden' && (
               <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-3 text-sm sm:col-span-2">
-                <p className="text-xs text-emerald-600">Gefunden im Impressum von {domain}</p>
+                <p className="text-xs text-emerald-600">{t('contact.imprintFound', { domain })}</p>
                 {impressum.daten.legal_name && <p className="mt-1 font-medium">{impressum.daten.legal_name}</p>}
                 <p className="text-muted-foreground">
                   {[impressum.daten.street, [impressum.daten.postal_code, impressum.daten.city].filter(Boolean).join(' ')]
@@ -268,32 +267,32 @@ export function ContactStep({ draft, freemailBlocked, onChange, onNext, onEnrich
                 </p>
                 {(impressum.daten.registration_number || impressum.daten.vat_id) && (
                   <p className="text-xs text-muted-foreground">
-                    {[impressum.daten.registration_number, impressum.daten.vat_id ? `USt-IdNr. ${impressum.daten.vat_id}` : '']
+                    {[impressum.daten.registration_number, impressum.daten.vat_id ? t('contact.vatWithId', { id: impressum.daten.vat_id }) : '']
                       .filter(Boolean).join(' · ')}
                   </p>
                 )}
                 <div className="mt-2 flex flex-wrap gap-2">
                   <Button type="button" size="sm" variant="outline" className="gap-1.5 border-emerald-500/40 text-emerald-700 dark:text-emerald-400"
                     onClick={() => impressum.stand === 'gefunden' && uebernehmen(impressum.daten)}>
-                    <Check className="h-3.5 w-3.5" /> Stimmt, übernehmen
+                    <Check className="h-3.5 w-3.5" /> {t('contact.imprintAccept')}
                   </Button>
                   <Button type="button" size="sm" variant="ghost" onClick={() => setImpressum({ stand: 'aus' })}>
-                    Selbst eintragen
+                    {t('contact.imprintManual')}
                   </Button>
                 </div>
               </div>
             )}
             {impressum.stand === 'nichts' && anschriftLeer && (
               <p className="text-xs text-muted-foreground sm:col-span-2">
-                Wir konnten die Anschrift nicht automatisch finden. Bitte kurz eintragen.
+                {t('contact.imprintNotFound')}
               </p>
             )}
 
-            {field('company_street', 'Straße und Hausnummer', { required: true, span: true, placeholder: 'für die Vereinbarung nötig' })}
-            {field('company_postal_code', 'PLZ', { required: true })}
-            {field('company_city', 'Ort', { required: true })}
-            {field('company_vat_id', 'USt-IdNr.', { placeholder: 'optional' })}
-            {field('company_registration_number', 'Handelsregister', { placeholder: 'optional' })}
+            {field('company_street', t('contact.street'), { required: true, span: true, placeholder: t('contact.streetPlaceholder') })}
+            {field('company_postal_code', t('contact.postalCode'), { required: true })}
+            {field('company_city', t('contact.city'), { required: true })}
+            {field('company_vat_id', t('contact.vatId'), { placeholder: t('common.optional') })}
+            {field('company_registration_number', t('contact.registration'), { placeholder: t('common.optional') })}
           </div>
         </CardContent>
       </Card>
@@ -301,19 +300,18 @@ export function ContactStep({ draft, freemailBlocked, onChange, onNext, onEnrich
       <Alert>
         <Info className="h-4 w-4" />
         <AlertDescription className="text-xs">
-          Wir geben Ihren Firmennamen nicht an die Recruiter weiter. Sie sehen ein anonymes Profil
-          Ihres Unternehmens; Ihre Identität wird erst zum vereinbarten Zeitpunkt freigegeben.
+          {t('contact.anonymityNote')}
         </AlertDescription>
       </Alert>
 
       <div className="flex items-center justify-end gap-3">
         {missing.length > 0 && (
           <span className="text-xs text-muted-foreground">
-            Es fehlt noch: {missing.map((k) => LABEL[k] ?? k).join(', ')}
+            {t('common.missing', { fields: missing.map((k) => t(`fieldLabel.${k}`, { defaultValue: k })).join(', ') })}
           </span>
         )}
         <Button onClick={onNext} disabled={!canProceed} className="gap-2">
-          Weiter <ArrowRight className="h-4 w-4" />
+          {t('common.next')} <ArrowRight className="h-4 w-4" />
         </Button>
       </div>
     </div>

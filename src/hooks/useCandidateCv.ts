@@ -3,6 +3,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { isMissingColumnError } from '@/lib/candidateDossier';
 import { CurrentCv, cvFileProblem, cvStoragePath, isCvFileName, parseSnapshot } from '@/lib/candidateCv';
 import { insertCvDocument, sanitizeFileName } from '@/hooks/useCvImport';
+import i18n from '@/i18n';
+
+// Meldungen beim Aufruf übersetzt (Namespace candidateLogic).
+const tl = (key: string, options?: Record<string, unknown>): string => i18n.t(`candidateLogic:${key}`, options) as string;
 
 type DocRow = Record<string, unknown>;
 
@@ -52,12 +56,12 @@ export async function uploadCvFile(p: { userId: string; candidateId: string; fil
   if (problem) throw new Error(problem);
   const path = `${p.userId}/${Date.now()}-${sanitizeFileName(p.file.name)}`;
   const { error: upErr } = await supabase.storage.from('cv-documents').upload(path, p.file, { contentType: p.file.type || undefined });
-  if (upErr) throw new Error(`Upload fehlgeschlagen: ${upErr.message}`);
+  if (upErr) throw new Error(tl('cv.uploadFailed', { msg: upErr.message }));
   const { data: { publicUrl } } = supabase.storage.from('cv-documents').getPublicUrl(path);
   const failed = await insertCvDocument(p.candidateId, p.userId, {
     fileName: p.file.name, fileUrl: publicUrl, fileSize: p.file.size, mimeType: p.file.type || 'application/octet-stream',
   }, null);
-  if (failed) throw new Error('Der Lebenslauf konnte nicht gespeichert werden.');
+  if (failed) throw new Error(tl('cv.saveFailed'));
 }
 
 /** Headhunter bestätigt: Lebenslauf ist noch aktuell. False, wenn die Spalte noch fehlt. */
@@ -66,7 +70,7 @@ export async function confirmCvCurrent(documentId: string): Promise<boolean> {
     .from('candidate_documents')
     .update({ confirmed_current_at: new Date().toISOString() } as never)
     .eq('id', documentId);
-  if (error && !isMissingColumnError(error)) throw new Error('Bestätigung konnte nicht gespeichert werden.');
+  if (error && !isMissingColumnError(error)) throw new Error(tl('cv.confirmFailed'));
   return !error;
 }
 

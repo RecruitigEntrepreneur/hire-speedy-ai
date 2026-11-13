@@ -11,6 +11,11 @@ import { cn } from '@/lib/utils';
 import { notifyTasksChanged } from '@/hooks/useUnifiedTaskInbox';
 import { ANGEBOT_PUNKTE } from '@/lib/nachgespraech';
 import { dayDe, euro, offerApi, type RecruiterOfferContext, type RecommendationItem } from '@/lib/offerApi';
+import { useTranslation } from 'react-i18next';
+import { fmtDate, fmtDayMonth, fmtNumber, tFor } from '@/lib/localeFormat';
+import i18n from '@/i18n';
+import { mapNoticeText, NOTICE_OPTIONS, optionLabel } from '@/lib/candidateDossier';
+import { termKey } from '@/lib/candidateTerms';
 
 interface Props {
   submissionId: string | null;
@@ -22,34 +27,51 @@ interface Props {
 
 interface Row { key: string; label: string; value: string; on: boolean; placeholder: string; privateHint?: string }
 
-const datum = (iso: string) => new Date(`${iso.slice(0, 10)}T12:00:00`).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+const datum = (iso: string, lang?: string) => fmtDate(`${iso.slice(0, 10)}T12:00:00`, lang);
+const ROW_KEYS = ['fix', 'variable', 'homeoffice', 'start', 'wichtig', 'gut_zu_wissen', 'bedenken'] as const;
 
-/** Vorschlag aus dem Nachgespräch. Die Schmerzgrenze steht nur als Hinweis für den Headhunter da. */
-function rowsFrom(c: RecruiterOfferContext): Row[] {
+/**
+ * Vorschlag aus dem Nachgespräch. Die Schmerzgrenze steht nur als Hinweis für den Headhunter da.
+ * Vorbefüllte Werte gehen an den Kunden: in seiner Sprache (`clientLang`); Beschriftung im Fenster
+ * in der Sprache der Oberfläche, gesendet wird sie in der Sprache des Kunden (siehe `send`).
+ */
+function rowsFrom(c: RecruiterOfferContext, clientLang: string): Row[] {
+  const tu = (key: string, options?: Record<string, unknown>) => i18n.t(`offers:${key}`, options);
+  const tc = (key: string, options?: Record<string, unknown>) => tFor(clientLang, 'offers')(key, options) as string;
   const n = c.nachgespraech ?? {};
   const last = c.recommendation?.items ?? [];
   const prev = (key: string) => last.find((i) => i.key === key)?.value;
   const wunsch = (n.gehalt_besprochen ? n.gehalt_kandidat : null) ?? c.akte.expectedSalary;
   const punkte: string[] = n.angebot_punkte ?? [];
-  const start = n.start_art === 'sofort' ? 'sofort möglich'
-    : n.start_art === 'fester_tag' && n.start_datum ? `ab ${datum(n.start_datum)}`
-      : n.start_art === 'nach_frist' ? `nach Kündigungsfrist${c.akte.noticePeriod ? ` (${c.akte.noticePeriod})` : ''}`
-        : c.akte.availabilityDate ? `ab ${datum(c.akte.availabilityDate)}` : '';
+  // Kündigungsfrist als Text statt Code („3 Monate zum Quartalsende“), in der Sprache des Kunden
+  const noticeDe = c.akte.noticePeriod ? optionLabel(NOTICE_OPTIONS, mapNoticeText(c.akte.noticePeriod)) ?? c.akte.noticePeriod : null;
+  const notice = noticeDe ? tFor(clientLang, 'candidateTerms')(`t.${termKey(noticeDe)}`, { defaultValue: noticeDe }) as string : null;
+  const start = n.start_art === 'sofort' ? tc('rec.value.startNow')
+    : n.start_art === 'fester_tag' && n.start_datum ? tc('rec.value.from', { value: datum(n.start_datum, clientLang) })
+      : n.start_art === 'nach_frist' ? (notice ? tc('rec.value.afterNoticeWith', { notice }) : tc('rec.value.afterNotice'))
+        : c.akte.availabilityDate ? tc('rec.value.from', { value: datum(c.akte.availabilityDate, clientLang) }) : '';
   const wichtig = [
-    punkte.filter((p) => p !== 'homeoffice').map((p) => ANGEBOT_PUNKTE.find((x) => x.key === p)?.label ?? p).join(', '),
+    punkte.filter((p) => p !== 'homeoffice').map((p) => tFor(clientLang, 'recruiterTasks')(`nach.options.angebot.${p}`, { defaultValue: ANGEBOT_PUNKTE.find((x) => x.key === p)?.label ?? p }) as string).join(', '),
     (n.angebot_text ?? '').trim(),
   ].filter(Boolean).join('. ');
-  const rows: Row[] = [
-    { key: 'fix', label: 'Fixgehalt', value: prev('fix') ?? (wunsch ? `ab ${euro(wunsch)}` : ''), on: true, placeholder: 'z. B. ab 150.000 €',
-      privateHint: n.angebot_fix_min ? `Deine Schmerzgrenze ${euro(n.angebot_fix_min)} bleibt bei dir.` : undefined },
-    { key: 'variable', label: 'Variabel', value: prev('variable') ?? '', on: true, placeholder: 'z. B. 20.000 € wie besprochen' },
-    { key: 'homeoffice', label: 'Homeoffice', value: prev('homeoffice') ?? '', on: punkte.includes('homeoffice'), placeholder: 'z. B. 3 Tage pro Woche' },
-    { key: 'start', label: 'Start', value: prev('start') ?? start, on: true, placeholder: 'z. B. ab 01.01.2027' },
-    { key: 'wichtig', label: 'Wichtig im Angebot', value: prev('wichtig') ?? wichtig, on: true, placeholder: 'z. B. Dienstwagen, eigenes Team' },
-    { key: 'gut_zu_wissen', label: 'Gut zu wissen', value: prev('gut_zu_wissen') ?? '', on: true, placeholder: 'z. B. zweiter Prozess, Entscheidung Mitte November' },
-    // Bedenken nie vorab angehakt: der Headhunter entscheidet bewusst
-    { key: 'bedenken', label: 'Bedenken', value: prev('bedenken') ?? (n.bedenken ?? ''), on: !!prev('bedenken'), placeholder: 'z. B. Pendelzeit 50 Min.' },
-  ];
+  const values: Record<(typeof ROW_KEYS)[number], string> = {
+    fix: prev('fix') ?? (wunsch ? tc('rec.value.from', { value: `${fmtNumber(wunsch, clientLang)} €` }) : ''),
+    variable: prev('variable') ?? '',
+    homeoffice: prev('homeoffice') ?? '',
+    start: prev('start') ?? start,
+    wichtig: prev('wichtig') ?? wichtig,
+    gut_zu_wissen: prev('gut_zu_wissen') ?? '',
+    bedenken: prev('bedenken') ?? (n.bedenken ?? ''),
+  };
+  const rows: Row[] = ROW_KEYS.map((key) => ({
+    key,
+    label: tu(`rec.rows.${key}`),
+    value: values[key],
+    // Bedenken nie vorab angehakt: der Headhunter entscheidet bewusst; Homeoffice nur, wenn besprochen
+    on: key === 'bedenken' ? !!prev('bedenken') : key === 'homeoffice' ? punkte.includes('homeoffice') : true,
+    placeholder: tu(`rec.placeholder.${key}`),
+    privateHint: key === 'fix' && n.angebot_fix_min ? tu('rec.painLimit', { amount: euro(n.angebot_fix_min) }) : undefined,
+  }));
   return rows.map((r) => ({ ...r, on: r.on && r.value.trim().length > 0 }));
 }
 
@@ -58,6 +80,7 @@ function rowsFrom(c: RecruiterOfferContext): Row[] {
  * braucht, aus dem Nachgespräch vorbefüllt. Der Headhunter hakt an, was der Kunde sieht.
  */
 export function RecommendationDialog({ submissionId, onClose, onDone, onNachgespraech }: Props) {
+  const { t } = useTranslation('offers');
   const ctx = useQuery({
     queryKey: ['offer-recruiter-context', submissionId],
     queryFn: () => offerApi.recruiterContext(submissionId!),
@@ -69,9 +92,9 @@ export function RecommendationDialog({ submissionId, onClose, onDone, onNachgesp
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
         {ctx.isLoading || !ctx.data ? (
           <>
-            <DialogHeader><DialogTitle>Empfehlung</DialogTitle><DialogDescription>wird geladen …</DialogDescription></DialogHeader>
+            <DialogHeader><DialogTitle>{t('rec.title')}</DialogTitle><DialogDescription>{t('common.loading')}</DialogDescription></DialogHeader>
             {ctx.error
-              ? <p className="text-sm text-destructive">{ctx.error instanceof Error ? ctx.error.message : 'Konnte nicht geladen werden.'}</p>
+              ? <p className="text-sm text-destructive">{ctx.error instanceof Error ? ctx.error.message : t('common.loadError')}</p>
               : <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
           </>
         ) : (
@@ -83,10 +106,14 @@ export function RecommendationDialog({ submissionId, onClose, onDone, onNachgesp
 }
 
 function RecommendationForm({ c, onClose, onDone, onNachgespraech }: { c: RecruiterOfferContext; onClose: () => void; onDone?: () => void; onNachgespraech?: (c: RecruiterOfferContext) => void }) {
+  const { t, i18n: { language } } = useTranslation('offers');
   const queryClient = useQueryClient();
   const firma = c.companyName;
-  const name = (c.candidateName ?? '').split(' ')[0] || 'der Kandidat';
-  const initial = useMemo(() => rowsFrom(c), [c]);
+  const name = (c.candidateName ?? '').split(' ')[0] || t('rec.theCandidate');
+  // Sprache des Kunden: der Kontext kennt weder Profilsprache noch Land, darum Deutsch (wie bisher)
+  const clientLang = 'de';
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- Beschriftung folgt der Sprache der Oberfläche
+  const initial = useMemo(() => rowsFrom(c, clientLang), [c, language]);
   const [rows, setRows] = useState<Row[]>(initial);
   const [intro, setIntro] = useState(c.recommendation?.intro ?? '');
   const [busy, setBusy] = useState(false);
@@ -94,20 +121,22 @@ function RecommendationForm({ c, onClose, onDone, onNachgespraech }: { c: Recrui
   useEffect(() => { setRows(initial); }, [initial]);
 
   const set = (key: string, patch: Partial<Row>) => setRows((list) => list.map((r) => (r.key === key ? { ...r, ...patch } : r)));
-  const chosen: RecommendationItem[] = rows.filter((r) => r.on && r.value.trim()).map((r) => ({ key: r.key, label: r.label, value: r.value.trim() }));
-  const nachDatum = c.nachgespraech?.created_at ? datum(c.nachgespraech.created_at).slice(0, 6) : null;
+  // Die Beschriftung steht in der Karte beim Kunden: in seiner Sprache
+  const chosen: RecommendationItem[] = rows.filter((r) => r.on && r.value.trim())
+    .map((r) => ({ key: r.key, label: tFor(clientLang, 'offers')(`rec.rows.${r.key}`) as string, value: r.value.trim() }));
+  const nachDatum = c.nachgespraech?.created_at ? fmtDayMonth(c.nachgespraech.created_at) : null;
 
   const send = async () => {
     setBusy(true);
     try {
       await offerApi.recommend(c.submissionId, intro, chosen);
-      toast.success(`Empfehlung ist bei ${firma}.`);
+      toast.success(t('rec.sent', { company: firma }));
       queryClient.invalidateQueries({ queryKey: ['offer-recruiter-context', c.submissionId] });
       notifyTasksChanged();
       onDone?.();
       onClose();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Das hat nicht geklappt.');
+      toast.error(e instanceof Error ? e.message : t('common.failed'));
     } finally {
       setBusy(false);
     }
@@ -116,33 +145,33 @@ function RecommendationForm({ c, onClose, onDone, onNachgespraech }: { c: Recrui
   return (
     <>
       <DialogHeader className="text-left">
-        <DialogTitle>Empfehlung an {firma}</DialogTitle>
+        <DialogTitle>{t('rec.heading', { company: firma })}</DialogTitle>
         <DialogDescription>
-          {c.candidateName} · {c.jobTitle}.{nachDatum ? ` Aus deinem Nachgespräch vom ${nachDatum}` : ''}
+          {c.candidateName} · {c.jobTitle}.{nachDatum ? t('rec.fromNach', { date: nachDatum }) : ''}
         </DialogDescription>
       </DialogHeader>
       {c.recommendation && (
         <p className="rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-          Zuletzt gesendet am {dayDe(c.recommendation.createdAt)}. Eine neue Empfehlung ersetzt sie im Profil des Kunden.
+          {t('rec.lastSent', { date: dayDe(c.recommendation.createdAt) })}
         </p>
       )}
 
       {!c.nachgespraech && onNachgespraech && c.lastInterview && !withoutTalk && (
         <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/[0.06] p-3 text-sm">
-          <p>Du hast noch kein Nachgespräch mit {name}. Erst sprechen, dann ist hier alles vorbefüllt.</p>
+          <p>{t('rec.noNach', { name })}</p>
           <div className="flex flex-wrap items-center gap-3">
-            <Button size="sm" onClick={() => { onClose(); onNachgespraech(c); }}>Nachgespräch führen</Button>
-            <button type="button" className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => setWithoutTalk(true)}>Ohne Nachgespräch ausfüllen</button>
+            <Button size="sm" onClick={() => { onClose(); onNachgespraech(c); }}>{t('rec.doNach')}</Button>
+            <button type="button" className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => setWithoutTalk(true)}>{t('rec.withoutNach')}</button>
           </div>
         </div>
       )}
 
       <label className="block text-sm">
-        <span className="text-muted-foreground">Persönliche Einleitung (optional)</span>
-        <Textarea value={intro} onChange={(e) => setIntro(e.target.value)} rows={2} className="mt-1" placeholder={`z. B. ${name} war nach dem Termin vor Ort begeistert vom Team. So kommt die Zusage:`} />
+        <span className="text-muted-foreground">{t('rec.intro')}</span>
+        <Textarea value={intro} onChange={(e) => setIntro(e.target.value)} rows={2} className="mt-1" placeholder={t('rec.introPlaceholder', { name })} />
       </label>
 
-      <p className="text-xs text-muted-foreground">Nur Angehaktes sieht {firma}, als Karte im Bewerberprofil und im Angebotsfenster. Deine Schmerzgrenze sieht {firma} nie.</p>
+      <p className="text-xs text-muted-foreground">{t('rec.onlyChecked', { company: firma })}</p>
 
       <div className="space-y-2">
         {rows.map((r) => (
@@ -159,9 +188,9 @@ function RecommendationForm({ c, onClose, onDone, onNachgespraech }: { c: Recrui
       </div>
 
       <div className="flex flex-wrap justify-end gap-2 border-t pt-3">
-        <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
-        <Button disabled={busy || chosen.length === 0} title={chosen.length === 0 ? 'Hake mindestens einen Punkt an.' : undefined} onClick={send}>
-          {busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}Empfehlung senden
+        <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
+        <Button disabled={busy || chosen.length === 0} title={chosen.length === 0 ? t('rec.checkOne') : undefined} onClick={send}>
+          {busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}{t('rec.send')}
         </Button>
       </div>
     </>

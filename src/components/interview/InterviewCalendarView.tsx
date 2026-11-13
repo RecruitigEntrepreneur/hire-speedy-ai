@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay, parseISO, differenceInMinutes, isSameWeek } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { useTranslation } from 'react-i18next';
+import { dfLocale } from '@/lib/localeFormat';
+import { meetingTypeLabel } from '@/components/interview/agenda/meetingType';
 import { Video, Phone, MapPin, Clock, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -72,6 +74,7 @@ const meetingTypeConfig: Record<string, { gradient: string; iconColor: string; b
 };
 
 export function InterviewCalendarView({ interviews, onSelectInterview }: InterviewCalendarViewProps) {
+  const { t } = useTranslation(['clientInterviews', 'interviews']);
   const [currentWeekStart, setCurrentWeekStart] = useState(() => 
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
@@ -151,7 +154,7 @@ export function InterviewCalendarView({ interviews, onSelectInterview }: Intervi
           <div className="text-sm font-medium min-w-[180px] text-center">
             <span className="text-muted-foreground">KW {weekNumber}</span>
             <span className="mx-2">•</span>
-            <span>{format(currentWeekStart, 'MMMM yyyy', { locale: de })}</span>
+            <span>{format(currentWeekStart, 'MMMM yyyy', { locale: dfLocale() })}</span>
           </div>
           <Button
             variant="outline"
@@ -169,7 +172,7 @@ export function InterviewCalendarView({ interviews, onSelectInterview }: Intervi
           className="gap-1.5"
         >
           <Calendar className="h-4 w-4" />
-          Heute
+          {t('day.today')}
         </Button>
       </div>
 
@@ -190,7 +193,7 @@ export function InterviewCalendarView({ interviews, onSelectInterview }: Intervi
                   : "bg-muted/30 hover:bg-muted/50"
               )}>
                 <p className="text-xs font-medium uppercase tracking-wider opacity-80">
-                  {format(day, 'EEE', { locale: de })}
+                  {format(day, 'EEE', { locale: dfLocale() })}
                 </p>
                 <p className={cn("text-xl font-bold", today ? "" : "text-foreground")}>
                   {format(day, 'd')}
@@ -207,7 +210,7 @@ export function InterviewCalendarView({ interviews, onSelectInterview }: Intervi
                 {dayInterviews.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-6 text-muted-foreground/50">
                     <Calendar className="h-6 w-6 mb-1 opacity-30" />
-                    <p className="text-[10px]">Keine Termine</p>
+                    <p className="text-[10px]">{t('calendarView.none')}</p>
                   </div>
                 ) : (
                   dayInterviews.map(interview => {
@@ -256,7 +259,7 @@ export function InterviewCalendarView({ interviews, onSelectInterview }: Intervi
                               <p className="font-semibold">{interview.submission.candidate.full_name}</p>
                               <p className="text-xs text-muted-foreground">{interview.submission.job.title}</p>
                               <div className="flex items-center gap-2 text-xs">
-                                <span className={cn(config.iconColor)}>{config.label}</span>
+                                <span className={cn(config.iconColor)}>{meetingTypeLabel(interview.meeting_type ?? null)}</span>
                                 <span>•</span>
                                 <span>{interview.duration_minutes || 60} Min</span>
                               </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -25,6 +26,7 @@ export function ForwardDialog({
   onOpenChange: (v: boolean) => void;
   onForward: (email: string, name: string, message: string) => Promise<any>;
 }) {
+  const { t } = useTranslation('clientFunnel');
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [message, setMessage] = useState('');
@@ -45,10 +47,9 @@ export function ForwardDialog({
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) { setDone(null); setError(null); } }}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>An Entscheider weiterleiten</DialogTitle>
+          <DialogTitle>{t('dialogs.forwardTitle')}</DialogTitle>
           <DialogDescription>
-            Die Person erhält einen eigenen Zugang zu dieser Aufnahme und kann sie ergänzen und einreichen.
-            Ihr eigener Zugang bleibt bestehen.
+            {t('dialogs.forwardText')}
           </DialogDescription>
         </DialogHeader>
 
@@ -57,18 +58,18 @@ export function ForwardDialog({
         ) : (
           <div className="space-y-3">
             <div>
-              <Label htmlFor="fwd-email" className="text-xs text-muted-foreground">Geschäftliche E-Mail-Adresse</Label>
+              <Label htmlFor="fwd-email" className="text-xs text-muted-foreground">{t('common.businessEmail')}</Label>
               <Input id="fwd-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@ihrunternehmen.de" className="mt-1" />
+                placeholder={t('common.emailPlaceholder')} className="mt-1" />
             </div>
             <div>
-              <Label htmlFor="fwd-name" className="text-xs text-muted-foreground">Name (optional)</Label>
+              <Label htmlFor="fwd-name" className="text-xs text-muted-foreground">{t('dialogs.nameOptional')}</Label>
               <Input id="fwd-name" value={name} onChange={(e) => setName(e.target.value)} className="mt-1" />
             </div>
             <div>
-              <Label htmlFor="fwd-msg" className="text-xs text-muted-foreground">Nachricht (optional)</Label>
+              <Label htmlFor="fwd-msg" className="text-xs text-muted-foreground">{t('dialogs.messageOptional')}</Label>
               <Textarea id="fwd-msg" rows={3} value={message} onChange={(e) => setMessage(e.target.value)}
-                placeholder={'z. B. Bitte kurz prüfen und freigeben.'} className="mt-1" />
+                placeholder={t('dialogs.messagePlaceholder')} className="mt-1" />
             </div>
             {error && <Alert variant="destructive"><AlertDescription className="text-xs">{error}</AlertDescription></Alert>}
           </div>
@@ -76,12 +77,12 @@ export function ForwardDialog({
 
         <DialogFooter>
           {done ? (
-            <Button onClick={() => onOpenChange(false)}>Schließen</Button>
+            <Button onClick={() => onOpenChange(false)}>{t('common.close')}</Button>
           ) : (
             <>
-              <Button variant="outline" onClick={() => onOpenChange(false)}>Abbrechen</Button>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>{t('common.cancel')}</Button>
               <Button onClick={send} disabled={busy || !email.trim()} className="gap-2">
-                {busy && <Loader2 className="h-4 w-4 animate-spin" />} Einladung senden
+                {busy && <Loader2 className="h-4 w-4 animate-spin" />} {t('dialogs.sendInvite')}
               </Button>
             </>
           )}
@@ -106,6 +107,7 @@ export function ResumeDialog({
   defaultEmail: string | null;
   verified: boolean;
 }) {
+  const { t } = useTranslation('clientFunnel');
   const [email, setEmail] = useState(defaultEmail ?? '');
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<string | null>(null);
@@ -121,9 +123,9 @@ export function ResumeDialog({
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) setDone(null); }}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Später fortsetzen</DialogTitle>
+          <DialogTitle>{t('dialogs.resumeTitle')}</DialogTitle>
           <DialogDescription>
-            Ihre Angaben sind gespeichert. Auf demselben Gerät geht es über denselben Link weiter.
+            {t('dialogs.resumeText')}
           </DialogDescription>
         </DialogHeader>
 
@@ -132,30 +134,29 @@ export function ResumeDialog({
         ) : verified ? (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Wenn Sie das Gerät wechseln möchten, senden wir Ihnen einen Fortsetzungslink per E-Mail.
+              {t('dialogs.resumeOtherDevice')}
             </p>
             <div>
-              <Label htmlFor="resume-email" className="text-xs text-muted-foreground">Ihre bestätigte E-Mail-Adresse</Label>
+              <Label htmlFor="resume-email" className="text-xs text-muted-foreground">{t('dialogs.confirmedEmail')}</Label>
               <Input id="resume-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1" />
             </div>
           </div>
         ) : (
           <Alert>
             <AlertDescription className="text-sm">
-              Sobald Sie Ihre E-Mail-Adresse bestätigt haben, können wir Ihnen einen Fortsetzungslink
-              senden. Bis dahin geht es auf diesem Gerät über denselben Link weiter.
+              {t('dialogs.resumeUnverified')}
             </AlertDescription>
           </Alert>
         )}
 
         <DialogFooter>
           {done || !verified ? (
-            <Button onClick={() => onOpenChange(false)}>Schließen</Button>
+            <Button onClick={() => onOpenChange(false)}>{t('common.close')}</Button>
           ) : (
             <>
-              <Button variant="outline" onClick={() => onOpenChange(false)}>Abbrechen</Button>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>{t('common.cancel')}</Button>
               <Button onClick={send} disabled={busy || !email.trim()} className="gap-2">
-                {busy && <Loader2 className="h-4 w-4 animate-spin" />} Link senden
+                {busy && <Loader2 className="h-4 w-4 animate-spin" />} {t('dialogs.sendLink')}
               </Button>
             </>
           )}

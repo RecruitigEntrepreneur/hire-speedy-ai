@@ -1,6 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { format } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { useTranslation } from 'react-i18next';
+import { dateFnsLocale } from '@/lib/candidateDateLocale';
+import { intlLocale } from '@/i18n/languages';
+import { term } from '@/lib/candidateTerms';
 import { Bell, CalendarPlus, Check, CheckCircle2, Circle, CircleDot, Copy, FileUp, Loader2, NotebookPen, Phone, PhoneCall, Play, Video, X, Zap, type LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSearchParams } from 'react-router-dom';
@@ -11,7 +14,7 @@ import { EinladungFenster } from '@/components/recruiter/termin/EinladungFenster
 import { notifyTasksChanged } from '@/hooks/useUnifiedTaskInbox';
 import { useErstgespraeche, type Erstgespraech } from '@/components/recruiter/termin/Erstgespraeche';
 import { useKandidatEinladung } from '@/components/recruiter/termin/useKandidatEinladung';
-import { useLebenslaufAnfrage, vorTagenKurz } from '@/components/recruiter/termin/useLebenslaufAnfrage';
+import { useLebenslaufAnfrage } from '@/components/recruiter/termin/useLebenslaufAnfrage';
 import { cvViewUrl } from '@/hooks/useCandidateCv';
 import type { CurrentCv } from '@/lib/candidateCv';
 import { einladungApi, einladungsLink } from '@/lib/terminApi';
@@ -26,6 +29,8 @@ interface SourceRow {
   expires_at: string | null;
 }
 
+// So wurde die Bezeichnung der Quelle gespeichert (deutsch): nur zum Vergleich mit s.label.
+// Angezeigt wird candidateInterview:card.kind.<art>.
 const KIND_LABEL: Record<string, string> = {
   notes: 'Eigene Notizen',
   transcript: 'Transkript',
@@ -35,12 +40,11 @@ const KIND_LABEL: Record<string, string> = {
   live: 'Live-Interview',
 };
 
-const SCHRITTE = ['Einladen', 'Termin', 'Gespräch', 'Abschließen'];
+// Beschriftung: candidateInterview:card.steps.<schritt>
+const SCHRITTE = ['invite', 'appointment', 'talk', 'complete'] as const;
 const MAX_LUECKEN = 4;
 
-const wann = (iso: string) => format(new Date(iso), "EEE, d.M. 'um' HH:mm", { locale: de });
 const tage = (iso: string) => Math.max(0, Math.floor((Date.now() - Date.parse(iso)) / 86_400_000));
-const vorTagen = (iso: string) => { const d = tage(iso); return d === 0 ? 'heute' : d === 1 ? 'gestern' : `vor ${d} Tagen`; };
 
 /** Zeile unter dem Hauptknopf: die anderen Wege, ruhig und klein. */
 function Nebenweg({ Icon, children, onClick, disabled }: { Icon: LucideIcon; children: ReactNode; onClick: () => void; disabled?: boolean }) {
@@ -88,6 +92,10 @@ export function InterviewEntryCard({
   onLebenslaufAnfragen?: () => void;
   onUploadCv?: () => void;
 }) {
+  const { t, i18n } = useTranslation(['candidateInterview', 'candidateTerms']);
+  const locale = intlLocale(i18n.language);
+  const wann = (iso: string) => format(new Date(iso), t('card.dateFormat'), { locale: dateFnsLocale(i18n.language) });
+  const vorTagen = (iso: string, gross = false) => { const d = tage(iso); return d === 0 ? t(gross ? 'card.todayCap' : 'card.today') : d === 1 ? t(gross ? 'card.yesterdayCap' : 'card.yesterday') : t(gross ? 'card.daysAgoCap' : 'card.daysAgo', { n: d }); };
   const [sources, setSources] = useState<SourceRow[]>([]);
   const [fensterOffen, setFensterOffen] = useState(false);
   const [arbeitet, setArbeitet] = useState<'erinnern' | 'link' | 'zurueck' | null>(null);
@@ -99,15 +107,15 @@ export function InterviewEntryCard({
     try {
       await einladungApi.lebenslaufErinnern(candidateId);
       setErinnert(true);
-      toast.success(`Erinnerung an ${vorname} ist raus.`);
+      toast.success(t('card.reminderSent', { name: vorname }));
       void anfrageNeu();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Die Erinnerung konnte nicht verschickt werden.');
+      toast.error(e instanceof Error ? e.message : t('card.reminderFailed'));
     }
   };
   const lebenslaufAnsehen = async () => {
     const url = lebenslauf ? await cvViewUrl(lebenslauf) : null;
-    if (url) window.open(url, '_blank', 'noopener'); else toast.error('Der Lebenslauf konnte nicht geöffnet werden.');
+    if (url) window.open(url, '_blank', 'noopener'); else toast.error(t('card.cvOpenFailed'));
   };
   const { data: termine = [], isLoading: termineLaden } = useErstgespraeche({ candidateId });
 
@@ -140,17 +148,17 @@ export function InterviewEntryCard({
   const aktion = async (art: 'erinnern' | 'link' | 'zurueck') => {
     setArbeitet(art);
     try {
-      if (art === 'erinnern') { await einladungApi.erinnern(candidateId); toast.success(`Erinnerung an ${vorname} ist raus.`); }
+      if (art === 'erinnern') { await einladungApi.erinnern(candidateId); toast.success(t('card.reminderSent', { name: vorname })); }
       if (art === 'link') {
         const r = await einladungApi.link(candidateId);
         await navigator.clipboard.writeText(einladungsLink(r.token));
-        toast.success('Persönlicher Link kopiert.');
+        toast.success(t('card.linkCopied'));
       }
-      if (art === 'zurueck') { await einladungApi.zurueckziehen(candidateId); toast.success('Einladung zurückgezogen. Der Link gilt nicht mehr.'); }
+      if (art === 'zurueck') { await einladungApi.zurueckziehen(candidateId); toast.success(t('card.withdrawn')); }
       await neuLaden();
       notifyTasksChanged();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Das hat gerade nicht geklappt.');
+      toast.error(e instanceof Error ? e.message : t('card.failed'));
     } finally { setArbeitet(null); }
   };
 
@@ -162,61 +170,62 @@ export function InterviewEntryCard({
   let haupt: ReactNode;
   let neben: ReactNode;
 
-  const liveBtn = <Nebenweg Icon={PhoneCall} onClick={onLive}>Jetzt live führen</Nebenweg>;
-  const einwerfen = <Nebenweg Icon={FileUp} onClick={onImport}>Notizen einwerfen</Nebenweg>;
-  const ausKopf = <Nebenweg Icon={Zap} onClick={onQuick}>Aus dem Kopf</Nebenweg>;
+  const liveBtn = <Nebenweg Icon={PhoneCall} onClick={onLive}>{t('card.live')}</Nebenweg>;
+  const einwerfen = <Nebenweg Icon={FileUp} onClick={onImport}>{t('card.dropNotes')}</Nebenweg>;
+  const ausKopf = <Nebenweg Icon={Zap} onClick={onQuick}>{t('card.fromMemory')}</Nebenweg>;
 
   if (completed) {
     schritt = SCHRITTE.length;
-    etikett = { text: 'abgeschlossen', ton: 'bg-success/10 text-success' };
-    titel = 'Interview abgeschlossen';
-    unter = interviewDate ? `Am ${new Date(interviewDate).toLocaleDateString('de-DE')}` : 'Du kannst den Kandidaten einreichen.';
-    haupt = <Button size="sm" variant="outline" onClick={onLive} className="gap-1.5"><NotebookPen className="h-3.5 w-3.5"/>Interview öffnen</Button>;
-    neben = <Nebenweg Icon={FileUp} onClick={onImport}>Nachtrag einwerfen</Nebenweg>;
+    etikett = { text: t('card.badgeDone'), ton: 'bg-success/10 text-success' };
+    titel = t('card.titleDone');
+    unter = interviewDate ? t('card.onDate', { date: new Date(interviewDate).toLocaleDateString(locale) }) : t('card.canSubmit');
+    haupt = <Button size="sm" variant="outline" onClick={onLive} className="gap-1.5"><NotebookPen className="h-3.5 w-3.5"/>{t('card.open')}</Button>;
+    neben = <Nebenweg Icon={FileUp} onClick={onImport}>{t('card.dropAddendum')}</Nebenweg>;
   } else if (kommend) {
     schritt = 2;
-    etikett = { text: laeuft ? 'jetzt' : 'Termin steht', ton: 'bg-primary/10 text-primary' };
+    etikett = { text: laeuft ? t('card.badgeNow') : t('card.badgeBooked'), ton: 'bg-primary/10 text-primary' };
     titel = wann(kommend.starts_at);
-    unter = `${Math.round((Date.parse(kommend.ends_at) - Date.parse(kommend.starts_at)) / 60000)} Minuten · ${kommend.mode === 'teams' ? 'Teams' : `Telefon${kommend.phone ? ` ${kommend.phone}` : ''}`} · ${vorname} hat gebucht`;
+    unter = t(kommend.mode === 'teams' ? 'card.bookedTeams' : 'card.bookedPhone', { minutes: Math.round((Date.parse(kommend.ends_at) - Date.parse(kommend.starts_at)) / 60000), phone: kommend.phone ? ` ${kommend.phone}` : '', name: vorname });
     haupt = kommend.mode === 'teams' && kommend.join_url
-      ? <Button size="sm" asChild className="gap-1.5"><a href={kommend.join_url} target="_blank" rel="noreferrer"><Video className="h-3.5 w-3.5"/>Beitreten</a></Button>
+      ? <Button size="sm" asChild className="gap-1.5"><a href={kommend.join_url} target="_blank" rel="noreferrer"><Video className="h-3.5 w-3.5"/>{t('card.join')}</a></Button>
       : kommend.mode === 'phone' && kommend.phone
-        ? <Button size="sm" asChild className="gap-1.5"><a href={`tel:${kommend.phone.replace(/[^\d+]/g, '')}`}><Phone className="h-3.5 w-3.5"/>Anrufen</a></Button>
-        : <Button size="sm" onClick={onLive} className="gap-1.5"><NotebookPen className="h-3.5 w-3.5"/>Interview öffnen</Button>;
-    neben = <>{(kommend.join_url || kommend.phone) && <Nebenweg Icon={NotebookPen} onClick={onLive}>Interview öffnen</Nebenweg>}{einwerfen}</>;
+        ? <Button size="sm" asChild className="gap-1.5"><a href={`tel:${kommend.phone.replace(/[^\d+]/g, '')}`}><Phone className="h-3.5 w-3.5"/>{t('card.call')}</a></Button>
+        : <Button size="sm" onClick={onLive} className="gap-1.5"><NotebookPen className="h-3.5 w-3.5"/>{t('card.open')}</Button>;
+    neben = <>{(kommend.join_url || kommend.phone) && <Nebenweg Icon={NotebookPen} onClick={onLive}>{t('card.open')}</Nebenweg>}{einwerfen}</>;
   } else if (hasInterview || vorbei) {
     schritt = 3;
     const nochNichts = !hasInterview;
-    etikett = { text: nochNichts ? 'Gespräch war' : 'Entwurf', ton: 'bg-warning/10 text-warning' };
+    etikett = { text: nochNichts ? t('card.badgeHappened') : t('card.badgeDraft'), ton: 'bg-warning/10 text-warning' };
     if (nochNichts && vorbei) {
-      titel = `Gespräch war ${vorTagen(vorbei.starts_at)}`;
-      unter = 'Halte es fest, solange es frisch ist.';
+      titel = t('card.happened', { when: vorTagen(vorbei.starts_at) });
+      unter = t('card.captureFresh');
     } else if (gaps.length) {
-      titel = `Interview-Entwurf · ${gaps.length === 1 ? '1 Angabe fehlt' : `${gaps.length} Angaben fehlen`}`;
-      unter = `Noch offen: ${gaps.slice(0, MAX_LUECKEN).map((g) => g.label).join(', ')}${gaps.length > MAX_LUECKEN ? ` und ${gaps.length - MAX_LUECKEN} weitere` : ''}`;
+      titel = t('card.draftMissing', { count: gaps.length });
+      const liste = gaps.slice(0, MAX_LUECKEN).map((g) => term(g.label)).join(', ');
+      unter = gaps.length > MAX_LUECKEN ? t('card.stillOpenMore', { list: liste, more: gaps.length - MAX_LUECKEN }) : t('card.stillOpen', { list: liste });
     } else {
-      titel = 'Alle Angaben da';
-      unter = 'Noch 1 Schritt, dann kannst du einreichen.';
+      titel = t('card.allThere');
+      unter = t('card.oneStep');
     }
     const fertig = !nochNichts && !gaps.length;
-    haupt = <Button size="sm" onClick={onLive} className="gap-1.5">{fertig ? <Check className="h-3.5 w-3.5"/> : <Play className="h-3.5 w-3.5"/>}{fertig ? 'Interview abschließen' : nochNichts ? 'Interview erfassen' : 'Interview fertigstellen'}</Button>;
+    haupt = <Button size="sm" onClick={onLive} className="gap-1.5">{fertig ? <Check className="h-3.5 w-3.5"/> : <Play className="h-3.5 w-3.5"/>}{fertig ? t('card.complete') : nochNichts ? t('card.capture') : t('card.finish')}</Button>;
     neben = <>{einwerfen}{ausKopf}</>;
   } else if (einladung) {
     schritt = 1;
-    etikett = { text: `wartet auf ${vorname}`, ton: 'bg-warning/10 text-warning' };
-    titel = `${vorname} ist eingeladen`;
-    const art = einladung.arten.length > 1 ? 'Teams oder Telefon' : einladung.arten[0] === 'teams' ? 'Teams' : 'Telefon';
-    unter = `${vorTagen(einladung.seit)[0].toUpperCase()}${vorTagen(einladung.seit).slice(1)} ${einladung.perMail ? 'per Mail' : 'als Link'} · ${art} · ${einladung.geoeffnet ? 'Link geöffnet' : 'noch nicht geöffnet'}`;
+    etikett = { text: t('card.badgeWaiting', { name: vorname }), ton: 'bg-warning/10 text-warning' };
+    titel = t('card.invited', { name: vorname });
+    const art = einladung.arten.length > 1 ? t('card.teamsOrPhone') : einladung.arten[0] === 'teams' ? 'Teams' : t('card.phone');
+    unter = t(einladung.perMail ? 'card.invitedByMail' : 'card.invitedByLink', { when: vorTagen(einladung.seit, true), mode: art, opened: einladung.geoeffnet ? t('card.linkOpened') : t('card.linkNotOpened') });
     haupt = email
-      ? <Button size="sm" onClick={() => void aktion('erinnern')} disabled={!!arbeitet} className="gap-1.5">{arbeitet === 'erinnern' ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <Bell className="h-3.5 w-3.5"/>}Erinnern</Button>
-      : <Button size="sm" onClick={() => void aktion('link')} disabled={!!arbeitet} className="gap-1.5"><Copy className="h-3.5 w-3.5"/>Link kopieren</Button>;
-    neben = <>{email && <Nebenweg Icon={Copy} onClick={() => void aktion('link')} disabled={!!arbeitet}>Link kopieren</Nebenweg>}{liveBtn}<Nebenweg Icon={X} onClick={() => void aktion('zurueck')} disabled={!!arbeitet}>Einladung zurückziehen</Nebenweg></>;
+      ? <Button size="sm" onClick={() => void aktion('erinnern')} disabled={!!arbeitet} className="gap-1.5">{arbeitet === 'erinnern' ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <Bell className="h-3.5 w-3.5"/>}{t('card.remind')}</Button>
+      : <Button size="sm" onClick={() => void aktion('link')} disabled={!!arbeitet} className="gap-1.5"><Copy className="h-3.5 w-3.5"/>{t('card.copyLink')}</Button>;
+    neben = <>{email && <Nebenweg Icon={Copy} onClick={() => void aktion('link')} disabled={!!arbeitet}>{t('card.copyLink')}</Nebenweg>}{liveBtn}<Nebenweg Icon={X} onClick={() => void aktion('zurueck')} disabled={!!arbeitet}>{t('card.withdraw')}</Nebenweg></>;
   } else {
     schritt = 0;
-    etikett = { text: 'noch keins erfasst', ton: 'bg-muted text-muted-foreground' };
-    titel = `Noch kein Gespräch mit ${vorname}`;
-    unter = 'Lade ein oder halte fest, was ihr schon besprochen habt.';
-    haupt = <Button size="sm" onClick={() => setFensterOffen(true)} className="gap-1.5"><CalendarPlus className="h-3.5 w-3.5"/>Zum Gespräch einladen</Button>;
+    etikett = { text: t('card.badgeNone'), ton: 'bg-muted text-muted-foreground' };
+    titel = t('card.noTalk', { name: vorname });
+    unter = t('card.inviteOrCapture');
+    haupt = <Button size="sm" onClick={() => setFensterOffen(true)} className="gap-1.5"><CalendarPlus className="h-3.5 w-3.5"/>{t('card.inviteToTalk')}</Button>;
     neben = <>{liveBtn}{einwerfen}{ausKopf}</>;
   }
 
@@ -227,18 +236,18 @@ export function InterviewEntryCard({
     <Card>
       <CardContent className="space-y-4 p-5">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold tracking-tight">Interview</h3>
+          <h3 className="text-sm font-semibold tracking-tight">{t('card.title')}</h3>
           {!laedt && <span className={cn('whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium', etikett.ton)}>{etikett.text}</span>}
         </div>
 
-        <div className="flex items-center gap-1.5" aria-label={`Schritt ${Math.min(schritt + 1, SCHRITTE.length)} von ${SCHRITTE.length}`}>
+        <div className="flex items-center gap-1.5" aria-label={t('card.stepOf', { step: Math.min(schritt + 1, SCHRITTE.length), total: SCHRITTE.length })}>
           {SCHRITTE.map((s, i) => {
             const fertig = !laedt && i < schritt;
             const aktuell = !laedt && i === schritt;
             const Icon = fertig ? CheckCircle2 : aktuell ? CircleDot : Circle;
             return <div key={s} className={cn('flex items-center gap-1.5', i < SCHRITTE.length - 1 && 'flex-1')}>
               <span className={cn('inline-flex items-center gap-1 whitespace-nowrap text-[11px]', fertig ? 'text-success' : aktuell ? 'font-medium text-foreground' : 'text-muted-foreground')}>
-                <Icon className="h-3.5 w-3.5"/>{s}
+                <Icon className="h-3.5 w-3.5"/>{t(`card.steps.${s}`)}
               </span>
               {i < SCHRITTE.length - 1 && <span className={cn('h-px min-w-2 flex-1', fertig ? 'bg-success/50' : 'bg-border')}/>}
             </div>;
@@ -260,17 +269,17 @@ export function InterviewEntryCard({
         {!laedt && (
           <p className="border-t border-border pt-2.5 text-xs text-muted-foreground">
             {lebenslauf ? (
-              <><span className="text-success">✓ Lebenslauf da</span> · <button type="button" className="underline-offset-2 hover:text-foreground hover:underline" onClick={() => void lebenslaufAnsehen()}>ansehen</button></>
+              <><span className="text-success">{t('card.cvThere')}</span> · <button type="button" className="underline-offset-2 hover:text-foreground hover:underline" onClick={() => void lebenslaufAnsehen()}>{t('card.view')}</button></>
             ) : anfrage ? (
               <>
-                {anfrage.linkedin_at ? 'LinkedIn-Profil da · Lebenslauf fehlt fürs Einreichen' : anfrage.weg === 'einladung' && einladung && !anfrage.reminded_at ? 'Lebenslauf: mit der Einladung angefragt' : `Lebenslauf: angefragt ${vorTagenKurz(anfrage.reminded_at ?? anfrage.sent_at ?? anfrage.created_at)}, noch nicht da`}
-                {email && !erinnert && !(anfrage.weg === 'einladung' && einladung && !anfrage.reminded_at) && <> · <button type="button" className="underline-offset-2 hover:text-foreground hover:underline" onClick={() => void lebenslaufErinnern()}>Erinnern</button></>}
+                {anfrage.linkedin_at ? t('card.cvLinkedin') : anfrage.weg === 'einladung' && einladung && !anfrage.reminded_at ? t('card.cvWithInvite') : t('card.cvRequested', { when: vorTagen(anfrage.reminded_at ?? anfrage.sent_at ?? anfrage.created_at) })}
+                {email && !erinnert && !(anfrage.weg === 'einladung' && einladung && !anfrage.reminded_at) && <> · <button type="button" className="underline-offset-2 hover:text-foreground hover:underline" onClick={() => void lebenslaufErinnern()}>{t('card.remind')}</button></>}
               </>
             ) : (
               <>
-                Lebenslauf fehlt
-                {onLebenslaufAnfragen && <> · <button type="button" className="underline-offset-2 hover:text-foreground hover:underline" onClick={onLebenslaufAnfragen}>anfragen</button></>}
-                {onUploadCv && <> · <button type="button" className="underline-offset-2 hover:text-foreground hover:underline" onClick={onUploadCv}>selbst hochladen</button></>}
+                {t('card.cvMissing')}
+                {onLebenslaufAnfragen && <> · <button type="button" className="underline-offset-2 hover:text-foreground hover:underline" onClick={onLebenslaufAnfragen}>{t('card.request')}</button></>}
+                {onUploadCv && <> · <button type="button" className="underline-offset-2 hover:text-foreground hover:underline" onClick={onUploadCv}>{t('card.uploadSelf')}</button></>}
               </>
             )}
           </p>
@@ -281,11 +290,11 @@ export function InterviewEntryCard({
             {sources.map((s) => (
               <li key={s.id} className="flex items-center justify-between gap-2 px-3 py-1.5">
                 <span className="min-w-0 truncate">
-                  {new Date(s.created_at).toLocaleDateString('de-DE')} · {KIND_LABEL[s.kind] ?? s.kind}
-                  {s.label && s.label !== KIND_LABEL[s.kind] ? ` · ${s.label}` : ''}
+                  {new Date(s.created_at).toLocaleDateString(locale)} · {KIND_LABEL[s.kind] ? t(`card.kind.${s.kind}`) : s.kind}
+                  {s.label && s.label !== KIND_LABEL[s.kind] ? ` · ${term(s.label)}` : ''}
                 </span>
                 <span className="shrink-0 text-muted-foreground">
-                  {s.raw_text == null ? 'Rohtext gelöscht' : s.expires_at ? `Rohtext bis ${new Date(s.expires_at).toLocaleDateString('de-DE')}` : 'Bleibt gespeichert'}
+                  {s.raw_text == null ? t('card.rawDeleted') : s.expires_at ? t('card.rawUntil', { date: new Date(s.expires_at).toLocaleDateString(locale) }) : t('card.rawKept')}
                 </span>
               </li>
             ))}

@@ -5,6 +5,7 @@ import { FirmenLogo } from '@/components/company/FirmenLogo';
 import { briefingText, list } from '@/lib/recruiterBriefing';
 import { mitarbeitende } from '@/lib/stellenKopf';
 import type { WorkspaceJob } from './RecruiterJobWorkspace';
+import { useTranslation } from 'react-i18next';
 
 /**
  * „Über das Unternehmen“ (21.10.2026): Klick auf den Firmennamen im Kopf der
@@ -16,7 +17,8 @@ function Abschnitt({ titel, children }: { titel: string; children: ReactNode }) 
 }
 
 export function FirmaSheet({ open, onOpenChange, job }: { open: boolean; onOpenChange: (open: boolean) => void; job: WorkspaceJob }) {
-  const name = job.company_name || 'Unternehmen';
+  const { t } = useTranslation('recruiterJobDetail');
+  const name = job.company_name || t('firma.fallbackName');
   const besonders = list(job.unique_selling_points).flatMap(t => t.split(/\s·\s/)).map(t => t.trim()).filter(Boolean);
   const kultur = briefingText(job.company_culture);
   const abteilung = briefingText(job.department_structure);
@@ -38,14 +40,14 @@ export function FirmaSheet({ open, onOpenChange, job }: { open: boolean; onOpenC
         </div>
       </SheetHeader>
       <div className="mt-6 space-y-5 text-sm leading-6">
-        {besonders.length > 0 && <Abschnitt titel="Was es besonders macht"><ul className="space-y-1">{besonders.map(b => <li key={b} className="flex gap-2"><span aria-hidden className="mt-2.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground" />{b}</li>)}</ul></Abschnitt>}
-        {kultur && <Abschnitt titel="Kultur und Zusammenarbeit"><p>{kultur}</p></Abschnitt>}
-        {(abteilung || berichtet) && <Abschnitt titel="Abteilung">
+        {besonders.length > 0 && <Abschnitt titel={t('firma.special')}><ul className="space-y-1">{besonders.map(b => <li key={b} className="flex gap-2"><span aria-hidden className="mt-2.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground" />{b}</li>)}</ul></Abschnitt>}
+        {kultur && <Abschnitt titel={t('firma.culture')}><p>{kultur}</p></Abschnitt>}
+        {(abteilung || berichtet) && <Abschnitt titel={t('firma.department')}>
           {abteilung && <p>{abteilung}</p>}
-          {berichtet && <p className="text-muted-foreground">Die Stelle berichtet an: {berichtet}</p>}
+          {berichtet && <p className="text-muted-foreground">{t('firma.reportsTo', { name: berichtet })}</p>}
         </Abschnitt>}
-        {!besonders.length && !kultur && !abteilung && <p className="text-muted-foreground">Zum Unternehmen hat der Kunde noch nichts Weiteres angegeben.</p>}
-        <p className="border-t border-border pt-4 text-xs text-muted-foreground">Alles vom Kunden aus der Aufnahme.</p>
+        {!besonders.length && !kultur && !abteilung && <p className="text-muted-foreground">{t('firma.empty')}</p>}
+        <p className="border-t border-border pt-4 text-xs text-muted-foreground">{t('firma.source')}</p>
       </div>
     </SheetContent>
   </Sheet>;

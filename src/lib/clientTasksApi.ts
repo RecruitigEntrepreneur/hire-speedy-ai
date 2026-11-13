@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
+import i18n from '@/i18n';
 import { callFunction } from '@/lib/interviewScheduling';
 
 /**
@@ -35,14 +36,15 @@ export interface ClientTask {
 }
 
 export interface TaskChip { text: string; tone: 'good' | 'warn' | 'bad' }
-export interface TaskFact { label: string; value: string; chip?: TaskChip | null }
+/** `key` ist in jeder Sprache gleich (z. B. 'meeting'), `label` kommt übersetzt vom Server. */
+export interface TaskFact { key?: string; label: string; value: string; chip?: TaskChip | null }
 export interface TaskContext {
   ask: string | null;
   facts: TaskFact[];
   line: string[];
   chip: TaskChip | null;
   quote: { by: string; text: string } | null;
-  compare: { heads: string[]; rows: { label: string; cells: string[]; changed: boolean }[] } | null;
+  compare: { heads: string[]; rows: { key?: string; label: string; cells: string[]; changed: boolean }[] } | null;
   timeline: { text: string; state: 'done' | 'now' | 'next' }[] | null;
   why: string | null;
   foot: string | null;
@@ -86,18 +88,19 @@ export interface ClientTaskList {
   billing?: { canManage: boolean; financeOnly: boolean };
 }
 
-const call = <T,>(action: string, body: Record<string, unknown> = {}, fallback?: string) => callFunction<T>('client-tasks', { action, ...body }, fallback);
+// Sprache der Oberfläche: Texte und Fehlermeldungen kommen vom Server in dieser Sprache
+const call = <T,>(action: string, body: Record<string, unknown> = {}, fallback?: string) => callFunction<T>('client-tasks', { action, ...body, lang: i18n.language }, fallback);
 
 export const clientTasksApi = {
   list: (submissionId?: string) => call<ClientTaskList>('list', submissionId ? { submissionId } : {}),
   logDone: (t: Pick<ClientTask, 'key' | 'kind' | 'submissionId' | 'jobId'>, label: string, answer?: string) =>
     call<{ ok: true }>('log_done', { key: t.key, kind: t.kind, submissionId: t.submissionId, jobId: t.jobId, label, answer }),
-  answerQuestion: (notificationId: string, answer: string) => call<{ ok: true }>('answer_question', { notificationId, answer }, 'Die Antwort konnte nicht gesendet werden.'),
+  answerQuestion: (notificationId: string, answer: string) => call<{ ok: true }>('answer_question', { notificationId, answer }, i18n.t('clientTasks:errors.answer')),
   forwardQuestion: (notificationId: string, toUserId: string) => call<{ ok: true; to: string }>('forward_question', { notificationId, toUserId }),
   colleagues: (notificationId: string) => call<{ colleagues: { userId: string; name: string }[] }>('question_colleagues', { notificationId }),
   askFollowup: (submissionId: string, reason: string) => call<{ ok: true }>('ask_followup', { submissionId, reason }),
   confirmStart: (input: { placementId: string; way: 'started' | 'later' | 'not_started'; startedOn?: string; reason?: string; note?: string }) =>
-    call<{ ok: true; state: string }>('confirm_start', { ...input }, 'Der Antritt konnte nicht gespeichert werden.'),
+    call<{ ok: true; state: string }>('confirm_start', { ...input }, i18n.t('clientTasks:errors.confirmStart')),
   invoicePaid: (invoiceId: string, paidOn: string) => call<{ ok: true }>('invoice_paid', { invoiceId, paidOn }),
   invoiceQuestion: (invoiceId: string, question: string) => call<{ ok: true }>('invoice_question', { invoiceId, question }),
 };
@@ -106,7 +109,7 @@ export const clientTasksApi = {
 export function useClientTasks(submissionId?: string) {
   const { user, role } = useAuth();
   return useQuery({
-    queryKey: ['client-tasks', user?.id, submissionId ?? 'alle'],
+    queryKey: ['client-tasks', user?.id, submissionId ?? 'alle', i18n.language],
     queryFn: () => clientTasksApi.list(submissionId),
     enabled: !!user && role === 'client',
     staleTime: 30_000,
@@ -131,73 +134,31 @@ export function useClientTasksFor(submissionId?: string) {
 
 /** Hauptknopf im Bewerberprofil: der nächste Schritt selbst statt „Prüfen“/„Entscheiden“. */
 export const taskMainLabel = (kind: ClientTaskKind): string =>
-  kind === 'review' ? 'Interview anfragen'
-  : kind === 'expired_request' ? 'Neue Termine vorschlagen'
-  : kind === 'send_contract' ? 'Arbeitsvertrag schicken'
+  kind === 'review' || kind === 'expired_request' || kind === 'send_contract' ? i18n.t(`clientTasks:main.${kind}`)
   : TASK_ACTION[kind];
 
-/** Knopftext je Aufgabe – derselbe in Liste, Kachel, Profil. */
-export const TASK_ACTION: Record<ClientTaskKind, string> = {
-  review: 'Prüfen',
-  alternative: 'Bestätigen',
-  expired_request: 'Entscheiden',
-  feedback: 'Feedback geben',
-  decide_unsure: 'Entscheiden',
-  make_offer: 'Angebot machen',
-  counter: 'Gegenwunsch beantworten',
-  offer_overdue: 'Entscheiden',
-  send_contract: 'Vertrag schicken',
-  contract_signed_check: 'Melden',
-  docusign_sign: 'Unterschreiben',
-  confirm_signature: 'Bestätigen',
-  recruiter_question: 'Antworten',
-  confirm_start: 'Bestätigen',
-  invoice: 'Öffnen',
-  purchase_order: 'Eintragen',
-  start_check: 'Stimmt',
-  end_confirm: 'Öffnen',
-  research_position: 'Bestätigen',
-  research_offer: 'Ansehen',
-  job_paused: 'Rückmeldungen geben',
-};
+/** Wie ein Record lesbar, liefert aber bei jedem Zugriff den Text in der Sprache der Oberfläche (README Regel 7). */
+const labels = (group: 'action' | 'chip') =>
+  new Proxy({} as Record<ClientTaskKind, string>, { get: (_t, kind) => (typeof kind === 'string' ? i18n.t(`clientTasks:${group}.${kind}`) : undefined) });
 
-/** Kurzes Etikett auf der Karte (wie beim Headhunter). */
-export const TASK_CHIP: Record<ClientTaskKind, string> = {
-  review: 'Prüfung',
-  alternative: 'Termin',
-  expired_request: 'Termin',
-  feedback: 'Feedback',
-  decide_unsure: 'Entscheidung',
-  make_offer: 'Angebot',
-  counter: 'Angebot',
-  offer_overdue: 'Angebot',
-  send_contract: 'Vertrag',
-  contract_signed_check: 'Vertrag',
-  docusign_sign: 'Vertrag',
-  confirm_signature: 'Vertrag',
-  recruiter_question: 'Frage',
-  confirm_start: 'Antritt',
-  invoice: 'Rechnung',
-  purchase_order: 'Rechnung',
-  start_check: 'Antritt',
-  end_confirm: 'Antritt',
-  research_position: 'Nachbesetzung',
-  research_offer: 'Nachbesetzung',
-  job_paused: 'Stelle',
-};
+/** Knopftext je Aufgabe – derselbe in Liste, Kachel, Profil (clientTasks:action.<kind>). */
+export const TASK_ACTION: Record<ClientTaskKind, string> = labels('action');
+
+/** Kurzes Etikett auf der Karte (wie beim Headhunter; clientTasks:chip.<kind>). */
+export const TASK_CHIP: Record<ClientTaskKind, string> = labels('chip');
 
 /** „seit 2 Tagen“, „seit 5 Std.“, „seit heute“ */
 export function sinceLabel(iso: string, now = Date.now()): string {
   const h = Math.max(0, Math.floor((now - Date.parse(iso)) / 3600000));
-  if (h < 1) return 'seit eben';
-  if (h < 24) return `seit ${h} Std.`;
-  const d = Math.floor(h / 24);
-  return d === 1 ? 'seit 1 Tag' : `seit ${d} Tagen`;
+  if (h < 1) return i18n.t('clientTasks:since.justNow');
+  if (h < 24) return i18n.t('clientTasks:since.hours', { count: h });
+  return i18n.t('clientTasks:since.days', { count: Math.floor(h / 24) });
 }
 
 /** „Tessa wartet · seit 2 Tagen“ */
 export function waitingLabel(t: ClientTask, now = Date.now()): string {
-  return t.waitingWho ? `${t.waitingWho} ${/ und /.test(t.waitingWho) ? 'warten' : 'wartet'} · ${sinceLabel(t.since, now)}` : sinceLabel(t.since, now);
+  // waitingWho kommt vom Server („Tessa“, „Tessa und Max“)
+  return t.waitingWho ? i18n.t(`clientTasks:waits.${/ (und|and|och|og) /.test(t.waitingWho) ? 'many' : 'one'}`, { who: t.waitingWho, since: sinceLabel(t.since, now) }) : sinceLabel(t.since, now);
 }
 
 /** Wohin ein Klick führt: Bewerberprofil mit offenem Aufgaben-Fenster, sonst die Aufgaben-Seite. */

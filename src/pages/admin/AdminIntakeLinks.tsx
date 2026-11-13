@@ -27,6 +27,10 @@ import { LinkTypeBadge } from '@/components/admin/IntakeStateBadges';
 import { useIntakeLinks, useLinkAction, useTermsTemplates } from '@/hooks/useAdminIntakes';
 import { IntakeLinkPanel } from '@/components/admin/intake/IntakeLinkPanel';
 import { copyShortcut, copyText } from '@/lib/copyText';
+import { LanguagePicker, LanguageTag } from '@/components/language/LanguagePicker';
+import { Flag } from '@/components/language/Flag';
+import { availableLanguages } from '@/i18n';
+import type { LanguageCode } from '@/i18n/languages';
 
 /**
  * Aufnahme-Links erzeugen und auswerten.
@@ -58,6 +62,7 @@ const EMPTY_FORM = {
   fee_percentage: '',
   max_uses: '',
   expires_at: '',
+  language: null as LanguageCode | null,
   allow_freemail: false,
   company_name: '',
   company_domain: '',
@@ -125,6 +130,7 @@ export default function AdminIntakeLinks() {
         max_uses: form.max_uses ? Number(form.max_uses) : undefined,
         expires_at: form.expires_at ? new Date(form.expires_at).toISOString() : undefined,
         allow_freemail: form.allow_freemail,
+        language: form.language ?? undefined,
         send_to: form.send_to || undefined,
         message: form.message || undefined,
         prefill:
@@ -319,6 +325,7 @@ export default function AdminIntakeLinks() {
                       <TableCell>
                         <div className="font-medium">{l.label}</div>
                         <div className="text-xs text-muted-foreground">
+                          {(l as { language?: string | null }).language && <><LanguageTag code={(l as { language?: string | null }).language} className="inline-flex items-center gap-1 align-middle" /> · </>}
                           {l.campaign_key && <>Kampagne {l.campaign_key} · </>}
                           {l.source && <>{l.source} · </>}
                           angelegt {format(new Date(l.created_at), 'dd.MM.yyyy', { locale: de })}
@@ -339,6 +346,7 @@ export default function AdminIntakeLinks() {
                             </Button>
                           </div>
                         )}
+                        {shown?.id === l.link_id && <LanguageAddresses url={shown.url} onCopy={copy} />}
                         {shown?.id === l.link_id && shown.rotated && (
                           <p className="mt-1 text-[11px] text-amber-600">
                             Der bisherige Link ist ab sofort ungültig.
@@ -429,6 +437,7 @@ export default function AdminIntakeLinks() {
                     <Copy className="h-4 w-4" /> Kopieren
                   </Button>
                 </div>
+                <LanguageAddresses url={created.url} onCopy={copy} />
                 {created.warning && (
                   <Alert variant="destructive">
                     <AlertDescription className="text-xs">{created.warning}</AlertDescription>
@@ -556,6 +565,15 @@ export default function AdminIntakeLinks() {
                   <Field label="Gültig bis" value={form.expires_at} onChange={(v) => set({ expires_at: v })} type="date" />
                 </div>
 
+                <div>
+                  <Label htmlFor="link-language" className="text-xs text-muted-foreground">Sprache</Label>
+                  <LanguagePicker id="link-language" className="mt-1" allowAuto value={form.language} onChange={(language) => set({ language })} />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Startsprache der Aufnahme und der Mails dazu. „Automatisch“ richtet sich nach dem Browser des Besuchers.
+                    Der Kunde kann jederzeit wechseln.
+                  </p>
+                </div>
+
                 {form.link_type === 'public' && (
                   <label className="flex items-center gap-3 rounded-lg border p-3">
                     <Switch checked={form.allow_freemail} onCheckedChange={(v) => set({ allow_freemail: v })} />
@@ -625,6 +643,25 @@ function Field({
       <Label className="text-xs text-muted-foreground">{label}</Label>
       <Input type={type} value={value} placeholder={placeholder} className="mt-1"
         onChange={(e) => onChange(e.target.value)} />
+    </div>
+  );
+}
+
+/** Derselbe Link mit festem Sprachzusatz, z. B. für einen schwedischen LinkedIn-Beitrag. */
+function LanguageAddresses({ url, onCopy }: { url: string; onCopy: (url: string) => void }) {
+  const withLang = (code: string) => {
+    try { const u = new URL(url); u.searchParams.set('lang', code); return u.toString(); } catch { return `${url}?lang=${code}`; }
+  };
+  return (
+    <div className="mt-2 max-w-md" onClick={(e) => e.stopPropagation()}>
+      <p className="text-[11px] text-muted-foreground">Mit festem Sprachzusatz kopieren:</p>
+      <div className="mt-1 flex flex-wrap gap-1.5">
+        {availableLanguages().map((l) => (
+          <Button key={l.code} type="button" size="sm" variant="outline" className="h-7 gap-1.5 px-2 text-xs" onClick={() => onCopy(withLang(l.code))}>
+            <Flag code={l.flag} /> {l.label}
+          </Button>
+        ))}
+      </div>
     </div>
   );
 }

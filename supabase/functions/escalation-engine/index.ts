@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { notifyLang, tx } from "../_shared/notify-i18n.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -43,12 +44,13 @@ serve(async (req) => {
         const rule = deadline.sla_rules;
         if (!rule) continue;
 
-        // Send warning notification
+        // Send warning notification (in der Sprache des Empfängers)
+        const wl = await notifyLang(supabase, deadline.responsible_user_id);
         await supabase.from('notifications').insert({
           user_id: deadline.responsible_user_id,
           type: 'sla_warning',
-          title: 'SLA-Warnung',
-          message: `Achtung: Sie haben noch ${rule.warning_hours} Stunden Zeit für "${rule.rule_name}".`,
+          title: tx(wl, 'SLA-Warnung', 'SLA warning', 'SLA-varning', 'SLA-varsel'),
+          message: tx(wl, `Achtung: Sie haben noch ${rule.warning_hours} Stunden Zeit für "${rule.rule_name}".`, `Note: you have ${rule.warning_hours} hours left for "${rule.rule_name}".`, `Obs: du har ${rule.warning_hours} timmar kvar för "${rule.rule_name}".`, `Merk: du har ${rule.warning_hours} timer igjen for "${rule.rule_name}".`),
           related_type: deadline.entity_type,
           related_id: deadline.entity_id,
         });
@@ -84,12 +86,13 @@ serve(async (req) => {
 
         // Execute deadline action
         if (rule.deadline_action === 'remind') {
-          // Send reminder with escalation warning
+          // Send reminder with escalation warning (in der Sprache des Empfängers)
+          const bl = await notifyLang(supabase, deadline.responsible_user_id);
           await supabase.from('notifications').insert({
             user_id: deadline.responsible_user_id,
             type: 'sla_breach',
-            title: 'SLA-Überschreitung',
-            message: `Die Deadline für "${rule.rule_name}" wurde überschritten. Bitte reagieren Sie umgehend.`,
+            title: tx(bl, 'SLA-Überschreitung', 'SLA breach', 'SLA-överträdelse', 'SLA-brudd'),
+            message: tx(bl, `Die Deadline für "${rule.rule_name}" wurde überschritten. Bitte reagieren Sie umgehend.`, `The deadline for "${rule.rule_name}" has passed. Please respond right away.`, `Tidsfristen för "${rule.rule_name}" har passerats. Agera direkt.`, `Fristen for "${rule.rule_name}" er overskredet. Reager med en gang.`),
             related_type: deadline.entity_type,
             related_id: deadline.entity_id,
           });
@@ -121,11 +124,12 @@ serve(async (req) => {
 
           if (admins) {
             for (const admin of admins as any[]) {
+              const al = await notifyLang(supabase, admin.user_id);
               await supabase.from('notifications').insert({
                 user_id: admin.user_id,
                 type: 'escalation',
-                title: 'SLA-Eskalation',
-                message: `Eine SLA-Deadline wurde eskaliert: ${rule.rule_name}`,
+                title: tx(al, 'SLA-Eskalation', 'SLA escalation', 'SLA-eskalering', 'SLA-eskalering'),
+                message: tx(al, `Eine SLA-Deadline wurde eskaliert: ${rule.rule_name}`, `An SLA deadline was escalated: ${rule.rule_name}`, `En SLA-tidsfrist eskalerades: ${rule.rule_name}`, `En SLA-frist ble eskalert: ${rule.rule_name}`),
                 related_type: deadline.entity_type,
                 related_id: deadline.entity_id,
               });

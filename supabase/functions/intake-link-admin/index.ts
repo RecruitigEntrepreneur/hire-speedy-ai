@@ -7,6 +7,9 @@ import { serviceClient } from '../_shared/intake-core.ts';
 import { requireAdmin } from '../_shared/admin-auth.ts';
 import { intakeStartUrl } from '../_shared/app-url.ts';
 import { sendIntakeMail, layout, esc } from '../_shared/intake-mail.ts';
+import { parseLinkLanguage, rowLanguage, withLanguageColumn } from '../_shared/intake-language.ts';
+import { linkInvitationMailTexts } from '../_shared/intake-i18n.ts';
+import type { Lang } from '../_shared/i18n.ts';
 
 /**
  * intake-link-admin — Aufnahme-Links erzeugen, versenden, widerrufen.
@@ -19,28 +22,30 @@ import { sendIntakeMail, layout, esc } from '../_shared/intake-mail.ts';
 
 const LINK_TYPES = ['personal', 'campaign', 'public'] as const;
 
-/** Einladungsmail zum Aufnahme-Link – beim Anlegen und beim späteren Versand gleich. */
-function invitationMail(prefill: Record<string, any>, message: string, url: string, subjectOverride?: string) {
+/**
+ * Einladungsmail zum Aufnahme-Link – beim Anlegen und beim späteren Versand
+ * gleich, in der Sprache des Links (ohne Sprache am Link Deutsch wie bisher).
+ * Der eigene Text des Admins und ein eigener Betreff stehen so da, wie sie kommen.
+ */
+function invitationMail(prefill: Record<string, any>, message: string, url: string, subjectOverride?: string, lang: Lang | null = null) {
   const title = prefill?.seed_title ? String(prefill.seed_title) : '';
-  const subject = subjectOverride?.trim()
-    || (title ? `Ihre Position aufnehmen: ${title}` : 'Ihre offene Position bei Matchunt aufnehmen');
+  const text = linkInvitationMailTexts(lang, { title });
+  const subject = subjectOverride?.trim() || text.subject;
   const html = layout({
-    preheader: 'Ihre Position in wenigen Minuten aufnehmen — ohne Registrierung.',
-    heading: title ? `Ihre Position aufnehmen: ${title}` : 'Ihre Position aufnehmen',
+    lang,
+    preheader: text.preheader,
+    heading: text.heading,
     body: `
-      <p style="margin:0 0 16px 0;">Guten Tag${prefill?.contact_name ? ' ' + esc(String(prefill.contact_name)) : ''},</p>
+      <p style="margin:0 0 16px 0;">${text.hello}${prefill?.contact_name ? ' ' + esc(String(prefill.contact_name)) : ''},</p>
       ${message ? `<p style="margin:0 0 16px 0;">${esc(message).replace(/\n/g, '<br/>')}</p>` : `
       <p style="margin:0 0 16px 0;">
-        über den folgenden Link nehmen wir Ihre offene Position auf — Stellenanzeige einfügen,
-        Link oder PDF hochladen, oder einfach beschreiben. Der Rest geht automatisch.
-        Eine Registrierung ist dafür nicht nötig.
+        ${text.intro}
       </p>`}
       <p style="margin:0 0 16px 0;">
-        Die Konditionen sehen Sie von Anfang an: Erfolgshonorar, keine Fixkosten, kein Retainer.
+        ${text.terms}
       </p>`,
-    cta: { label: 'Position aufnehmen', url },
-    footnote:
-      'Ihre Angaben werden fortlaufend gespeichert — Sie können jederzeit unterbrechen und später weitermachen.',
+    cta: { label: text.cta, url },
+    footnote: text.footnote,
   });
   return { subject, html };
 }
@@ -174,6 +179,10 @@ serve(async (req) => {
       const label = String(body?.label ?? '').trim().slice(0, 160);
       if (label.length < 3) return fail('invalid_request', 'Bitte geben Sie eine Bezeichnung an.');
 
+      // Sprache, in der der Link begrüßt: einer der sechs Codes, leer = automatisch.
+      const language = parseLinkLanguage(body?.language);
+      if (!language.ok) return fail('invalid_request', 'Diese Sprache gibt es nicht.');
+
       const prefill = cleanPrefill(body?.prefill);
       if (linkType === 'public' && (prefill.contact_email || prefill.contact_name)) {
         return fail('invalid_request',
@@ -205,8 +214,12 @@ serve(async (req) => {
         created_by: admin.userId!,
       };
 
-      const { data: link, error } = await supabase
-        .from('intake_links').insert(insert).select('*').single();
+      // „Automatisch“ lässt die Spalte weg. Mit Sprache, aber vor der Migration:
+      // der Link entsteht ohne sie, und die Antwort sagt es.
+      const { data: link, error, languageSkipped } = await withLanguageColumn((withLanguage) => supabase
+        .from('intake_links')
+        .insert(withLanguage && language.language ? { ...insert, language: language.language } : insert)
+        .select('*').single());
 
       if (error) {
         // Der Bandbreiten-Trigger meldet im Klartext, was nicht passt.
@@ -229,7 +242,7 @@ serve(async (req) => {
         }
         const message = String(body?.message ?? '').trim().slice(0, 2000);
 
-        const { subject, html } = invitationMail(prefill, message, url);
+        const { subject, html } = invitationMail(prefill, message, url, undefined, language.language);
 
         const mail = await sendIntakeMail(supabase, {
           to: sendTo,
@@ -246,7 +259,14 @@ serve(async (req) => {
       // gehoert nicht in die Antwort -- er ist zwar mit Pfeffer gebildet und
       // damit nicht ruecklesbar, aber er hat im Browser trotzdem nichts verloren.
       const { token_hash: _hash, token_encrypted: _enc, ...safeLink } = link as Record<string, unknown>;
-      return json({ link: safeLink, url, token, email_sent: emailSent, warning: sealed.note });
+      const languageNote = languageSkipped
+        ? 'Die Sprache des Links ist noch nicht gespeichert: Die Migration zur Mehrsprachigkeit ist noch nicht angewandt. Der Link begrüßt vorerst automatisch.'
+        : null;
+      return json({
+        link: { ...safeLink, language: rowLanguage(safeLink) },
+        url, token, email_sent: emailSent,
+        warning: [sealed.note, languageNote].filter(Boolean).join(' ') || null,
+      });
     }
 
     // ---------------------------------------------------------------- reveal
@@ -334,9 +354,16 @@ serve(async (req) => {
       if ('allow_freemail' in body) patch.allow_freemail = body.allow_freemail === true;
       if ('max_uses' in body) patch.max_uses = body.max_uses != null ? Number(body.max_uses) : null;
       if ('expires_at' in body) patch.expires_at = body.expires_at ?? null;
+      if ('language' in body) {
+        const language = parseLinkLanguage(body.language);
+        if (!language.ok) return fail('invalid_request', 'Diese Sprache gibt es nicht.');
+        patch.language = language.language;
+      }
 
-      const { data, error } = await supabase
-        .from('intake_links').update(patch).eq('id', linkId).select('*').single();
+      const { data, error } = await withLanguageColumn((withLanguage) => {
+        const { language: _language, ...ohneSprache } = patch;
+        return supabase.from('intake_links').update(withLanguage ? patch : ohneSprache).eq('id', linkId).select('*').single();
+      });
       if (error) return fail(error.code === '23514' ? 'invalid_request' : 'internal_error', error.message);
       const { token_hash: _h2, ...safe2 } = (data ?? {}) as Record<string, unknown>;
       return json({ link: safe2 });
@@ -388,7 +415,7 @@ serve(async (req) => {
       const to = String(body?.to ?? '').trim().toLowerCase();
       if (!body?.dry_run && !isPlausibleEmail(to)) return fail('invalid_request', 'Bitte eine gültige E-Mail-Adresse angeben.');
       const { data: row, error } = await supabase
-        .from('intake_links').select('id, link_type, token_encrypted, revoked_at, expires_at, prefill').eq('id', linkId).maybeSingle();
+        .from('intake_links').select('*').eq('id', linkId).maybeSingle();
       if (error) return fail('internal_error', error.message);
       if (!row) return fail('not_found', 'Link nicht gefunden.');
       if (row.revoked_at) return fail('conflict', 'Der Link ist deaktiviert. Bitte erst wieder aktivieren.');
@@ -398,7 +425,8 @@ serve(async (req) => {
         return fail('conflict', 'Dieser Link lässt sich nicht verschicken, weil er nicht gespeichert ist. Erzeugen Sie über „Neuen Link erzeugen" einen Ersatz.');
       }
       const message = String(body?.message ?? '').trim().slice(0, 2000);
-      const { subject, html } = invitationMail(row.prefill ?? {}, message, intakeStartUrl(token), String(body?.subject ?? '').slice(0, 200));
+      // In der Sprache des Links; vor der Migration gibt es die Spalte nicht, dann Deutsch.
+      const { subject, html } = invitationMail(row.prefill ?? {}, message, intakeStartUrl(token), String(body?.subject ?? '').slice(0, 200), rowLanguage(row));
       if (body?.dry_run) return json({ subject, html });
       const mail = await sendIntakeMail(supabase, {
         to,
@@ -416,13 +444,13 @@ serve(async (req) => {
     // statt eines JOIN: die Ereignistabelle waechst schneller als die Links,
     // und das Zaehlen im Speicher ist bei dieser Groessenordnung guenstiger
     // als eine gruppierte Abfrage ueber beides.
-    const { data: links, error } = await supabase
+    const { data: links, error } = await withLanguageColumn((withLanguage) => supabase
       .from('intake_links')
       .select('id, label, link_type, campaign_key, source, owner_user_id, created_at,' +
               ' revoked_at, expires_at, uses_count, max_uses, allow_freemail,' +
-              ' token_encrypted, token_rotated_at')
+              ' token_encrypted, token_rotated_at' + (withLanguage ? ', language' : ''))
       .order('created_at', { ascending: false })
-      .limit(Number(body?.limit ?? 200));
+      .limit(Number(body?.limit ?? 200)));
     if (error) {
       if (error.code === '42P01') {
         return fail('not_deployed',
@@ -454,6 +482,8 @@ serve(async (req) => {
       const { token_encrypted, ...rest } = l;
       return {
         ...rest,
+        // Sprache des Links; null = automatisch (auch vor der Migration).
+        language: rowLanguage(l),
         link_id: l.id,
         can_reveal: Boolean(token_encrypted),
         opened: c.link_opened?.size ?? 0,

@@ -1,16 +1,18 @@
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AlertCircle, ArrowLeft, Check, Loader2 } from 'lucide-react';
 import type { SaveState } from './useCompanyProfile';
 
 export function SaveIndicator({ state }: { state: SaveState }) {
+  const { t } = useTranslation('clientSettings');
   if (state === 'idle') return null;
   if (state === 'saving') {
-    return <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" />Wird gespeichert …</span>;
+    return <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" />{t('save.saving')}</span>;
   }
   if (state === 'error') {
-    return <span className="inline-flex items-center gap-1.5 text-xs text-destructive"><AlertCircle className="h-3.5 w-3.5" />Nicht gespeichert, bitte erneut versuchen</span>;
+    return <span className="inline-flex items-center gap-1.5 text-xs text-destructive"><AlertCircle className="h-3.5 w-3.5" />{t('save.error')}</span>;
   }
-  return <span className="inline-flex items-center gap-1.5 text-xs text-emerald-500"><Check className="h-3.5 w-3.5" />Automatisch gespeichert</span>;
+  return <span className="inline-flex items-center gap-1.5 text-xs text-emerald-500"><Check className="h-3.5 w-3.5" />{t('save.saved')}</span>;
 }
 
 /** Rahmen einer Unterseite: zurück zur Übersicht, Titel, Erklärung, Speicherstand. */
@@ -21,10 +23,11 @@ export function SettingsSubpage({ title, description, saveState = 'idle', onBack
   onBack: () => void;
   children: ReactNode;
 }) {
+  const { t } = useTranslation('clientSettings');
   return (
     <div className="max-w-3xl space-y-6">
       <button type="button" onClick={onBack} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" />Einstellungen
+        <ArrowLeft className="h-4 w-4" />{t('hub.title')}
       </button>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
@@ -52,9 +55,11 @@ export function SettingsBlock({ title, aside, children }: { title: string; aside
 }
 
 export function AusAufnahme({ show }: { show: boolean }) {
-  return show ? <span className="ml-1.5 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-normal text-emerald-500">aus Aufnahme</span> : null;
+  const { t } = useTranslation('clientSettings');
+  return show ? <span className="ml-1.5 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-normal text-emerald-500">{t('fromIntake')}</span> : null;
 }
 
 export function Fehlt({ show }: { show: boolean }) {
-  return show ? <span className="ml-1.5 text-[11px] font-normal text-amber-500">fehlt</span> : null;
+  const { t } = useTranslation('clientSettings');
+  return show ? <span className="ml-1.5 text-[11px] font-normal text-amber-500">{t('missing')}</span> : null;
 }

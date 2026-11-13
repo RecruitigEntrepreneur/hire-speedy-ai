@@ -1,5 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { dfLocale, fmtDate, fmtNumber } from '@/lib/localeFormat';
 import { useOfferByToken, useProcessOfferResponse } from '@/hooks/useOffers';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,8 +18,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { format, formatDistanceToNow } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { formatDistanceToNow } from 'date-fns';
 import {
   Euro,
   Calendar,
@@ -35,6 +36,7 @@ import {
 
 export default function ViewOffer() {
   const { token } = useParams<{ token: string }>();
+  const { t } = useTranslation('offerAnswer');
   const navigate = useNavigate();
   const { data: offer, isLoading, error } = useOfferByToken(token || '');
   const processResponse = useProcessOfferResponse();
@@ -157,9 +159,9 @@ export default function ViewOffer() {
         <Card className="max-w-md w-full">
           <CardContent className="pt-6 text-center">
             <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Angebot nicht gefunden</h2>
+            <h2 className="text-xl font-semibold mb-2">{t('view.notFoundTitle')}</h2>
             <p className="text-muted-foreground">
-              Dieses Angebot existiert nicht oder der Link ist ungültig.
+              {t('view.notFoundBody')}
             </p>
           </CardContent>
         </Card>
@@ -176,9 +178,9 @@ export default function ViewOffer() {
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Header */}
         <div className="text-center py-6">
-          <h1 className="text-3xl font-bold mb-2">Jobangebot</h1>
+          <h1 className="text-3xl font-bold mb-2">{t('view.title')}</h1>
           <p className="text-muted-foreground">
-            {offer.jobs?.company_name || 'Unternehmen'}
+            {offer.jobs?.company_name || t('view.company')}
           </p>
         </div>
 
@@ -193,22 +195,22 @@ export default function ViewOffer() {
               {offer.status === 'accepted' && (
                 <>
                   <CheckCircle className="h-8 w-8 text-green-500 mx-auto mb-2" />
-                  <p className="font-semibold text-green-700">Angebot angenommen</p>
+                  <p className="font-semibold text-green-700">{t('view.accepted')}</p>
                   <p className="text-sm text-muted-foreground">
-                    am {format(new Date(offer.decision_at!), 'dd.MM.yyyy', { locale: de })}
+                    {t('view.acceptedOn', { date: fmtDate(offer.decision_at!) })}
                   </p>
                 </>
               )}
               {offer.status === 'rejected' && (
                 <>
                   <XCircle className="h-8 w-8 text-red-500 mx-auto mb-2" />
-                  <p className="font-semibold text-red-700">Angebot abgelehnt</p>
+                  <p className="font-semibold text-red-700">{t('view.rejected')}</p>
                 </>
               )}
               {isExpired && offer.status !== 'accepted' && offer.status !== 'rejected' && (
                 <>
                   <Clock className="h-8 w-8 text-gray-500 mx-auto mb-2" />
-                  <p className="font-semibold text-gray-700">Angebot abgelaufen</p>
+                  <p className="font-semibold text-gray-700">{t('view.expired')}</p>
                 </>
               )}
             </CardContent>
@@ -234,19 +236,19 @@ export default function ViewOffer() {
             <div className="bg-primary/5 rounded-lg p-4">
               <div className="flex items-center gap-2 text-primary mb-2">
                 <Euro className="h-5 w-5" />
-                <span className="font-semibold">Vergütung</span>
+                <span className="font-semibold">{t('view.pay')}</span>
               </div>
               <p className="text-3xl font-bold">
-                {offer.salary_offered.toLocaleString('de-DE')} {offer.salary_currency}
+                {fmtNumber(offer.salary_offered)} {offer.salary_currency}
               </p>
-              <p className="text-sm text-muted-foreground">pro Jahr (brutto)</p>
+              <p className="text-sm text-muted-foreground">{t('view.perYear')}</p>
               {offer.bonus_amount && (
                 <p className="mt-2">
-                  + {offer.bonus_amount.toLocaleString('de-DE')} {offer.salary_currency} Bonus
+                  {t('view.bonus', { amount: fmtNumber(offer.bonus_amount), currency: offer.salary_currency })}
                 </p>
               )}
               {offer.equity_percentage && (
-                <p className="mt-1">+ {offer.equity_percentage}% Equity</p>
+                <p className="mt-1">{t('view.equity', { percent: offer.equity_percentage })}</p>
               )}
             </div>
 
@@ -255,16 +257,16 @@ export default function ViewOffer() {
               <div className="bg-purple-500/10 rounded-lg p-4 border border-purple-500/20">
                 <div className="flex items-center gap-2 text-purple-700 mb-2">
                   <MessageSquare className="h-5 w-5" />
-                  <span className="font-semibold">Ihr Gegenangebot</span>
+                  <span className="font-semibold">{t('view.yourCounter')}</span>
                 </div>
                 <p className="text-2xl font-bold text-purple-700">
-                  {offer.counter_offer_salary.toLocaleString('de-DE')} {offer.salary_currency}
+                  {fmtNumber(offer.counter_offer_salary)} {offer.salary_currency}
                 </p>
                 {offer.counter_offer_notes && (
                   <p className="mt-2 text-sm">{offer.counter_offer_notes}</p>
                 )}
                 <p className="text-xs text-muted-foreground mt-2">
-                  Gesendet {formatDistanceToNow(new Date(offer.counter_offer_at!), { locale: de, addSuffix: true })}
+                  {t('view.sent', { when: formatDistanceToNow(new Date(offer.counter_offer_at!), { locale: dfLocale(), addSuffix: true }) })}
                 </p>
               </div>
             )}
@@ -276,10 +278,10 @@ export default function ViewOffer() {
               <div className="flex items-start gap-3">
                 <Briefcase className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div>
-                  <p className="text-sm text-muted-foreground">Vertragsart</p>
+                  <p className="text-sm text-muted-foreground">{t('view.contractType')}</p>
                   <p className="font-medium">
-                    {offer.contract_type === 'permanent' ? 'Unbefristet' : 
-                     offer.contract_type === 'fixed' ? 'Befristet' : 'Freiberuflich'}
+                    {offer.contract_type === 'permanent' ? t('view.permanent') :
+                     offer.contract_type === 'fixed' ? t('view.fixed') : t('view.freelance')}
                   </p>
                 </div>
               </div>
@@ -287,9 +289,9 @@ export default function ViewOffer() {
                 <div className="flex items-start gap-3">
                   <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
                   <div>
-                    <p className="text-sm text-muted-foreground">Startdatum</p>
+                    <p className="text-sm text-muted-foreground">{t('view.startDate')}</p>
                     <p className="font-medium">
-                      {format(new Date(offer.start_date), 'dd.MM.yyyy')}
+                      {fmtDate(offer.start_date)}
                     </p>
                   </div>
                 </div>
@@ -298,7 +300,7 @@ export default function ViewOffer() {
                 <div className="flex items-start gap-3">
                   <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
                   <div>
-                    <p className="text-sm text-muted-foreground">Standort</p>
+                    <p className="text-sm text-muted-foreground">{t('view.location')}</p>
                     <p className="font-medium">{offer.location}</p>
                   </div>
                 </div>
@@ -307,10 +309,10 @@ export default function ViewOffer() {
                 <div className="flex items-start gap-3">
                   <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
                   <div>
-                    <p className="text-sm text-muted-foreground">Remote</p>
+                    <p className="text-sm text-muted-foreground">{t('view.remote')}</p>
                     <p className="font-medium">
-                      {offer.remote_policy === 'onsite' ? 'Vor Ort' :
-                       offer.remote_policy === 'hybrid' ? 'Hybrid' : 'Full Remote'}
+                      {offer.remote_policy === 'onsite' ? t('view.onsite') :
+                       offer.remote_policy === 'hybrid' ? t('view.hybrid') : t('view.fullRemote')}
                     </p>
                   </div>
                 </div>
@@ -318,8 +320,8 @@ export default function ViewOffer() {
               <div className="flex items-start gap-3">
                 <Clock className="h-5 w-5 text-muted-foreground mt-0.5" />
                 <div>
-                  <p className="text-sm text-muted-foreground">Probezeit</p>
-                  <p className="font-medium">{offer.probation_months} Monate</p>
+                  <p className="text-sm text-muted-foreground">{t('view.probation')}</p>
+                  <p className="font-medium">{t('view.probationMonths', { count: offer.probation_months })}</p>
                 </div>
               </div>
             </div>
@@ -331,7 +333,7 @@ export default function ViewOffer() {
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <Gift className="h-5 w-5 text-muted-foreground" />
-                    <span className="font-semibold">Benefits</span>
+                    <span className="font-semibold">{t('view.benefits')}</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {benefits.map((benefit, i) => (
@@ -347,7 +349,7 @@ export default function ViewOffer() {
               <>
                 <Separator />
                 <div>
-                  <p className="font-semibold mb-2">Zusätzliche Vereinbarungen</p>
+                  <p className="font-semibold mb-2">{t('view.customTerms')}</p>
                   <p className="text-muted-foreground">{offer.custom_terms}</p>
                 </div>
               </>
@@ -358,10 +360,10 @@ export default function ViewOffer() {
               <div className="bg-amber-500/10 rounded-lg p-4 text-center">
                 <Clock className="h-5 w-5 text-amber-600 mx-auto mb-1" />
                 <p className="text-amber-700 font-medium">
-                  Angebot gültig bis {format(new Date(offer.expires_at), 'dd.MM.yyyy')}
+                  {t('view.validUntil', { date: fmtDate(offer.expires_at) })}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  ({formatDistanceToNow(new Date(offer.expires_at), { locale: de, addSuffix: true })})
+                  ({formatDistanceToNow(new Date(offer.expires_at), { locale: dfLocale(), addSuffix: true })})
                 </p>
               </div>
             )}
@@ -375,7 +377,7 @@ export default function ViewOffer() {
                   size="lg"
                 >
                   <CheckCircle className="h-5 w-5" />
-                  Annehmen
+                  {t('view.acceptBtn')}
                 </Button>
                 <Button 
                   onClick={() => setShowCounterDialog(true)}
@@ -384,7 +386,7 @@ export default function ViewOffer() {
                   size="lg"
                 >
                   <MessageSquare className="h-5 w-5" />
-                  Gegenangebot
+                  {t('view.counterBtn')}
                 </Button>
                 <Button 
                   onClick={() => setShowRejectDialog(true)}
@@ -393,7 +395,7 @@ export default function ViewOffer() {
                   size="lg"
                 >
                   <XCircle className="h-5 w-5" />
-                  Ablehnen
+                  {t('view.rejectBtn')}
                 </Button>
               </div>
             )}
@@ -404,14 +406,14 @@ export default function ViewOffer() {
         <Dialog open={showAcceptDialog} onOpenChange={setShowAcceptDialog}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Angebot annehmen</DialogTitle>
+              <DialogTitle>{t('view.acceptTitle')}</DialogTitle>
               <DialogDescription>
-                Bitte unterschreiben Sie digital, um das Angebot anzunehmen.
+                {t('view.acceptDesc')}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <p className="text-sm text-muted-foreground mb-2">Ihre Unterschrift:</p>
+                <p className="text-sm text-muted-foreground mb-2">{t('view.yourSignature')}</p>
                 <div className="border rounded-lg bg-white">
                   <canvas
                     ref={signatureCanvasRef}
@@ -425,19 +427,19 @@ export default function ViewOffer() {
                   />
                 </div>
                 <Button variant="ghost" size="sm" onClick={clearSignature} className="mt-2">
-                  Löschen
+                  {t('view.clear')}
                 </Button>
               </div>
               <div className="flex gap-3">
                 <Button variant="outline" onClick={() => setShowAcceptDialog(false)} className="flex-1">
-                  Abbrechen
+                  {t('view.cancel')}
                 </Button>
                 <Button 
                   onClick={handleAccept} 
                   disabled={!signature || processResponse.isPending}
                   className="flex-1 bg-green-600 hover:bg-green-700"
                 >
-                  {processResponse.isPending ? 'Wird verarbeitet...' : 'Angebot annehmen'}
+                  {processResponse.isPending ? t('view.processing') : t('view.acceptTitle')}
                 </Button>
               </div>
             </div>
@@ -448,20 +450,20 @@ export default function ViewOffer() {
         <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Angebot ablehnen</DialogTitle>
+              <DialogTitle>{t('view.rejectTitle')}</DialogTitle>
               <DialogDescription>
-                Möchten Sie uns den Grund mitteilen? (optional)
+                {t('view.rejectDesc')}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <Textarea
-                placeholder="Grund für die Ablehnung..."
+                placeholder={t('view.rejectPlaceholder')}
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
               />
               <div className="flex gap-3">
                 <Button variant="outline" onClick={() => setShowRejectDialog(false)} className="flex-1">
-                  Abbrechen
+                  {t('view.cancel')}
                 </Button>
                 <Button 
                   onClick={handleReject}
@@ -469,7 +471,7 @@ export default function ViewOffer() {
                   disabled={processResponse.isPending}
                   className="flex-1"
                 >
-                  {processResponse.isPending ? 'Wird verarbeitet...' : 'Ablehnen'}
+                  {processResponse.isPending ? t('view.processing') : t('view.rejectBtn')}
                 </Button>
               </div>
             </div>
@@ -480,14 +482,14 @@ export default function ViewOffer() {
         <Dialog open={showCounterDialog} onOpenChange={setShowCounterDialog}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Gegenangebot machen</DialogTitle>
+              <DialogTitle>{t('view.counterTitle')}</DialogTitle>
               <DialogDescription>
-                Schlagen Sie ein alternatives Gehalt vor.
+                {t('view.counterDesc')}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium">Gewünschtes Jahresgehalt *</label>
+                <label className="text-sm font-medium">{t('view.desiredSalary')}</label>
                 <Input
                   type="number"
                   placeholder="85000"
@@ -496,23 +498,23 @@ export default function ViewOffer() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">Begründung (optional)</label>
+                <label className="text-sm font-medium">{t('view.reasonOptional')}</label>
                 <Textarea
-                  placeholder="Begründen Sie Ihr Gegenangebot..."
+                  placeholder={t('view.counterPlaceholder')}
                   value={counterOfferNotes}
                   onChange={(e) => setCounterOfferNotes(e.target.value)}
                 />
               </div>
               <div className="flex gap-3">
                 <Button variant="outline" onClick={() => setShowCounterDialog(false)} className="flex-1">
-                  Abbrechen
+                  {t('view.cancel')}
                 </Button>
                 <Button 
                   onClick={handleCounterOffer}
                   disabled={!counterOfferSalary || processResponse.isPending}
                   className="flex-1"
                 >
-                  {processResponse.isPending ? 'Wird gesendet...' : 'Gegenangebot senden'}
+                  {processResponse.isPending ? t('view.sending') : t('view.sendCounter')}
                 </Button>
               </div>
             </div>

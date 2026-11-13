@@ -1,8 +1,11 @@
-import { anonymFunde, brancheAllgemein, ersetzeFunde, groesseWort, regionAus, type Region } from '../../supabase/functions/_shared/linkedin-anonym';
+import { anonymFunde, brancheAllgemein, ersetzeFunde, groesseStufe, regionAus, regionUnbekannt, type Region } from '../../supabase/functions/_shared/linkedin-anonym';
+import { normLang } from '../../supabase/functions/_shared/i18n';
+import { candidateLanguage, tFor } from './localeFormat';
 import { kopfFakten } from './stellenKopf';
 import { nichtSchonGenannt } from './jobPosting';
 import { briefingText, getRecruiterCriteria, list } from './recruiterBriefing';
 import type { WorkspaceJob } from '@/components/recruiter/RecruiterJobWorkspace';
+import i18n from '@/i18n';
 
 /**
  * Der LinkedIn-Beitrag zu einer Stelle (21.10.2026): nur Angaben des Kunden,
@@ -11,11 +14,16 @@ import type { WorkspaceJob } from '@/components/recruiter/RecruiterJobWorkspace'
  * Drei feste Töne ohne KI; der Headhunter kann danach frei ändern.
  */
 export type Ton = 'sachlich' | 'persoenlich' | 'kurz';
-export const TOENE: { id: Ton; label: string }[] = [
-  { id: 'sachlich', label: 'Sachlich' },
-  { id: 'persoenlich', label: 'Persönlich' },
-  { id: 'kurz', label: 'Kurz' },
-];
+/** Namen der Töne für die Auswahl: bei jedem Zugriff in der Sprache der Oberfläche (recruiterJobDetail, post.tone.*). */
+export const TOENE: { id: Ton; readonly label: string }[] = (['sachlich', 'persoenlich', 'kurz'] as Ton[]).map(id => ({
+  id,
+  get label() { return i18n.t(`recruiterJobDetail:post.tone.${id}`) as string; },
+}));
+
+// Der Beitragstext richtet sich an Kandidaten im Markt des Headhunters: in seiner Sprache
+// (candidateLanguage), beim Aufruf gelesen. Angaben des Kunden bleiben, wie sie sind.
+const tb = (key: string, options?: Record<string, unknown>): string => tFor(candidateLanguage(), 'jobPosting')(`beitrag.${key}`, options) as string;
+const sprache = () => normLang(candidateLanguage());
 
 export const BEITRAG_MAX = 3000;
 const ORIGIN = 'https://matchunt.ai';
@@ -65,56 +73,57 @@ function mussKurz(job: WorkspaceJob): string[] {
   return getRecruiterCriteria(job).required.map(schluss).filter(m => m.length <= 40).slice(0, 3);
 }
 
-const aufzaehlung = (xs: string[]) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} und ${xs[xs.length - 1]}`);
+const aufzaehlung = (xs: string[]) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')}${tb('and')}${xs[xs.length - 1]}`);
 
 function hashtagsFuer(job: WorkspaceJob, region: string): string[] {
   const tag = (s: string) => '#' + s.replace(/[^\p{L}\p{N}]+/gu, ' ').trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('');
   const titel = kurzTitel(job.title).split(/\s[–-]\s/);
-  const out = [titel[0], titel[1], briefingText(job.industry) ? brancheAllgemein(job.industry)?.name : null, region !== 'Deutschland' ? region : null]
+  const out = [titel[0], titel[1], briefingText(job.industry) ? brancheAllgemein(job.industry, sprache())?.name : null, region !== regionUnbekannt(sprache()) ? region : null]
     .filter((s): s is string => !!s && s.length <= 30).map(tag);
   return [...new Set(out)].filter(h => h.length > 2).slice(0, 4);
 }
 
 export function baueBeitrag(job: WorkspaceJob, opt: BeitragsOptionen): Beitrag {
   const roh = job as unknown as Record<string, unknown>;
-  const region = regionAus(job.location, job.remote_type);
+  const region = regionAus(job.location, job.remote_type, sprache());
   const regionText = opt.region?.trim() || region.text;
   const titel = job.title.trim();
   const geld = opt.gehalt ? kopfFakten(job).find(f => f.symbol === 'geld')?.text ?? null : null;
   const vor = kopfFakten(job).find(f => f.symbol === 'ort')?.text;
-  const branche = brancheAllgemein(job.industry);
-  const groesse = groesseWort(roh.company_headcount, job.company_size_band);
-  const firma = ['ein', groesse, 'Unternehmen'].filter(Boolean).join(' ') + (branche ? ` ${branche.aus}` : '');
+  const branche = brancheAllgemein(job.industry, sprache());
+  const groesse = groesseStufe(roh.company_headcount, job.company_size_band);
+  const firmaKern = tb(`company.${groesse || 'none'}`);
+  const firma = branche ? tb('companyIndustry', { company: firmaKern, industry: branche.aus }) : firmaKern;
   const vorteile = staerksteVorteile(job);
   const muss = mussKurz(job);
   const link = opt.slug ? buchungsLink(opt.slug, job) : null;
   const hashtags = hashtagsFuer(job, regionText);
   const punkte = [...vorteile, ...(geld ? [geld] : [])].map(v => `✓ ${v}`);
-  const cta = link ? `15 Minuten, vertraulich: Such dir direkt einen Termin bei mir aus.\n→ ${link}` : 'Interesse? Schreib mir hier auf LinkedIn, vertraulich.';
+  const cta = link ? tb('ctaLink', { link }) : tb('ctaMessage');
 
   let text: string;
   if (opt.ton === 'kurz') {
     text = [
       `${kurzTitel(titel)} · ${regionText}${geld ? ` · ${geld}` : ''}`,
       vorteile.slice(0, 2).map(v => `✓ ${v}`).join('\n'),
-      link ? `Termin, 15 Min., vertraulich: ${link}` : 'Interesse? Schreib mir, vertraulich.',
+      link ? tb('shortLink', { link }) : tb('shortMessage'),
       hashtags.join(' '),
     ].filter(Boolean).join('\n\n');
   } else if (opt.ton === 'persoenlich') {
-    const erster = vorteile[0] ? ` Was mich daran überzeugt: ${vorteile[0].charAt(0).toLowerCase()}${vorteile[0].slice(1)}.` : '';
+    const erster = vorteile[0] ? ` ${tb('convince', { text: `${vorteile[0].charAt(0).toLowerCase()}${vorteile[0].slice(1)}` })}` : '';
     text = [
-      `Für ${firma} (${regionText}) suche ich gerade vertraulich: ${titel}.${erster}`,
+      `${tb('personalIntro', { company: firma, region: regionText, title: titel })}${erster}`,
       [...vorteile.slice(1), ...(geld ? [geld] : []), ...(vor ? [vor] : [])].map(v => `✓ ${v}`).join('\n'),
-      muss.length ? `Wenn du ${aufzaehlung(muss)} mitbringst, lass uns sprechen.` : '',
+      muss.length ? tb('personalMust', { list: aufzaehlung(muss) }) : '',
       cta,
       hashtags.join(' '),
     ].filter(Boolean).join('\n\n');
   } else {
     text = [
-      `Vertrauliche Suche: ${titel}, ${regionText}`,
-      `Für ${firma} besetze ich diese Position vertraulich.`,
+      tb('factualHead', { title: titel, region: regionText }),
+      tb('factualCompany', { company: firma }),
       punkte.join('\n'),
-      muss.length ? `Du bringst ${aufzaehlung(muss)} mit?` : '',
+      muss.length ? tb('factualMust', { list: aufzaehlung(muss) }) : '',
       cta,
       hashtags.join(' '),
     ].filter(Boolean).join('\n\n');
@@ -125,6 +134,7 @@ export function baueBeitrag(job: WorkspaceJob, opt: BeitragsOptionen): Beitrag {
     domains: [roh.company_website as string | null],
     region: { ...region, text: regionText },
     mitarbeitende: Number(roh.company_headcount) || null,
+    lang: sprache(),
   });
   if (funde.length) text = ersetzeFunde(text, funde);
   return { text: text.slice(0, BEITRAG_MAX), hashtags, region: { ...region, text: regionText }, link, vorteile, gehalt: geld, titel };

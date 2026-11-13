@@ -18,21 +18,24 @@ import {
 } from 'lucide-react';
 import { useCandidateDocuments, CandidateDocument } from '@/hooks/useCandidateDocuments';
 import { format } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { useTranslation } from 'react-i18next';
+import { dateFnsLocale } from '@/lib/candidateDateLocale';
 
 interface CandidateDocumentsManagerProps {
   candidateId: string;
 }
 
-const documentTypeLabels: Record<CandidateDocument['document_type'], { label: string; icon: typeof FileText }> = {
-  cv: { label: 'Lebenslauf', icon: FileText },
-  cv_anonymized: { label: 'Anonymisierter CV', icon: FileText },
-  certificate: { label: 'Zertifikat', icon: Award },
-  portfolio: { label: 'Portfolio', icon: Briefcase },
-  reference: { label: 'Referenz', icon: File },
+// Beschriftung über candidateDetail:documents.types.<typ>
+const documentTypeLabels: Record<CandidateDocument['document_type'], { icon: typeof FileText }> = {
+  cv: { icon: FileText },
+  cv_anonymized: { icon: FileText },
+  certificate: { icon: Award },
+  portfolio: { icon: Briefcase },
+  reference: { icon: File },
 };
 
 export function CandidateDocumentsManager({ candidateId }: CandidateDocumentsManagerProps) {
+  const { t, i18n } = useTranslation('candidateDetail');
   const {
     documents,
     loading,
@@ -65,7 +68,7 @@ export function CandidateDocumentsManager({ candidateId }: CandidateDocumentsMan
   };
 
   const formatFileSize = (bytes: number | null) => {
-    if (!bytes) return 'Unbekannt';
+    if (!bytes) return t('common.unknown');
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -77,7 +80,7 @@ export function CandidateDocumentsManager({ candidateId }: CandidateDocumentsMan
     return (
       <Card>
         <CardContent className="py-8 text-center text-muted-foreground">
-          Dokumente werden geladen...
+          {t('documents.loading')}
         </CardContent>
       </Card>
     );
@@ -89,7 +92,7 @@ export function CandidateDocumentsManager({ candidateId }: CandidateDocumentsMan
         <CardTitle className="flex items-center justify-between text-sm">
           <span className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-primary" />
-            Dokumente
+            {t('documents.title')}
           </span>
           <Button
             variant="ghost"
@@ -99,7 +102,7 @@ export function CandidateDocumentsManager({ candidateId }: CandidateDocumentsMan
             className="h-7 text-xs"
           >
             <Upload className="h-3 w-3 mr-1" />
-            {uploading ? 'Laden...' : 'Hochladen'}
+            {uploading ? t('common.loading') : t('documents.upload')}
           </Button>
         </CardTitle>
         <Input
@@ -130,9 +133,9 @@ export function CandidateDocumentsManager({ candidateId }: CandidateDocumentsMan
                   <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
                     <div className="flex items-center gap-3">
                       <Icon className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">{documentTypeLabels[type].label}</span>
+                      <span className="font-medium">{t(`documents.types.${type}`)}</span>
                       <Badge variant="secondary" className="text-xs">
-                        {typeDocs.length} Version{typeDocs.length !== 1 ? 'en' : ''}
+                        {t('documents.versions', { count: typeDocs.length })}
                       </Badge>
                     </div>
                     <ChevronDown className={`h-4 w-4 transition-transform ${expandedTypes.includes(type) ? 'rotate-180' : ''}`} />
@@ -153,7 +156,7 @@ export function CandidateDocumentsManager({ candidateId }: CandidateDocumentsMan
                             <div className="flex items-center gap-2">
                               <span className="text-sm font-medium">{doc.file_name}</span>
                               {doc.is_current && (
-                                <Badge variant="default" className="text-xs">Aktuell</Badge>
+                                <Badge variant="default" className="text-xs">{t('common.current')}</Badge>
                               )}
                               <Badge variant="outline" className="text-xs">v{doc.version}</Badge>
                             </div>
@@ -161,7 +164,7 @@ export function CandidateDocumentsManager({ candidateId }: CandidateDocumentsMan
                               <span>{formatFileSize(doc.file_size)}</span>
                               <span className="flex items-center gap-1">
                                 <Clock className="h-3 w-3" />
-                                {format(new Date(doc.created_at), 'dd.MM.yyyy HH:mm', { locale: de })}
+                                {format(new Date(doc.created_at), 'P p', { locale: dateFnsLocale(i18n.language) })}
                               </span>
                             </div>
                           </div>
@@ -206,7 +209,7 @@ export function CandidateDocumentsManager({ candidateId }: CandidateDocumentsMan
         {documents.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
             <FileText className="h-12 w-12 mx-auto mb-3 opacity-30" />
-            <p>Noch keine Dokumente hochgeladen</p>
+            <p>{t('documents.empty')}</p>
           </div>
         )}
       </CardContent>

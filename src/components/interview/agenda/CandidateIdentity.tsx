@@ -1,10 +1,12 @@
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 import type { AgendaInterview } from '@/hooks/useClientInterviewAgenda';
 import { CheckCircle2, Lock } from 'lucide-react';
 
 /** Anonymität als Designelement: vor Opt-In Schloss-Avatar + Mono-Code,
  *  nach Freigabe Initialen + Klarname + grüner Haken. */
 export function CandidateAvatar({ iv, className }: { iv: AgendaInterview; className?: string }) {
+  const { t } = useTranslation('clientInterviews');
   if (!iv.identityUnlocked) {
     return (
       <div
@@ -12,7 +14,7 @@ export function CandidateAvatar({ iv, className }: { iv: AgendaInterview; classN
           'flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground',
           className,
         )}
-        aria-label="Identität noch nicht freigegeben"
+        aria-label={t('identity.locked')}
       >
         <Lock className="h-4 w-4" />
       </div>
@@ -37,13 +39,14 @@ export function CandidateAvatar({ iv, className }: { iv: AgendaInterview; classN
 }
 
 export function CandidateName({ iv, className }: { iv: AgendaInterview; className?: string }) {
+  const { t } = useTranslation('clientInterviews');
   return (
     <span className={cn('inline-flex min-w-0 items-center gap-1.5', className)}>
       <span className={cn('truncate text-sm font-medium', !iv.identityUnlocked && 'font-mono text-[13px]')}>
         {iv.candidateName}
       </span>
       {iv.identityUnlocked && (
-        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" aria-label="Identität freigegeben" />
+        <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" aria-label={t('identity.unlocked')} />
       )}
     </span>
   );

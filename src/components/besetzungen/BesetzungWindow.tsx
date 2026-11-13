@@ -9,10 +9,11 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { besetzungApi, fileToBase64, type BesetzungItem } from '@/lib/besetzungApi';
 import { contractApi } from '@/lib/contractApi';
-import { actionsOf, dateDe, factsOf, first, genitive, researchPanel, statusOf, stepsOf, titleOf, todayKey, type ActionKey } from './besetzungView';
+import { actionsOf, dateDe, factsOf, first, genitiveUi, researchPanel, statusOf, stepsOf, titleOf, todayKey, type ActionKey } from './besetzungView';
 import { FactGrid, StatusPill, StepRow } from './BesetzungParts';
 import { BesetzungEndForm } from './BesetzungEndForm';
 import { NachbesetzungPanel } from './NachbesetzungPanel';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Fenster „Besetzung · Name“ (Etappe 2, 25.10.2026; Umbau 11.11.2026, K4–K7, J2/J3):
@@ -39,6 +40,7 @@ const ACCEPT = '.pdf,.png,.jpg,.jpeg,.eml,.msg';
 const tomorrow = () => new Date(Date.parse(`${todayKey()}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
 
 export function BesetzungWindow({ item, open, onOpenChange, onContract, onOpenSubmission, initialForm = null }: Props) {
+  const { t } = useTranslation('clientPlacements');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [form, setForm] = useState<BesetzungForm | null>(null);
@@ -61,7 +63,7 @@ export function BesetzungWindow({ item, open, onOpenChange, onContract, onOpenSu
   if (!item) return null;
   const p = item.placement;
   const who = first(item.name);
-  const hh = item.recruiterName?.split(' ')[0] ?? 'Der Headhunter';
+  const hh = item.recruiterName?.split(' ')[0] ?? t('common.theRecruiter');
   const status = statusOf(item);
   const panel = researchPanel(item);
   const refresh = () => {
@@ -72,29 +74,29 @@ export function BesetzungWindow({ item, open, onOpenChange, onContract, onOpenSu
   const run = async (work: () => Promise<string>) => {
     setBusy(true);
     try { setDone(await work()); refresh(); }
-    catch (e) { toast.error(e instanceof Error ? e.message : 'Das hat nicht geklappt.'); }
+    catch (e) { toast.error(e instanceof Error ? e.message : t('common.failed')); }
     finally { setBusy(false); }
   };
   const openPdf = async (load: () => Promise<{ url: string }>) => {
     try { const { url } = await load(); window.open(url, '_blank', 'noopener'); }
-    catch (e) { toast.error(e instanceof Error ? e.message : 'Das PDF ist gerade nicht abrufbar.'); }
+    catch (e) { toast.error(e instanceof Error ? e.message : t('common.pdfUnavailable')); }
   };
   const go = (to: string) => { onOpenChange(false); navigate(to); };
   const openEnd = (preset: boolean | null) => { setEndPreset(preset); setForm('end'); };
 
   // Knöpfe je Phase (K4)
   const LABEL: Record<ActionKey, string> = {
-    contract: item.contract && item.contract.status !== 'preparing' ? 'Arbeitsvertrag öffnen' : 'Arbeitsvertrag schicken',
-    startCheck: `Hat ${who} angefangen?`,
-    startConfirm: p?.startReport && !who.startsWith('PR-') ? `${genitive(who)} Start bestätigen` : 'Start bestätigen',
-    endConfirm: 'Absage bestätigen',
-    moveStart: 'Start verschoben',
-    endReport: 'Besetzung endet',
-    contractPdf: 'Vertrag (PDF)',
-    invoice: 'Rechnung ansehen',
-    researchInvoice: 'Rechnung zur Nachbesetzung',
-    profile: 'Bewerberprofil',
-    endDocument: 'Unterlage nachreichen',
+    contract: item.contract && item.contract.status !== 'preparing' ? t('window.actions.contractOpen') : t('window.actions.contractSend'),
+    startCheck: t('window.actions.startCheck', { who }),
+    startConfirm: p?.startReport && !who.startsWith('PR-') ? t('window.actions.startConfirmWho', { whose: genitiveUi(who) }) : t('window.actions.startConfirm'),
+    endConfirm: t('window.actions.endConfirm'),
+    moveStart: t('window.actions.moveStart'),
+    endReport: t('window.actions.endReport'),
+    contractPdf: t('window.actions.contractPdf'),
+    invoice: t('window.actions.invoice'),
+    researchInvoice: t('window.actions.researchInvoice'),
+    profile: t('window.actions.profile'),
+    endDocument: t('window.actions.endDocument'),
   };
   const RUN: Record<ActionKey, () => void> = {
     contract: () => onContract(item.submissionId),
@@ -115,7 +117,7 @@ export function BesetzungWindow({ item, open, onOpenChange, onContract, onOpenSu
   const field = (label: string, el: React.ReactNode) => <label className="block text-sm"><span className="text-xs text-muted-foreground">{label}</span><div className="mt-1">{el}</div></label>;
   const footer = (cta: string, ok: boolean, submit: () => void) => (
     <div className="flex justify-end gap-2 border-t pt-3">
-      <Button variant="ghost" onClick={() => setForm(null)}>Abbrechen</Button>
+      <Button variant="ghost" onClick={() => setForm(null)}>{t('common.cancel')}</Button>
       <Button disabled={busy || !ok} onClick={submit}>{busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}{cta}</Button>
     </div>
   );
@@ -129,11 +131,11 @@ export function BesetzungWindow({ item, open, onOpenChange, onContract, onOpenSu
       <>
         <div className="flex items-start gap-2 rounded-lg border p-3 text-sm">
           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-          <div><p className="font-medium">Erledigt.</p><p className="text-muted-foreground">{done}</p></div>
+          <div><p className="font-medium">{t('window.done')}</p><p className="text-muted-foreground">{done}</p></div>
         </div>
         <div className="flex justify-end gap-2 border-t pt-3">
-          <Button variant="ghost" onClick={() => { setDone(null); setForm(null); }}>Zurück zur Besetzung</Button>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Schließen</Button>
+          <Button variant="ghost" onClick={() => { setDone(null); setForm(null); }}>{t('window.back')}</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t('common.close')}</Button>
         </div>
       </>
     );
@@ -144,29 +146,29 @@ export function BesetzungWindow({ item, open, onOpenChange, onContract, onOpenSu
     body = (
       <div className="space-y-3">
         <div>
-          <p className="text-sm font-medium">Hat {who} angefangen?</p>
-          <p className="text-xs text-muted-foreground">Erster Arbeitstag laut Vertrag: {dateDe(p.startDate)}</p>
+          <p className="text-sm font-medium">{t('window.startedQ', { who })}</p>
+          <p className="text-xs text-muted-foreground">{t('window.firstDayContract', { date: dateDe(p.startDate) })}</p>
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {chip('started', 'Ja, hat angefangen')}
-          {chip('later', 'Fängt später an')}
-          <Button type="button" size="sm" variant="outline" className="h-7 rounded-full text-xs" onClick={() => openEnd(false)}>Hat nicht angefangen</Button>
+          {chip('started', t('window.yesStarted'))}
+          {chip('later', t('window.later'))}
+          <Button type="button" size="sm" variant="outline" className="h-7 rounded-full text-xs" onClick={() => openEnd(false)}>{t('window.notStarted')}</Button>
         </div>
-        {choice === 'started' && field('Erster Arbeitstag', <Input type="date" max={todayKey()} className="h-9 w-48" value={date || p.startDate || ''} onChange={(e) => setDate(e.target.value)} />)}
+        {choice === 'started' && field(t('window.firstDay'), <Input type="date" max={todayKey()} className="h-9 w-48" value={date || p.startDate || ''} onChange={(e) => setDate(e.target.value)} />)}
         {choice === 'later' && (
           <>
-            {field('Neuer erster Arbeitstag', <Input type="date" min={tomorrow()} className="h-9 w-48" value={date} onChange={(e) => setDate(e.target.value)} />)}
-            <Textarea rows={2} placeholder="Grund in einem Satz (freiwillig)" value={note} onChange={(e) => setNote(e.target.value)} />
+            {field(t('window.newFirstDay'), <Input type="date" min={tomorrow()} className="h-9 w-48" value={date} onChange={(e) => setDate(e.target.value)} />)}
+            <Textarea rows={2} placeholder={t('window.reasonOptional')} value={note} onChange={(e) => setNote(e.target.value)} />
           </>
         )}
-        <p className="text-xs text-muted-foreground">{hh} erfährt Ihre Antwort sofort.</p>
-        {footer(choice === 'later' ? 'Speichern' : 'Bestätigen', choice === 'started' || (choice === 'later' && !!date), () => run(async () => {
+        <p className="text-xs text-muted-foreground">{t('window.recruiterLearns', { hh })}</p>
+        {footer(choice === 'later' ? t('common.save') : t('common.confirm'), choice === 'started' || (choice === 'later' && !!date), () => run(async () => {
           if (choice === 'started') {
             await besetzungApi.startAnswer({ placementId: p.id, way: 'started', startedOn: date || p.startDate || undefined });
-            return `Bestätigt: ${who} hat angefangen. ${hh} ist informiert.`;
+            return t('window.startedDone', { who, hh });
           }
           await besetzungApi.startAnswer({ placementId: p.id, way: 'later', startDate: date, note: note.trim() || undefined });
-          return `Gespeichert. Neuer erster Arbeitstag: ${dateDe(date)}.`;
+          return t('window.laterDone', { date: dateDe(date) });
         }))}
       </div>
     );
@@ -176,57 +178,57 @@ export function BesetzungWindow({ item, open, onOpenChange, onContract, onOpenSu
     body = (
       <div className="space-y-3">
         <div>
-          <p className="text-sm font-medium">{who.startsWith('PR-') ? `Start von ${who} bestätigen` : `${genitive(who)} Start bestätigen`}</p>
-          <p className="text-xs text-muted-foreground">{sr.byName ?? hh} meldet: angefangen am {dateDe(sr.on)}</p>
+          <p className="text-sm font-medium">{who.startsWith('PR-') ? t('window.confirmStartOf', { who }) : t('window.actions.startConfirmWho', { whose: genitiveUi(who) })}</p>
+          <p className="text-xs text-muted-foreground">{t('window.reportsStarted', { name: sr.byName ?? hh, date: dateDe(sr.on) })}</p>
         </div>
-        <div className="flex flex-wrap gap-1.5">{chip('agree', 'Stimmt')}{chip('disagree', 'Stimmt so nicht')}</div>
-        {choice === 'disagree' && <Textarea rows={2} placeholder="Was stimmt nicht? z. B. fängt erst am 15. an" value={note} onChange={(e) => setNote(e.target.value)} />}
-        {sr.fixesOn && <p className="text-xs text-muted-foreground">Ohne Antwort gilt es am {dateDe(sr.fixesOn)} als bestätigt.</p>}
-        {footer(choice === 'disagree' ? 'Senden' : 'Bestätigen', choice === 'agree' || (choice === 'disagree' && note.trim().length > 0), () => run(async () => {
+        <div className="flex flex-wrap gap-1.5">{chip('agree', t('window.fits'))}{chip('disagree', t('window.notRight'))}</div>
+        {choice === 'disagree' && <Textarea rows={2} placeholder={t('window.whatWrong')} value={note} onChange={(e) => setNote(e.target.value)} />}
+        {sr.fixesOn && <p className="text-xs text-muted-foreground">{t('window.fixesOn', { date: dateDe(sr.fixesOn) })}</p>}
+        {footer(choice === 'disagree' ? t('common.send') : t('common.confirm'), choice === 'agree' || (choice === 'disagree' && note.trim().length > 0), () => run(async () => {
           await besetzungApi.startAnswer({ placementId: p.id, way: choice === 'agree' ? 'agree' : 'disagree', note: note.trim() || undefined });
-          return choice === 'agree' ? `Bestätigt: ${who} hat angefangen.` : 'Gesendet. Matchunt klärt das mit dem Headhunter und meldet sich.';
+          return choice === 'agree' ? t('window.agreeDone', { who }) : t('window.disagreeDone');
         }))}
       </div>
     );
   } else if (form === 'move' && p) {
     body = (
       <div className="space-y-3">
-        <p className="text-sm font-medium">Start von {who} verschoben</p>
-        {field('Neuer erster Arbeitstag', <Input type="date" min={todayKey()} className="h-9 w-48" value={date} onChange={(e) => setDate(e.target.value)} />)}
-        <Textarea rows={2} placeholder="Grund in einem Satz (freiwillig)" value={note} onChange={(e) => setNote(e.target.value)} />
-        <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">Eine Verschiebung ist zu melden (Rahmenvertrag § 10 Abs. 2). Die Rechnung bleibt so fällig wie gestellt. {hh} und Matchunt werden informiert.</p>
-        {footer('Melden', !!date, () => run(async () => { const r = await besetzungApi.moveStart(p.id, date, note.trim()); return `Gemeldet. Neuer erster Arbeitstag: ${dateDe(r.startDate)}.`; }))}
+        <p className="text-sm font-medium">{t('window.moveTitle', { who })}</p>
+        {field(t('window.newFirstDay'), <Input type="date" min={todayKey()} className="h-9 w-48" value={date} onChange={(e) => setDate(e.target.value)} />)}
+        <Textarea rows={2} placeholder={t('window.reasonOptional')} value={note} onChange={(e) => setNote(e.target.value)} />
+        <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">{t('window.moveHint', { hh })}</p>
+        {footer(t('common.report'), !!date, () => run(async () => { const r = await besetzungApi.moveStart(p.id, date, note.trim()); return t('window.moveDone', { date: dateDe(r.startDate) }); }))}
       </div>
     );
   } else if (form === 'doc' && p) {
     body = (
       <div className="space-y-3">
-        <p className="text-sm font-medium">Unterlage nachreichen</p>
+        <p className="text-sm font-medium">{t('window.docTitle')}</p>
         <label className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground hover:bg-muted/40">
           <Upload className="h-4 w-4" />
-          <span className="flex-1 truncate">{file ? file.name : `Kündigung, Absage oder Nachricht von ${who} (PDF, Bild, Mail · bis 5 MB)`}</span>
+          <span className="flex-1 truncate">{file ? file.name : t('window.docPick', { who })}</span>
           <input type="file" accept={ACCEPT} className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
         </label>
-        {footer('Hochladen', !!file, () => run(async () => { await besetzungApi.endDocument(p.id, file!.name, await fileToBase64(file!)); return 'Hochgeladen. Matchunt hat die Unterlage.'; }))}
+        {footer(t('window.upload'), !!file, () => run(async () => { await besetzungApi.endDocument(p.id, file!.name, await fileToBase64(file!)); return t('window.docDone'); }))}
       </div>
     );
   } else if (form === 'po' && p) {
     body = (
       <div className="space-y-3">
-        <p className="text-sm font-medium">Bestellnummer ergänzen</p>
+        <p className="text-sm font-medium">{t('window.poTitle')}</p>
         <div className="grid gap-3 sm:grid-cols-2">
-          {field('Bestellnummer', <Input className="h-9" placeholder="z. B. 4500-1182" value={po} onChange={(e) => setPo(e.target.value)} />)}
-          {field('Kostenstelle (freiwillig)', <Input className="h-9" placeholder="z. B. 410" value={cost} onChange={(e) => setCost(e.target.value)} />)}
+          {field(t('window.po'), <Input className="h-9" placeholder={t('window.poPlaceholder')} value={po} onChange={(e) => setPo(e.target.value)} />)}
+          {field(t('window.costCenter'), <Input className="h-9" placeholder={t('window.costPlaceholder')} value={cost} onChange={(e) => setCost(e.target.value)} />)}
         </div>
-        <p className="text-xs text-muted-foreground">Steht auf der Rechnung. Ändern lässt sie sich, bis die Rechnung gestellt ist.</p>
-        {footer('Speichern', !!(po.trim() || cost.trim()), () => run(async () => { await besetzungApi.setPurchaseOrder(p.id, po.trim(), cost.trim()); return 'Gespeichert. Die Nummer steht auf der Rechnung.'; }))}
+        <p className="text-xs text-muted-foreground">{t('window.poHint')}</p>
+        {footer(t('common.save'), !!(po.trim() || cost.trim()), () => run(async () => { await besetzungApi.setPurchaseOrder(p.id, po.trim(), cost.trim()); return t('window.poDone'); }))}
       </div>
     );
   } else {
     body = (
       <>
         <div>
-          <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Schritte</p>
+          <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('window.steps')}</p>
           <StepRow steps={stepsOf(item)} />
         </div>
         {panel && (
@@ -237,15 +239,15 @@ export function BesetzungWindow({ item, open, onOpenChange, onContract, onOpenSu
             onOpenSubmission={(sub) => { if (onOpenSubmission) onOpenSubmission(sub); else go(`/dashboard/besetzungen?besetzung=${sub}`); }} />
         )}
         <div>
-          <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Eckdaten</p>
+          <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('window.facts')}</p>
           <FactGrid facts={factsOf(item)} onAction={(a) => { if (a === 'po') setForm('po'); }} />
         </div>
         {p && item.group === 'start' && !p.end && !p.startFixedAt && (
-          <p className="text-xs text-muted-foreground">{hh} hält Kontakt zu {who} bis zum ersten Tag.</p>
+          <p className="text-xs text-muted-foreground">{t('window.keepsContact', { hh, who })}</p>
         )}
         {acts.length > 0 && (
           <div>
-            <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Aktionen</p>
+            <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('window.actionsTitle')}</p>
             <div className="flex flex-wrap gap-2">
               {acts.map((k) => <Button key={k} size="sm" variant={primary(k) ? 'default' : 'outline'} onClick={RUN[k]}>{LABEL[k]}</Button>)}
             </div>
@@ -253,7 +255,7 @@ export function BesetzungWindow({ item, open, onOpenChange, onContract, onOpenSu
         )}
         {item.events.length > 0 && (
           <div>
-            <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Verlauf</p>
+            <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('window.history')}</p>
             <ol className="divide-y text-sm">
               {item.events.map((e, n) => (
                 <li key={n} className="flex justify-between gap-3 py-1.5"><span>{e.text}</span><span className="shrink-0 text-xs text-muted-foreground">{dateDe(e.at)}</span></li>
@@ -261,7 +263,7 @@ export function BesetzungWindow({ item, open, onOpenChange, onContract, onOpenSu
             </ol>
           </div>
         )}
-        <div className="flex justify-end border-t pt-3"><Button variant="ghost" onClick={() => onOpenChange(false)}>Schließen</Button></div>
+        <div className="flex justify-end border-t pt-3"><Button variant="ghost" onClick={() => onOpenChange(false)}>{t('common.close')}</Button></div>
       </>
     );
   }
@@ -271,10 +273,10 @@ export function BesetzungWindow({ item, open, onOpenChange, onContract, onOpenSu
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader className="text-left">
           <div className="flex flex-wrap items-center gap-2 pr-6">
-            <DialogTitle>Besetzung · {titleOf(item)}</DialogTitle>
+            <DialogTitle>{t('window.title', { title: titleOf(item) })}</DialogTitle>
             <StatusPill text={status.text} tone={status.tone} />
           </div>
-          <DialogDescription>{item.jobTitle}{item.recruiterName ? ` · über ${item.recruiterName}` : ''}</DialogDescription>
+          <DialogDescription>{item.jobTitle}{item.recruiterName ? t('common.via', { name: item.recruiterName }) : ''}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">{body}</div>
       </DialogContent>

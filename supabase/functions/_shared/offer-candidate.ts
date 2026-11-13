@@ -18,6 +18,9 @@ import { dbFail, must, type ServiceCtx } from './interview-service.ts';
 import { berlinLocalToUtc, berlinParts, formatBerlinTime } from './interview-time.ts';
 import { generateToken, hashToken } from './tokens.ts';
 import * as mails from './offer-mails.ts';
+import { intlLocale, tr, type Lang } from './i18n.ts';
+import { candidateLanguage, clientLanguage, recruiterLanguage } from './recipient-language.ts';
+import { viaMatchunt } from './mail-i18n.ts';
 
 export const DELIVERY_DELAY_MS = 2 * 3600_000;
 export const REMINDER_DELAY_MS = 24 * 3600_000;
@@ -47,13 +50,17 @@ export function outsideQuietHours(ms: number): number {
 export const deliveryTime = (nowMs: number) => outsideQuietHours(nowMs + DELIVERY_DELAY_MS);
 
 /** „um 17:05“, „morgen um 08:00“, „am 27.10. um 08:00“ (deutsche Zeit) */
-export function whenLabel(ms: number, nowMs: number): string {
+export function whenLabel(ms: number, nowMs: number, lang?: Lang | null): string {
   const key = (x: number) => new Date(x).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
-  const time = formatBerlinTime(new Date(ms).toISOString());
-  if (key(ms) === key(nowMs)) return `um ${time}`;
-  if (key(ms) === key(nowMs + 86_400_000)) return `morgen um ${time}`;
-  return `am ${new Date(ms).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' })} um ${time}`;
+  const time = formatBerlinTime(new Date(ms).toISOString(), lang);
+  if (key(ms) === key(nowMs)) return tr(lang, { de: 'um {t}', en: 'at {t}', sv: 'kl. {t}', nb: 'kl. {t}' }, { t: time });
+  if (key(ms) === key(nowMs + 86_400_000)) return tr(lang, { de: 'morgen um {t}', en: 'tomorrow at {t}', sv: 'i morgon kl. {t}', nb: 'i morgen kl. {t}' }, { t: time });
+  const d = new Date(ms).toLocaleDateString(intlLocale(lang), { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' });
+  return tr(lang, { de: 'am {d} um {t}', en: 'on {d} at {t}', sv: 'den {d} kl. {t}', nb: '{d} kl. {t}' }, { d, t: time });
 }
+
+/** „Ihr Headhunter“, wenn kein Name im Profil steht. */
+const yourHeadhunter = (lang: Lang) => tr(lang, { de: 'Ihr Headhunter', en: 'Your headhunter', sv: 'Din headhunter', nb: 'Headhunteren din' });
 
 // ---------------------------------------------------------------------------
 // Laden
@@ -137,14 +144,16 @@ const pageUrl = (ctx: ServiceCtx, token: string) => `${ctx.appUrl()}/angebot/${t
 
 async function sendCandidateMail(ctx: ServiceCtx, b: CandidateBundle, kind: mails.CandidateMailKind, token: string, atMs: number | null) {
   if (!b.candidate.email) return { sent: false, id: null as string | null };
-  const recruiterName = b.recruiter?.name || 'Ihr Headhunter';
+  // Kandidat: Sprache seines Headhunters (Mehrsprachigkeit, 13.11.2026)
+  const lang = await candidateLanguage(ctx.db, b.submission.recruiter_id);
+  const recruiterName = b.recruiter?.name || yourHeadhunter(lang);
   const content = mails.candidateOffer({
-    kind, candidateName: b.candidate.full_name, recruiterName, companyName: b.job.company_name, jobTitle: b.job.title,
+    kind, lang, candidateName: b.candidate.full_name, recruiterName, companyName: b.job.company_name, jobTitle: b.job.title,
     offer: factsOf(b.offer), version: b.offer.version ?? 1, message: b.offer.candidate_message ?? null, url: pageUrl(ctx, token),
     reportedAt: b.offer.accept_reported_at ?? null,
   });
   const result = await ctx.mail({
-    fromEmail: ctx.fromEmail, fromName: `${recruiterName} über Matchunt`, to: b.candidate.email, replyTo: b.recruiter?.email ?? undefined,
+    fromEmail: ctx.fromEmail, fromName: viaMatchunt(recruiterName, lang), to: b.candidate.email, replyTo: b.recruiter?.email ?? undefined,
     ...content, ...(atMs && atMs > ctx.now() + 60_000 ? { scheduledAt: new Date(atMs).toISOString() } : {}),
   }, { template: `offer_candidate_${kind}`, meta: { offer_id: b.offer.id, submission_id: b.submission.id } });
   // Nur lokaler Testmodus (ohne Mailversand): Link ins Protokoll
@@ -279,9 +288,10 @@ async function tellClientAnswer(ctx: ServiceCtx, b: CandidateBundle, way: mails.
     await notify(ctx, uid, 'offer_answer', title, way === 'accepted' ? `${b.job.title} · selbst bestätigt` : reason ?? b.job.title, 'submission', b.submission.id);
     const prof = await profile(ctx.db, uid);
     if (!prof?.email) continue;
+    const lang = await clientLanguage(ctx.db, { userId: uid, email: prof.email });
     const content = mails.clientOfferAnswer({
-      name: prof.name, candidateName: b.candidate.full_name, recruiterName: b.recruiter?.name ?? 'Ihr Headhunter', jobTitle: b.job.title, way,
-      reason, profileUrl: `${ctx.appUrl()}/dashboard/candidates/${b.submission.id}`, byCandidate: true,
+      name: prof.name, candidateName: b.candidate.full_name, recruiterName: b.recruiter?.name ?? yourHeadhunter(lang), jobTitle: b.job.title, way,
+      reason, profileUrl: `${ctx.appUrl()}/dashboard/candidates/${b.submission.id}`, byCandidate: true, lang,
     });
     await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: prof.email, ...content }, { template: `offer_answer_${way}`, meta: { offer_id: b.offer.id } });
   }
@@ -370,7 +380,9 @@ export async function candidateAnswer(ctx: ServiceCtx, body: any) {
     }
     await notify(ctx, b.submission.recruiter_id, 'offer_callback', `${b.candidate.full_name} möchte sprechen`, `Bitte bis ${formatBerlinTime(until)} Uhr zurückrufen${topic ? ` · „${topic}“` : ''}`, 'candidate', b.candidate.id);
     if (b.recruiter?.email) {
-      const content = mails.recruiterCallback({ recruiterFirstName: firstName(b.recruiter.name), candidateName: b.candidate.full_name, companyName: b.job.company_name, topic, until: `${formatBerlinTime(until)} Uhr`, akteUrl });
+      const lang = await recruiterLanguage(ctx.db, b.submission.recruiter_id);
+      const untilText = tr(lang, { de: '{t} Uhr', en: '{t}', sv: 'kl. {t}', nb: 'kl. {t}' }, { t: formatBerlinTime(until, lang) });
+      const content = mails.recruiterCallback({ recruiterFirstName: firstName(b.recruiter.name), candidateName: b.candidate.full_name, companyName: b.job.company_name, topic, until: untilText, akteUrl, lang });
       await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: b.recruiter.email, ...content }, { template: 'offer_callback_recruiter', meta: { offer_id: o.id } });
     }
     return { ok: true, state: 'callback', recruiterName: b.recruiter?.name ?? null };
@@ -480,8 +492,9 @@ export async function tellCandidateExtended(ctx: ServiceCtx, offerId: string) {
   }
   const token = await createLink(ctx, o.id, 'answer');
   if (b.candidate.email) {
-    const content = mails.candidateDueExtended({ candidateName: b.candidate.full_name, companyName: b.job.company_name, jobTitle: b.job.title, responseDue: o.response_due, url: pageUrl(ctx, token) });
-    await ctx.mail({ fromEmail: ctx.fromEmail, fromName: `${b.recruiter?.name || 'Ihr Headhunter'} über Matchunt`, to: b.candidate.email, replyTo: b.recruiter?.email ?? undefined, ...content },
+    const lang = await candidateLanguage(ctx.db, b.submission.recruiter_id);
+    const content = mails.candidateDueExtended({ candidateName: b.candidate.full_name, companyName: b.job.company_name, jobTitle: b.job.title, responseDue: o.response_due, url: pageUrl(ctx, token), lang });
+    await ctx.mail({ fromEmail: ctx.fromEmail, fromName: viaMatchunt(b.recruiter?.name || yourHeadhunter(lang), lang), to: b.candidate.email, replyTo: b.recruiter?.email ?? undefined, ...content },
       { template: 'offer_candidate_extended', meta: { offer_id: o.id, submission_id: b.submission.id } });
   }
   // Die Erinnerung nach 24 Std. nennt sonst die alte Frist

@@ -40,6 +40,7 @@ function CandidateCard({
   onOpen: () => void;
 }) {
   const { t } = useTranslation();
+  const { t: tc } = useTranslation('clientCandidates');
   const title =
     item.fullName || item.currentRole || item.career[0]?.jobTitle || t('bewerber.card.no_role');
   const isArchived = item.tab === 'archiv';
@@ -58,12 +59,12 @@ function CandidateCard({
         <span className="font-medium text-sm truncate">{title}</span>
       </div>
       <p className="text-xs text-muted-foreground truncate mt-0.5">
-        {item.fullName && item.currentRole ? `${item.currentRole} · ` : ''}für: {item.jobTitle}
-        {submitter ? ` · von ${submitter}` : ''}
+        {item.fullName && item.currentRole ? `${item.currentRole} · ` : ''}{tc('card.for', { job: item.jobTitle })}
+        {submitter ? tc('card.by', { name: submitter }) : ''}
       </p>
       {task && (
         <p className={cn('mt-1 truncate text-[11px] font-medium', task.urgent ? 'text-destructive' : 'text-amber-600 dark:text-amber-400')}>
-          Ihre Aufgabe: {task.title}
+          {tc('card.task', { title: task.title })}
         </p>
       )}
       <div className="flex items-center justify-between gap-2 mt-1.5">

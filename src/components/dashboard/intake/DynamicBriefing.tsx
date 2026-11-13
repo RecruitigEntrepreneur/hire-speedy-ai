@@ -1,4 +1,6 @@
+import i18n from '@/i18n';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -87,6 +89,11 @@ export interface DynState {
  *
  * Doppelfragen sind ausgeschlossen: die Antwort steht mit Fragetext in
  * `answers` und die id in `asked_ids`, beides sieht die KI in ihrem Prompt.
+ *
+ * Mehrsprachigkeit: Fragetext, Kapitel und Chips hier sind WERTE -- sie gehen
+ * mit der Antwort in `answers` (gespeichert, an die KI geschickt) und bleiben
+ * deshalb deutsch. Angezeigt werden sie über intake:dyn.reserve.<id>.*
+ * (question, chapter, why, c<n> = Stelle in `chips`).
  */
 const RESERVEFRAGEN: DynQuestion[] = [
   {
@@ -200,6 +207,7 @@ const stateIcon = (s: string) =>
  * fällt die Komponente transparent auf das statische IntakeBriefing zurück.
  */
 export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToNice, onDone, fallback, askAi }: Props) {
+  const { t } = useTranslation(['intake', 'intakeCatalog']);
   const [queue, setQueue] = useState<DynQuestion[]>([]);
   const [loading, setLoading] = useState(false);
   // Laufende Nummer je Anfrage. Beantwortet der Kunde die Startfrage, waehrend
@@ -233,7 +241,7 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
         if (askAi) {
           data = await askAi(request);
         } else {
-          const res = await supabase.functions.invoke('intake-questions', { body: request });
+          const res = await supabase.functions.invoke('intake-questions', { body: { ...request, lang: i18n.language } });
           if (res.error) throw res.error;
           data = res.data as Record<string, any> | null;
         }
@@ -311,6 +319,16 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
     reserveAktiv.current = RESERVEFRAGEN.find((q) => !state.askedIds.includes(q.id)) ?? null;
   }
   const current = reserveAktiv.current ?? queue[0] ?? null;
+  // Nur die Reservefragen haben eine Übersetzung; was die KI fragt, steht da, wie es kommt.
+  const istReserve = !!current && current === reserveAktiv.current;
+  const zeige = (teil: 'question' | 'chapter' | 'why', deutsch: string | undefined) =>
+    istReserve && current && deutsch ? t(`dyn.reserve.${current.id}.${teil}`, { defaultValue: deutsch }) : deutsch;
+  const zeigeChip = (chip: string) => {
+    const i = istReserve && current ? current.chips.indexOf(chip) : -1;
+    return i >= 0 ? t(`dyn.reserve.${current!.id}.c${i}`, { defaultValue: chip }) : chip;
+  };
+  const zustand = (z: string) =>
+    z === 'done' ? t('dyn.state.done') : z === 'partial' ? t('dyn.state.partial') : z === 'skipped' ? t('dyn.state.skipped') : t('dyn.state.open');
 
   const answer = (text: string) => {
     if (!current) return;
@@ -377,10 +395,10 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
             className="flex w-full items-center gap-2 text-left"
           >
             <span className="text-xs font-medium text-muted-foreground">
-              Briefing · {state.completeness}%
+              {t('dyn.progress', { pct: state.completeness })}
             </span>
             {current?.chapter && (
-              <span className="truncate text-xs text-foreground">{current.chapter}</span>
+              <span className="truncate text-xs text-foreground">{zeige('chapter', current.chapter)}</span>
             )}
             <span className="ml-auto flex items-center gap-1 text-[11px] text-muted-foreground">
               {state.chapterProgress.filter((c) => c.state === 'done').length}/
@@ -395,10 +413,7 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
             {state.chapterProgress.map((c) => (
               <span
                 key={c.chapter}
-                title={`${c.chapter} — ${
-                  c.state === 'done' ? 'vollständig'
-                  : c.state === 'partial' ? 'teilweise'
-                  : c.state === 'skipped' ? 'übersprungen' : 'offen'}`}
+                title={t('dyn.chapterTitle', { chapter: c.chapter, state: zustand(c.state) })}
                 className={cn(
                   'h-1.5 flex-1 rounded-full',
                   c.state === 'done' ? 'bg-emerald-500'
@@ -437,7 +452,7 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
       {visibleFlags.map((f) => (
         <div key={f.id} className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-3">
           <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-amber-600">
-            <AlertTriangle className="h-3.5 w-3.5" /> Spannung erkannt
+            <AlertTriangle className="h-3.5 w-3.5" /> {t('dyn.tensionTitle')}
           </p>
           {/* Zwei Zeilen, nicht ein Absatz. Vorher standen message und
               suggestion aneinandergeklebt -- gemessen 58 Woerter am Stueck,
@@ -460,11 +475,11 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
                   setDismissedFlags((d) => [...d, f.id]);
                 }}
               >
-                „{f.move_skill_to_nice}" zu Kann verschieben
+                {t('dyn.moveToNice', { skill: f.move_skill_to_nice })}
               </Button>
             )}
             <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={() => setDismissedFlags((d) => [...d, f.id])}>
-              Lassen
+              {t('dyn.dismiss')}
             </Button>
           </div>
         </div>
@@ -474,14 +489,14 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
       {loading && !current ? (
         <div className="flex items-center gap-2 rounded-xl border bg-card p-4 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin text-primary" />
-          KI wählt die nächste wichtige Frage …
+          {t('dyn.loading')}
         </div>
       ) : current ? (
         <div className="rounded-xl border border-primary/30 bg-primary/[0.03] p-4">
           <p className="mb-0.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-            {current.chapter}
+            {zeige('chapter', current.chapter)}
           </p>
-          <p className="mb-3 text-sm font-medium">{current.question}</p>
+          <p className="mb-3 text-sm font-medium">{zeige('question', current.question)}</p>
           <div className="mb-2 flex flex-wrap gap-1.5">
             {current.chips.filter(istEigeneAntwortNoetig).map((chip) => {
               // h-8 und die feste Hoehe stammten aus der Zeit der statischen
@@ -509,7 +524,7 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
                   }
                 >
                   {an && <Check className="mr-1 h-3 w-3 shrink-0" />}
-                  {chip}
+                  {zeigeChip(chip)}
                 </Button>
               );
             })}
@@ -519,7 +534,7 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
               className="h-8 gap-1 border border-dashed text-xs text-muted-foreground"
               onClick={() => answer('__unknown__')}
             >
-              <HelpCircle className="h-3.5 w-3.5" /> Weiß ich nicht
+              <HelpCircle className="h-3.5 w-3.5" /> {t('shared.dontKnow')}
             </Button>
           </div>
           <div className="flex gap-2">
@@ -527,7 +542,7 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
               value={freeText}
               onChange={(e) => setFreeText(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && (freeText.trim() || gewaehlt.length) && absenden()}
-              placeholder={current.multi ? 'Ergänzen …' : 'Eigene Antwort …'}
+              placeholder={current.multi ? t('dyn.placeholderMulti') : t('dyn.placeholderOwn')}
               className="h-8 text-xs"
             />
             <Button
@@ -536,19 +551,19 @@ export function DynamicBriefing({ type, jobDraft, state, onState, onMoveSkillToN
               disabled={!freeText.trim() && gewaehlt.length === 0}
               onClick={absenden}
             >
-              {current.multi ? `Weiter${gewaehlt.length ? ` (${gewaehlt.length})` : ''}` : 'OK'}
+              {current.multi ? (gewaehlt.length ? t('dyn.nextCount', { n: gewaehlt.length }) : t('shared.next')) : t('shared.ok')}
             </Button>
           </div>
           {current.why && (
-            <p className="mt-2 text-[11px] text-muted-foreground">💡 {current.why}</p>
+            <p className="mt-2 text-[11px] text-muted-foreground">💡 {zeige('why', current.why)}</p>
           )}
         </div>
       ) : state.done ? (
         <div className="flex flex-col items-center gap-2 rounded-xl border bg-card p-5 text-center">
           <Sparkles className="h-5 w-5 text-primary" />
-          <p className="text-sm font-medium">Briefing vollständig.</p>
+          <p className="text-sm font-medium">{t('dyn.doneTitle')}</p>
           <p className="text-xs text-muted-foreground">
-            Sie können die Stelle jetzt unten übergeben.
+            {t('dyn.doneText')}
           </p>
         </div>
       ) : null}

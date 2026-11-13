@@ -25,6 +25,9 @@ import { bicValid, compactIban, ibanValid, maskIban } from './recruiter-billing.
 import { generateNumericCode, hashCode, timingSafeEqual } from './tokens.ts';
 import { esc, layout } from './intake-mail.ts';
 import { noticeRecipients } from './recruiter-signed-notice.ts';
+import { intlLocale, normLang, tr, type Lang } from './i18n.ts';
+import { m, tx } from './notify-i18n.ts';
+import { recruiterLanguage } from './recipient-language.ts';
 
 /** Bucket der Gutschrift-PDFs (legt der Admin-Strang an). */
 export const CREDIT_NOTE_BUCKET = 'credit-notes';
@@ -69,11 +72,11 @@ async function rowsIn(db: SupabaseClient, table: string, columns: string, key: s
   return out;
 }
 
-async function sendMail(ctx: PlacementCtx, to: string, subject: string, heading: string, bodyHtml: string, plain: string, template: string, meta: Record<string, unknown>) {
+async function sendMail(ctx: PlacementCtx, to: string, subject: string, heading: string, bodyHtml: string, plain: string, template: string, meta: Record<string, unknown>, lang?: Lang | null) {
   try {
     const res = await ctx.mail({
       fromEmail: ctx.fromEmail, fromName: 'Matchunt', to, replyTo: 'info@bluewater-bridge.de',
-      subject, html: layout({ preheader: heading, heading, body: bodyHtml }), text: plain,
+      subject, html: layout({ ...(lang ? { lang } : {}), preheader: heading, heading, body: bodyHtml }), text: plain,
     }, { template, meta });
     return res.sent;
   } catch (e) {
@@ -166,20 +169,23 @@ async function doneRunPeriods(db: SupabaseClient): Promise<string[]> {
   }
 }
 
-async function viewCtx(ctx: PlacementCtx, userId: string): Promise<ViewCtx & { billing: BillingView }> {
+/** Sprache der Anzeige aus dem Aufruf (Web-App schickt body.lang); ohne Angabe Deutsch. */
+const viewLang = (body: any): Lang | null => normLang(body?.lang);
+
+async function viewCtx(ctx: PlacementCtx, userId: string, lang?: Lang | null): Promise<ViewCtx & { billing: BillingView }> {
   const [settings, runs, billing] = await Promise.all([conditionsSettings(ctx.db), doneRunPeriods(ctx.db), loadBilling(ctx, userId)]);
-  return { today: todayKey(ctx.now()), doneRuns: runs, v2Active: !!settings.activeFrom, taxMode: billing.view.tax.mode, billing: billing.view };
+  return { today: todayKey(ctx.now()), doneRuns: runs, v2Active: !!settings.activeFrom, taxMode: billing.view.tax.mode, billing: billing.view, lang };
 }
 
 /** Was fehlt, damit der Gutschriftlauf auszahlen kann (wie effectiveAccount/profileGaps im Admin-Strang). */
-export function payoutGaps(b: BillingView): string[] {
+export function payoutGaps(b: BillingView, lang?: Lang | null): string[] {
   if (b.selfBilling.objectedAt) return [];
   const gaps: string[] = [];
-  if (!b.exists) gaps.push('Abrechnungsdaten einmal speichern');
-  if (!b.recipient.legalName || !b.recipient.street || !b.recipient.city) gaps.push('Anschrift');
-  if (!b.tax.vatId && !b.tax.taxNumber) gaps.push('USt-IdNr. oder Steuernummer');
-  if (!b.account) gaps.push('Auszahlungskonto');
-  else if (!b.account.confirmedAt && !b.pending?.confirmedAt) gaps.push('Konto mit Code bestätigen');
+  if (!b.exists) gaps.push(tr(lang, { de: 'Abrechnungsdaten einmal speichern', en: 'save your billing details once', sv: 'spara dina avräkningsuppgifter en gång', nb: 'lagre avregningsopplysningene dine én gang' }));
+  if (!b.recipient.legalName || !b.recipient.street || !b.recipient.city) gaps.push(tr(lang, { de: 'Anschrift', en: 'address', sv: 'adress', nb: 'adresse' }));
+  if (!b.tax.vatId && !b.tax.taxNumber) gaps.push(tr(lang, { de: 'USt-IdNr. oder Steuernummer', en: 'VAT ID or tax number', sv: 'momsregistreringsnummer eller skattenummer', nb: 'MVA-nummer eller skattenummer' }));
+  if (!b.account) gaps.push(tr(lang, { de: 'Auszahlungskonto', en: 'payout account', sv: 'utbetalningskonto', nb: 'utbetalingskonto' }));
+  else if (!b.account.confirmedAt && !b.pending?.confirmedAt) gaps.push(tr(lang, { de: 'Konto mit Code bestätigen', en: 'confirm your account with a code', sv: 'bekräfta kontot med en kod', nb: 'bekreft kontoen med en kode' }));
   return gaps;
 }
 
@@ -187,9 +193,9 @@ export function payoutGaps(b: BillingView): string[] {
 // H8: Übersicht
 // ---------------------------------------------------------------------------
 
-export async function overview(ctx: PlacementCtx, user: User) {
+export async function overview(ctx: PlacementCtx, user: User, body: any = {}) {
   await requireRecruiter(ctx, user);
-  const vctx = await viewCtx(ctx, user.id);
+  const vctx = await viewCtx(ctx, user.id, viewLang(body));
   const { facts, tranches, creditNotes } = await loadFacts(ctx, user.id);
   const rows = facts.map((f) => placementRow(f, vctx))
     .sort((a, b) => Number(b.active) - Number(a.active) || b.createdAt.localeCompare(a.createdAt));
@@ -209,7 +215,7 @@ export async function overview(ctx: PlacementCtx, user: User) {
     next: totals.upcoming[0] ?? null,
     upcoming: totals.upcoming,
     creditNoteCount: creditNotes.filter((c) => c.status !== 'cancelled').length,
-    payoutGaps: payoutGaps(vctx.billing),
+    payoutGaps: payoutGaps(vctx.billing, vctx.lang as Lang | null),
   };
 }
 
@@ -235,7 +241,7 @@ export async function placementView(ctx: PlacementCtx, user: User, body: any) {
   const id = await placementIdFrom(ctx, user, body);
   const { facts } = await loadFacts(ctx, user.id, id);
   must(facts.length === 1, 'Das ist nicht deine Besetzung.', 'not_allowed');
-  const vctx = await viewCtx(ctx, user.id);
+  const vctx = await viewCtx(ctx, user.id, viewLang(body));
   return { view: placementWindow(facts[0], vctx), taxMode: vctx.taxMode };
 }
 
@@ -257,7 +263,7 @@ export async function reportStart(ctx: PlacementCtx, user: User, body: any) {
   const p = await loadPlacementRow(ctx, placementId);
   const result = await reportStartByRecruiter(ctx, user, { ...body, placementId });
   if (p.submission_id) await closeSystemTasks(ctx, user.id, p.submission_id, 'start');
-  return { ...result, ...(await placementView(ctx, user, { placementId })) };
+  return { ...result, ...(await placementView(ctx, user, { placementId, lang: body?.lang })) };
 }
 
 /** H7 rechts: Halbzeit der Garantie. „Es wackelt“ geht als Hinweis an Matchunt, der Kunde sieht nichts. */
@@ -282,14 +288,14 @@ export async function halfway(ctx: PlacementCtx, user: User, body: any) {
       `${me?.name ?? 'Headhunter'} · ${f.companyName ?? ''} · ${f.jobTitle ?? ''}${note ? ` · ${note.slice(0, 300)}` : ''} · Garantie bis ${dmy(p.continuity_end_date)}`, 'placement', p.id);
   }
   if (p.submission_id) await closeSystemTasks(ctx, user.id, p.submission_id, 'halfway');
-  return { ok: true, status, ...(await placementView(ctx, user, { placementId })) };
+  return { ok: true, status, ...(await placementView(ctx, user, { placementId, lang: body?.lang })) };
 }
 
 /** H10: Stellungnahme zum offenen Fall. */
 export async function statement(ctx: PlacementCtx, user: User, body: any) {
   await requireRecruiter(ctx, user);
   await recruiterStatement(ctx, user, body);
-  return { ok: true, ...(await placementView(ctx, user, { placementId: body?.placementId })) };
+  return { ok: true, ...(await placementView(ctx, user, { placementId: body?.placementId, lang: body?.lang })) };
 }
 
 // ---------------------------------------------------------------------------
@@ -363,11 +369,12 @@ export async function jobTerms(ctx: PlacementCtx, user: User, body: any) {
 // H1 / H2: neue Konditionen
 // ---------------------------------------------------------------------------
 
-export async function conditions(ctx: PlacementCtx, user: User) {
+export async function conditions(ctx: PlacementCtx, user: User, body: any = {}) {
   await requireRecruiter(ctx, user);
+  const lang = viewLang(body);
   const s = await conditionsSettings(ctx.db);
   const today = todayKey(ctx.now());
-  if (!s.activeFrom) return { show: false, activeFrom: null, forcedFrom: null, consentedAt: null, version: 1, table: conditionsTable() };
+  if (!s.activeFrom) return { show: false, activeFrom: null, forcedFrom: null, consentedAt: null, version: 1, table: conditionsTable(lang) };
   const facts = await recruiterConditionFacts(ctx.db, user.id);
   const version = conditionsVersionAt({ at: today, activeFrom: s.activeFrom, forcedFrom: s.forcedFrom, ...facts });
   const newContract = !!facts.contractSignedAt && facts.contractSignedAt.slice(0, 10) >= s.activeFrom.slice(0, 10);
@@ -378,11 +385,11 @@ export async function conditions(ctx: PlacementCtx, user: User) {
     forcedFrom: s.forcedFrom ? s.forcedFrom.slice(0, 10) : null,
     consentedAt: facts.consentedAt,
     version,
-    table: conditionsTable(),
+    table: conditionsTable(lang),
   };
 }
 
-export async function consent(ctx: PlacementCtx, user: User) {
+export async function consent(ctx: PlacementCtx, user: User, body: any = {}) {
   await requireRecruiter(ctx, user);
   const s = await conditionsSettings(ctx.db);
   must(s.activeFrom, 'Es gibt gerade keine neuen Konditionen zum Zustimmen.', 'conflict');
@@ -391,7 +398,7 @@ export async function consent(ctx: PlacementCtx, user: User) {
   dbFail(error, 'Deine Zustimmung');
   const me = await profile(ctx.db, user.id);
   await notifyAdmins(ctx, 'recruiter_conditions_consent', `Neuen Konditionen zugestimmt: ${me?.name ?? 'Headhunter'}`, 'Fassung 2 gilt für Stellen, die ab dem Stichtag aktiviert werden.', 'recruiter', user.id);
-  return await conditions(ctx, user);
+  return await conditions(ctx, user, body);
 }
 
 // ---------------------------------------------------------------------------
@@ -407,7 +414,7 @@ function cleanLines(lines: unknown): { title: string; detail: string | null; amo
   })).filter((l) => l.title);
 }
 
-export async function creditNotes(ctx: PlacementCtx, user: User) {
+export async function creditNotes(ctx: PlacementCtx, user: User, body: any = {}) {
   await requireRecruiter(ctx, user);
   const today = todayKey(ctx.now());
   const [{ data: notes, error }, { data: objections }] = await Promise.all([
@@ -428,7 +435,7 @@ export async function creditNotes(ctx: PlacementCtx, user: User) {
     };
   });
   // Was in den nächsten Lauf kommt (H11 „Dezember-Lauf · in Vorbereitung“)
-  const vctx = await viewCtx(ctx, user.id);
+  const vctx = await viewCtx(ctx, user.id, viewLang(body));
   const { facts, tranches, creditNotes: cn } = await loadFacts(ctx, user.id);
   const totals = overviewTotals(facts, cn, tranches.filter((t) => t.status === 'paid' && !t.credit_note_id), vctx);
   const years = uniq(list.map((n) => String(n.issuedOn).slice(0, 4))).sort().reverse();
@@ -540,7 +547,8 @@ async function applyPendingAccount(ctx: PlacementCtx, row: any): Promise<boolean
   }).eq('recruiter_id', row.recruiter_id).eq('pending_effective_at', row.pending_effective_at).select('recruiter_id').maybeSingle();
   if (error || !data) return false;
   await ctx.db.from('profiles').update({ bank_account_holder: row.pending_account_holder, bank_iban: row.pending_iban, bank_bic: row.pending_bic }).eq('user_id', row.recruiter_id);
-  await notify(ctx, row.recruiter_id, 'payout_account_active', 'Neues Auszahlungskonto gilt', `Ab jetzt überweisen wir auf ${maskIban(row.pending_iban)}.`, 'recruiter', row.recruiter_id);
+  await notify(ctx, row.recruiter_id, 'payout_account_active', (l) => tx(l, 'Neues Auszahlungskonto gilt', 'New payout account is active', 'Nytt utbetalningskonto gäller', 'Ny utbetalingskonto gjelder'),
+    (l) => tx(l, m`Ab jetzt überweisen wir auf ${maskIban(row.pending_iban)}.`, m`From now on we pay to ${maskIban(row.pending_iban)}.`, m`Från och med nu betalar vi till ${maskIban(row.pending_iban)}.`, m`Fra nå av betaler vi til ${maskIban(row.pending_iban)}.`), 'recruiter', row.recruiter_id);
   return true;
 }
 
@@ -704,15 +712,20 @@ export async function accountChangeRequest(ctx: PlacementCtx, user: User, body: 
   dbFail(error, 'Das neue Konto');
   // Erste Einrichtung oder Bestätigung des alten Profil-Kontos: gilt sofort nach dem Code
   const firstSetup = !row?.iban || !row.iban_confirmed_at;
-  const heading = firstSetup ? 'Dein Code für das Auszahlungskonto' : 'Dein Code zum Ändern des Auszahlungskontos';
+  // Sprache: Oberfläche (body.lang), sonst Profil des Headhunters, sonst Deutsch
+  const l = viewLang(body) ?? await recruiterLanguage(ctx.db, user.id);
+  const heading = firstSetup ? tx(l, 'Dein Code für das Auszahlungskonto', 'Your code for the payout account', 'Din kod för utbetalningskontot', 'Koden din for utbetalingskontoen')
+    : tx(l, 'Dein Code zum Ändern des Auszahlungskontos', 'Your code for changing the payout account', 'Din kod för att ändra utbetalningskontot', 'Koden din for å endre utbetalingskontoen');
+  const notYou = tx(l, 'Warst du das nicht? Dann antworte sofort auf diese Mail.', 'Wasn’t you? Then reply to this email right away.', 'Var det inte du? Svara då direkt på det här mejlet.', 'Var det ikke deg? Svar da på denne e-posten med en gang.');
   const html = [
-    `<p style="margin:0 0 12px 0;">Hallo,</p>`,
-    `<p style="margin:0 0 12px 0;">${firstSetup ? 'du richtest dein Auszahlungskonto ein' : 'du änderst dein Auszahlungskonto'}: ${esc(holder)} · ${esc(maskIban(iban))}.</p>`,
+    `<p style="margin:0 0 12px 0;">${tx(l, 'Hallo,', 'Hi,', 'Hej,', 'Hei,')}</p>`,
+    `<p style="margin:0 0 12px 0;">${firstSetup ? tx(l, 'du richtest dein Auszahlungskonto ein', 'you are setting up your payout account', 'du lägger upp ditt utbetalningskonto', 'du setter opp utbetalingskontoen din') : tx(l, 'du änderst dein Auszahlungskonto', 'you are changing your payout account', 'du ändrar ditt utbetalningskonto', 'du endrer utbetalingskontoen din')}: ${esc(holder)} · ${esc(maskIban(iban))}.</p>`,
     `<p style="margin:0 0 12px 0;font-size:28px;letter-spacing:6px;font-weight:600;">${esc(code)}</p>`,
-    `<p style="margin:0 0 12px 0;">Der Code gilt ${CODE_TTL_MIN} Minuten.${firstSetup ? '' : ' Das neue Konto gilt 48 Stunden nach der Bestätigung.'}</p>`,
-    `<p style="margin:0 0 12px 0;">Warst du das nicht? Dann antworte sofort auf diese Mail.</p>`,
+    `<p style="margin:0 0 12px 0;">${tx(l, `Der Code gilt ${CODE_TTL_MIN} Minuten.`, `The code is valid for ${CODE_TTL_MIN} minutes.`, `Koden gäller i ${CODE_TTL_MIN} minuter.`, `Koden gjelder i ${CODE_TTL_MIN} minutter.`)}${firstSetup ? '' : tx(l, ' Das neue Konto gilt 48 Stunden nach der Bestätigung.', ' The new account applies 48 hours after confirmation.', ' Det nya kontot gäller 48 timmar efter bekräftelsen.', ' Den nye kontoen gjelder 48 timer etter bekreftelsen.')}</p>`,
+    `<p style="margin:0 0 12px 0;">${notYou}</p>`,
   ].join('');
-  const sent = await sendMail(ctx, user.email, heading, heading, html, `${heading}: ${code} (gilt ${CODE_TTL_MIN} Minuten). Warst du das nicht? Antworte sofort auf diese Mail.`, 'recruiter_account_code', { user_id: user.id });
+  const plain = tx(l, `${heading}: ${code} (gilt ${CODE_TTL_MIN} Minuten). Warst du das nicht? Antworte sofort auf diese Mail.`, `${heading}: ${code} (valid for ${CODE_TTL_MIN} minutes). ${notYou}`, `${heading}: ${code} (gäller i ${CODE_TTL_MIN} minuter). ${notYou}`, `${heading}: ${code} (gjelder i ${CODE_TTL_MIN} minutter). ${notYou}`);
+  const sent = await sendMail(ctx, user.email, heading, heading, html, plain, 'recruiter_account_code', { user_id: user.id }, l);
   return { ok: true, sent, sentTo: maskEmail(user.email), expiresAt, firstSetup };
 }
 
@@ -756,12 +769,18 @@ export async function accountChangeConfirm(ctx: PlacementCtx, user: User, body: 
   const when = new Date(effectiveAt).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   const oldMasked = maskIban(r.iban), newMasked = maskIban(r.pending_iban);
   // Mail an die Login-Adresse (bisheriges Konto) und an Matchunt
-  const heading = 'Dein Auszahlungskonto wird geändert';
+  // Mail an den Headhunter in seiner Sprache (Oberfläche, sonst Profil); Mail an Matchunt bleibt deutsch
+  const l = viewLang(body) ?? await recruiterLanguage(ctx.db, user.id);
+  const lde = l === 'de' || l === 'de-AT' || l === 'de-CH';
+  const whenL = lde ? `${when} Uhr` : new Date(effectiveAt).toLocaleString(intlLocale(l), { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const heading = tx(l, 'Dein Auszahlungskonto wird geändert', 'Your payout account is being changed', 'Ditt utbetalningskonto ändras', 'Utbetalingskontoen din endres');
+  const notYou = tx(l, 'Warst du das nicht? Dann antworte sofort auf diese Mail.', 'Wasn’t you? Then reply to this email right away.', 'Var det inte du? Svara då direkt på det här mejlet.', 'Var det ikke deg? Svar da på denne e-posten med en gang.');
+  const holderName = esc(r.pending_account_holder ?? '');
   await sendMail(ctx, user.email!, heading, heading,
-    [`<p style="margin:0 0 12px 0;">Hallo,</p>`,
-      `<p style="margin:0 0 12px 0;">dein Auszahlungskonto wird von ${esc(oldMasked)} auf ${esc(newMasked)} (${esc(r.pending_account_holder ?? '')}) geändert. Das neue Konto gilt ab ${esc(when)} Uhr. Bis dahin überweisen wir nichts.</p>`,
-      `<p style="margin:0 0 12px 0;">Warst du das nicht? Dann antworte sofort auf diese Mail.</p>`].join(''),
-    `${heading}: ${oldMasked} → ${newMasked}, gilt ab ${when} Uhr. Warst du das nicht? Antworte sofort auf diese Mail.`, 'recruiter_account_change', { user_id: user.id });
+    [`<p style="margin:0 0 12px 0;">${tx(l, 'Hallo,', 'Hi,', 'Hej,', 'Hei,')}</p>`,
+      `<p style="margin:0 0 12px 0;">${tx(l, m`dein Auszahlungskonto wird von ${esc(oldMasked)} auf ${esc(newMasked)} (${holderName}) geändert. Das neue Konto gilt ab ${esc(whenL)}. Bis dahin überweisen wir nichts.`, m`your payout account is being changed from ${esc(oldMasked)} to ${esc(newMasked)} (${holderName}). The new account applies from ${esc(whenL)} (Berlin time). Until then we will not pay anything.`, m`ditt utbetalningskonto ändras från ${esc(oldMasked)} till ${esc(newMasked)} (${holderName}). Det nya kontot gäller från ${esc(whenL)} (Berlintid). Fram till dess betalar vi inte ut något.`, m`utbetalingskontoen din endres fra ${esc(oldMasked)} til ${esc(newMasked)} (${holderName}). Den nye kontoen gjelder fra ${esc(whenL)} (Berlin-tid). Frem til da utbetaler vi ingenting.`)}</p>`,
+      `<p style="margin:0 0 12px 0;">${notYou}</p>`].join(''),
+    tx(l, `${heading}: ${oldMasked} → ${newMasked}, gilt ab ${whenL}. Warst du das nicht? Antworte sofort auf diese Mail.`, `${heading}: ${oldMasked} → ${newMasked}, applies from ${whenL}. ${notYou}`, `${heading}: ${oldMasked} → ${newMasked}, gäller från ${whenL}. ${notYou}`, `${heading}: ${oldMasked} → ${newMasked}, gjelder fra ${whenL}. ${notYou}`), 'recruiter_account_change', { user_id: user.id }, l);
   for (const to of noticeRecipients()) {
     await sendMail(ctx, to, `Kontowechsel: ${me?.name ?? user.email}`, 'Auszahlungskonto wird geändert',
       `<p style="margin:0 0 12px 0;">${esc(me?.name ?? '')} (${esc(user.email ?? '')}) ändert das Auszahlungskonto: ${esc(oldMasked)} → ${esc(newMasked)} (${esc(r.pending_account_holder ?? '')}). Per Code bestätigt, gilt ab ${esc(when)} Uhr.</p>`,

@@ -1,7 +1,11 @@
 // Triple-Blind Mode: Anonymization helpers
+import i18n from '@/i18n';
+
+// Anzeige-Texte beim Aufruf gelesen (Namespace jobBriefing, anon.* und missing.*).
+const ta = (key: string, options?: Record<string, unknown>): string => i18n.t(`jobBriefing:${key}`, options) as string;
 
 export function generateAnonymousId(id: string): string {
-  return `Kandidat #${id.slice(0, 8).toUpperCase()}`;
+  return ta('anon.candidateId', { id: id.slice(0, 8).toUpperCase() });
 }
 
 // DER eine Anonym-Code der Client-Seiten (Inbox, Cockpit, Jobseite, Agenda):
@@ -57,21 +61,21 @@ export function anonymizeRegionBroad(city: string | null): string {
     return 'EU - Benelux';
   }
   if (lower.includes('paris') || lower.includes('france') || lower.includes('frankreich')) {
-    return 'EU - Frankreich';
+    return ta('anon.euFrance');
   }
   if (lower.includes('london') || lower.includes('uk') || lower.includes('england')) {
     return 'UK';
   }
   if (lower.includes('spain') || lower.includes('spanien') || lower.includes('madrid') || lower.includes('barcelona')) {
-    return 'EU - Südeuropa';
+    return ta('anon.euSouth');
   }
   if (lower.includes('poland') || lower.includes('polen') || lower.includes('warsaw') || lower.includes('krakow')) {
-    return 'EU - Osteuropa';
+    return ta('anon.euEast');
   }
   
   // Default für Deutschland
   if (lower.includes('germany') || lower.includes('deutschland')) {
-    return 'Deutschland';
+    return ta('anon.germany');
   }
   
   return 'DACH';
@@ -83,16 +87,16 @@ export function anonymizeRegion(location: string | null): string {
 }
 
 export function anonymizeExperience(years: number | null): string {
-  if (!years && years !== 0) return 'Nicht angegeben';
-  if (years < 2) return '0-2 Jahre';
-  if (years < 5) return '3-5 Jahre';
-  if (years < 10) return '6-10 Jahre';
-  if (years < 15) return '10-15 Jahre';
-  return '15+ Jahre';
+  if (!years && years !== 0) return ta('anon.notSpecified');
+  if (years < 2) return ta('anon.years', { range: '0-2' });
+  if (years < 5) return ta('anon.years', { range: '3-5' });
+  if (years < 10) return ta('anon.years', { range: '6-10' });
+  if (years < 15) return ta('anon.years', { range: '10-15' });
+  return ta('anon.years', { range: '15+' });
 }
 
 export function anonymizeSalary(salary: number | null): string {
-  if (!salary) return 'Nicht freigegeben';
+  if (!salary) return ta('anon.notReleased');
   // Round to nearest 10k range
   const lower = Math.floor(salary / 10000) * 10000;
   const upper = lower + 10000;
@@ -100,63 +104,15 @@ export function anonymizeSalary(salary: number | null): string {
 }
 
 export function anonymizeCompanyName(industry: string | null): string {
-  if (!industry) return 'Unternehmen';
-  return `[${industry}] Unternehmen`;
+  if (!industry) return ta('anon.company');
+  return ta('anon.industryCompany', { industry });
 }
 
 // Semantische Erklärungen für fehlende Felder mit professionellem Kontext
 export function explainMissingField(fieldType: string, hasInterview: boolean): string {
-  const explanations: Record<string, { preInterview: string; postInterview: string }> = {
-    motivation: {
-      preInterview: 'Wird im Interview besprochen',
-      postInterview: 'Im Interview nicht erfasst'
-    },
-    salary: {
-      preInterview: 'Wird im Interview besprochen',
-      postInterview: 'Vom Kandidaten noch nicht freigegeben'
-    },
-    availability: {
-      preInterview: 'Noch nicht besprochen',
-      postInterview: 'Im Interview geklärt'
-    },
-    skills: {
-      preInterview: 'CV-Analyse ausstehend',
-      postInterview: 'Im Lebenslauf nicht detailliert'
-    },
-    risks: {
-      preInterview: 'Wird im Interview analysiert',
-      postInterview: 'Keine Risiken identifiziert'
-    },
-    strengths: {
-      preInterview: 'Wird im Interview analysiert',
-      postInterview: 'Noch keine Stärken identifiziert'
-    },
-    career_goals: {
-      preInterview: 'Wird im Interview besprochen',
-      postInterview: 'Im Interview nicht erfasst'
-    },
-    region: {
-      preInterview: 'Standort noch nicht erfasst',
-      postInterview: 'Standort nicht angegeben'
-    },
-    experience: {
-      preInterview: 'CV-Analyse ausstehend',
-      postInterview: 'Im Lebenslauf nicht angegeben'
-    },
-    seniority: {
-      preInterview: 'Wird basierend auf CV ermittelt',
-      postInterview: 'Fachliche Einschätzung folgt'
-    },
-    work_model: {
-      preInterview: 'Präferenz noch nicht erfasst',
-      postInterview: 'Arbeitsmodell flexibel'
-    },
-  };
-  
-  const fieldExplanation = explanations[fieldType];
-  if (!fieldExplanation) return 'Keine Angabe';
-  
-  return hasInterview ? fieldExplanation.postInterview : fieldExplanation.preInterview;
+  const known = ['motivation', 'salary', 'availability', 'skills', 'risks', 'strengths', 'career_goals', 'region', 'experience', 'seniority', 'work_model'];
+  if (!known.includes(fieldType)) return ta('anon.noInfo');
+  return ta(`missing.${fieldType}.${hasInterview ? 'post' : 'pre'}`);
 }
 
 // Fit-Label mit Farbe basierend auf Score
@@ -303,4 +259,7 @@ export function anonymizeCandidate(candidate: {
   };
 }
 
+/** Platzhalter für verborgene Felder; beim Zugriff übersetzt. */
+export const hiddenFieldPlaceholder = () => ta('anon.hidden');
+/** @deprecated Deutsch; für die Anzeige hiddenFieldPlaceholder() nutzen. */
 export const HIDDEN_FIELD_PLACEHOLDER = '🔒 Verborgen bis Opt-In';

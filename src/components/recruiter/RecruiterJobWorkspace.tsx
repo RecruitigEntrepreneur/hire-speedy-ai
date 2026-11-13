@@ -28,6 +28,8 @@ import { ErstgespraecheAbschnitt, useErstgespraeche } from './termin/Erstgesprae
 import { beitragsStand } from '@/lib/terminApi';
 import { useJobTerms } from '@/lib/abrechnungApi';
 import { KundeMeldenDialog } from './verdienste/KundeMeldenDialog';
+import { useTranslation } from 'react-i18next';
+import { intlLocale } from '@/i18n/languages';
 
 export interface WorkspaceJob extends BriefingJob {
   id: string;
@@ -101,6 +103,9 @@ function Gruppe({ titel, children }: { titel: string; children: ReactNode }) {
 export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submissionCount, candidates, onSubmit, onExpose, heroAction, heroStatus, mobileAction, headerBadge, kannPosten = false }: Props) {
   // Erst die Anzeige, dann das Briefing: so liest ein Headhunter eine neue Stelle.
   const [tab, setTab] = useState('beschreibung');
+  // recruiterJobDetail trägt auch die Texte aus lib/arbeitsBriefing (brief.*) und lib/linkedinBeitrag (post.*).
+  const { t, i18n } = useTranslation('recruiterJobDetail');
+  const locale = intlLocale(i18n.language);
   const [showEarning, setShowEarning] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [showAccess, setShowAccess] = useState(false);
@@ -170,18 +175,18 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
       : [];
   const zeichen = ansprache.linkedin.length;
 
-  const werkzeuge = <Gruppe titel="Werkzeuge">
-    {tab === 'kandidaten' && hatAnzeige && <Kachel icon={Megaphone} titel="Anzeige & Ansprache" onClick={() => setTab('beschreibung')} />}
-    {tab !== 'beschreibung' && <Kachel icon={ListChecks} titel="Gesprächsleitfaden" onClick={() => setShowGuide(true)} />}
-    <Kachel icon={IdCard} titel="Anonymes Exposé" onClick={onExpose} />
-    <Kachel icon={Calculator} titel="Verdienst berechnen" onClick={() => setShowEarning(true)} />
-    {(kannPosten || submissionCount > 0 || gemeldetAm) && <Kachel icon={Flag} titel="Kunde melden"
-      hinweis={gemeldetAm ? `Gemeldet am ${new Date(gemeldetAm).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' })} · Matchunt kümmert sich` : 'anonym, Matchunt kümmert sich'}
+  const werkzeuge = <Gruppe titel={t('ws.tools')}>
+    {tab === 'kandidaten' && hatAnzeige && <Kachel icon={Megaphone} titel={t('ws.adAndOutreach')} onClick={() => setTab('beschreibung')} />}
+    {tab !== 'beschreibung' && <Kachel icon={ListChecks} titel={t('ws.guide')} onClick={() => setShowGuide(true)} />}
+    <Kachel icon={IdCard} titel={t('ws.expose')} onClick={onExpose} />
+    <Kachel icon={Calculator} titel={t('ws.calcEarning')} onClick={() => setShowEarning(true)} />
+    {(kannPosten || submissionCount > 0 || gemeldetAm) && <Kachel icon={Flag} titel={t('ws.reportClient')}
+      hinweis={gemeldetAm ? t('ws.reportedOn', { date: new Date(gemeldetAm).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' }) }) : t('ws.reportHint')}
       onClick={() => setMeldenOffen(true)} />}
   </Gruppe>;
 
   return <div className="mx-auto max-w-[1440px] space-y-7 pb-24 min-[1180px]:pb-8">
-    <Link to="/recruiter/jobs" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" />Alle offenen Jobs</Link>
+    <Link to="/recruiter/jobs" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" />{t('ws.allJobs')}</Link>
 
     {/* Kopf: links die Stelle mit den Reitern, rechts Verdienst und nächster Schritt. Die
         Dreier-Leiste darunter ist seit 21.10.2026 weg: Anzeige und Briefing zeigen alles selbst. */}
@@ -200,18 +205,18 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
               <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-muted-foreground">
                 {companyRevealed && job.company_name
                   ? <button type="button" onClick={() => setFirmaOffen(true)} className="font-medium text-foreground underline decoration-muted-foreground/50 decoration-dotted underline-offset-4 hover:decoration-solid focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{job.company_name}</button>
-                  : <span>Vertrauliches Unternehmen</span>}
+                  : <span>{t('ws.confidentialCompany')}</span>}
                 {job.industry && <><span aria-hidden="true">·</span><span>{job.industry}</span></>}
                 {job.location && <><span aria-hidden="true">·</span><span>{job.location}</span></>}
-                <button type="button" onClick={() => setShowAccess(true)} aria-label="Informationen zur Unternehmensfreigabe"
+                <button type="button" onClick={() => setShowAccess(true)} aria-label={t('ws.accessAria')}
                   className={cn('ml-2 inline-flex items-center gap-1 rounded text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', companyRevealed || fullAccess ? 'text-emerald-600' : 'text-muted-foreground')}>
-                  {fullAccess ? <><Eye className="h-3.5 w-3.5" />voller Zugriff</> : companyRevealed ? <><LockKeyholeOpen className="h-3.5 w-3.5" />freigegeben</> : <><LockKeyhole className="h-3.5 w-3.5" />anonym</>}
+                  {fullAccess ? <><Eye className="h-3.5 w-3.5" />{t('ws.badge.full')}</> : companyRevealed ? <><LockKeyholeOpen className="h-3.5 w-3.5" />{t('ws.badge.revealed')}</> : <><LockKeyhole className="h-3.5 w-3.5" />{t('ws.badge.anonymous')}</>}
                 </button>
                 {headerBadge}
               </p>
             </div>
           </div>
-          {fakten.length > 0 && <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-1.5 text-sm" aria-label="Eckdaten">
+          {fakten.length > 0 && <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-1.5 text-sm" aria-label={t('ws.keyFacts')}>
             {fakten.filter(f => f.symbol !== 'branche').map(f => { const Icon = KOPF_SYMBOL[f.symbol]; return <li key={f.symbol} className={cn('inline-flex items-center gap-1.5', f.symbol === 'geld' && 'font-medium')}><Icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />{f.text}</li>; })}
           </ul>}
         </div>
@@ -219,15 +224,15 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
           <HeroEarning job={job} onDetails={() => setShowEarning(true)} />
           {/* Unter 1180 px steht der Knopf in der Leiste unten, nicht doppelt. */}
           <div className="hidden gap-2 min-[1180px]:flex">
-            <div className="min-w-0 flex-1 [&_button]:w-full">{heroAction ?? <Button size="lg" onClick={onSubmit}><Plus />Vorstellung vorbereiten</Button>}</div>
-            {kannPosten && <Button size="lg" aria-label="Stelle anonym auf LinkedIn posten" className="w-auto shrink-0 bg-[#0A66C2] px-3.5 text-white hover:bg-[#004182]" onClick={() => setBeitragOffen(true)}><Linkedin />Posten</Button>}
+            <div className="min-w-0 flex-1 [&_button]:w-full">{heroAction ?? <Button size="lg" onClick={onSubmit}><Plus />{t('ws.prepare')}</Button>}</div>
+            {kannPosten && <Button size="lg" aria-label={t('ws.postAnonymousAria')} className="w-auto shrink-0 bg-[#0A66C2] px-3.5 text-white hover:bg-[#004182]" onClick={() => setBeitragOffen(true)}><Linkedin />{t('ws.post')}</Button>}
           </div>
         </div>
       </div>
       {/* Reiter als Unterstreichung, rechts der Stand der Suche. */}
       <div className="mt-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-2 border-b border-border">
         <TabsList className="-mb-px h-auto flex-nowrap justify-start gap-5 rounded-none bg-transparent p-0 sm:gap-6">
-          {([['beschreibung', Megaphone, 'Anzeige & Ansprache', 'Anzeige'], ['briefing', ClipboardList, 'Briefing', 'Briefing'], ['kandidaten', Users, 'Meine Kandidaten', 'Kandidaten']] as const).map(([wert, Icon, label, kurz]) =>
+          {([['beschreibung', Megaphone, t('ws.tabs.ad'), t('ws.tabs.adShort')], ['briefing', ClipboardList, t('ws.tabs.briefing'), t('ws.tabs.briefing')], ['kandidaten', Users, t('ws.tabs.candidates'), t('ws.tabs.candidatesShort')]] as const).map(([wert, Icon, label, kurz]) =>
             <TabsTrigger key={wert} value={wert} className="gap-2 rounded-none border-b-2 border-transparent px-0 pb-3 pt-1 text-muted-foreground data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
               <Icon className="h-4 w-4" /><span className="sm:hidden">{kurz}</span><span className="hidden sm:inline">{label}</span>{wert === 'kandidaten' && <span className="rounded bg-muted px-1.5 text-xs tabular-nums">{submissionCount}</span>}
             </TabsTrigger>)}
@@ -236,9 +241,9 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
         {(heroStatus || beitrag.data) && <div className="order-first w-full space-y-0.5 pb-1 text-xs leading-5 text-muted-foreground sm:order-none sm:w-auto sm:pb-3 sm:text-right">
           {heroStatus && <div>{heroStatus}</div>}
           {beitrag.data && <div className="text-[#0A66C2]">
-            <Linkedin className="mr-1 inline h-3.5 w-3.5 align-[-2px]" aria-hidden="true" />Gepostet am {new Date(beitrag.data.posted_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' })}
-            {' · '}{beitrag.data.bookings === 1 ? '1 Termin' : `${beitrag.data.bookings} Termine`} gebucht
-            {beitrag.data.post_urn && <> · <a className="underline underline-offset-2" href={`https://www.linkedin.com/feed/update/${beitrag.data.post_urn}/`} target="_blank" rel="noreferrer">ansehen</a></>}
+            <Linkedin className="mr-1 inline h-3.5 w-3.5 align-[-2px]" aria-hidden="true" />{t('ws.postedOn', { date: new Date(beitrag.data.posted_at).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' }) })}
+            {' · '}{t('ws.bookings', { count: beitrag.data.bookings })}
+            {beitrag.data.post_urn && <> · <a className="underline underline-offset-2" href={`https://www.linkedin.com/feed/update/${beitrag.data.post_urn}/`} target="_blank" rel="noreferrer">{t('ws.view')}</a></>}
           </div>}
         </div>}
       </div>
@@ -254,65 +259,65 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
                 <LockKeyhole className="mt-1 h-3.5 w-3.5 shrink-0" />
                 <span>
                   {(job.formatted_content as { anzeige?: unknown } | null)?.anzeige
-                    ? 'Texte von der KI aus den Angaben des Kunden formuliert und gegen sie geprüft, Beträge vom System eingesetzt. '
-                    : 'Aus den Angaben des Kunden erzeugt, ohne interne Notizen. '}
-                  Diese Fassung kannst du einem Kandidaten zeigen. Was du als Recruiter zusätzlich weißt, steht im Reiter Briefing.
+                    ? t('ws.adNoteAi')
+                    : t('ws.adNoteGenerated')}
+                  {' '}{t('ws.adNoteShow')}
                 </span>
               </p>
             </div>
-              : <EmptyAnswer>Für diese Stelle gibt es noch keine Anzeige. Alle Angaben des Kunden stehen im Briefing.</EmptyAnswer>}
+              : <EmptyAnswer>{t('ws.noAd')}</EmptyAnswer>}
             {/* Contracting: Projektkonditionen offen auf der Stelle, nicht nur hinter „Verdienst berechnen“ (Etappe 1, 04.11.2026) */}
             {job.employment_type === 'freelance' && <div className="mt-8 max-w-[42rem]"><ContractingKonditionen job={job} /></div>}
           </TabsContent>
 
           <TabsContent value="briefing" className="m-0">
             <ArbeitsBriefingView schritte={schritte} werkzeuge={{
-              lohnt: { label: 'Verdienst berechnen', icon: WERKZEUG_SYMBOL.verdienst, onClick: () => setShowEarning(true) },
-              suche: { label: 'Anonymes Exposé', icon: WERKZEUG_SYMBOL.expose, onClick: onExpose },
-              ueberzeugen: hatAnzeige ? { label: 'Ansprache schreiben', icon: WERKZEUG_SYMBOL.ansprache, onClick: () => { setTab('beschreibung'); setTeilenOffen(true); } } : undefined,
-              gespraech: { label: 'Gesprächsleitfaden', icon: WERKZEUG_SYMBOL.leitfaden, onClick: () => setShowGuide(true) },
-              abschluss: { label: 'Vorstellung vorbereiten', icon: WERKZEUG_SYMBOL.vorstellen, onClick: onSubmit },
+              lohnt: { label: t('ws.calcEarning'), icon: WERKZEUG_SYMBOL.verdienst, onClick: () => setShowEarning(true) },
+              suche: { label: t('ws.expose'), icon: WERKZEUG_SYMBOL.expose, onClick: onExpose },
+              ueberzeugen: hatAnzeige ? { label: t('ws.writeOutreach'), icon: WERKZEUG_SYMBOL.ansprache, onClick: () => { setTab('beschreibung'); setTeilenOffen(true); } } : undefined,
+              gespraech: { label: t('ws.guide'), icon: WERKZEUG_SYMBOL.leitfaden, onClick: () => setShowGuide(true) },
+              abschluss: { label: t('ws.prepare'), icon: WERKZEUG_SYMBOL.vorstellen, onClick: onSubmit },
             }} />
           </TabsContent>
 
           <TabsContent value="kandidaten" className="m-0 space-y-6">
-            <div><h2 className="text-xl font-semibold">Deine Kandidaten für dieses Mandat</h2><p className="mt-2 text-sm text-muted-foreground">Einreichungen, aktueller Stand und die nächsten Schritte.</p></div>
+            <div><h2 className="text-xl font-semibold">{t('ws.candidatesTitle')}</h2><p className="mt-2 text-sm text-muted-foreground">{t('ws.candidatesText')}</p></div>
             {/* Erstgespräche über die Terminseite, bevor eingereicht wird (21.10.2026) */}
             <ErstgespraecheAbschnitt liste={erstgespraeche.data ?? []} ohneStelle />
-            {submissionCount > 0 ? candidates : <div className="rounded-xl border border-dashed border-border bg-card px-6 py-14 text-center"><Users className="mx-auto mb-4 h-8 w-8 text-muted-foreground" /><h3 className="font-medium">Deine erste Vorstellung beginnt hier</h3><p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">Wähle ein vorhandenes Profil oder lege einen Kandidaten an. Vor dem Einreichen prüfst du die Angaben.</p><Button className="mt-6" onClick={onSubmit}><Plus />Vorstellung vorbereiten</Button></div>}
+            {submissionCount > 0 ? candidates : <div className="rounded-xl border border-dashed border-border bg-card px-6 py-14 text-center"><Users className="mx-auto mb-4 h-8 w-8 text-muted-foreground" /><h3 className="font-medium">{t('ws.firstTitle')}</h3><p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">{t('ws.firstText')}</p><Button className="mt-6" onClick={onSubmit}><Plus />{t('ws.prepare')}</Button></div>}
           </TabsContent>
         </div>
 
-        <aside aria-label="Werkzeuge zum Mandat" className="space-y-5 min-[1180px]:sticky min-[1180px]:top-24 min-[1180px]:border-l min-[1180px]:border-border min-[1180px]:pl-6">
+        <aside aria-label={t('ws.toolsAria')} className="space-y-5 min-[1180px]:sticky min-[1180px]:top-24 min-[1180px]:border-l min-[1180px]:border-border min-[1180px]:pl-6">
           {tab === 'beschreibung' && hatAnzeige && <>
-            <Gruppe titel="Ansprechen">
-              <Kachel icon={Linkedin} titel="LinkedIn" hinweis={`${zeichen} von 300 Zeichen`} onClick={() => ansprechen('linkedin')} />
-              <Kachel icon={Mail} titel="E-Mail" hinweis="mit Betreff und Anzeige" onClick={() => ansprechen('email')} />
-              <Kachel icon={Phone} titel="Telefon" hinweis="Einstieg, Argumente, Fragen" onClick={() => ansprechen('telefon')} />
+            <Gruppe titel={t('ws.approach')}>
+              <Kachel icon={Linkedin} titel="LinkedIn" hinweis={t('ws.charsOf300', { count: zeichen })} onClick={() => ansprechen('linkedin')} />
+              <Kachel icon={Mail} titel={t('ws.email')} hinweis={t('ws.emailHint')} onClick={() => ansprechen('email')} />
+              <Kachel icon={Phone} titel={t('ws.phone')} hinweis={t('ws.phoneHint')} onClick={() => ansprechen('telefon')} />
             </Gruppe>
-            <Gruppe titel="Teilen">
+            <Gruppe titel={t('ws.share')}>
               <button type="button" onClick={() => void anzeigeKopieren()} className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted">{kopiert === 'ok' ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}</span>
-                <span className="min-w-0 flex-1"><span className="block text-sm font-medium leading-5">{kopiert === 'ok' ? 'Kopiert' : 'Anzeige kopieren'}</span><span className="block text-[11px] text-muted-foreground">sofort, als Text</span></span>
+                <span className="min-w-0 flex-1"><span className="block text-sm font-medium leading-5">{kopiert === 'ok' ? t('ws.copied') : t('ws.copyAd')}</span><span className="block text-[11px] text-muted-foreground">{t('ws.copyHint')}</span></span>
               </button>
-              {kopiert === 'fehler' && <p role="alert" className="text-xs text-muted-foreground">Kopieren nicht möglich. Bitte den Text markieren und kopieren.</p>}
-              <Kachel icon={FileText} titel="One-Pager" hinweis="PDF oder Link · kommt bald" leise />
+              {kopiert === 'fehler' && <p role="alert" className="text-xs text-muted-foreground">{t('ws.copyFailed')}</p>}
+              <Kachel icon={FileText} titel="One-Pager" hinweis={t('ws.onePagerHint')} leise />
             </Gruppe>
           </>}
           {tab === 'briefing' && <ArbeitsBriefingLeiste offen={offeneFragen} revealed={companyRevealed} onKundenFragen={() => setFragenOffen(true)} />}
           {/* Im Briefing hängen die Werkzeuge am jeweiligen Schritt. */}
           {tab !== 'briefing' && werkzeuge}
-          <button className="flex items-start gap-2 text-left text-xs leading-6 text-muted-foreground hover:text-foreground" onClick={() => setShowAccess(true)}><LockKeyhole className="mt-1 h-4 w-4 shrink-0" /><span>{companyRevealed ? 'Unternehmensdaten sind für dich freigegeben.' : 'Der Firmenname erscheint, sobald du „Ich suche“ drückst.'}</span></button>
+          <button className="flex items-start gap-2 text-left text-xs leading-6 text-muted-foreground hover:text-foreground" onClick={() => setShowAccess(true)}><LockKeyhole className="mt-1 h-4 w-4 shrink-0" /><span>{companyRevealed ? t('ws.companyReleased') : t('ws.companyOnSearch')}</span></button>
         </aside>
       </div>
     </Tabs>
 
-    <div className="fixed inset-x-0 bottom-0 z-40 flex gap-2 border-t border-border bg-background p-3 pb-[max(12px,env(safe-area-inset-bottom))] md:left-64 min-[1180px]:hidden">{mobileAction ?? <Button className="min-w-0 flex-1" onClick={onSubmit}><Plus />Vorstellung vorbereiten</Button>}{kannPosten && <Button aria-label="Auf LinkedIn posten" className="bg-[#0A66C2] px-3 text-white hover:bg-[#004182]" onClick={() => setBeitragOffen(true)}><Linkedin /></Button>}{hatAnzeige && <Button variant="outline" aria-label="Ansprechen" onClick={() => setTeilenOffen(true)}><Share2 /><span className="hidden min-[420px]:inline">Ansprechen</span></Button>}<Button variant="outline" aria-label="Anonymes Exposé öffnen" onClick={onExpose}><FileText /></Button></div>
+    <div className="fixed inset-x-0 bottom-0 z-40 flex gap-2 border-t border-border bg-background p-3 pb-[max(12px,env(safe-area-inset-bottom))] md:left-64 min-[1180px]:hidden">{mobileAction ?? <Button className="min-w-0 flex-1" onClick={onSubmit}><Plus />{t('ws.prepare')}</Button>}{kannPosten && <Button aria-label={t('ws.postAria')} className="bg-[#0A66C2] px-3 text-white hover:bg-[#004182]" onClick={() => setBeitragOffen(true)}><Linkedin /></Button>}{hatAnzeige && <Button variant="outline" aria-label={t('ws.approach')} onClick={() => setTeilenOffen(true)}><Share2 /><span className="hidden min-[420px]:inline">{t('ws.approach')}</span></Button>}<Button variant="outline" aria-label={t('ws.openExpose')} onClick={onExpose}><FileText /></Button></div>
 
     {/* Ansprechen als Fenster von rechts; die Anzeige bleibt daneben lesbar. Am Handy über die ganze Breite. */}
     <Sheet open={teilenOffen} onOpenChange={setTeilenOffen}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
-        <SheetHeader><SheetTitle>Kandidaten ansprechen</SheetTitle><SheetDescription>Ohne Firmennamen und Honorar. Vorname und Aufhänger gelten für LinkedIn und E-Mail.</SheetDescription></SheetHeader>
+        <SheetHeader><SheetTitle>{t('ws.approachTitle')}</SheetTitle><SheetDescription>{t('ws.approachText')}</SheetDescription></SheetHeader>
         <div className="mt-5"><AnspracheTeilen ansprache={ansprache} vorname={vorname} onVorname={setVorname} aufhaenger={aufhaenger} onAufhaenger={setAufhaenger} kanal={kanal} onKanal={setKanal} /></div>
       </SheetContent>
     </Sheet>
@@ -322,7 +327,7 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
     <GespraechsleitfadenSheet open={showGuide} onOpenChange={setShowGuide} jobTitle={job.title} anruf={briefing.anruf} muss={criteria.required} hinterlegt={screening} />
     {kannPosten && <BeitragsFenster open={beitragOffen} onOpenChange={setBeitragOffen} job={job} />}
     <KundeMeldenDialog open={meldenOffen} onOpenChange={setMeldenOffen} jobId={job.id} jobTitle={job.title} />
-    <Dialog open={showAccess} onOpenChange={setShowAccess}><DialogContent><DialogHeader><DialogTitle>Unternehmensfreigabe</DialogTitle><DialogDescription>Die vorhandenen Freigabestufen dieses Mandats.</DialogDescription></DialogHeader><ol className="list-decimal space-y-4 pl-5 text-sm leading-7"><li>Anonyme Stellenbeschreibung und Briefing für die erste Einschätzung.</li><li>Der Firmenname erscheint, sobald du „Ich suche“ drückst. Der Kunde sieht dann auch dich.</li><li>Nach Interviewbestätigung werden weitere Firmeninformationen zugänglich.</li></ol><p className="text-sm text-muted-foreground">Aktueller Status: {fullAccess ? 'Voller Zugriff' : companyRevealed ? 'Firma freigegeben' : 'Firma anonym'}. </p></DialogContent></Dialog>
-    <Dialog open={showEarning} onOpenChange={setShowEarning}><DialogContent className="max-w-md"><DialogHeader><DialogTitle>Verdienst berechnen</DialogTitle><DialogDescription>{job.title} · so rechnet sich deine Provision.</DialogDescription></DialogHeader>{job.employment_type === 'freelance' ? <ContractingKonditionen job={job} /> : <FeeCalculatorCard jobId={job.id} feePercentage={job.recruiter_fee_percentage ?? null} salaryMin={job.salary_min ?? null} salaryMax={job.salary_max ?? null} />}</DialogContent></Dialog>
+    <Dialog open={showAccess} onOpenChange={setShowAccess}><DialogContent><DialogHeader><DialogTitle>{t('ws.access.title')}</DialogTitle><DialogDescription>{t('ws.access.text')}</DialogDescription></DialogHeader><ol className="list-decimal space-y-4 pl-5 text-sm leading-7"><li>{t('ws.access.step1')}</li><li>{t('ws.access.step2')}</li><li>{t('ws.access.step3')}</li></ol><p className="text-sm text-muted-foreground">{t('ws.access.status', { status: fullAccess ? t('ws.access.full') : companyRevealed ? t('ws.access.revealed') : t('ws.access.anonymous') })} </p></DialogContent></Dialog>
+    <Dialog open={showEarning} onOpenChange={setShowEarning}><DialogContent className="max-w-md"><DialogHeader><DialogTitle>{t('ws.calcEarning')}</DialogTitle><DialogDescription>{t('ws.calcText', { title: job.title })}</DialogDescription></DialogHeader>{job.employment_type === 'freelance' ? <ContractingKonditionen job={job} /> : <FeeCalculatorCard jobId={job.id} feePercentage={job.recruiter_fee_percentage ?? null} salaryMin={job.salary_min ?? null} salaryMax={job.salary_max ?? null} />}</DialogContent></Dialog>
   </div>;
 }

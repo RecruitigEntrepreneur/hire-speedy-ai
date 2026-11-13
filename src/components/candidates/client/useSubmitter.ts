@@ -1,3 +1,4 @@
+import i18n from '@/i18n';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { avatarUrl, getJobSearchers, TIER_LABEL } from '@/lib/jobSearch';
@@ -16,7 +17,7 @@ export interface Submitter {
 }
 
 /** Name, der überall angezeigt wird: der Headhunter oder neutral „Ihr Headhunter“. */
-export const submitterName = (s: Submitter | null | undefined) => s?.name?.trim() || 'Ihr Headhunter';
+export const submitterName = (s: Submitter | null | undefined) => s?.name?.trim() || i18n.t('clientCandidates:labels.yourHeadhunter');
 
 /**
  * Wer hat diesen Kandidaten eingereicht? Der Kunde liest submissions.recruiter_id

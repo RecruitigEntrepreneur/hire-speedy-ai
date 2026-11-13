@@ -52,6 +52,9 @@ import {
 import { CompanyRevealIcon } from '@/components/recruiter/CompanyRevealBadge';
 import { getDisplayCompanyName } from '@/lib/anonymousCompanyFormat';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
+import { intlLocale } from '@/i18n/languages';
 
 interface CandidateBehavior {
   confidence_score: number | null;
@@ -130,8 +133,8 @@ function clientNoteText(raw: string | null | undefined): string | null {
       const msg = typeof req.client_message === 'string' ? req.client_message.trim() : '';
       if (msg) return msg;
       return slots > 0
-        ? `Interview-Anfrage mit ${slots} Terminvorschlägen`
-        : 'Interview-Anfrage liegt vor';
+        ? i18n.t('recruiterSubmissions:page.note.requestWithSlots', { count: slots })
+        : i18n.t('recruiterSubmissions:page.note.requestPending');
     }
     return null;
   } catch {
@@ -148,7 +151,7 @@ function nextInterviewDate(sub: Submission): string | null {
     .filter((iv) => !!iv.scheduled_at)
     .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
   if (!dated.length) return null;
-  return new Date(dated[0].scheduled_at).toLocaleDateString('de-DE');
+  return new Date(dated[0].scheduled_at).toLocaleDateString(intlLocale(i18n.language));
 }
 
 function ScoreBadge({ score, label, icon: Icon }: { score: number | null; label: string; icon: React.ElementType }) {
@@ -170,6 +173,7 @@ function QuickActions({
   submission: Submission; 
   onPlaybookOpen: (submissionId: string) => void;
 }) {
+  const { t } = useTranslation('recruiterSubmissions');
   const handleCall = () => {
     if (submission.candidates?.phone) {
       window.open(`tel:${submission.candidates.phone}`, '_self');
@@ -190,7 +194,7 @@ function QuickActions({
         className="h-7 w-7 p-0"
         onClick={(e) => { e.stopPropagation(); handleCall(); }}
         disabled={!submission.candidates?.phone}
-        title="Anrufen"
+        title={t('page.actions.call')}
       >
         <Phone className="h-3.5 w-3.5" />
       </Button>
@@ -199,7 +203,7 @@ function QuickActions({
         size="sm" 
         className="h-7 w-7 p-0"
         onClick={(e) => { e.stopPropagation(); handleEmail(); }}
-        title="Email senden"
+        title={t('page.actions.email')}
       >
         <Mail className="h-3.5 w-3.5" />
       </Button>
@@ -208,7 +212,7 @@ function QuickActions({
         size="sm" 
         className="h-7 w-7 p-0"
         onClick={(e) => { e.stopPropagation(); onPlaybookOpen(submission.id); }}
-        title="Playbook öffnen"
+        title={t('page.actions.playbook')}
       >
         <BookOpen className="h-3.5 w-3.5" />
       </Button>
@@ -217,6 +221,9 @@ function QuickActions({
 }
 
 export default function RecruiterSubmissions() {
+  const { t, i18n: lang } = useTranslation('recruiterSubmissions');
+  /** Anzeige der Phase; der Schlüssel (submissions.stage) bleibt unverändert. */
+  const stageText = (key: string, fallback?: string) => t(`stage.${key}`, { defaultValue: fallback ?? key });
   const { user } = useAuth();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -338,12 +345,13 @@ export default function RecruiterSubmissions() {
     });
     return STAGE_COLUMNS.map((c) => ({
       stage: c.key,
-      label: c.label,
+      label: stageText(c.key, c.label),
       closed: !!c.closed,
       count: acc.get(c.key)?.count ?? 0,
       potentialEarning: acc.get(c.key)?.potentialEarning ?? 0,
     }));
-  }, [normalized]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [normalized, lang.language]);
 
   /** Kopfzeile: "in Bearbeitung" darf nur zaehlen, was wirklich laeuft. */
   const activeCount = useMemo(
@@ -356,17 +364,17 @@ export default function RecruiterSubmissions() {
     const now = new Date();
     const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
     
-    if (diffDays === 0) return 'Heute';
-    if (diffDays === 1) return 'Gestern';
-    if (diffDays < 7) return `Vor ${diffDays} Tagen`;
-    return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+    if (diffDays === 0) return t('page.time.today');
+    if (diffDays === 1) return t('page.time.yesterday');
+    if (diffDays < 7) return t('page.time.daysAgo', { count: diffDays });
+    return date.toLocaleDateString(intlLocale(lang.language), { day: '2-digit', month: '2-digit' });
   };
 
   const getStatusBadge = (status: string) => {
     const statusConfig = STAGE_COLUMNS.find(s => s.key === status);
     return (
       <Badge className={`${statusConfig?.color || 'bg-muted'} text-white`}>
-        {statusConfig?.label || status}
+        {statusConfig ? stageText(statusConfig.key, statusConfig.label) : status}
       </Badge>
     );
   };
@@ -399,13 +407,13 @@ export default function RecruiterSubmissions() {
         {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">Meine Pipeline</h1>
+              <h1 className="text-3xl font-bold tracking-tight">{t('page.title')}</h1>
               <p className="text-muted-foreground">
-                {activeCount} in Bearbeitung
+                {t('page.active', { count: activeCount })}
                 {submissions.length > activeCount && (
                   <span className="text-muted-foreground/70">
                     {' '}
-                    · {submissions.length - activeCount} beendet
+                    {t('page.closed', { count: submissions.length - activeCount })}
                   </span>
                 )}
               </p>
@@ -414,7 +422,7 @@ export default function RecruiterSubmissions() {
               <Link to="/recruiter/influence">
                 <Button variant="outline" size="sm">
                   <Zap className="h-4 w-4 mr-2" />
-                  Influence Dashboard
+                  {t('page.influence')}
                 </Button>
               </Link>
               <Button
@@ -422,14 +430,14 @@ export default function RecruiterSubmissions() {
                 size="sm"
                 onClick={() => setViewMode('kanban')}
               >
-                Kanban
+                {t('page.viewKanban')}
               </Button>
               <Button
                 variant={viewMode === 'list' ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setViewMode('list')}
               >
-                Liste
+                {t('page.viewList')}
               </Button>
             </div>
           </div>
@@ -444,7 +452,7 @@ export default function RecruiterSubmissions() {
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Suche nach Kandidat, Job oder Firma..."
+                placeholder={t('page.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
@@ -453,25 +461,25 @@ export default function RecruiterSubmissions() {
             <Select value={alertFilter} onValueChange={setAlertFilter}>
               <SelectTrigger className="w-[160px]">
                 <AlertTriangle className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="Alerts" />
+                <SelectValue placeholder={t('page.alerts.placeholder')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Alle</SelectItem>
-                <SelectItem value="with_alerts">Mit Alerts</SelectItem>
-                <SelectItem value="no_alerts">Ohne Alerts</SelectItem>
+                <SelectItem value="all">{t('page.alerts.all')}</SelectItem>
+                <SelectItem value="with_alerts">{t('page.alerts.with')}</SelectItem>
+                <SelectItem value="no_alerts">{t('page.alerts.without')}</SelectItem>
               </SelectContent>
             </Select>
             {viewMode === 'list' && (
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-[180px]">
                   <Filter className="mr-2 h-4 w-4" />
-                  <SelectValue placeholder="Status" />
+                  <SelectValue placeholder={t('page.status.placeholder')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Alle Status</SelectItem>
+                  <SelectItem value="all">{t('page.status.all')}</SelectItem>
                   {STAGE_COLUMNS.map((status) => (
                     <SelectItem key={status.key} value={status.key}>
-                      {status.label}
+                      {stageText(status.key, status.label)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -484,13 +492,13 @@ export default function RecruiterSubmissions() {
             <Card>
               <CardContent className="py-14 text-center">
                 <Briefcase className="mx-auto h-10 w-10 text-muted-foreground/40" />
-                <h3 className="mt-4 text-lg font-semibold">Noch keine Vorstellungen</h3>
+                <h3 className="mt-4 text-lg font-semibold">{t('page.empty.title')}</h3>
                 <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-                  Sobald du einen Kandidaten für eine Position vorstellst, erscheint er hier und wandert durch die Phasen bis zur Vermittlung.
+                  {t('page.empty.text')}
                 </p>
                 <Link to="/recruiter/jobs">
                   <Button className="mt-5">
-                    Offene Jobs ansehen <ArrowRight className="h-4 w-4 ml-2" />
+                    {t('page.empty.cta')} <ArrowRight className="h-4 w-4 ml-2" />
                   </Button>
                 </Link>
               </CardContent>
@@ -501,7 +509,7 @@ export default function RecruiterSubmissions() {
           {viewMode === 'kanban' && submissions.length > 0 && (
             <>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-              {visibleColumns.leer > 0 && <span>{visibleColumns.leer} leere Phasen ausgeblendet</span>}
+              {visibleColumns.leer > 0 && <span>{t('page.hiddenEmpty', { count: visibleColumns.leer })}</span>}
               {visibleColumns.beendetCount > 0 && (
                 <button
                   type="button"
@@ -509,8 +517,8 @@ export default function RecruiterSubmissions() {
                   className="underline underline-offset-2 hover:text-foreground"
                 >
                   {showClosed
-                    ? `${visibleColumns.beendetCount} beendete ausblenden`
-                    : `${visibleColumns.beendetCount} beendete einblenden`}
+                    ? t('page.hideClosed', { count: visibleColumns.beendetCount })
+                    : t('page.showClosed', { count: visibleColumns.beendetCount })}
                 </button>
               )}
             </div>
@@ -531,7 +539,7 @@ export default function RecruiterSubmissions() {
                     >
                       <div className="flex items-center gap-2 mb-3">
                         <div className={`h-3 w-3 rounded-full ${column.color}`} />
-                        <h3 className="font-semibold">{column.label}</h3>
+                        <h3 className="font-semibold">{stageText(column.key, column.label)}</h3>
                         <Badge variant="secondary" className="ml-auto">
                           {columnSubmissions.length}
                         </Badge>
@@ -563,9 +571,9 @@ export default function RecruiterSubmissions() {
                                   {behavior && (
                                     <div className="bg-muted/50 rounded-lg p-2 space-y-1.5">
                                       <div className="flex items-center justify-between">
-                                        <ScoreBadge score={behavior.confidence_score} label="Conf" icon={TrendingUp} />
-                                        <ScoreBadge score={behavior.interview_readiness_score} label="Ready" icon={Target} />
-                                        <ScoreBadge score={behavior.closing_probability} label="Close" icon={Zap} />
+                                        <ScoreBadge score={behavior.confidence_score} label={t('page.score.conf')} icon={TrendingUp} />
+                                        <ScoreBadge score={behavior.interview_readiness_score} label={t('page.score.ready')} icon={Target} />
+                                        <ScoreBadge score={behavior.closing_probability} label={t('page.score.close')} icon={Zap} />
                                       </div>
                                       <div className="flex gap-1">
                                         <Progress value={behavior.confidence_score ?? 0} className="h-1 flex-1" />
@@ -616,7 +624,7 @@ export default function RecruiterSubmissions() {
                                   {nextInterviewDate(sub) && (
                                     <div className="flex items-center gap-2 text-xs text-purple-600">
                                       <Calendar className="h-3 w-3" />
-                                      <span>Interview: {nextInterviewDate(sub)}</span>
+                                      <span>{t('page.interviewOn', { date: nextInterviewDate(sub) })}</span>
                                     </div>
                                   )}
                                   {sub.rejection_reason && (
@@ -651,15 +659,15 @@ export default function RecruiterSubmissions() {
                 {filteredSubmissions.length === 0 ? (
                   <div className="text-center py-16">
                     <User className="mx-auto h-12 w-12 text-muted-foreground/50" />
-                    <h3 className="mt-4 text-lg font-semibold">Keine Einreichungen</h3>
+                    <h3 className="mt-4 text-lg font-semibold">{t('page.listEmpty.title')}</h3>
                     <p className="text-muted-foreground">
                       {searchQuery || statusFilter !== 'all' 
-                        ? 'Versuche andere Filter'
-                        : 'Reiche deinen ersten Kandidaten ein'}
+                        ? t('page.listEmpty.filter')
+                        : t('page.listEmpty.first')}
                     </p>
                     <Link to="/recruiter/jobs">
                       <Button className="mt-4">
-                        Jobs durchsuchen <ArrowRight className="h-4 w-4 ml-2" />
+                        {t('page.listEmpty.cta')} <ArrowRight className="h-4 w-4 ml-2" />
                       </Button>
                     </Link>
                   </div>
@@ -694,19 +702,19 @@ export default function RecruiterSubmissions() {
                             {behavior && (
                               <div className="hidden lg:flex items-center gap-4">
                                 <div className="text-center">
-                                  <div className="text-xs text-muted-foreground">Conf</div>
+                                  <div className="text-xs text-muted-foreground">{t('page.score.conf')}</div>
                                   <div className={`font-medium ${(behavior.confidence_score ?? 0) >= 70 ? 'text-green-600' : (behavior.confidence_score ?? 0) >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
                                     {behavior.confidence_score ?? 0}%
                                   </div>
                                 </div>
                                 <div className="text-center">
-                                  <div className="text-xs text-muted-foreground">Ready</div>
+                                  <div className="text-xs text-muted-foreground">{t('page.score.ready')}</div>
                                   <div className={`font-medium ${(behavior.interview_readiness_score ?? 0) >= 70 ? 'text-green-600' : (behavior.interview_readiness_score ?? 0) >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
                                     {behavior.interview_readiness_score ?? 0}%
                                   </div>
                                 </div>
                                 <div className="text-center">
-                                  <div className="text-xs text-muted-foreground">Close</div>
+                                  <div className="text-xs text-muted-foreground">{t('page.score.close')}</div>
                                   <div className={`font-medium ${(behavior.closing_probability ?? 0) >= 70 ? 'text-green-600' : (behavior.closing_probability ?? 0) >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
                                     {behavior.closing_probability ?? 0}%
                                   </div>
@@ -771,7 +779,7 @@ export default function RecruiterSubmissions() {
                           </div>
                           {clientNoteText(sub.client_notes) && (
                             <div className="mt-3 ml-14 text-sm text-muted-foreground bg-muted/50 p-2 rounded">
-                              <span className="font-medium">Feedback:</span>{' '}
+                              <span className="font-medium">{t('page.feedback')}</span>{' '}
                               {clientNoteText(sub.client_notes)}
                             </div>
                           )}
@@ -788,7 +796,7 @@ export default function RecruiterSubmissions() {
         <Sheet open={!!selectedPlaybookSubmission && !selectedPlaybook} onOpenChange={() => setSelectedPlaybookSubmission(null)}>
           <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
             <SheetHeader>
-              <SheetTitle>Coaching Playbooks wählen</SheetTitle>
+              <SheetTitle>{t('page.playbooks.title')}</SheetTitle>
             </SheetHeader>
             <div className="mt-6 space-y-3">
               {playbooks.map((playbook) => (
@@ -806,7 +814,7 @@ export default function RecruiterSubmissions() {
               ))}
               {playbooks.length === 0 && (
                 <p className="text-muted-foreground text-center py-8">
-                  Keine Playbooks verfügbar
+                  {t('page.playbooks.none')}
                 </p>
               )}
             </div>

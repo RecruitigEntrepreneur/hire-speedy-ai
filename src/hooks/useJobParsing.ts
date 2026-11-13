@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import i18n from '@/i18n';
 
 export interface ParsedJobData {
   // Basis-Felder
@@ -124,10 +125,10 @@ export function useJobParsing() {
         throw new Error(data.error);
       }
 
-      toast.success('Stellenanzeige erfolgreich analysiert');
+      toast.success(i18n.t('clientJobs:hooks.parsed'));
       return data.data as ParsedJobData;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Fehler beim Importieren der Stellenanzeige';
+      const errorMessage = err instanceof Error ? err.message : i18n.t('clientJobs:hooks.importFailed');
       setError(errorMessage);
       toast.error(errorMessage);
       console.error('Job parsing error:', err);
@@ -154,10 +155,10 @@ export function useJobParsing() {
         throw new Error(data.error);
       }
 
-      toast.success('Stellenanzeige erfolgreich analysiert');
+      toast.success(i18n.t('clientJobs:hooks.parsed'));
       return data.data as ParsedJobData;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Fehler bei der Analyse';
+      const errorMessage = err instanceof Error ? err.message : i18n.t('clientJobs:hooks.analysisFailed');
       setError(errorMessage);
       toast.error(errorMessage);
       console.error('Job text parsing error:', err);

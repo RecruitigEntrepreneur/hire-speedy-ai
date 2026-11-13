@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import i18n, { currentLanguage } from '@/i18n';
 import type { RecruiterProfile, ContractDocument } from '../../supabase/functions/_shared/recruiter-contract-policy';
 import type { MailStat } from '../../supabase/functions/_shared/email-stats';
 export type { RecruiterProfile };
@@ -30,13 +31,13 @@ export interface StoredOnboarding {
 }
 export type InvitationStatus = 'open' | 'claimed' | 'expired' | 'revoked';
 /** Vorschau der Einladung ohne Sitzung: nur Vorname, maskierte Adresse, Status. */
-export interface InvitationPeek { name: string; masked_email: string; expires_at: string; status: InvitationStatus }
+export interface InvitationPeek { name: string; masked_email: string; expires_at: string; status: InvitationStatus; /** Sprache der Einladung, falls hinterlegt. */ language?: string | null }
 /** Sitzung nach geprüftem Code; wird mit supabase.auth.setSession übernommen. */
 export interface CodeSession { access_token: string; refresh_token: string; expires_in: number | null }
 export async function onboardingApi<T>(admin: boolean, body: Record<string, unknown>): Promise<T> {
-  const { data, error } = await supabase.functions.invoke(admin ? 'recruiter-onboarding-admin' : 'recruiter-onboarding', { body });
+  const { data, error } = await supabase.functions.invoke(admin ? 'recruiter-onboarding-admin' : 'recruiter-onboarding', { body: { ...body, lang: currentLanguage() } });
   if (error) {
-    let message = 'Die Onboarding-Anbindung ist gerade nicht erreichbar. Bitte später erneut versuchen.';
+    let message: string = i18n.t('recruiterFunnel:common.unreachable', { defaultValue: 'Die Onboarding-Anbindung ist gerade nicht erreichbar. Bitte später erneut versuchen.' });
     if (error.context instanceof Response) {
       const detail = await error.context.clone().json().catch(() => null);
       if (typeof detail?.message === 'string') message = detail.message;

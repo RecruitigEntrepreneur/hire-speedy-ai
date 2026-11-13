@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+import { term } from '@/lib/candidateTerms';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -49,6 +51,7 @@ export function CandidateHeroHeader({
   onStartInterview,
   onLebenslaufAnfragen,
 }: CandidateHeroHeaderProps) {
+  const { t } = useTranslation(['candidateDetail', 'candidateTerms', 'common']);
   const initials = candidate.full_name.split(' ').map((n) => n[0]).join('');
   const { getCurrentDocuments } = useCandidateDocuments(candidateId);
   const currentCv = getCurrentDocuments().find(d => d.document_type === 'cv');
@@ -61,7 +64,7 @@ export function CandidateHeroHeader({
         className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-3"
       >
         <ArrowLeft className="h-4 w-4" />
-        Zurück zu Kandidaten
+        {t('hero.back')}
       </Link>
 
       {/* Compact Hero Card */}
@@ -89,8 +92,8 @@ export function CandidateHeroHeader({
                   <h1 className="text-xl md:text-2xl font-bold truncate">{candidate.full_name}</h1>
                   <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-muted-foreground">
                     <span className="font-medium text-foreground">
-                      {candidate.job_title || 'Keine Position'}
-                      {candidate.company && ` bei ${candidate.company}`}
+                      {candidate.job_title || t('hero.noPosition')}
+                      {candidate.company && t('common:candidateHero.at', { company: candidate.company })}
                     </span>
                     {candidate.city && (
                       <>
@@ -104,7 +107,7 @@ export function CandidateHeroHeader({
                     {!!candidate.experience_years && (
                       <>
                         <span className="text-border">•</span>
-                        <span>{candidate.experience_years}J Erfahrung</span>
+                        <span>{t('common:candidateHero.years', { count: candidate.experience_years })}</span>
                       </>
                     )}
                   </div>
@@ -113,21 +116,21 @@ export function CandidateHeroHeader({
                     {readiness?.isReady ? (
                       <Badge className="bg-success/10 text-success border-success/20 text-xs">
                         <CheckCircle className="h-3 w-3 mr-1" />
-                        Bereit zum Einreichen
+                        {t('hero.ready')}
                       </Badge>
                     ) : readiness && (
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <Badge variant="outline" className="text-warning border-warning/50 text-xs cursor-help">
                             <TrendingUp className="h-3 w-3 mr-1" />
-                            Bereit {readiness.done} von {readiness.total}
+                            {t('hero.readyCount', { done: readiness.done, total: readiness.total })}
                           </Badge>
                         </TooltipTrigger>
                         <TooltipContent side="bottom" className="max-w-[220px]">
-                          <p className="text-xs font-medium">Bereit zum Einreichen</p>
+                          <p className="text-xs font-medium">{t('hero.ready')}</p>
                           {readiness.missing.length > 0 && (
                             <p className="text-xs text-muted-foreground mt-0.5">
-                              Fehlt noch: {readiness.missing.join(', ')}
+                              {t('hero.stillMissing', { list: readiness.missing.map((x) => term(x)).join(', ') })}
                             </p>
                           )}
                         </TooltipContent>
@@ -140,16 +143,16 @@ export function CandidateHeroHeader({
                 <div className="flex flex-wrap items-center justify-end gap-1.5 shrink-0">
                   <Button variant="outline" size="sm" className="h-8" onClick={onEdit}>
                     <Pencil className="h-3.5 w-3.5 mr-1.5" />
-                    Bearbeiten
+                    {t('common.edit')}
                   </Button>
                   <Button variant="outline" size="sm" className="h-8" onClick={onCvUpload}>
                     <Upload className="h-3.5 w-3.5 mr-1.5" />
-                    CV hochladen
+                    {t('hero.uploadCv')}
                   </Button>
                   {onLebenslaufAnfragen && (
                     <Button variant="outline" size="sm" className="h-8" onClick={onLebenslaufAnfragen}>
                       <Mail className="h-3.5 w-3.5 mr-1.5" />
-                      Lebenslauf anfragen
+                      {t('hero.requestCv')}
                     </Button>
                   )}
                   {candidate.phone && (
@@ -192,7 +195,7 @@ export function CandidateHeroHeader({
                           <FileText className="h-3.5 w-3.5" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>CV öffnen</TooltipContent>
+                      <TooltipContent>{t('hero.openCv')}</TooltipContent>
                     </Tooltip>
                   )}
                 </div>
@@ -229,7 +232,7 @@ export function CandidateHeroHeader({
           {/* Rejected Alert */}
           {currentStatus === 'rejected' && (
             <div className="mt-4 pt-3 border-t">
-              <span className="text-sm text-destructive font-medium">Kandidat abgesagt</span>
+              <span className="text-sm text-destructive font-medium">{t('hero.rejected')}</span>
             </div>
           )}
 

@@ -22,6 +22,7 @@ import {
   CLIENT_SPHERE_REASONS, END_REASONS_AFTER_START, END_REASONS_BEFORE_START, answerJoker, answerRecruiterStart, confirmResearchPosition,
   endResearch, fixStart, loadPlacementRow, reportEnd,
 } from './nachbesetzung.ts';
+import { dateKeyIn, m, tx, type Lang } from './notify-i18n.ts';
 
 export type BesetzungGroup = 'angebot' | 'start' | 'haus' | 'ab';
 
@@ -39,6 +40,28 @@ export const DEPARTURE_CATEGORIES: Record<string, string> = {
   role_materially_changed: 'Stelle wesentlich geändert',
   other: 'Anderer Grund',
 };
+const DEPARTURE_OTHER: Record<string, [string, string, string]> = {
+  candidate_resigned: ['The person resigned', 'Personen sa upp sig själv', 'Personen sa opp selv'],
+  candidate_terminated_probation: ['The person resigned during probation', 'Personen sa upp sig under provanställningen', 'Personen sa opp i prøvetiden'],
+  mutual_separation_probation: ['Mutual termination at the person’s request (probation)', 'Avslut på personens begäran (provanställning)', 'Avslutning etter personens ønske (prøvetid)'],
+  employer_performance: ['Terminated by us: performance', 'Uppsägning från vår sida: prestation', 'Oppsigelse fra oss: prestasjon'],
+  employer_fit: ['Terminated by us: not a fit for the team', 'Uppsägning från vår sida: passar inte i teamet', 'Oppsigelse fra oss: passer ikke i teamet'],
+  employer_terminated_probation: ['Terminated by us during probation', 'Uppsägning från vår sida under provanställningen', 'Oppsigelse fra oss i prøvetiden'],
+  redundancy: ['Redundancy', 'Uppsägning på grund av arbetsbrist', 'Nedbemanning'],
+  restructuring: ['Restructuring', 'Omorganisation', 'Omorganisering'],
+  position_eliminated: ['Position eliminated', 'Tjänsten försvinner', 'Stillingen faller bort'],
+  role_materially_changed: ['Role materially changed', 'Tjänsten väsentligt ändrad', 'Stillingen vesentlig endret'],
+  other: ['Other reason', 'Annat skäl', 'Annen grunn'],
+};
+/** Grund fürs Ausscheiden in der Sprache des Lesers (Glocke des Headhunters) */
+const departureLabel = (category: string, l: Lang) => {
+  const o = DEPARTURE_OTHER[category];
+  return o ? tx(l, DEPARTURE_CATEGORIES[category], o[0], o[1], o[2]) : (DEPARTURE_CATEGORIES[category] ?? category);
+};
+/** „Start verschoben: …“ an den Headhunter, in seiner Sprache */
+const movedTitle = (name: string) => (l: Lang) => tx(l, m`Start verschoben: ${name}`, m`Start moved: ${name}`, m`Start flyttad: ${name}`, m`Oppstart flyttet: ${name}`);
+const movedText = (jobTitle: string, next: string, planned: string, note: string | null, by: string | null) => (l: Lang) =>
+  `${jobTitle} · ${tx(l, `neuer erster Arbeitstag ${dateKeyIn(next, l)} (vorher ${dateKeyIn(planned, l)})`, `new first working day ${dateKeyIn(next, l)} (previously ${dateKeyIn(planned, l)})`, `ny första arbetsdag ${dateKeyIn(next, l)} (tidigare ${dateKeyIn(planned, l)})`, `ny første arbeidsdag ${dateKeyIn(next, l)} (tidligere ${dateKeyIn(planned, l)})`)}${note ? ` · ${note}` : ''} · ${tx(l, m`gemeldet von ${by ?? 'Kunde'}`, m`reported by ${by ?? 'client'}`, m`anmält av ${by ?? 'kund'}`, m`meldt av ${by ?? 'kunde'}`)}`;
 /** Gründe der alten Meldung „Tritt nicht an“ (Altfälle). */
 const LEGACY_NON_START: Record<string, string> = {
   not_started: 'ist nicht erschienen', counter_offer: 'hat ein Gegenangebot angenommen', other_job: 'hat eine andere Stelle angetreten',
@@ -383,7 +406,7 @@ export async function moveStart(ctx: PlacementCtx, user: User, body: any) {
   dbFail(error, 'Der neue Starttermin');
   const me = await profile(ctx.db, user.id);
   const msg = `${jobTitle} · neuer erster Arbeitstag ${dateDe(next)} (vorher ${dateDe(planned)})${note ? ` · ${note}` : ''} · gemeldet von ${me?.name ?? 'Kunde'}`;
-  await notify(ctx, s.recruiter_id, 'placement_start_moved', `Start verschoben: ${name}`, msg, 'submission', s.id);
+  await notify(ctx, s.recruiter_id, 'placement_start_moved', movedTitle(name), movedText(jobTitle, next, planned, note, me?.name ?? null), 'submission', s.id);
   for (const a of await adminIds(ctx.db)) await notify(ctx, a, 'placement_start_moved', `Start verschoben: ${name}`, msg, 'placement', p.id);
   return { ok: true, startDate: next };
 }
@@ -413,7 +436,8 @@ export async function startAnswer(ctx: PlacementCtx, user: User, body: any) {
     const on = DATE.test(String(body?.startedOn ?? '')) ? String(body.startedOn) : planned || today;
     must(on <= today, 'Der Tag liegt in der Zukunft. Dann wählen Sie bitte „Fängt später an“.');
     await fixStart(ctx, p, 'client', on, user.id);
-    await notify(ctx, s.recruiter_id, 'placement_started', `${firstName} hat angefangen`, `${jobTitle} · erster Arbeitstag ${dateDe(on)} (bestätigt von ${me?.name ?? 'Kunde'})`, 'submission', s.id);
+    await notify(ctx, s.recruiter_id, 'placement_started', (l) => tx(l, m`${firstName} hat angefangen`, m`${firstName} has started`, m`${firstName} har börjat`, m`${firstName} har begynt`),
+      (l) => `${jobTitle} · ${tx(l, `erster Arbeitstag ${dateKeyIn(on, l)}`, `first working day ${dateKeyIn(on, l)}`, `första arbetsdag ${dateKeyIn(on, l)}`, `første arbeidsdag ${dateKeyIn(on, l)}`)} (${tx(l, m`bestätigt von ${me?.name ?? 'Kunde'}`, m`confirmed by ${me?.name ?? 'client'}`, m`bekräftat av ${me?.name ?? 'kund'}`, m`bekreftet av ${me?.name ?? 'kunde'}`)})`, 'submission', s.id);
     await logTask(ctx, user, s, `start:${p.id}`, 'confirm_start', `${name}: Antritt bestätigt`, dateDe(on));
     return { ok: true, state: 'started', firstWorkingDay: on };
   }
@@ -424,7 +448,7 @@ export async function startAnswer(ctx: PlacementCtx, user: User, body: any) {
   const { error } = await ctx.db.from('placements').update({ first_working_day: next, start_moved_at: nowIso, start_moved_by: user.id, start_moved_note: note }).eq('id', p.id).eq('placement_state', 'agreed');
   dbFail(error, 'Der neue Starttermin');
   const msg = `${jobTitle} · neuer erster Arbeitstag ${dateDe(next)} (vorher ${dateDe(planned)})${note ? ` · ${note}` : ''} · gemeldet von ${me?.name ?? 'Kunde'}`;
-  await notify(ctx, s.recruiter_id, 'placement_start_moved', `Start verschoben: ${name}`, msg, 'submission', s.id);
+  await notify(ctx, s.recruiter_id, 'placement_start_moved', movedTitle(name), movedText(jobTitle, next, planned, note, me?.name ?? null), 'submission', s.id);
   for (const a of await adminIds(ctx.db)) await notify(ctx, a, 'placement_start_moved', `Start verschoben: ${name}`, msg, 'placement', p.id);
   // Eigener Schlüssel: „Hat angefangen?“ erscheint am neuen Tag wieder
   await logTask(ctx, user, s, `start-moved:${p.id}:${next}`, 'confirm_start', `${name}: fängt später an`, dateDe(next));
@@ -557,7 +581,8 @@ export async function reportDeparture(ctx: PlacementCtx, user: User, body: any) 
   const why = `${DEPARTURE_CATEGORIES[category]} · letzter Tag ${dateDe(lastDay)}${note ? ` · ${note}` : ''} · gemeldet von ${me?.name ?? 'Kunde'}`;
   const adminTitle = outcome === 'claim' ? `Fall prüfen: ${name}` : `Ausscheiden gemeldet: ${name}`;
   for (const a of await adminIds(ctx.db)) await notify(ctx, a, 'placement_departure', adminTitle, `${jobTitle} · ${why}`, 'placement', p.id);
-  await notify(ctx, s.recruiter_id, 'placement_departure', `Ausgeschieden: ${name}`, `${jobTitle} · ${DEPARTURE_CATEGORIES[category]}. Matchunt meldet sich.`, 'submission', s.id);
+  await notify(ctx, s.recruiter_id, 'placement_departure', (l) => tx(l, m`Ausgeschieden: ${name}`, m`Left the company: ${name}`, m`Har slutat: ${name}`, m`Har sluttet: ${name}`),
+    (l) => `${jobTitle} · ${departureLabel(category, l)}. ${tx(l, 'Matchunt meldet sich.', 'Matchunt will be in touch.', 'Matchunt hör av sig.', 'Matchunt tar kontakt.')}`, 'submission', s.id);
   return { ok: true, outcome, deadline };
 }
 

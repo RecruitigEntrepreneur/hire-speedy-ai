@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, ExternalLink, Loader2, TriangleAlert } from 'lucide-react';
@@ -70,6 +71,7 @@ interface Props {
 }
 
 export function SignFrame({ url, onDone, onAbbruch, onNeuerLink, onPruefen }: Props) {
+  const { t } = useTranslation('clientFunnel');
   const [ready, setReady] = useState(false);
   const [done, setDone] = useState(false);
   /**
@@ -101,7 +103,7 @@ export function SignFrame({ url, onDone, onAbbruch, onNeuerLink, onPruefen }: Pr
 
   /* Der Weg nach draussen: laeuft, hat einen frischen Link, ist gescheitert. */
   const [externBusy, setExternBusy] = useState(false);
-  const [externFehler, setExternFehler] = useState<string | null>(null);
+  const [externFehler, setExternFehler] = useState(false);
   /**
    * Konnte der Browser das Fenster nicht selbst oeffnen -- Popup-Blocker --,
    * wird der frische Link hier als Knopf angeboten. Ein Klick des Kunden gilt
@@ -182,14 +184,13 @@ export function SignFrame({ url, onDone, onAbbruch, onNeuerLink, onPruefen }: Pr
       return;
     }
     setExternBusy(true);
-    setExternFehler(null);
+    setExternFehler(false);
     setFrischerLink(null);
     const frisch = await onNeuerLink().catch(() => null);
     setExternBusy(false);
     if (!frisch) {
       fenster?.close();
-      setExternFehler('Es ließ sich kein neuer Signaturlink ausstellen. '
-        + 'Bitte laden Sie die Seite neu — Ihre Angaben sind gespeichert.');
+      setExternFehler(true);
       return;
     }
     /* "Wir warten" erst sagen, wenn wirklich ein Fenster offen ist.
@@ -248,8 +249,7 @@ export function SignFrame({ url, onDone, onAbbruch, onNeuerLink, onPruefen }: Pr
       <Alert>
         <CheckCircle2 className="h-4 w-4" />
         <AlertDescription className="text-sm">
-          Vielen Dank — Ihre Unterschrift liegt vor. Matchunt zeichnet gegen; sobald das
-          geschehen ist, starten wir die Suche.
+          {t('sign.done')}
         </AlertDescription>
       </Alert>
     );
@@ -261,14 +261,13 @@ export function SignFrame({ url, onDone, onAbbruch, onNeuerLink, onPruefen }: Pr
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-amber-500/40 bg-amber-500/5 px-3 py-2">
           <TriangleAlert className="h-4 w-4 shrink-0 text-amber-600" />
           <p className="min-w-0 flex-1 text-xs">
-            <span className="font-medium">Sehen Sie hier keinen Vertrag?</span>{' '}
-            Manche Browser und Firmennetze verbieten das Einbetten. Im eigenen
-            Fenster geht es immer — wir stellen dafür einen frischen Link aus.
+            <span className="font-medium">{t('sign.noContractQuestion')}</span>{' '}
+            {t('sign.noContractText')}
           </p>
           <Button size="sm" className="shrink-0" onClick={extern} disabled={externBusy}>
             {externBusy
-              ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Link wird ausgestellt …</>
-              : <>Im neuen Fenster öffnen <ExternalLink className="ml-1.5 h-3.5 w-3.5" /></>}
+              ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> {t('sign.issuingLink')}</>
+              : <>{t('sign.openNewWindow')} <ExternalLink className="ml-1.5 h-3.5 w-3.5" /></>}
           </Button>
         </div>
       )}
@@ -278,12 +277,12 @@ export function SignFrame({ url, onDone, onAbbruch, onNeuerLink, onPruefen }: Pr
       {frischerLink && (
         <div className="flex flex-wrap items-center gap-3 rounded-lg border px-3 py-2">
           <p className="min-w-0 flex-1 text-xs">
-            Ihr Browser hat das Fenster nicht geöffnet. Hier ist der Vertrag:
+            {t('sign.popupBlocked')}
           </p>
           <Button asChild size="sm" className="shrink-0">
             <a href={frischerLink} target="_blank" rel="noreferrer"
                onClick={() => setWartetExtern(true)}>
-              Vertrag öffnen <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+              {t('sign.openContract')} <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
             </a>
           </Button>
         </div>
@@ -292,7 +291,7 @@ export function SignFrame({ url, onDone, onAbbruch, onNeuerLink, onPruefen }: Pr
       {externFehler && (
         <Alert variant="destructive">
           <TriangleAlert className="h-4 w-4" />
-          <AlertDescription className="text-sm">{externFehler}</AlertDescription>
+          <AlertDescription className="text-sm">{t('sign.linkError')}</AlertDescription>
         </Alert>
       )}
 
@@ -301,19 +300,18 @@ export function SignFrame({ url, onDone, onAbbruch, onNeuerLink, onPruefen }: Pr
       {wartetExtern && !externFehler && (
         <p className="flex items-center gap-2 text-xs text-muted-foreground">
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          Der Vertrag ist im anderen Fenster geöffnet. Sobald Sie dort unterschrieben
-          haben, geht es hier von selbst weiter — dieses Fenster bitte offen lassen.
+          {t('sign.waitingExternal')}
         </p>
       )}
       <div className="relative overflow-hidden rounded-lg border" style={{ height: '78vh', minHeight: 520 }}>
         {!ready && (
           <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Vertrag wird geladen …
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t('sign.loadingContract')}
           </div>
         )}
         <iframe
           src={url}
-          title="Vertrag unterzeichnen"
+          title={t('sign.frameTitle')}
           onLoad={() => setReady(true)}
           className="h-full w-full"
           allow="camera; microphone; geolocation"
@@ -323,9 +321,9 @@ export function SignFrame({ url, onDone, onAbbruch, onNeuerLink, onPruefen }: Pr
           Drittanbieter-Einstellungen, ein Unternehmens-Proxy —, bleibt der
           Rahmen leer. Dann führt dieser Weg trotzdem zum Ziel. */}
       <p className="text-xs text-muted-foreground">
-        Der Vertrag lädt nicht?{' '}
+        {t('sign.notLoading')}{' '}
         <Button variant="link" className="h-auto p-0 text-xs" onClick={extern} disabled={externBusy}>
-          In neuem Fenster öffnen <ExternalLink className="ml-1 inline h-3 w-3" />
+          {t('sign.openInNewWindow')} <ExternalLink className="ml-1 inline h-3 w-3" />
         </Button>
       </p>
     </div>

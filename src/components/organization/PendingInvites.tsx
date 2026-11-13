@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { dfLocale } from '@/lib/localeFormat';
 import { Mail, Clock, X, Loader2, Briefcase } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -54,7 +54,7 @@ export function PendingInvites({ organizationId }: PendingInvitesProps) {
         <div className="space-y-3">
           {invites.map((invite) => {
             const expiresIn = formatDistanceToNow(new Date(invite.expires_at), {
-              locale: de,
+              locale: dfLocale(),
               addSuffix: true,
             });
             const jobCount = invite.job_ids?.length ?? 0;

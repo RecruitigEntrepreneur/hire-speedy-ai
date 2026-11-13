@@ -1,3 +1,5 @@
+import i18n from '@/i18n';
+import { intlLocale } from '@/i18n/languages';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
@@ -72,15 +74,16 @@ const parseSlots = (raw: unknown): AgendaSlot[] => {
 
 const dayKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-function dayLabel(d: Date): string {
+/** Tagesüberschrift der Agenda in der Sprache der Oberfläche; die Seite liest sie beim Zeichnen neu. */
+export function dayLabel(d: Date): string {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const that = new Date(d);
   that.setHours(0, 0, 0, 0);
   const diff = Math.round((that.getTime() - today.getTime()) / 86_400_000);
-  if (diff === 0) return 'Heute';
-  if (diff === 1) return 'Morgen';
-  return d.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
+  if (diff === 0) return i18n.t('clientInterviews:day.today');
+  if (diff === 1) return i18n.t('clientInterviews:day.tomorrow');
+  return d.toLocaleDateString(intlLocale(i18n.language), { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
 /**
@@ -153,7 +156,7 @@ export function useClientInterviewAgenda() {
           identityUnlocked: unlocked,
           candidateId: cand?.candidate_id ?? null,
           candidateRole: cand?.candidate_role ?? null,
-          jobTitle: cand?.job_title || 'Position',
+          jobTitle: cand?.job_title || i18n.t('interviews:fallback.position'),
           jobId: cand?.job_id ?? null,
           reschedulesInterviewId: r.reschedules_interview_id ?? null,
           rescheduleRequested: false,

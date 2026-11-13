@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { aiChat, AiError } from "../_shared/ai.ts";
+import { normLang, baseLang } from "../_shared/i18n.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -68,6 +69,8 @@ interface RequestBody {
   known?: Record<string, unknown>;
   /** Schon gestellte Nachfragen, damit sich keine wiederholt. */
   asked_followups?: string[];
+  /** Sprache der Person (de, en, sv, nb). Ohne Angabe Deutsch. */
+  lang?: string;
 }
 
 const OUTPUT_SCHEMA = {
@@ -231,6 +234,14 @@ serve(async (req) => {
       });
     }
 
+    // Sprache der Person: alles, was sie liest, kommt in ihrer Sprache zurueck.
+    // Werte aus dem Katalog (Auswahl-Chips, Schluessel) bleiben woertlich, weil
+    // sie gespeichert und verglichen werden.
+    const sprache = { de: '', en: 'Englisch', sv: 'Schwedisch', nb: 'Norwegisch (Bokmal)' }[baseLang(normLang(body.lang))];
+    const sprachHinweis = sprache
+      ? `\n\nSPRACHE: Der Kunde liest ${sprache}. Schreibe alle frei formulierten Texte fuer den Kunden auf ${sprache}: Nachfrage (question, why, frei formulierte chips), answer_suggestions, Hinweise zu Widerspruechen (note), Begruendungen (because) und vorgeschlagene Skills. Schluessel, Slot-Namen und Werte, die du woertlich aus vorgegebenen Auswahl-Listen des Katalogs uebernimmst, bleiben exakt unveraendert (auch wenn sie deutsch sind). Antworten des Kunden uebersetzt du nicht.`
+      : '';
+
     const systemPrompt = `Du unterstuetzt die Jobaufnahme einer Triple-Blind-Recruiting-Plattform (Kandidaten anonym bis Opt-In, Firma anonym gegenueber Recruitern bis zum Reveal).
 
 DU STELLST KEINE FRAGEN AUS EIGENEM ANTRIEB. Die Fragen stehen in einem festen Katalog und werden vom Client gestellt. Du hast drei Aufgaben:
@@ -274,7 +285,7 @@ DE-ANONYMISIERUNG: alles, was die Firma identifizieren koennte — Name,
 einzigartige Produkte, exakte Adresse, uebernommene Werke, "Marktfuehrer fuer X
 in Y" — gehoert auf die red_list und nie in Texte, die Recruiter sehen.
 
-Antworte NUR mit dem JSON-Objekt gemaess Schema.`;
+Antworte NUR mit dem JSON-Objekt gemaess Schema.${sprachHinweis}`;
 
     const userPrompt = `STELLENENTWURF:
 ${JSON.stringify(job_draft, null, 2)}

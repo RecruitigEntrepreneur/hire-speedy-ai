@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import i18n from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import {
   calendarApi, hoursApi, normalizeRules,
@@ -126,8 +127,8 @@ export function useCalendarReturn() {
     if (ret === 'connected') void queryClient.invalidateQueries({ queryKey: ['calendar-status'] });
     // Der Toaster abonniert erst nach seinem eigenen Effekt -- vorher gesendete Meldungen gingen verloren.
     window.setTimeout(() => {
-      if (ret === 'connected') toast.success('Outlook ist verbunden.');
-      else if (ret === 'error') toast.error('Outlook konnte nicht verbunden werden. Bitte versuchen Sie es noch einmal.');
+      if (ret === 'connected') toast.success(i18n.t('interviews:calendar.connected'));
+      else if (ret === 'error') toast.error(i18n.t('interviews:calendar.connectFailed'));
     }, 0);
   }, [ret, queryClient]);
 
@@ -138,7 +139,7 @@ export function useCalendarReturn() {
 export function sentAgo(iso: string, now = new Date()): string {
   const day = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
   const days = Math.round((Date.parse(day(now)) - Date.parse(day(new Date(iso)))) / 86_400_000);
-  if (!Number.isFinite(days) || days <= 0) return 'heute';
-  if (days === 1) return 'gestern';
-  return `vor ${days} Tagen`;
+  if (!Number.isFinite(days) || days <= 0) return i18n.t('clientInterviews:calendar.sentToday');
+  if (days === 1) return i18n.t('clientInterviews:calendar.sentYesterday');
+  return i18n.t('clientInterviews:calendar.sentDaysAgo', { count: days });
 }

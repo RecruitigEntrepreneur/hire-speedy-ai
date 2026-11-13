@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, User } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 
 import { CandidateStatsBar } from '@/components/candidates/CandidateStatsBar';
 import { CandidateFilters, FilterState } from '@/components/candidates/CandidateFilters';
@@ -35,6 +36,7 @@ interface SubmissionsByCandidate {
 }
 
 export default function RecruiterCandidates() {
+  const { t } = useTranslation('recruiterCandidates');
   const { user } = useAuth();
   const navigate = useNavigate();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -191,20 +193,20 @@ export default function RecruiterCandidates() {
         }
       }
       if (error) throw error;
-      toast.success(editingCandidate ? 'Kandidat aktualisiert' : 'Kandidat hinzugefügt');
+      toast.success(editingCandidate ? t('list.updated') : t('list.added'));
       setFormDialogOpen(false);
       fetchCandidates();
     } catch (error) {
-      toast.error('Fehler beim Speichern');
+      toast.error(t('list.saveFailed'));
     } finally {
       setProcessing(false);
     }
   };
 
   const handleDelete = async (candidate: Candidate) => {
-    if (!confirm('Möchten Sie diesen Kandidaten wirklich löschen?')) return;
+    if (!confirm(t('list.confirmDelete'))) return;
     const { error } = await supabase.from('candidates').delete().eq('id', candidate.id);
-    if (error) toast.error('Fehler beim Löschen'); else { toast.success('Kandidat gelöscht'); fetchCandidates(); }
+    if (error) toast.error(t('list.deleteFailed')); else { toast.success(t('list.deleted')); fetchCandidates(); }
   };
 
   const handleSelect = (id: string, selected: boolean) => {
@@ -217,30 +219,30 @@ export default function RecruiterCandidates() {
 
   const handleBulkExport = () => {
     const selected = candidates.filter(c => selectedIds.includes(c.id));
-    const csv = ['Name,E-Mail,Telefon,Erfahrung,Gehalt,Skills', ...selected.map(c =>
+    const csv = [t('list.csvHeader'), ...selected.map(c =>
       `"${c.full_name}","${c.email}","${c.phone || ''}","${c.experience_years || ''}","${c.expected_salary || ''}","${c.skills?.join('; ') || ''}"`
     )].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'kandidaten.csv'; a.click();
-    toast.success(`${selected.length} Kandidaten exportiert`);
+    const a = document.createElement('a'); a.href = url; a.download = t('list.csvFile'); a.click();
+    toast.success(t('list.exported', { count: selected.length }));
   };
 
   const handleBulkDelete = async () => {
-    if (!confirm(`${selectedIds.length} Kandidaten wirklich löschen?`)) return;
+    if (!confirm(t('list.confirmBulkDelete', { count: selectedIds.length }))) return;
     await supabase.from('candidates').delete().in('id', selectedIds);
-    toast.success(`${selectedIds.length} Kandidaten gelöscht`);
+    toast.success(t('list.bulkDeleted', { count: selectedIds.length }));
     setSelectedIds([]); fetchCandidates();
   };
 
   const handleBulkAssignTag = async (tagId: string) => {
     for (const id of selectedIds) await assignTag(id, tagId);
-    toast.success('Tag zugewiesen');
+    toast.success(t('list.tagAssigned'));
   };
 
   const handleBulkRemoveTag = async (tagId: string) => {
     for (const id of selectedIds) await removeTag(id, tagId);
-    toast.success('Tag entfernt');
+    toast.success(t('list.tagRemoved'));
   };
 
   if (loading) return (
@@ -256,12 +258,12 @@ export default function RecruiterCandidates() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Meine Kandidaten</h1>
-            <p className="text-muted-foreground mt-1">Verwalten Sie Ihre Kandidaten-Datenbank</p>
+            <h1 className="text-3xl font-bold">{t('list.title')}</h1>
+            <p className="text-muted-foreground mt-1">{t('list.subtitle')}</p>
           </div>
           <div className="flex items-center gap-3">
             <Button variant="outline" onClick={() => { setTagManagerCandidateId(null); setTagManagerOpen(true); }}>
-              Tags verwalten
+              {t('list.manageTags')}
             </Button>
             <KandidatAnlegenMenu
               size="default"
@@ -290,9 +292,9 @@ export default function RecruiterCandidates() {
                 <CardContent className="flex flex-col items-center justify-center py-12">
                   <User className="h-12 w-12 text-muted-foreground mb-4" />
                   {stats.total === 0 && !filters.search ? <>
-                    <p className="font-medium">Noch keine Kandidaten</p>
-                    <p className="mt-1 max-w-sm text-center text-sm text-muted-foreground">Leg deinen ersten am besten per Lebenslauf an. Ohne Lebenslauf kannst du ihn später nicht einreichen.</p>
-                  </> : <p className="text-muted-foreground">Keine Kandidaten gefunden</p>}
+                    <p className="font-medium">{t('list.emptyTitle')}</p>
+                    <p className="mt-1 max-w-sm text-center text-sm text-muted-foreground">{t('list.emptyText')}</p>
+                  </> : <p className="text-muted-foreground">{t('list.noneFound')}</p>}
                   {!filters.search && (
                     <div className="mt-4">
                       <KandidatAnlegenMenu
@@ -320,7 +322,7 @@ export default function RecruiterCandidates() {
                 onDelete={handleDelete} 
                 onView={handleViewCandidate}
                 onAssignTag={(id) => { setTagManagerCandidateId(id); setTagManagerOpen(true); }} 
-                onAddToPool={() => toast.info('Talent Pool Feature')} 
+                onAddToPool={() => toast.info(t('list.poolFeature'))} 
               />
             ))}
           </div>
@@ -338,7 +340,7 @@ export default function RecruiterCandidates() {
             onDelete={handleDelete} 
             onView={handleViewCandidate} 
             onAssignTag={(id) => { setTagManagerCandidateId(id); setTagManagerOpen(true); }} 
-            onAddToPool={() => toast.info('Talent Pool Feature')} 
+            onAddToPool={() => toast.info(t('list.poolFeature'))} 
           />
         )}
 
@@ -354,7 +356,7 @@ export default function RecruiterCandidates() {
             onDelete={handleDelete} 
             onView={handleViewCandidate} 
             onAssignTag={(id) => { setTagManagerCandidateId(id); setTagManagerOpen(true); }} 
-            onAddToPool={() => toast.info('Talent Pool Feature')} 
+            onAddToPool={() => toast.info(t('list.poolFeature'))} 
           />
         )}
       </div>
@@ -367,7 +369,7 @@ export default function RecruiterCandidates() {
         onRemoveTag={handleBulkRemoveTag} 
         onExport={handleBulkExport} 
         onDelete={handleBulkDelete} 
-        onAddToPool={() => toast.info('Talent Pool Feature')} 
+        onAddToPool={() => toast.info(t('list.poolFeature'))} 
       />
 
       {/* New Tab-Based Form Dialog */}
@@ -397,7 +399,7 @@ export default function RecruiterCandidates() {
         onOpenChange={setHubspotDialogOpen} 
         onImportComplete={() => {
           fetchCandidates();
-          toast.success('Kandidaten importiert');
+          toast.success(t('list.imported'));
         }} 
       />
 
@@ -407,7 +409,7 @@ export default function RecruiterCandidates() {
         startWithText={cvStartText}
         onCandidateCreated={() => {
           fetchCandidates();
-          toast.success('Kandidat aus CV erstellt');
+          toast.success(t('list.createdFromCv'));
         }}
       />
       <KandidatKurzDialog open={kurzOpen} onOpenChange={setKurzOpen} />

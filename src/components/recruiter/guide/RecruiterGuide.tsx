@@ -1,11 +1,11 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
-import { concretePath, GUIDE_CHAPTERS, GUIDE_STATE_KEY, GUIDE_STEPS, matchRoute, readGuideState, TOUR_SEEN_KEY, tourSeen, tourStorageKey, type GuideState, type GuideStep } from '@/lib/recruiterGuide';
-import { CLIENT_GUIDE_CHAPTERS, CLIENT_GUIDE_STATE_KEY, CLIENT_GUIDE_STEPS, CLIENT_TOUR_SEEN_KEY, clientTourSeen, clientTourStorageKey } from '@/lib/clientGuide';
-import { GuideOverlay, GuidePausePill, RECRUITER_GUIDE_TEXTS, type GuideTexts } from './GuideOverlay';
+import { concretePath, guideChapters, GUIDE_STATE_KEY, GUIDE_STEPS, matchRoute, readGuideState, TOUR_SEEN_KEY, tourSeen, tourStorageKey, type GuideState, type GuideStep } from '@/lib/recruiterGuide';
+import { clientGuideChapters, CLIENT_GUIDE_STATE_KEY, CLIENT_GUIDE_STEPS, CLIENT_TOUR_SEEN_KEY, clientTourSeen, clientTourStorageKey } from '@/lib/clientGuide';
+import { GuideOverlay, GuidePausePill, type GuideTextsKey } from './GuideOverlay';
 import { useGuideTarget } from './useGuideTarget';
 
 export interface GuideIdentity { userId: string; firstName?: string }
@@ -25,12 +25,14 @@ export const useClientGuide = () => useContext(ClientGuideContext);
 /** Was einen Rundgang ausmacht -- Technik und Einblendung sind für alle gleich. */
 export interface GuideConfig {
   steps: GuideStep[];
-  chapters: readonly string[];
+  /** Kapitelnamen, gelesen beim Zeichnen (Sprache der Oberfläche). */
+  chapters: () => readonly string[];
   /** Speicherort des laufenden Rundgangs im Tab. */
   stateKey: string;
   /** Nur in diesem Bereich erscheint der Rundgang. */
   inWorkspace: (path: string) => boolean;
-  texts: GuideTexts;
+  /** Worte der Knöpfe: Headhunter (du) oder Kunde (Sie), Namespace `recruiterGuide`. */
+  texts: GuideTextsKey;
   /** Ziel des Hauptknopfs im letzten Schritt. */
   finalTo: string;
   context: React.Context<GuideApi>;
@@ -45,29 +47,21 @@ const isDynamic = (route: string) => route.includes(':');
 
 export const RECRUITER_GUIDE: GuideConfig = {
   steps: GUIDE_STEPS,
-  chapters: GUIDE_CHAPTERS,
+  chapters: guideChapters,
   stateKey: GUIDE_STATE_KEY,
   /** Nur im Arbeitsbereich; Onboarding und Einladung bleiben frei. */
   inWorkspace: (path) => path.startsWith('/recruiter') && !/^\/recruiter\/(onboarding|invitation)/.test(path),
-  texts: RECRUITER_GUIDE_TEXTS,
+  texts: 'texts',
   finalTo: '/recruiter/jobs',
   context: GuideContext,
 };
 
 export const CLIENT_GUIDE: GuideConfig = {
   steps: CLIENT_GUIDE_STEPS,
-  chapters: CLIENT_GUIDE_CHAPTERS,
+  chapters: clientGuideChapters,
   stateKey: CLIENT_GUIDE_STATE_KEY,
   inWorkspace: (path) => path === '/dashboard' || path.startsWith('/dashboard/'),
-  texts: {
-    yourTurn: 'Sie sind dran: Klicken Sie auf die markierte Stelle.',
-    start: "Los geht's",
-    skip: 'Überspringen',
-    finish: 'Fertig',
-    paused: 'Rundgang pausiert',
-    resume: 'Fortsetzen',
-    finalCta: 'Zum Dashboard',
-  },
+  texts: 'clientTexts',
   finalTo: '/dashboard',
   context: ClientGuideContext,
 };
@@ -226,6 +220,8 @@ export function GuideProvider({ config, identity, isSeen, onFinished, children }
   const holdHere = !!step?.hold && !!step.holdWhile && matchRoute(step.holdWhile, location.pathname);
   return <Context.Provider value={api}>
     {children}
+    {/* Eigene Grenze: Die Texte des Rundgangs laden erst, wenn er läuft, ohne die Seite darunter auszublenden. */}
+    <Suspense fallback={null}>
     {cardVisible && <GuideOverlay
       step={step!}
       stepNumber={index + 1}
@@ -241,13 +237,14 @@ export function GuideProvider({ config, identity, isSeen, onFinished, children }
       chapters={config.chapters}
       texts={config.texts}
     />}
-    {waitingForUser && <GuidePausePill text={step!.wait} onClose={finish} />}
+    {waitingForUser && <GuidePausePill text={step!.wait} texts={config.texts} onClose={finish} />}
     {active && state!.paused && <GuidePausePill
-      text={step!.hold ?? config.texts.paused}
-      resumeLabel={config.texts.resume}
+      text={step!.hold}
+      texts={config.texts}
       onResume={holdHere ? undefined : () => goTo(index, 1, true)}
       onClose={finish}
     />}
+    </Suspense>
   </Context.Provider>;
 }
 

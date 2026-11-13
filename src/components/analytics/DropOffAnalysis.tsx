@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FunnelMetrics } from '@/hooks/useFunnelAnalytics';
 import { AlertTriangle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface DropOffAnalysisProps {
   metrics: FunnelMetrics | null;
@@ -8,11 +9,12 @@ interface DropOffAnalysisProps {
 }
 
 export function DropOffAnalysis({ metrics, isLoading }: DropOffAnalysisProps) {
+  const { t } = useTranslation('clientDashboard');
   if (isLoading) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Drop-off Analysis</CardTitle>
+          <CardTitle>{t('analytics.dropOff')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="animate-pulse space-y-4">
@@ -34,22 +36,11 @@ export function DropOffAnalysis({ metrics, isLoading }: DropOffAnalysisProps) {
   const totalDropOffs = Object.values(dropOffs).reduce((sum, val) => sum + (val as number), 0);
   const totalReasons = Object.values(reasons).reduce((sum, val) => sum + (val as number), 0);
 
-  const stageLabels: Record<string, string> = {
-    screening: 'Screening',
-    opt_in: 'Opt-In',
-    interview: 'Interview',
-    offer: 'Offer',
-  };
-
-  const reasonLabels: Record<string, string> = {
-    salary: 'Gehalt',
-    culture: 'Kultur',
-    location: 'Standort',
-    skills_mismatch: 'Skills',
-    other_offer: 'Anderes Angebot',
-    no_response: 'Keine Antwort',
-    unknown: 'Unbekannt',
-  };
+  // Gespeicherte Schlüssel; Anzeige unter clientDashboard:analytics.dropStage / dropReason.
+  const STAGES = ['screening', 'opt_in', 'interview', 'offer'];
+  const REASONS = ['salary', 'culture', 'location', 'skills_mismatch', 'other_offer', 'no_response', 'unknown'];
+  const stageLabel = (s: string) => (STAGES.includes(s) ? t(`analytics.dropStage.${s}`) : s);
+  const reasonLabel = (r: string) => (REASONS.includes(r) ? t(`analytics.dropReason.${r}`) : r);
 
   const getStageColor = (stage: string) => {
     switch (stage) {
@@ -66,15 +57,15 @@ export function DropOffAnalysis({ metrics, isLoading }: DropOffAnalysisProps) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <AlertTriangle className="w-5 h-5 text-amber-500" />
-          Drop-off Analysis
+          {t('analytics.dropOff')}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* By Stage */}
         <div>
-          <h4 className="text-sm font-medium text-muted-foreground mb-3">By Stage</h4>
+          <h4 className="text-sm font-medium text-muted-foreground mb-3">{t('analytics.byStage')}</h4>
           {totalDropOffs === 0 ? (
-            <p className="text-sm text-muted-foreground">No drop-offs recorded</p>
+            <p className="text-sm text-muted-foreground">{t('analytics.noDropOffs')}</p>
           ) : (
             <div className="space-y-2">
               {Object.entries(dropOffs)
@@ -85,7 +76,7 @@ export function DropOffAnalysis({ metrics, isLoading }: DropOffAnalysisProps) {
                   return (
                     <div key={stage} className="space-y-1">
                       <div className="flex justify-between text-sm">
-                        <span>{stageLabels[stage] || stage}</span>
+                        <span>{stageLabel(stage)}</span>
                         <span className="font-medium">{count as number} ({percentage.toFixed(0)}%)</span>
                       </div>
                       <div className="h-2 bg-muted rounded-full overflow-hidden">
@@ -103,9 +94,9 @@ export function DropOffAnalysis({ metrics, isLoading }: DropOffAnalysisProps) {
 
         {/* By Reason */}
         <div>
-          <h4 className="text-sm font-medium text-muted-foreground mb-3">Top Reasons</h4>
+          <h4 className="text-sm font-medium text-muted-foreground mb-3">{t('analytics.topReasons')}</h4>
           {totalReasons === 0 ? (
-            <p className="text-sm text-muted-foreground">No rejection reasons recorded</p>
+            <p className="text-sm text-muted-foreground">{t('analytics.noReasons')}</p>
           ) : (
             <div className="space-y-2">
               {Object.entries(reasons)
@@ -118,7 +109,7 @@ export function DropOffAnalysis({ metrics, isLoading }: DropOffAnalysisProps) {
                   return (
                     <div key={reason} className="flex items-center gap-3">
                       <div className={`w-3 h-3 rounded-full ${colors[index]}`} />
-                      <span className="flex-1 text-sm">{reasonLabels[reason] || reason}</span>
+                      <span className="flex-1 text-sm">{reasonLabel(reason)}</span>
                       <span className="text-sm font-medium">{percentage.toFixed(0)}%</span>
                     </div>
                   );
@@ -132,7 +123,7 @@ export function DropOffAnalysis({ metrics, isLoading }: DropOffAnalysisProps) {
           <div className="grid grid-cols-2 gap-4 text-center">
             <div>
               <p className="text-2xl font-bold text-red-600">{totalDropOffs}</p>
-              <p className="text-xs text-muted-foreground">Total Drop-offs</p>
+              <p className="text-xs text-muted-foreground">{t('analytics.totalDropOffs')}</p>
             </div>
             <div>
               <p className="text-2xl font-bold text-amber-600">
@@ -140,7 +131,7 @@ export function DropOffAnalysis({ metrics, isLoading }: DropOffAnalysisProps) {
                   ? ((totalDropOffs / metrics.total_submissions) * 100).toFixed(0)
                   : 0}%
               </p>
-              <p className="text-xs text-muted-foreground">Drop-off Rate</p>
+              <p className="text-xs text-muted-foreground">{t('analytics.dropOffRate')}</p>
             </div>
           </div>
         </div>

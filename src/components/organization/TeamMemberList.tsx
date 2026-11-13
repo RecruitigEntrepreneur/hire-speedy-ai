@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNow } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { dfLocale } from '@/lib/localeFormat';
 import { toast } from 'sonner';
 
 interface TeamMemberListProps {
@@ -178,7 +178,7 @@ export function TeamMemberList({
                       {isInactive
                         ? t('team.members.deactivated')
                         : member.last_sign_in_at
-                          ? `${t('team.members.last_login')}: ${formatDistanceToNow(new Date(member.last_sign_in_at), { locale: de, addSuffix: true })}`
+                          ? `${t('team.members.last_login')}: ${formatDistanceToNow(new Date(member.last_sign_in_at), { locale: dfLocale(), addSuffix: true })}`
                           : isAdmin
                             ? t('team.members.never_logged_in')
                             : ''}

@@ -1,3 +1,4 @@
+import i18n from '@/i18n';
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -48,7 +49,7 @@ export function useIntakeBriefing() {
     existingData?: Partial<ExtractedIntakeData>
   ): Promise<IntakeExtractionResult | null> => {
     if (!briefingText || briefingText.trim().length < 20) {
-      toast.error('Bitte geben Sie mehr Details ein (min. 20 Zeichen)');
+      toast.error(i18n.t('clientJobs:hooks.moreDetails'));
       return null;
     }
 
@@ -71,16 +72,16 @@ export function useIntakeBriefing() {
 
       const fieldsFound = result.fields_found || 0;
       if (fieldsFound > 0) {
-        toast.success(`${fieldsFound} Felder automatisch erkannt!`);
+        toast.success(i18n.t('clientJobs:hooks.fieldsFound', { count: fieldsFound }));
       } else {
-        toast.info('Keine strukturierten Daten erkannt. Bitte ergänzen Sie die Details manuell.');
+        toast.info(i18n.t('clientJobs:hooks.noFields'));
       }
 
       return result;
 
     } catch (error) {
       console.error('Error analyzing briefing:', error);
-      toast.error('Fehler bei der Analyse. Bitte versuchen Sie es erneut.');
+      toast.error(i18n.t('clientJobs:hooks.analysisRetry'));
       return null;
     } finally {
       setAnalyzing(false);

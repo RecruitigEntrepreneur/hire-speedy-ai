@@ -6,9 +6,11 @@ import { Label } from "@/components/ui/label";
 import { useConsent, ConsentType } from "@/hooks/useConsent";
 import { Cookie, Settings, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "react-i18next";
 
 export function CookieConsentBanner() {
   const { hasConsented, consents, updateConsent, acceptAll, rejectAll } = useConsent();
+  const { t } = useTranslation("privacy");
   const [showSettings, setShowSettings] = useState(false);
   const [isVisible, setIsVisible] = useState(!hasConsented);
 
@@ -37,7 +39,7 @@ export function CookieConsentBanner() {
           </div>
           <div className="flex-1">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="font-semibold text-lg">Cookie-Einstellungen</h3>
+              <h3 className="font-semibold text-lg">{t("banner.title")}</h3>
               <Button
                 variant="ghost"
                 size="icon"
@@ -51,18 +53,16 @@ export function CookieConsentBanner() {
             {!showSettings ? (
               <>
                 <p className="text-muted-foreground text-sm mb-4">
-                  Wir verwenden Cookies, um Ihre Erfahrung zu verbessern. Einige sind notwendig für 
-                  den Betrieb der Website, während andere uns helfen, die Website zu optimieren und 
-                  Ihnen personalisierte Inhalte zu zeigen.
+                  {t("banner.text")}
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  <Button onClick={handleAcceptAll}>Alle akzeptieren</Button>
+                  <Button onClick={handleAcceptAll}>{t("banner.acceptAll")}</Button>
                   <Button variant="outline" onClick={handleRejectAll}>
-                    Nur notwendige
+                    {t("banner.necessaryOnly")}
                   </Button>
                   <Button variant="ghost" onClick={() => setShowSettings(true)}>
                     <Settings className="h-4 w-4 mr-2" />
-                    Einstellungen
+                    {t("banner.settings")}
                   </Button>
                 </div>
               </>
@@ -71,30 +71,30 @@ export function CookieConsentBanner() {
                 <div className="space-y-4 mb-4">
                   <ConsentOption
                     id="functional"
-                    label="Notwendige Cookies"
-                    description="Diese Cookies sind für den Betrieb der Website erforderlich."
+                    label={t("consent.functional")}
+                    description={t("banner.functionalText")}
                     checked={true}
                     disabled
                   />
                   <ConsentOption
                     id="analytics"
-                    label="Analyse-Cookies"
-                    description="Helfen uns zu verstehen, wie Besucher mit der Website interagieren."
+                    label={t("consent.analytics")}
+                    description={t("banner.analyticsText")}
                     checked={consents.analytics}
                     onChange={(checked) => updateConsent("analytics", checked)}
                   />
                   <ConsentOption
                     id="marketing"
-                    label="Marketing-Cookies"
-                    description="Werden verwendet, um Besuchern relevante Werbung zu zeigen."
+                    label={t("consent.marketing")}
+                    description={t("banner.marketingText")}
                     checked={consents.marketing}
                     onChange={(checked) => updateConsent("marketing", checked)}
                   />
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button onClick={handleSaveSettings}>Einstellungen speichern</Button>
+                  <Button onClick={handleSaveSettings}>{t("banner.save")}</Button>
                   <Button variant="outline" onClick={() => setShowSettings(false)}>
-                    Zurück
+                    {t("banner.back")}
                   </Button>
                 </div>
               </>

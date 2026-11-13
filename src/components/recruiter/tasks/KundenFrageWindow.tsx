@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Loader2, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,7 @@ export function KundenFrageWindow({ submissionId, onClose, onDone, onNachgesprae
   onNachgespraech?: (c: RecruiterOfferContext) => void;
   laterSlot?: ReactNode;
 }) {
+  const { t } = useTranslation('recruiterTasks');
   const queryClient = useQueryClient();
   const ctx = useQuery({
     queryKey: ['offer-recruiter-context', submissionId],
@@ -31,7 +33,7 @@ export function KundenFrageWindow({ submissionId, onClose, onDone, onNachgesprae
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const c = ctx.data;
-  const name = (c?.candidateName ?? '').split(' ')[0] || 'der Kandidat';
+  const name = (c?.candidateName ?? '').split(' ')[0] || t('fallback.theCandidate');
   const fb = c?.clientFeedback;
 
   const send = async () => {
@@ -41,14 +43,14 @@ export function KundenFrageWindow({ submissionId, onClose, onDone, onNachgesprae
       const { data, error } = await supabase.functions.invoke('client-question', { body: { action: 'answer', submission_id: c.submissionId, text: text.trim() } });
       const failure = error?.message || (data as { error?: string } | null)?.error;
       if (failure) throw new Error(failure);
-      toast.success(`Deine Antwort ist bei ${c.companyName}.`);
+      toast.success(t('frage.answerSent', { company: c.companyName }));
       setText('');
       queryClient.invalidateQueries({ queryKey: ['offer-recruiter-context', c.submissionId] });
       notifyTasksChanged();
       onDone?.();
       onClose();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Die Antwort konnte nicht gesendet werden.');
+      toast.error(e instanceof Error ? e.message : t('frage.sendFailed'));
     } finally {
       setBusy(false);
     }
@@ -59,41 +61,41 @@ export function KundenFrageWindow({ submissionId, onClose, onDone, onNachgesprae
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-xl">
         {!c ? (
           <>
-            <DialogHeader><DialogTitle>Frage des Kunden</DialogTitle><DialogDescription>wird geladen …</DialogDescription></DialogHeader>
+            <DialogHeader><DialogTitle>{t('frage.loadingTitle')}</DialogTitle><DialogDescription>{t('frage.loading')}</DialogDescription></DialogHeader>
             {ctx.error
-              ? <p className="text-sm text-destructive">{ctx.error instanceof Error ? ctx.error.message : 'Konnte nicht geladen werden.'}</p>
+              ? <p className="text-sm text-destructive">{ctx.error instanceof Error ? ctx.error.message : t('frage.loadFailed')}</p>
               : <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
           </>
         ) : (
           <>
             <DialogHeader className="text-left">
-              <DialogTitle>Frage von {c.companyName} zu {c.candidateName}</DialogTitle>
+              <DialogTitle>{t('frage.title', { company: c.companyName, candidate: c.candidateName })}</DialogTitle>
               <DialogDescription>{c.jobTitle}</DialogDescription>
             </DialogHeader>
             <div className="space-y-1.5 rounded-lg border border-border/60 bg-muted/30 p-3 text-sm">
-              {fb?.impression && <p className="text-muted-foreground">Eindruck: „{fb.impression}“</p>}
-              <p className="font-medium">{fb?.question ? `„${fb.question}“` : `${c.companyName} ist noch unsicher und hat keine genaue Frage genannt.`}</p>
+              {fb?.impression && <p className="text-muted-foreground">{t('frage.impression', { text: fb.impression })}</p>}
+              <p className="font-medium">{fb?.question ? t('frage.question', { text: fb.question }) : t('frage.noQuestion', { company: c.companyName })}</p>
             </div>
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
               {onNachgespraech && c.lastInterview ? (
                 <button type="button" className="text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => { onClose(); onNachgespraech(c); }}>
-                  {c.nachgespraech ? 'Dein Nachgespräch ansehen' : 'Nachgespräch führen'}
+                  {c.nachgespraech ? t('frage.viewDebrief') : t('frage.doDebrief')}
                 </button>
               ) : <span />}
               {c.candidatePhone && (
                 <Button size="sm" variant="outline" className="h-8 gap-1 text-xs" asChild>
-                  <a href={`tel:${c.candidatePhone}`}><Phone className="h-3 w-3" />{name} anrufen</a>
+                  <a href={`tel:${c.candidatePhone}`}><Phone className="h-3 w-3" />{t('plan.call', { first: name })}</a>
                 </Button>
               )}
             </div>
             <label className="block text-sm">
-              <span className="text-muted-foreground">Antwort an {c.companyName}</span>
-              <Textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} maxLength={1000} className="mt-1" placeholder="Was du herausgefunden hast" />
+              <span className="text-muted-foreground">{t('frage.answerTo', { company: c.companyName })}</span>
+              <Textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} maxLength={1000} className="mt-1" placeholder={t('frage.placeholder')} />
             </label>
             <div className="flex flex-wrap items-center justify-end gap-2 border-t pt-3">
               {laterSlot}
               <Button disabled={busy || text.trim().length < 2} onClick={() => void send()}>
-                {busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}Antwort senden
+                {busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}{t('frage.send')}
               </Button>
             </div>
           </>

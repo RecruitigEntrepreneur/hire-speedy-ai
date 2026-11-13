@@ -1,6 +1,10 @@
+import { Trans, useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
+import { intlLocale } from '@/i18n/languages';
+import { LanguageSelect } from '@/components/language/LanguageSelect';
 import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { ArrowRight, Briefcase, Camera, Check, CheckCircle2, Clock, Download, ExternalLink, FileCheck2, Info, Linkedin, Loader2, Lock, Paperclip, Pencil, Receipt, Save, Target, Upload, User, type LucideIcon } from 'lucide-react';
+import { ArrowRight, Briefcase, Camera, Check, CheckCircle2, Clock, Download, ExternalLink, FileCheck2, Info, Languages, Linkedin, Loader2, Lock, Paperclip, Pencil, Receipt, Save, Target, Upload, User, type LucideIcon } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
-import { onboardingApi, stateLabels, type StoredOnboarding } from '@/lib/recruiterOnboardingApi';
+import { onboardingApi, type StoredOnboarding } from '@/lib/recruiterOnboardingApi';
 import { contractSuggestion, startSteps } from '@/lib/recruiterStart';
 import {
   COMPANY_TYPES, EXPERIENCE_BANDS, EXPERTISE_AREAS, EXPERTISE_LEVELS, LANGUAGES, METHODS, PARALLEL_BANDS, PLACEMENT_BANDS, REGIONS,
@@ -39,22 +43,28 @@ import { useTerminseite } from '@/components/recruiter/termin/useTerminseite';
  */
 type SectionId = 'uebersicht' | 'ueber-dich' | 'terminseite' | 'schwerpunkte' | 'partnerstatus' | 'abrechnung' | 'vertrag' | 'nachweise';
 /** Reiter oben (Entscheidung 22.09.2026 statt der Liste rechts): Reihenfolge wie beim Durcharbeiten. */
-const MENU: { id: SectionId; label: string }[] = [
-  { id: 'uebersicht', label: 'Übersicht' },
-  { id: 'ueber-dich', label: 'Über dich' },
+const MENU: { id: SectionId }[] = [
+  { id: 'uebersicht' },
+  { id: 'ueber-dich' },
   // Terminseite (21.10.2026): direkt nach „Über dich“, weil Name und Position von dort kommen.
-  { id: 'terminseite', label: 'Terminseite' },
-  { id: 'schwerpunkte', label: 'Schwerpunkte' },
-  { id: 'partnerstatus', label: 'Partnerstatus' },
-  { id: 'abrechnung', label: 'Abrechnung' },
-  { id: 'vertrag', label: 'Vertrag' },
-  { id: 'nachweise', label: 'Nachweise' },
+  { id: 'terminseite' },
+  { id: 'schwerpunkte' },
+  { id: 'partnerstatus' },
+  { id: 'abrechnung' },
+  { id: 'vertrag' },
+  { id: 'nachweise' },
 ];
 const pathOf = (id: SectionId) => (id === 'uebersicht' ? '/recruiter/profile' : `/recruiter/profile/${id}`);
 /** Verdienste › Abrechnungsdaten (H13); mit ?konto=1 öffnet sich gleich „Konto ändern“. */
 const ABRECHNUNG = '/recruiter/earnings?reiter=abrechnungsdaten';
 const ABRECHNUNG_KONTO = '/recruiter/earnings?reiter=abrechnungsdaten&konto=1';
-const TAX_STATUS: Record<string, string> = { regular: 'Regelbesteuerung', small_business: 'Kleinunternehmerregelung', foreign: 'Ausländischer Steuerstatus' };
+const TAX_STATUS = ['regular', 'small_business', 'foreign'];
+// Hinweise aus dem gemeinsamen Prüfmodul (Server, deutsch) → Schlüssel im Namespace recruiterFunnel.
+const EXPERTISE_ISSUES: Record<string, string> = {
+  'Bitte mindestens einen Bereich antippen, den du besetzt.': 'form.issues.area',
+  'Bitte mindestens eine Region antippen.': 'form.issues.region',
+  'Bitte deine Erfahrung antippen.': 'form.issues.experience',
+};
 const AVATAR_BUCKET = 'recruiter-avatars';
 const EVIDENCE_BUCKET = 'recruiter-evidence';
 const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -65,7 +75,7 @@ type Status = { kind: 'done' } | { kind: 'open'; count: number } | { kind: 'none
 interface Task { id: string; title: string; why: string; action: string; tag: string; to: string }
 
 const formatIban = (value: string) => value.replace(/\s+/g, '').replace(/(.{4})/g, '$1 ').trim();
-const day = (iso: string) => new Date(iso.length === 10 ? `${iso}T12:00:00Z` : iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Berlin' });
+const day = (iso: string) => new Date(iso.length === 10 ? `${iso}T12:00:00Z` : iso).toLocaleDateString(intlLocale(i18n.language), { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Berlin' });
 const initials = (name: string) => name.trim().split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0]?.toUpperCase()).join('') || '?';
 const toggleIn = (list: string[], value: string) => (list.includes(value) ? list.filter(v => v !== value) : [...list, value]);
 const linkOf = (value: string) => (/^https?:\/\//.test(value) ? value : `https://${value}`);
@@ -73,17 +83,18 @@ const text = (value: unknown) => (typeof value === 'string' ? value : '');
 
 /** Reiter unter dem Profilkopf; auf dem Handy wischt man seitlich. Offenes zeigt eine Zahl. */
 function ProfileTabs({ items, active, status }: { items: typeof MENU; active: SectionId; status: Record<SectionId, Status> }) {
+  const { t } = useTranslation('recruiterProfile');
   const activeRef = useRef<HTMLAnchorElement>(null);
   useEffect(() => { activeRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }, [active]);
-  return <nav aria-label="Profilbereiche" className="overflow-x-auto border-b border-border [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+  return <nav aria-label={t('tabsAria')} className="overflow-x-auto border-b border-border [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
     <div className="flex min-w-max gap-1">
       {items.map(m => {
         const s = status[m.id];
         return <NavLink key={m.id} to={pathOf(m.id)} end ref={m.id === active ? activeRef : undefined}
           className={({ isActive }) => cn('relative flex items-center gap-1.5 whitespace-nowrap px-3 pb-3 pt-1 text-sm transition-colors',
             isActive ? 'font-medium text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground' : 'text-muted-foreground hover:text-foreground')}>
-          {m.label}
-          {m.id !== 'uebersicht' && s.kind === 'open' && <span className="rounded-full bg-warning/15 px-1.5 text-[11px] font-medium leading-5 text-warning" aria-label={`${s.count} offen`}>{s.count}</span>}
+          {t(`menu.${m.id}`)}
+          {m.id !== 'uebersicht' && s.kind === 'open' && <span className="rounded-full bg-warning/15 px-1.5 text-[11px] font-medium leading-5 text-warning" aria-label={t('openCount', { count: s.count })}>{s.count}</span>}
         </NavLink>;
       })}
     </div>
@@ -104,8 +115,9 @@ function Panel({ title, icon: Icon, action, children }: { title: string; icon: L
 
 /** Eine Angabe zum Lesen; `locked` = aus dem unterschriebenen Vertrag, `required` = fehlt sie, ist etwas offen. */
 function Fact({ label, value, locked, missing, required }: { label: string; value?: ReactNode; locked?: boolean; missing?: string; required?: boolean }) {
+  const { t } = useTranslation('recruiterProfile');
   return <Fragment>
-    <dt className="flex items-center gap-1 text-sm text-muted-foreground">{locked && <Lock className="h-3 w-3" aria-label="aus dem Vertrag"/>}{label}</dt>
+    <dt className="flex items-center gap-1 text-sm text-muted-foreground">{locked && <Lock className="h-3 w-3" aria-label={t('fromContractAria')}/>}{label}</dt>
     <dd className="text-sm">{value || <span className={required ? 'text-warning' : 'text-muted-foreground'}>{missing ?? '—'}</span>}</dd>
   </Fragment>;
 }
@@ -114,9 +126,9 @@ function Field({ id, label, children, hint }: { id: string; label: string; child
   return <div className="space-y-2"><Label htmlFor={id}>{label}</Label>{children}{hint && <p className="text-xs text-muted-foreground">{hint}</p>}</div>;
 }
 
-function Chips({ options, value, onToggle }: { options: string[]; value: string[]; onToggle: (value: string) => void }) {
+function Chips({ options, value, onToggle, label }: { options: string[]; value: string[]; onToggle: (value: string) => void; label: (value: string) => string }) {
   return <div className="flex flex-wrap gap-1.5">{options.map(option => <button key={option} type="button" aria-pressed={value.includes(option)} onClick={() => onToggle(option)}
-    className={cn('rounded-full border px-2.5 py-1 text-xs', value.includes(option) ? 'border-primary bg-primary text-primary-foreground' : 'border-border hover:bg-muted')}>{option}</button>)}</div>;
+    className={cn('rounded-full border px-2.5 py-1 text-xs', value.includes(option) ? 'border-primary bg-primary text-primary-foreground' : 'border-border hover:bg-muted')}>{label(option)}</button>)}</div>;
 }
 
 function Avatar({ url, name, size = 'h-12 w-12' }: { url: string | null; name: string; size?: string }) {
@@ -131,6 +143,13 @@ export default function RecruiterProfile() {
   const location = useLocation();
   const navigate = useNavigate();
   const { section } = useParams();
+  const { t: tCommon } = useTranslation('common');
+  const { t } = useTranslation('recruiterProfile');
+  // Auswahlwerte bleiben deutsch gespeichert; angezeigt wird ihre Übersetzung aus dem Einstieg.
+  const { t: tFunnel } = useTranslation('recruiterFunnel');
+  const options = (() => { const m = tFunnel('options', { returnObjects: true }) as unknown; return m && typeof m === 'object' ? m as Record<string, string> : {}; })();
+  const opt = (value: string) => options[value] ?? value;
+  const stateLabel = (state: string) => tFunnel(`states.${state}`, { defaultValue: state });
   const terminseite = useTerminseite();
   // Aus dem Beitragsfenster: nach dem Freischalten dorthin zurück (nur interne Pfade).
   const zurueck = (() => { const z = new URLSearchParams(location.search).get('zurueck'); return z && z.startsWith('/') && !z.startsWith('//') ? z : null; })();
@@ -234,34 +253,34 @@ export default function RecruiterProfile() {
   const saveAbout = async () => {
     if (!userId) return;
     const years = about.years_experience.trim() === '' ? null : Number(about.years_experience);
-    if (!about.full_name.trim()) { setFormError('Bitte gib deinen Namen an.'); return; }
-    if (years !== null && (!Number.isInteger(years) || years < 0 || years > 60)) { setFormError('Erfahrung bitte als ganze Zahl in Jahren.'); return; }
+    if (!about.full_name.trim()) { setFormError(t('errors.name')); return; }
+    if (years !== null && (!Number.isInteger(years) || years < 0 || years > 60)) { setFormError(t('errors.years')); return; }
     const linkedin = about.linkedin_url.trim().replace(/^https?:\/\/(www\.)?/, '');
-    if (linkedin && !/^linkedin\.com\/(in|company)\/[^\s/]+/i.test(linkedin)) { setFormError('Bitte gib deinen LinkedIn-Link an, etwa linkedin.com/in/dein-name.'); return; }
+    if (linkedin && !/^linkedin\.com\/(in|company)\/[^\s/]+/i.test(linkedin)) { setFormError(t('errors.linkedin')); return; }
     setBusy('about'); setFormError('');
     const next: About = { full_name: about.full_name.trim(), phone: about.phone.trim(), role_title: about.role_title.trim(), years_experience: years ? String(years) : '', linkedin_url: linkedin };
     const { error } = await supabase.from('profiles')
       .update({ full_name: next.full_name, phone: next.phone || null, role_title: next.role_title || null, years_experience: years, linkedin_url: next.linkedin_url || null } as never).eq('user_id', userId);
     setBusy('');
-    if (error) { setFormError('Konnte nicht gespeichert werden. Bitte versuch es noch einmal.'); return; }
+    if (error) { setFormError(t('errors.saveRetry')); return; }
     setSaved(prev => ({ ...prev, about: next })); setEditing('');
-    toast({ title: 'Gespeichert' });
+    toast({ title: t('toast.saved') });
   };
 
   const uploadPhoto = async (file: File | undefined) => {
     if (!file || !userId) return;
-    if (!AVATAR_TYPES.includes(file.type)) { fail('Bitte ein Foto als JPG, PNG oder WebP wählen.'); return; }
-    if (file.size > 5 * 1024 * 1024) { fail('Das Foto ist größer als 5 MB.'); return; }
+    if (!AVATAR_TYPES.includes(file.type)) { fail(t('errors.photoType')); return; }
+    if (file.size > 5 * 1024 * 1024) { fail(t('errors.photoSize')); return; }
     setBusy('photo');
     const path = `${userId}/avatar-${Date.now()}.${file.type === 'image/png' ? 'png' : file.type === 'image/webp' ? 'webp' : 'jpg'}`;
     const { error } = await supabase.storage.from(AVATAR_BUCKET).upload(path, file, { contentType: file.type });
     const { error: saveError } = error ? { error } : await supabase.from('profiles').update({ avatar_path: path } as never).eq('user_id', userId);
-    if (error || saveError) { setBusy(''); fail('Das Foto konnte nicht gespeichert werden.'); return; }
+    if (error || saveError) { setBusy(''); fail(t('errors.photoSave')); return; }
     const old = text(row.avatar_path);
     if (old) void supabase.storage.from(AVATAR_BUCKET).remove([old]);
     const signed = (await supabase.storage.from(AVATAR_BUCKET).createSignedUrl(path, 3600)).data?.signedUrl ?? null;
     setRow(prev => ({ ...prev, avatar_path: path })); setAvatarUrl(signed); setBusy('');
-    toast({ title: 'Foto gespeichert' });
+    toast({ title: t('toast.photoSaved') });
   };
   const removePhoto = async () => {
     const old = text(row.avatar_path);
@@ -270,7 +289,7 @@ export default function RecruiterProfile() {
     const { error } = await supabase.from('profiles').update({ avatar_path: null } as never).eq('user_id', userId);
     if (!error) void supabase.storage.from(AVATAR_BUCKET).remove([old]);
     setBusy('');
-    if (error) { fail('Das Foto konnte nicht entfernt werden.'); return; }
+    if (error) { fail(t('errors.photoRemove')); return; }
     setRow(prev => ({ ...prev, avatar_path: null })); setAvatarUrl(null);
   };
 
@@ -278,26 +297,26 @@ export default function RecruiterProfile() {
     if (!userId) return;
     const clean = cleanExpertise(expertise);
     const issues = expertiseIssues(clean);
-    if (issues.length) { setFormError(issues.join(' ')); return; }
+    if (issues.length) { setFormError(issues.map(issue => EXPERTISE_ISSUES[issue] ? tFunnel(EXPERTISE_ISSUES[issue]) : issue).join(' ')); return; }
     setBusy('expertise'); setFormError('');
     const { error } = await supabase.from('profiles').update({ recruiter_expertise: clean } as never).eq('user_id', userId);
     setBusy('');
-    if (error) { setFormError('Konnte nicht gespeichert werden. Bitte versuch es noch einmal.'); return; }
+    if (error) { setFormError(t('errors.saveRetry')); return; }
     setRow(prev => ({ ...prev, recruiter_expertise: clean })); setEditing('');
-    toast({ title: 'Schwerpunkte gespeichert' });
+    toast({ title: t('toast.expertiseSaved') });
   };
 
   const saveBilling = async () => {
     const clean = cleanBilling(billing);
-    if (!ibanValid(clean.bank_iban)) { setFormError('Die IBAN stimmt nicht. Bitte prüf sie noch einmal.'); return; }
-    if (!bicValid(clean.bank_bic)) { setFormError('Der BIC stimmt nicht. Er hat 8 oder 11 Zeichen.'); return; }
+    if (!ibanValid(clean.bank_iban)) { setFormError(t('errors.iban')); return; }
+    if (!bicValid(clean.bank_bic)) { setFormError(t('errors.bic')); return; }
     setBusy('billing'); setFormError('');
     try {
       const result = await onboardingApi<{ saved: boolean; changed: string[] }>(false, { action: 'billing', billing: clean });
       setSaved(prev => ({ ...prev, billing: clean })); setEditing('');
-      toast({ title: result.changed.length ? 'Gespeichert. Matchunt ist informiert.' : 'Keine Änderungen.' });
+      toast({ title: result.changed.length ? t('toast.billingSaved') : t('toast.noChanges') });
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : 'Konnte nicht gespeichert werden.');
+      setFormError(e instanceof Error ? e.message : t('errors.save'));
     } finally { setBusy(''); }
   };
 
@@ -306,7 +325,7 @@ export default function RecruiterProfile() {
     const win = window.open('', '_blank');
     if (win) win.opener = null;
     const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 300);
-    if (error || !data?.signedUrl) { win?.close(); fail('Die Datei konnte nicht geöffnet werden.'); return; }
+    if (error || !data?.signedUrl) { win?.close(); fail(t('errors.fileOpen')); return; }
     if (win) win.location.href = data.signedUrl; else window.location.assign(data.signedUrl);
   };
   const openDocument = async (contractId: string, document: 'signed' | 'certificate') => {
@@ -319,28 +338,28 @@ export default function RecruiterProfile() {
       if (win) win.location.href = url; else window.location.assign(url);
     } catch (e) {
       win?.close();
-      fail(e instanceof Error ? e.message : 'Dokument nicht verfügbar.');
+      fail(e instanceof Error ? e.message : t('errors.documentUnavailable'));
     } finally { setBusy(''); }
   };
 
   const submitUpload = async () => {
     if (!upload || !userId) return;
     const { kind, file, until } = upload;
-    if (!file) { setFormError('Bitte wähle eine Datei.'); return; }
-    if (!EVIDENCE_TYPES.includes(file.type)) { setFormError('Bitte als PDF, JPG oder PNG hochladen.'); return; }
-    if (file.size > EVIDENCE_MAX_BYTES) { setFormError('Die Datei ist größer als 10 MB.'); return; }
-    if (EVIDENCE[kind].expires && !until) { setFormError('Bitte gib an, bis wann der Nachweis gilt.'); return; }
+    if (!file) { setFormError(t('errors.chooseFile')); return; }
+    if (!EVIDENCE_TYPES.includes(file.type)) { setFormError(t('errors.fileType')); return; }
+    if (file.size > EVIDENCE_MAX_BYTES) { setFormError(t('errors.fileSize')); return; }
+    if (EVIDENCE[kind].expires && !until) { setFormError(t('errors.validUntil')); return; }
     setBusy(`upload-${kind}`); setFormError('');
     try {
       const path = evidencePath(userId, kind, file.name);
       const { error } = await supabase.storage.from(EVIDENCE_BUCKET).upload(path, file, { contentType: file.type });
-      if (error) throw new Error('Das Hochladen hat nicht geklappt. Bitte versuch es noch einmal.');
+      if (error) throw new Error(t('errors.uploadRetry'));
       await onboardingApi(false, { action: 'evidence-submit', kind, path, file_name: file.name, valid_until: until || undefined });
       await loadEvidence(userId);
       setUpload(null);
-      toast({ title: 'Hochgeladen. Matchunt prüft den Nachweis.' });
+      toast({ title: t('toast.uploaded') });
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : 'Das Hochladen hat nicht geklappt.');
+      setFormError(e instanceof Error ? e.message : t('errors.upload'));
     } finally { setBusy(''); }
   };
   const declareIncome = async () => {
@@ -350,27 +369,27 @@ export default function RecruiterProfile() {
       await onboardingApi(false, { action: 'income-declare', declaration: income });
       await loadEvidence(userId);
       setIncome(null);
-      toast({ title: 'Erklärung gespeichert' });
-    } catch (e) { setFormError(e instanceof Error ? e.message : 'Konnte nicht gespeichert werden.'); }
+      toast({ title: t('toast.declared') });
+    } catch (e) { setFormError(e instanceof Error ? e.message : t('errors.save')); }
     finally { setBusy(''); }
   };
 
   if (loading) return <DashboardLayout><div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary"/></div></DashboardLayout>;
 
-  const join = (values: string[]) => values.join(', ');
+  const join = (values: string[]) => values.map(opt).join(', ');
   const expertiseRows = currentExpertise ? ([
-    ['Bereiche', join([...currentExpertise.areas, ...currentExpertise.extras])], ['Spezialisierung', join(currentExpertise.subareas)], ['Ebene', join(currentExpertise.levels)],
-    ['Unternehmen', join(currentExpertise.companyTypes)], ['Regionen', join(currentExpertise.regions)], ['Sprachen', join(currentExpertise.languages)],
-    ['Arbeitsweise', [join(currentExpertise.methods), currentExpertise.experience && `${currentExpertise.experience} Erfahrung`, currentExpertise.placements && `${currentExpertise.placements} Besetzungen im Jahr`, currentExpertise.parallel && `${currentExpertise.parallel} Suchen parallel`].filter(Boolean).join(' · ')],
+    [t('rows.areas'), join([...currentExpertise.areas, ...currentExpertise.extras])], [t('rows.specialisation'), join(currentExpertise.subareas)], [t('rows.level'), join(currentExpertise.levels)],
+    [t('rows.companies'), join(currentExpertise.companyTypes)], [t('rows.regions'), join(currentExpertise.regions)], [t('rows.languages'), join(currentExpertise.languages)],
+    [t('rows.workStyle'), [join(currentExpertise.methods), currentExpertise.experience && t('experienceOf', { value: opt(currentExpertise.experience) }), currentExpertise.placements && t('placementsOf', { value: opt(currentExpertise.placements) }), currentExpertise.parallel && t('parallelOf', { value: opt(currentExpertise.parallel) })].filter(Boolean).join(' · ')],
   ] as [string, string][]).filter(([, value]) => value) : [];
   const searchProfile = currentExpertise ? [join([...currentExpertise.areas, ...currentExpertise.extras]), join(currentExpertise.levels), join(currentExpertise.regions), join(currentExpertise.languages)].filter(Boolean).join(' · ') : '';
   const linkedin = saved.about.linkedin_url || contractExpertise?.linkedin.trim() || '';
-  const years = saved.about.years_experience && `${saved.about.years_experience} ${saved.about.years_experience === '1' ? 'Jahr' : 'Jahre'}`;
-  const experience = years ? `${years} Erfahrung` : currentExpertise?.experience ? `${currentExpertise.experience} Erfahrung` : '';
+  const years = saved.about.years_experience && t('years', { count: Number(saved.about.years_experience) });
+  const experience = years ? t('experienceOf', { value: years }) : currentExpertise?.experience ? t('experienceOf', { value: opt(currentExpertise.experience) }) : '';
   const contract = onboarding?.contracts.find(c => c.state === 'completed') ?? onboarding?.contracts.find(c => !['declined', 'voided'].includes(c.state));
   const contractDone = contract?.state === 'completed';
-  const statusChip = !onboarding ? 'Freigeschaltet' + (caseFailed ? '' : ' · Altvertrag')
-    : contractDone ? `Freigeschaltet · Rahmenvertrag ${contract.package_version}` : stateLabels[contract?.state ?? onboarding.state] ?? onboarding.state;
+  const statusChip = !onboarding ? (caseFailed ? t('status.active') : t('status.activeLegacy'))
+    : contractDone ? t('status.activeContract', { version: contract.package_version }) : stateLabel(contract?.state ?? onboarding.state);
 
   const billingSteps = startSteps(saved.billing, true).filter(s => s.id === 'company' || s.id === 'bank');
   const openBilling = billingSteps.filter(s => !s.done);
@@ -380,19 +399,19 @@ export default function RecruiterProfile() {
   const openProof = evidenceReady ? openEvidence(partnerKind, evidence, contractIncome) : [];
   const proofTitle = (kind: EvidenceKind) => {
     const state = evidenceState(latest[kind]);
-    const label = EVIDENCE[kind].label;
-    if (kind === 'income') return 'Erklärung zu deinen Einkünften abgeben';
-    return state === 'rejected' ? `${label}: neue Datei hochladen` : state === 'expired' ? `${label} ist abgelaufen` : state === 'expiring' ? `${label} läuft bald ab` : `${label} hochladen`;
+    const label = t(`evidence.${kind}.label`);
+    if (kind === 'income') return t('proof.income');
+    return state === 'rejected' ? t('proof.reupload', { label }) : state === 'expired' ? t('proof.expired', { label }) : state === 'expiring' ? t('proof.expiring', { label }) : t('proof.upload', { label });
   };
   const tasks: Task[] = [
     ...openBilling.map(s => s.id === 'bank'
-      ? { id: 'bankverbindung', title: 'Bankverbindung eintragen', why: 'Ohne Konto können wir deine erste Provision nicht überweisen.', action: 'Eintragen', tag: 'Auszahlung', to: ABRECHNUNG_KONTO }
-      : { id: 'firmendaten', title: 'Firmendaten ergänzen', why: 'Firma, Anschrift und Steuerangaben brauchen wir für deine Gutschriften.', action: 'Ergänzen', tag: 'Auszahlung', to: ABRECHNUNG }),
-    ...openProof.map(kind => ({ id: kind, title: proofTitle(kind), why: 'Verlangt dein Vertrag. Matchunt prüft jeden Nachweis.', action: kind === 'income' ? 'Abgeben' : 'Hochladen', tag: 'Vertrag', to: '/recruiter/profile/nachweise' })),
-    ...(!terminseite.isLoading && !terminseite.zeile?.active ? [{ id: 'terminseite', title: 'Terminseite einrichten', why: 'Kandidaten aus deinen Beiträgen buchen direkt bei dir.', action: 'Einrichten', tag: 'LinkedIn', to: '/recruiter/profile/terminseite' }] : []),
+      ? { id: 'bankverbindung', title: t('tasks.bank.title'), why: t('tasks.bank.why'), action: t('tasks.bank.action'), tag: t('tasks.tag.payout'), to: ABRECHNUNG_KONTO }
+      : { id: 'firmendaten', title: t('tasks.company.title'), why: t('tasks.company.why'), action: t('tasks.company.action'), tag: t('tasks.tag.payout'), to: ABRECHNUNG }),
+    ...openProof.map(kind => ({ id: kind, title: proofTitle(kind), why: t('tasks.proof.why'), action: kind === 'income' ? t('tasks.proof.submit') : t('tasks.proof.upload'), tag: t('tasks.tag.contract'), to: '/recruiter/profile/nachweise' })),
+    ...(!terminseite.isLoading && !terminseite.zeile?.active ? [{ id: 'terminseite', title: t('tasks.booking.title'), why: t('tasks.booking.why'), action: t('tasks.booking.action'), tag: 'LinkedIn', to: '/recruiter/profile/terminseite' }] : []),
   ];
-  const done = [contractDone && 'Vertrag', ...billingSteps.filter(s => s.done).map(s => s.id === 'bank' ? 'Bankverbindung' : 'Firmendaten'),
-    expertiseRows.length > 0 && 'Schwerpunkte', evidenceReady && !openProof.length && 'Nachweise'].filter(Boolean) as string[];
+  const done = [contractDone && t('done.contract'), ...billingSteps.filter(s => s.done).map(s => s.id === 'bank' ? t('done.bank') : t('done.company')),
+    expertiseRows.length > 0 && t('done.expertise'), evidenceReady && !openProof.length && t('done.proof')].filter(Boolean) as string[];
   const status: Record<SectionId, Status> = {
     uebersicht: tasks.length ? { kind: 'open', count: tasks.length } : { kind: 'done' },
     'ueber-dich': saved.about.full_name.trim() ? { kind: 'done' } : { kind: 'open', count: 1 },
@@ -403,15 +422,15 @@ export default function RecruiterProfile() {
     nachweise: !evidenceReady ? { kind: 'none' } : openProof.length ? { kind: 'open', count: openProof.length } : { kind: 'done' },
     partnerstatus: { kind: 'none' },
   };
-  const taxLabel = p ? TAX_STATUS[p.taxStatus] : undefined;
-  const creditNote = p?.contractDetails ? (p.contractDetails.creditNoteConsent ? 'Zugestimmt' : 'Nicht zugestimmt, Abrechnung auf deine Rechnung') : undefined;
+  const taxLabel = p && TAX_STATUS.includes(p.taxStatus) ? t(`tax.${p.taxStatus}`) : undefined;
+  const creditNote = p?.contractDetails ? (p.contractDetails.creditNoteConsent ? t('credit.yes') : t('credit.no')) : undefined;
   const setBill = (key: keyof Billing, value: string) => { setBilling(prev => ({ ...prev, [key]: value })); setFormError(''); };
   const errorLine = formError && <p role="alert" className="text-sm text-destructive">{formError}</p>;
   const saveButtons = (key: string, save: () => void) => <div className="flex gap-2">
-    <Button onClick={save} disabled={busy === key}>{busy === key ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}Speichern</Button>
-    <Button variant="ghost" onClick={() => { setEditing(''); setFormError(''); }}>Abbrechen</Button>
+    <Button onClick={save} disabled={busy === key}>{busy === key ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}{t('save')}</Button>
+    <Button variant="ghost" onClick={() => { setEditing(''); setFormError(''); }}>{t('cancel')}</Button>
   </div>;
-  const editButton = (key: typeof editing, start: () => void) => editing !== key && <Button variant="outline" size="sm" onClick={start}><Pencil className="mr-2 h-3.5 w-3.5"/>Bearbeiten</Button>;
+  const editButton = (key: typeof editing, start: () => void) => editing !== key && <Button variant="outline" size="sm" onClick={start}><Pencil className="mr-2 h-3.5 w-3.5"/>{t('edit')}</Button>;
 
   const header = <Card className="border-primary/30">
       <CardContent className="space-y-3 p-5">
@@ -419,8 +438,8 @@ export default function RecruiterProfile() {
           <div className="flex min-w-[240px] flex-1 items-center gap-3">
             <Avatar url={avatarUrl} name={saved.about.full_name}/>
             <div className="min-w-0">
-              <h1 className="text-xl font-semibold">{saved.about.full_name || 'Dein Profil'}</h1>
-              <p className="text-sm text-muted-foreground">{[saved.about.role_title, saved.billing.company_name, onboarding ? (onboarding.kind === 'agency' ? 'Agentur' : 'Einzelrecruiter') : ''].filter(Boolean).join(' · ')}</p>
+              <h1 className="text-xl font-semibold">{saved.about.full_name || t('header.title')}</h1>
+              <p className="text-sm text-muted-foreground">{[saved.about.role_title, saved.billing.company_name, onboarding ? (onboarding.kind === 'agency' ? t('header.agency') : t('header.individual')) : ''].filter(Boolean).join(' · ')}</p>
             </div>
           </div>
           <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2.5 py-1 text-xs text-success"><CheckCircle2 className="h-3.5 w-3.5"/>{statusChip}</span>
@@ -433,118 +452,122 @@ export default function RecruiterProfile() {
         {partner && !partner.ended_at && <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
           <div className="flex flex-wrap items-center gap-3">
             <PartnerCard tier={partner.tier} size="sm"/>
-            <span className="text-sm text-muted-foreground">Nr. <span className="font-mono">{partner.partner_number}</span> · seit {new Date(partner.granted_at).toLocaleDateString('de-DE', { month: '2-digit', year: 'numeric', timeZone: 'Europe/Berlin' })}</span>
+            <span className="text-sm text-muted-foreground"><Trans t={t} i18nKey="header.partnerLine" values={{ number: partner.partner_number, date: new Date(partner.granted_at).toLocaleDateString(intlLocale(i18n.language), { month: '2-digit', year: 'numeric', timeZone: 'Europe/Berlin' }) }} components={{ mono: <span className="font-mono"/> }}/></span>
           </div>
-          {active !== 'partnerstatus' && <Button variant="outline" size="sm" onClick={() => navigate(pathOf('partnerstatus'))}>Partnerstatus<ArrowRight className="ml-1.5 h-3.5 w-3.5"/></Button>}
+          {active !== 'partnerstatus' && <Button variant="outline" size="sm" onClick={() => navigate(pathOf('partnerstatus'))}>{t('menu.partnerstatus')}<ArrowRight className="ml-1.5 h-3.5 w-3.5"/></Button>}
         </div>}
       </CardContent>
     </Card>;
 
-  const overview = <Panel title="Als Nächstes" icon={CheckCircle2}>
-      {tasks.length ? <ul className="divide-y divide-border">{tasks.map(t => <li key={t.id} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0">
+  const overview = <Panel title={t('overview.title')} icon={CheckCircle2}>
+      {tasks.length ? <ul className="divide-y divide-border">{tasks.map(task => <li key={task.id} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0">
         <div>
-          <p className="text-sm font-medium">{t.title} <span className="ml-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-normal text-primary">{t.tag}</span></p>
-          <p className="text-xs text-muted-foreground">{t.why}</p>
+          <p className="text-sm font-medium">{task.title} <span className="ml-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-normal text-primary">{task.tag}</span></p>
+          <p className="text-xs text-muted-foreground">{task.why}</p>
         </div>
-        <Button size="sm" onClick={() => navigate(t.to)}>{t.action}</Button>
-      </li>)}</ul> : <p className="text-sm text-muted-foreground">Alles erledigt. Dein Profil ist vollständig.</p>}
-      {done.length > 0 && <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><CheckCircle2 className="h-3.5 w-3.5 text-success"/>Erledigt: {done.join(', ')}</p>}
+        <Button size="sm" onClick={() => navigate(task.to)}>{task.action}</Button>
+      </li>)}</ul> : <p className="text-sm text-muted-foreground">{t('overview.allDone')}</p>}
+      {done.length > 0 && <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><CheckCircle2 className="h-3.5 w-3.5 text-success"/>{t('overview.done', { list: done.join(', ') })}</p>}
     </Panel>;
 
   const linkedinFromContract = !saved.about.linkedin_url && !!linkedin;
-  const aboutPanel = <Panel title="Über dich" icon={User} action={editButton('about', startAbout)}>
-    <p className="text-sm text-muted-foreground">So sieht dich das Matchunt-Team. Kunden sehen dich nicht.</p>
+  const aboutPanel = <Panel title={t('menu.ueber-dich')} icon={User} action={editButton('about', startAbout)}>
+    <p className="text-sm text-muted-foreground">{t('about.lead')}</p>
     <div className="flex flex-wrap items-center gap-4">
       <Avatar url={avatarUrl} name={saved.about.full_name} size="h-16 w-16"/>
       <div className="space-y-1.5">
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" disabled={busy === 'photo'} onClick={() => photoInput.current?.click()}>{busy === 'photo' ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin"/> : <Camera className="mr-2 h-3.5 w-3.5"/>}{avatarUrl ? 'Foto ändern' : 'Foto hochladen'}</Button>
-          {avatarUrl && <Button variant="ghost" size="sm" disabled={busy === 'photo'} onClick={() => void removePhoto()}>Entfernen</Button>}
+          <Button variant="outline" size="sm" disabled={busy === 'photo'} onClick={() => photoInput.current?.click()}>{busy === 'photo' ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin"/> : <Camera className="mr-2 h-3.5 w-3.5"/>}{avatarUrl ? t('about.photoChange') : t('about.photoUpload')}</Button>
+          {avatarUrl && <Button variant="ghost" size="sm" disabled={busy === 'photo'} onClick={() => void removePhoto()}>{t('about.remove')}</Button>}
         </div>
-        <p className="text-xs text-muted-foreground">JPG, PNG oder WebP, bis 5 MB. Sieht nur das Matchunt-Team.</p>
+        <p className="text-xs text-muted-foreground">{t('about.photoHint')}</p>
         <input ref={photoInput} type="file" accept={AVATAR_TYPES.join(',')} className="hidden" onChange={e => { void uploadPhoto(e.target.files?.[0]); e.target.value = ''; }}/>
       </div>
     </div>
     {editing === 'about' ? <>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field id="full_name" label="Name"><Input id="full_name" value={about.full_name} onChange={e => setAbout({ ...about, full_name: e.target.value })}/></Field>
-        <Field id="phone" label="Telefon"><Input id="phone" type="tel" value={about.phone} placeholder="Für Rückfragen" onChange={e => setAbout({ ...about, phone: e.target.value })}/></Field>
-        <Field id="role_title" label="Position"><Input id="role_title" value={about.role_title} placeholder="z. B. Senior Consultant" onChange={e => setAbout({ ...about, role_title: e.target.value })}/></Field>
-        <Field id="years_experience" label="Erfahrung in Jahren" hint={!about.years_experience && currentExpertise?.experience ? `In deinen Schwerpunkten steht: ${currentExpertise.experience}` : undefined}><Input id="years_experience" inputMode="numeric" value={about.years_experience} placeholder="z. B. 8" onChange={e => setAbout({ ...about, years_experience: e.target.value.replace(/[^\d]/g, '').slice(0, 2) })}/></Field>
+        <Field id="full_name" label={t('about.name')}><Input id="full_name" value={about.full_name} onChange={e => setAbout({ ...about, full_name: e.target.value })}/></Field>
+        <Field id="phone" label={t('about.phone')}><Input id="phone" type="tel" value={about.phone} placeholder={t('about.phonePlaceholder')} onChange={e => setAbout({ ...about, phone: e.target.value })}/></Field>
+        <Field id="role_title" label={t('about.position')}><Input id="role_title" value={about.role_title} placeholder={t('about.positionPlaceholder')} onChange={e => setAbout({ ...about, role_title: e.target.value })}/></Field>
+        <Field id="years_experience" label={t('about.yearsLabel')} hint={!about.years_experience && currentExpertise?.experience ? t('about.yearsHint', { value: opt(currentExpertise.experience) }) : undefined}><Input id="years_experience" inputMode="numeric" value={about.years_experience} placeholder={t('about.yearsPlaceholder')} onChange={e => setAbout({ ...about, years_experience: e.target.value.replace(/[^\d]/g, '').slice(0, 2) })}/></Field>
       </div>
-      <Field id="linkedin_url" label="LinkedIn"><Input id="linkedin_url" value={about.linkedin_url} placeholder="linkedin.com/in/dein-name" onChange={e => setAbout({ ...about, linkedin_url: e.target.value })}/></Field>
+      <Field id="linkedin_url" label="LinkedIn"><Input id="linkedin_url" value={about.linkedin_url} placeholder={t('about.linkedinPlaceholder')} onChange={e => setAbout({ ...about, linkedin_url: e.target.value })}/></Field>
       {errorLine}
       {saveButtons('about', () => void saveAbout())}
     </> : <dl className="grid grid-cols-[minmax(110px,auto)_1fr] gap-x-6 gap-y-2">
-      <Fact label="Name" value={saved.about.full_name} missing="fehlt" required/>
-      <Fact label="Telefon" value={saved.about.phone} missing="noch nicht angegeben"/>
-      <Fact label="Position" value={saved.about.role_title}/>
-      <Fact label="Erfahrung" value={years || (currentExpertise?.experience && <>{currentExpertise.experience} <span className="text-muted-foreground">(laut Schwerpunkten)</span></>)}/>
-      <Fact label="LinkedIn" value={linkedin && <><a className="text-primary underline-offset-2 hover:underline" href={linkOf(linkedin)} target="_blank" rel="noreferrer">{linkedin.replace(/^https?:\/\/(www\.)?/, '')}</a>{linkedinFromContract && <span className="text-muted-foreground"> (aus dem Vertrag)</span>}</>}/>
+      <Fact label={t('about.name')} value={saved.about.full_name} missing={t('about.missing')} required/>
+      <Fact label={t('about.phone')} value={saved.about.phone} missing={t('about.notGiven')}/>
+      <Fact label={t('about.position')} value={saved.about.role_title}/>
+      <Fact label={t('about.experience')} value={years || (currentExpertise?.experience && <>{opt(currentExpertise.experience)} <span className="text-muted-foreground">{t('about.perExpertise')}</span></>)}/>
+      <Fact label="LinkedIn" value={linkedin && <><a className="text-primary underline-offset-2 hover:underline" href={linkOf(linkedin)} target="_blank" rel="noreferrer">{linkedin.replace(/^https?:\/\/(www\.)?/, '')}</a>{linkedinFromContract && <span className="text-muted-foreground"> {t('about.fromContract')}</span>}</>}/>
     </dl>}
     <LinkedinVerbindung/>
   </Panel>;
 
   const x = expertise;
   const patch = (next: Partial<RecruiterExpertise>) => { setExpertise(prev => ({ ...prev, ...next })); setFormError(''); };
-  const expertisePanel = <Panel title="Schwerpunkte" icon={Target} action={editButton('expertise', startExpertise)}>
+  const languagePanel = <Panel title={tCommon('language.label')} icon={Languages}>
+    <LanguageSelect className="max-w-xs" />
+    <p className="text-sm text-muted-foreground">{tCommon('language.settingsHintRecruiter')}</p>
+  </Panel>;
+  const expertisePanel = <Panel title={t('menu.schwerpunkte')} icon={Target} action={editButton('expertise', startExpertise)}>
     {editing === 'expertise' ? <div className="space-y-4">
-      <div className="space-y-1.5"><p className="text-xs text-muted-foreground">Bereiche</p><Chips options={[...EXPERTISE_AREAS.map(a => a.label), ...x.extras]} value={[...x.areas, ...x.extras]} onToggle={v => x.extras.includes(v) ? patch({ extras: x.extras.filter(e => e !== v) }) : patch({ areas: toggleIn(x.areas, v) })}/></div>
-      {EXPERTISE_AREAS.filter(a => x.areas.includes(a.label)).map(a => <div key={a.key} className="space-y-1.5"><p className="text-xs text-muted-foreground">↳ {a.label}</p><Chips options={a.sub} value={x.subareas} onToggle={v => patch({ subareas: toggleIn(x.subareas, v) })}/></div>)}
-      <div className="space-y-1.5"><p className="text-xs text-muted-foreground">Ebene</p><Chips options={EXPERTISE_LEVELS} value={x.levels} onToggle={v => patch({ levels: toggleIn(x.levels, v) })}/></div>
-      <div className="space-y-1.5"><p className="text-xs text-muted-foreground">Unternehmen</p><Chips options={COMPANY_TYPES} value={x.companyTypes} onToggle={v => patch({ companyTypes: toggleIn(x.companyTypes, v) })}/></div>
-      <div className="space-y-1.5"><p className="text-xs text-muted-foreground">Regionen</p><Chips options={REGIONS} value={x.regions} onToggle={v => patch({ regions: toggleIn(x.regions, v) })}/></div>
-      <div className="space-y-1.5"><p className="text-xs text-muted-foreground">Sprachen</p><Chips options={LANGUAGES} value={x.languages} onToggle={v => patch({ languages: toggleIn(x.languages, v) })}/></div>
-      <div className="space-y-1.5"><p className="text-xs text-muted-foreground">Vorgehen</p><Chips options={METHODS} value={x.methods} onToggle={v => patch({ methods: toggleIn(x.methods, v) })}/></div>
-      <div className="space-y-1.5"><p className="text-xs text-muted-foreground">Erfahrung als Headhunter</p><Chips options={EXPERIENCE_BANDS} value={[x.experience]} onToggle={v => patch({ experience: v })}/></div>
+      <div className="space-y-1.5"><p className="text-xs text-muted-foreground">{t('rows.areas')}</p><Chips label={opt} options={[...EXPERTISE_AREAS.map(a => a.label), ...x.extras]} value={[...x.areas, ...x.extras]} onToggle={v => x.extras.includes(v) ? patch({ extras: x.extras.filter(e => e !== v) }) : patch({ areas: toggleIn(x.areas, v) })}/></div>
+      {EXPERTISE_AREAS.filter(a => x.areas.includes(a.label)).map(a => <div key={a.key} className="space-y-1.5"><p className="text-xs text-muted-foreground">↳ {opt(a.label)}</p><Chips label={opt} options={a.sub} value={x.subareas} onToggle={v => patch({ subareas: toggleIn(x.subareas, v) })}/></div>)}
+      <div className="space-y-1.5"><p className="text-xs text-muted-foreground">{t('rows.level')}</p><Chips label={opt} options={EXPERTISE_LEVELS} value={x.levels} onToggle={v => patch({ levels: toggleIn(x.levels, v) })}/></div>
+      <div className="space-y-1.5"><p className="text-xs text-muted-foreground">{t('rows.companies')}</p><Chips label={opt} options={COMPANY_TYPES} value={x.companyTypes} onToggle={v => patch({ companyTypes: toggleIn(x.companyTypes, v) })}/></div>
+      <div className="space-y-1.5"><p className="text-xs text-muted-foreground">{t('rows.regions')}</p><Chips label={opt} options={REGIONS} value={x.regions} onToggle={v => patch({ regions: toggleIn(x.regions, v) })}/></div>
+      <div className="space-y-1.5"><p className="text-xs text-muted-foreground">{t('rows.languages')}</p><Chips label={opt} options={LANGUAGES} value={x.languages} onToggle={v => patch({ languages: toggleIn(x.languages, v) })}/></div>
+      <div className="space-y-1.5"><p className="text-xs text-muted-foreground">{t('rows.method')}</p><Chips label={opt} options={METHODS} value={x.methods} onToggle={v => patch({ methods: toggleIn(x.methods, v) })}/></div>
+      <div className="space-y-1.5"><p className="text-xs text-muted-foreground">{t('rows.recruiterExperience')}</p><Chips label={opt} options={EXPERIENCE_BANDS} value={[x.experience]} onToggle={v => patch({ experience: v })}/></div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5"><p className="text-xs text-muted-foreground">Besetzungen im Jahr</p><Chips options={PLACEMENT_BANDS} value={[x.placements]} onToggle={v => patch({ placements: v })}/></div>
-        <div className="space-y-1.5"><p className="text-xs text-muted-foreground">Suchen parallel</p><Chips options={PARALLEL_BANDS} value={[x.parallel]} onToggle={v => patch({ parallel: v })}/></div>
+        <div className="space-y-1.5"><p className="text-xs text-muted-foreground">{t('rows.placementsPerYear')}</p><Chips label={opt} options={PLACEMENT_BANDS} value={[x.placements]} onToggle={v => patch({ placements: v })}/></div>
+        <div className="space-y-1.5"><p className="text-xs text-muted-foreground">{t('rows.parallelSearches')}</p><Chips label={opt} options={PARALLEL_BANDS} value={[x.parallel]} onToggle={v => patch({ parallel: v })}/></div>
       </div>
-      <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Info className="h-3.5 w-3.5"/>Dein Vertrag bleibt unverändert. Matchunt sieht deine aktuellen Schwerpunkte in der Recruiterverwaltung.</p>
+      <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Info className="h-3.5 w-3.5"/>{t('expertise.contractNote')}</p>
       {errorLine}
       {saveButtons('expertise', () => void saveExpertise())}
     </div> : expertiseRows.length ? <>
       <dl className="grid grid-cols-[minmax(110px,auto)_1fr] gap-x-6 gap-y-2">{expertiseRows.map(([label, value]) => <Fact key={label} label={label} value={value}/>)}</dl>
-      {!row.recruiter_expertise && <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Lock className="h-3 w-3"/>Stand aus deinem Onboarding. Über „Bearbeiten“ hältst du sie aktuell.</p>}
-    </> : <p className="text-sm text-muted-foreground">{caseFailed ? 'Deine Schwerpunkte konnten gerade nicht geladen werden.' : 'Noch keine Schwerpunkte hinterlegt. Über „Bearbeiten“ legst du sie fest.'}</p>}
+      {!row.recruiter_expertise && <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Lock className="h-3 w-3"/>{t('expertise.fromOnboarding')}</p>}
+    </> : <p className="text-sm text-muted-foreground">{caseFailed ? t('expertise.loadFailed') : t('expertise.empty')}</p>}
   </Panel>;
 
   const missingWith = (textValue: string, field: Parameters<typeof focusBilling>[0]) => <span className="inline-flex flex-wrap items-center gap-2">
     <span className="text-warning">{textValue}</span>
-    <Button variant="outline" size="sm" className="h-7" onClick={() => navigate(field === 'bank_iban' ? ABRECHNUNG_KONTO : ABRECHNUNG)}>Jetzt eintragen</Button>
+    <Button variant="outline" size="sm" className="h-7" onClick={() => navigate(field === 'bank_iban' ? ABRECHNUNG_KONTO : ABRECHNUNG)}>{t('billing.enterNow')}</Button>
   </span>;
   // Abrechnung (Umbau 11.11.2026, H13): ändern nur noch unter Verdienste › Abrechnungsdaten,
   // das Auszahlungskonto dort mit Code per Mail und 48 Stunden Wartezeit.
-  const billingPanel = <Panel title="Abrechnung" icon={Receipt} action={<Button variant="outline" size="sm" onClick={() => navigate(ABRECHNUNG)}>Abrechnungsdaten öffnen<ArrowRight className="ml-1.5 h-3.5 w-3.5"/></Button>}>
-    <p className="text-sm text-muted-foreground">Firma, Anschrift, Steuer und Auszahlungskonto pflegst du unter Verdienste › Abrechnungsdaten. Das Konto änderst du dort mit einem Code per Mail.</p>
+  const billingPanel = <Panel title={t('menu.abrechnung')} icon={Receipt} action={<Button variant="outline" size="sm" onClick={() => navigate(ABRECHNUNG)}>{t('billing.open')}<ArrowRight className="ml-1.5 h-3.5 w-3.5"/></Button>}>
+    <p className="text-sm text-muted-foreground">{t('billing.lead')}</p>
     <dl className="grid grid-cols-[minmax(110px,auto)_1fr] gap-x-6 gap-y-2">
-      <Fact label="Firma" value={saved.billing.company_name || missingWith('fehlt', 'company_name')}/>
-      <Fact label="Anschrift" value={saved.billing.company_address || missingWith('fehlt', 'company_address')}/>
-      <Fact label="USt-IdNr. / Steuernummer" value={saved.billing.tax_id || missingWith('fehlt', 'tax_id')}/>
-      <Fact label="Auszahlungskonto" value={saved.billing.bank_iban ? [maskIban(saved.billing.bank_iban), saved.billing.bank_bic, saved.billing.bank_account_holder && `Inhaber: ${saved.billing.bank_account_holder}`].filter(Boolean).join(' · ') : missingWith('fehlt, für deine erste Provision', 'bank_iban')}/>
-      {p?.legalForm && <Fact label="Rechtsform · Land" locked value={[p.legalForm, p.country].filter(Boolean).join(' · ')}/>}
-      {taxLabel && <Fact label="Steuerstatus" locked value={taxLabel}/>}
-      {creditNote && <Fact label="Gutschriftverfahren" locked value={creditNote}/>}
+      <Fact label={t('billing.company')} value={saved.billing.company_name || missingWith(t('billing.missing'), 'company_name')}/>
+      <Fact label={t('billing.address')} value={saved.billing.company_address || missingWith(t('billing.missing'), 'company_address')}/>
+      <Fact label={t('billing.taxId')} value={saved.billing.tax_id || missingWith(t('billing.missing'), 'tax_id')}/>
+      <Fact label={t('billing.account')} value={saved.billing.bank_iban ? [maskIban(saved.billing.bank_iban), saved.billing.bank_bic, saved.billing.bank_account_holder && t('billing.holder', { name: saved.billing.bank_account_holder })].filter(Boolean).join(' · ') : missingWith(t('billing.missingCommission'), 'bank_iban')}/>
+      {p?.legalForm && <Fact label={t('billing.legalCountry')} locked value={[p.legalForm, p.country].filter(Boolean).map(opt).join(' · ')}/>}
+      {taxLabel && <Fact label={t('billing.taxStatus')} locked value={taxLabel}/>}
+      {creditNote && <Fact label={t('billing.creditNote')} locked value={creditNote}/>}
     </dl>
-    {p && <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Lock className="h-3 w-3"/>Mit Schloss: so im Vertrag. Aktuelle Angaben für Gutschriften stehen unter Verdienste › Abrechnungsdaten.</p>}
+    {p && <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Lock className="h-3 w-3"/>{t('billing.lockNote')}</p>}
   </Panel>;
 
-  const contractPanel = <Panel title="Vertrag" icon={FileCheck2}>
-    {caseFailed ? <p className="text-sm text-muted-foreground">Dein Vertrag konnte gerade nicht geladen werden. Lade die Seite bitte neu.</p>
-      : !onboarding ? <p className="text-sm text-muted-foreground">Dein Vertrag stammt aus der Zeit vor Fassung 2.1. Den neuen Rahmenvertrag schicken wir dir gesondert zur Unterschrift.</p>
+  const contractPanel = <Panel title={t('menu.vertrag')} icon={FileCheck2}>
+    {caseFailed ? <p className="text-sm text-muted-foreground">{t('contract.loadFailed')}</p>
+      : !onboarding ? <p className="text-sm text-muted-foreground">{t('contract.legacy')}</p>
       : contract ? <>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="font-medium">Rahmenvertrag · Fassung {contract.package_version}</p>
-          {contractDone && <span className="rounded-full bg-success/15 px-2.5 py-0.5 text-xs text-success">Komplett</span>}
+          <p className="font-medium">{t('contract.title', { version: contract.package_version })}</p>
+          {contractDone && <span className="rounded-full bg-success/15 px-2.5 py-0.5 text-xs text-success">{t('contract.complete')}</span>}
         </div>
-        <p className="text-sm text-muted-foreground">{[contract.recruiter_signed_at && `Du: unterschrieben am ${day(contract.recruiter_signed_at)}`, contract.countersigned_at && `Matchunt: gegengezeichnet am ${day(contract.countersigned_at)}`].filter(Boolean).join(' · ') || stateLabels[contract.state]}</p>
+        <p className="text-sm text-muted-foreground">{[contract.recruiter_signed_at && t('contract.youSigned', { date: day(contract.recruiter_signed_at) }), contract.countersigned_at && t('contract.countersigned', { date: day(contract.countersigned_at) })].filter(Boolean).join(' · ') || stateLabel(contract.state)}</p>
         {contractDone && <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" disabled={busy === 'signed'} onClick={() => void openDocument(contract.id, 'signed')}>{busy === 'signed' ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Download className="mr-2 h-4 w-4"/>}Vertrag öffnen</Button>
-          <Button variant="outline" size="sm" disabled={busy === 'certificate'} onClick={() => void openDocument(contract.id, 'certificate')}>Abschlusszertifikat</Button>
+          <Button variant="outline" size="sm" disabled={busy === 'signed'} onClick={() => void openDocument(contract.id, 'signed')}>{busy === 'signed' ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Download className="mr-2 h-4 w-4"/>}{t('contract.open')}</Button>
+          <Button variant="outline" size="sm" disabled={busy === 'certificate'} onClick={() => void openDocument(contract.id, 'certificate')}>{t('contract.certificate')}</Button>
         </div>}
-        <p className="text-xs text-muted-foreground">Enthalten: Rahmenvertrag und sechs Anlagen (Datenblatt, Konditionen, Plattformregeln, Datenschutz, Nutzungsbedingungen, Markenrichtlinie).</p>
-      </> : <p className="text-sm text-muted-foreground">{stateLabels[onboarding.state] ?? onboarding.state}</p>}
+        <p className="text-xs text-muted-foreground">{t('contract.contains')}</p>
+      </> : <p className="text-sm text-muted-foreground">{stateLabel(onboarding.state)}</p>}
   </Panel>;
 
   const plan = evidencePlan(partnerKind);
@@ -555,85 +578,85 @@ export default function RecruiterProfile() {
     const meta = EVIDENCE[kind];
     const last = latest[kind];
     if (!applies) return <li key={kind} className={ROW}>
-      <div><p className="text-sm">{meta.label}</p><p className="text-xs text-muted-foreground">Nur Agenturen</p></div>
-      <span className="text-xs text-muted-foreground">entfällt für dich</span>
+      <div><p className="text-sm">{t(`evidence.${kind}.label`)}</p><p className="text-xs text-muted-foreground">{t('proofs.agenciesOnly')}</p></div>
+      <span className="text-xs text-muted-foreground">{t('proofs.notForYou')}</span>
     </li>;
     if (kind === 'income') {
       const declared = last?.declaration as IncomeDeclaration | undefined;
       return <li key={kind} className="space-y-3 py-3">
         <div className={ROW_INNER}>
           <div className="min-w-0">
-            <p className="text-sm">{meta.label}</p>
-            <p className="text-xs text-muted-foreground">{declared ? `${INCOME_OPTIONS[declared]} · erklärt am ${day(last!.uploaded_at)}` : contractIncome ? <span className="inline-flex items-center gap-1"><Lock className="h-3 w-3"/>Aus deinem Vertrag: {contractIncome}</span> : meta.hint}</p>
+            <p className="text-sm">{t(`evidence.${kind}.label`)}</p>
+            <p className="text-xs text-muted-foreground">{declared ? t('proofs.declaredOn', { option: t(`income.${declared}`), date: day(last!.uploaded_at) }) : contractIncome ? <span className="inline-flex items-center gap-1"><Lock className="h-3 w-3"/>{t('proofs.fromContract', { value: contractIncome })}</span> : t(`evidence.${kind}.hint`)}</p>
           </div>
           <div className="flex items-center gap-3 sm:justify-end">
-            {declared || contractIncome ? <span className="text-xs text-success">bestätigt</span> : <span className="text-xs text-warning">fehlt</span>}
-            {income === null && <Button variant="outline" size="sm" onClick={() => { setIncome(declared ?? 'below'); setFormError(''); }}>{declared || contractIncome ? 'Ändern' : 'Abgeben'}</Button>}
+            {declared || contractIncome ? <span className="text-xs text-success">{t('proofs.confirmed')}</span> : <span className="text-xs text-warning">{t('proofs.missing')}</span>}
+            {income === null && <Button variant="outline" size="sm" onClick={() => { setIncome(declared ?? 'below'); setFormError(''); }}>{declared || contractIncome ? t('proofs.change') : t('proofs.submit')}</Button>}
           </div>
         </div>
         {income !== null && <div className="space-y-3 rounded-lg bg-muted/40 p-3">
           <div className="flex flex-col gap-2">{(Object.keys(INCOME_OPTIONS) as IncomeDeclaration[]).map(option => <label key={option} className="flex items-center gap-2 text-sm">
-            <input type="radio" name="income" checked={income === option} onChange={() => setIncome(option)}/>{INCOME_OPTIONS[option]}
+            <input type="radio" name="income" checked={income === option} onChange={() => setIncome(option)}/>{t(`income.${option}`)}
           </label>)}</div>
-          <p className="text-xs text-muted-foreground">Gemeint sind deine Einkünfte der letzten zwölf Monate. Ändert sich das, bestätige es hier neu.</p>
+          <p className="text-xs text-muted-foreground">{t('proofs.incomeNote')}</p>
           {errorLine}
-          <div className="flex gap-2"><Button size="sm" disabled={busy === 'income'} onClick={() => void declareIncome()}>{busy === 'income' && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin"/>}Bestätigen</Button><Button size="sm" variant="ghost" onClick={() => { setIncome(null); setFormError(''); }}>Abbrechen</Button></div>
+          <div className="flex gap-2"><Button size="sm" disabled={busy === 'income'} onClick={() => void declareIncome()}>{busy === 'income' && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin"/>}{t('proofs.confirm')}</Button><Button size="sm" variant="ghost" onClick={() => { setIncome(null); setFormError(''); }}>{t('cancel')}</Button></div>
         </div>}
       </li>;
     }
     const state = evidenceState(last);
     const statusText: Record<string, ReactNode> = {
-      missing: required ? <span className="text-xs text-warning">fehlt</span> : <span className="text-xs text-muted-foreground">freiwillig</span>,
-      pending: <span className="inline-flex items-center gap-1 text-xs text-warning"><Clock className="h-3 w-3"/>in Prüfung</span>,
-      approved: <span className="inline-flex items-center gap-1 text-xs text-success"><Check className="h-3 w-3"/>geprüft{last?.reviewed_at ? ` am ${day(last.reviewed_at)}` : ''}</span>,
-      rejected: <span className="text-xs text-destructive">abgelehnt</span>,
-      expiring: <span className="text-xs text-warning">läuft am {last?.valid_until ? day(last.valid_until) : ''} ab</span>,
-      expired: <span className="text-xs text-destructive">abgelaufen</span>,
+      missing: required ? <span className="text-xs text-warning">{t('proofs.missing')}</span> : <span className="text-xs text-muted-foreground">{t('proofs.voluntary')}</span>,
+      pending: <span className="inline-flex items-center gap-1 text-xs text-warning"><Clock className="h-3 w-3"/>{t('proofs.pending')}</span>,
+      approved: <span className="inline-flex items-center gap-1 text-xs text-success"><Check className="h-3 w-3"/>{last?.reviewed_at ? t('proofs.approvedOn', { date: day(last.reviewed_at) }) : t('proofs.approved')}</span>,
+      rejected: <span className="text-xs text-destructive">{t('proofs.rejected')}</span>,
+      expiring: <span className="text-xs text-warning">{t('proofs.expiresOn', { date: last?.valid_until ? day(last.valid_until) : '' })}</span>,
+      expired: <span className="text-xs text-destructive">{t('proofs.expired')}</span>,
     };
     const again = ['rejected', 'expiring', 'expired'].includes(state) || (state === 'approved' && meta.expires);
     const uploading = upload?.kind === kind;
     return <li key={kind} className="space-y-3 py-3">
       <div className={ROW_INNER}>
         <div className="min-w-0">
-          <p className="text-sm">{meta.label}</p>
-          <p className="text-xs text-muted-foreground">{[meta.hint, !required && kind === 'insurance' ? 'für Agenturen Pflicht, für dich freiwillig' : '', last?.valid_until && `gültig bis ${day(last.valid_until)}`].filter(Boolean).join(' · ')}</p>
-          {state === 'rejected' && last?.reason && <p className="text-xs text-destructive">Grund: {last.reason}</p>}
+          <p className="text-sm">{t(`evidence.${kind}.label`)}</p>
+          <p className="text-xs text-muted-foreground">{[t(`evidence.${kind}.hint`), !required && kind === 'insurance' ? t('proofs.insuranceVoluntary') : '', last?.valid_until && t('proofs.validUntilDate', { date: day(last.valid_until) })].filter(Boolean).join(' · ')}</p>
+          {state === 'rejected' && last?.reason && <p className="text-xs text-destructive">{t('proofs.reason', { reason: last.reason })}</p>}
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
           {statusText[state]}
-          {last?.file_path && state !== 'missing' && <Button variant="ghost" size="sm" onClick={() => void openStored(EVIDENCE_BUCKET, last.file_path!)}><ExternalLink className="mr-1.5 h-3.5 w-3.5"/>Ansehen</Button>}
-          {!uploading && (state === 'missing' || again) && <Button variant={state === 'missing' && required ? 'default' : 'outline'} size="sm" onClick={() => { setUpload({ kind, file: null, until: '' }); setFormError(''); }}><Upload className="mr-1.5 h-3.5 w-3.5"/>{state === 'missing' ? 'Hochladen' : 'Neu hochladen'}</Button>}
+          {last?.file_path && state !== 'missing' && <Button variant="ghost" size="sm" onClick={() => void openStored(EVIDENCE_BUCKET, last.file_path!)}><ExternalLink className="mr-1.5 h-3.5 w-3.5"/>{t('proofs.view')}</Button>}
+          {!uploading && (state === 'missing' || again) && <Button variant={state === 'missing' && required ? 'default' : 'outline'} size="sm" onClick={() => { setUpload({ kind, file: null, until: '' }); setFormError(''); }}><Upload className="mr-1.5 h-3.5 w-3.5"/>{state === 'missing' ? t('proofs.upload') : t('proofs.uploadAgain')}</Button>}
         </div>
       </div>
       {uploading && <div className="space-y-3 rounded-lg bg-muted/40 p-3">
         <div className="grid gap-3 sm:grid-cols-[2fr_1fr]">
-          <Field id={`file-${kind}`} label="Datei" hint="PDF, JPG oder PNG, bis 10 MB"><Input id={`file-${kind}`} type="file" accept={EVIDENCE_TYPES.join(',')} onChange={e => setUpload({ ...upload, file: e.target.files?.[0] ?? null })}/></Field>
-          {meta.expires && <Field id={`until-${kind}`} label="Gültig bis"><Input id={`until-${kind}`} type="date" value={upload.until} onChange={e => setUpload({ ...upload, until: e.target.value })}/></Field>}
+          <Field id={`file-${kind}`} label={t('proofs.file')} hint={t('proofs.fileHint')}><Input id={`file-${kind}`} type="file" accept={EVIDENCE_TYPES.join(',')} onChange={e => setUpload({ ...upload, file: e.target.files?.[0] ?? null })}/></Field>
+          {meta.expires && <Field id={`until-${kind}`} label={t('proofs.validUntil')}><Input id={`until-${kind}`} type="date" value={upload.until} onChange={e => setUpload({ ...upload, until: e.target.value })}/></Field>}
         </div>
         {errorLine}
         <div className="flex gap-2">
-          <Button size="sm" disabled={busy === `upload-${kind}`} onClick={() => void submitUpload()}>{busy === `upload-${kind}` ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin"/> : <Upload className="mr-2 h-3.5 w-3.5"/>}Hochladen</Button>
-          <Button size="sm" variant="ghost" onClick={() => { setUpload(null); setFormError(''); }}>Abbrechen</Button>
+          <Button size="sm" disabled={busy === `upload-${kind}`} onClick={() => void submitUpload()}>{busy === `upload-${kind}` ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin"/> : <Upload className="mr-2 h-3.5 w-3.5"/>}{t('proofs.upload')}</Button>
+          <Button size="sm" variant="ghost" onClick={() => { setUpload(null); setFormError(''); }}>{t('cancel')}</Button>
         </div>
       </div>}
     </li>;
   };
-  const proofPanel = <Panel title="Nachweise" icon={Paperclip}>
-    <p className="text-sm text-muted-foreground">Verlangt dein Vertrag. Matchunt prüft jeden Nachweis und erinnert dich, bevor einer abläuft.</p>
-    {!evidenceReady ? <p className="text-sm text-muted-foreground">Nachweise sind gleich verfügbar. Schau bitte etwas später noch einmal vorbei.</p>
+  const proofPanel = <Panel title={t('menu.nachweise')} icon={Paperclip}>
+    <p className="text-sm text-muted-foreground">{t('proofs.lead')}</p>
+    {!evidenceReady ? <p className="text-sm text-muted-foreground">{t('proofs.notReady')}</p>
       : <ul className="divide-y divide-border">
         {plan.map(item => proofRow(item.kind, item.required, item.applies))}
         {p?.contractDetails?.permitsDeclaration && <li className={ROW}>
-          <div><p className="text-sm">Erlaubnisse und Registrierungen</p><p className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Lock className="h-3 w-3"/>Aus deinem Vertrag: {p.contractDetails.permitsDeclaration}</p></div>
-          <Check className="h-4 w-4 text-success" aria-label="angegeben"/>
+          <div><p className="text-sm">{t('proofs.permits')}</p><p className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Lock className="h-3 w-3"/>{t('proofs.fromContract', { value: p.contractDetails.permitsDeclaration })}</p></div>
+          <Check className="h-4 w-4 text-success" aria-label={t('proofs.statedAria')}/>
         </li>}
       </ul>}
   </Panel>;
 
   const partnerPanel = partner && <PartnerStatusSection partner={partner} onChange={setPartner}
-    person={{ name: saved.about.full_name, company: saved.billing.company_name, roleTitle: saved.about.role_title, focus: expertiseLine(currentExpertise),
+    person={{ name: saved.about.full_name, company: saved.billing.company_name, roleTitle: saved.about.role_title, focus: expertiseLine(currentExpertise && { areas: currentExpertise.areas.map(opt), extras: currentExpertise.extras, levels: currentExpertise.levels.map(opt) }),
       areas: currentExpertise ? [...currentExpertise.areas, ...currentExpertise.extras].join(', ') : '' }}/>;
-  const content: Record<SectionId, ReactNode> = { uebersicht: overview, 'ueber-dich': aboutPanel, terminseite: <TerminseiteBereich zurueck={zurueck}/>, schwerpunkte: expertisePanel, partnerstatus: partnerPanel, abrechnung: billingPanel, vertrag: contractPanel, nachweise: proofPanel };
+  const content: Record<SectionId, ReactNode> = { uebersicht: overview, 'ueber-dich': <>{aboutPanel}{languagePanel}</>, terminseite: <TerminseiteBereich zurueck={zurueck}/>, schwerpunkte: expertisePanel, partnerstatus: partnerPanel, abrechnung: billingPanel, vertrag: contractPanel, nachweise: proofPanel };
 
   return <DashboardLayout>
     <div className="mx-auto max-w-5xl space-y-5">

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { notifyLang, tx } from "../_shared/notify-i18n.ts";
 import { defaultCtx } from "../_shared/interview-service.ts";
 import { withdrawOpenOffers } from "../_shared/offer-service.ts";
 
@@ -124,14 +125,15 @@ serve(async (req) => {
       throw updateError;
     }
 
-    // Create notification for recruiter
+    // Create notification for recruiter (in seiner Profilsprache)
+    const rl = await notifyLang(supabase, submission.recruiter_id);
     await supabase
       .from('notifications')
       .insert({
         user_id: submission.recruiter_id,
         type: 'candidate_rejected',
-        title: 'Kandidat abgelehnt',
-        message: `${submission.candidate.full_name} wurde für ${submission.job.title} abgelehnt. Grund: ${reason_category}`,
+        title: tx(rl, 'Kandidat abgelehnt', 'Candidate rejected', 'Kandidat avböjd', 'Kandidat avslått'),
+        message: tx(rl, `${submission.candidate.full_name} wurde für ${submission.job.title} abgelehnt. Grund: ${reason_category}`, `${submission.candidate.full_name} was rejected for ${submission.job.title}. Reason: ${reason_category}`, `${submission.candidate.full_name} fick avslag för ${submission.job.title}. Skäl: ${reason_category}`, `${submission.candidate.full_name} fikk avslag for ${submission.job.title}. Grunn: ${reason_category}`),
         related_type: 'submission',
         related_id: submission_id
       });

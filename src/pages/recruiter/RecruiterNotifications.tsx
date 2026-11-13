@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { intlLocale } from '@/i18n/languages';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
@@ -71,6 +73,7 @@ const NOTIFICATION_COLORS: Record<string, string> = {
 export default function RecruiterNotifications() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t, i18n } = useTranslation('recruiterInbox');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
@@ -123,7 +126,7 @@ export default function RecruiterNotifications() {
         .eq('is_read', false);
 
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-      toast({ title: 'Alle als gelesen markiert' });
+      toast({ title: t('notifications.markedAll') });
     } catch (error) {
       console.error('Error marking all as read:', error);
     }
@@ -134,11 +137,11 @@ export default function RecruiterNotifications() {
     const now = new Date();
     const diffMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
     
-    if (diffMinutes < 1) return 'Gerade eben';
-    if (diffMinutes < 60) return `Vor ${diffMinutes} Min.`;
-    if (diffMinutes < 1440) return `Vor ${Math.floor(diffMinutes / 60)} Std.`;
-    if (diffMinutes < 2880) return 'Gestern';
-    return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+    if (diffMinutes < 1) return t('time.justNow');
+    if (diffMinutes < 60) return t('time.minutes', { count: diffMinutes });
+    if (diffMinutes < 1440) return t('time.hours', { count: Math.floor(diffMinutes / 60) });
+    if (diffMinutes < 2880) return t('time.yesterday');
+    return date.toLocaleDateString(intlLocale(i18n.language), { day: '2-digit', month: '2-digit' });
   };
 
   const getNotificationLink = (notification: Notification) => {
@@ -192,15 +195,15 @@ export default function RecruiterNotifications() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Benachrichtigungen</h1>
+            <h1 className="text-3xl font-bold tracking-tight">{t('notifications.title')}</h1>
             <p className="text-muted-foreground">
-              {unreadCount > 0 ? `${unreadCount} ungelesene Nachrichten` : 'Alle Nachrichten gelesen'}
+              {unreadCount > 0 ? t('notifications.unread', { count: unreadCount }) : t('notifications.allRead')}
             </p>
           </div>
           {unreadCount > 0 && (
             <Button variant="outline" onClick={markAllAsRead}>
               <Check className="h-4 w-4 mr-2" />
-              Alle als gelesen markieren
+              {t('notifications.markAll')}
             </Button>
           )}
         </div>
@@ -209,11 +212,11 @@ export default function RecruiterNotifications() {
         <Tabs value={filter} onValueChange={(v) => setFilter(v as 'all' | 'unread')}>
           <TabsList>
             <TabsTrigger value="all">
-              Alle
+              {t('notifications.all')}
               <Badge variant="secondary" className="ml-2">{notifications.length}</Badge>
             </TabsTrigger>
             <TabsTrigger value="unread">
-              Ungelesen
+              {t('notifications.unreadTab')}
               {unreadCount > 0 && (
                 <Badge className="ml-2 bg-destructive">{unreadCount}</Badge>
               )}
@@ -227,11 +230,11 @@ export default function RecruiterNotifications() {
             {filteredNotifications.length === 0 ? (
               <div className="text-center py-16">
                 <Bell className="mx-auto h-12 w-12 text-muted-foreground/50" />
-                <h3 className="mt-4 text-lg font-semibold">Keine Benachrichtigungen</h3>
+                <h3 className="mt-4 text-lg font-semibold">{t('notifications.emptyTitle')}</h3>
                 <p className="text-muted-foreground">
                   {filter === 'unread' 
-                    ? 'Alle Nachrichten wurden gelesen'
-                    : 'Du hast noch keine Benachrichtigungen erhalten'}
+                    ? t('notifications.emptyUnread')
+                    : t('notifications.emptyAll')}
                 </p>
               </div>
             ) : (
@@ -275,7 +278,7 @@ export default function RecruiterNotifications() {
                         
                         {notification.type === 'opt_in_request' && (
                           <p className="mt-2 text-xs text-muted-foreground">
-                            Zusagen kann nur der Kandidat selbst, per Klick in der Einladung.
+                            {t('notifications.optInNote')}
                           </p>
                         )}
                       </div>

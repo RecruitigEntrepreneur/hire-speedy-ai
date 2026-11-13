@@ -1,3 +1,7 @@
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
+import { fmtTime, fmtWeekdayDayMonth } from '@/lib/localeFormat';
+import { meetingTypeLabel } from '@/components/interview/agenda/meetingType';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { BentoTile } from './BentoTile';
@@ -7,6 +11,8 @@ import { cn } from '@/lib/utils';
 
 const formatIcon = (f: string | null): LucideIcon => (f === 'phone' ? Phone : f === 'onsite' ? MapPin : Video);
 
+const isTodayIso = (iso: string) => new Date(iso).toDateString() === new Date().toDateString();
+
 const dateLabel = (iso: string) => {
   const d = new Date(iso);
   const today = new Date();
@@ -14,25 +20,26 @@ const dateLabel = (iso: string) => {
   const that = new Date(d);
   that.setHours(0, 0, 0, 0);
   const diff = Math.round((that.getTime() - today.getTime()) / 86_400_000);
-  if (diff === 0) return 'Heute';
-  if (diff === 1) return 'Morgen';
-  return d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+  if (diff === 0) return i18n.t('clientDashboard:tiles.today');
+  if (diff === 1) return i18n.t('clientDashboard:tiles.tomorrow');
+  return fmtWeekdayDayMonth(d);
 };
 
-const timeLabel = (iso: string) => new Date(iso).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+const timeLabel = (iso: string) => fmtTime(iso);
 
 /** Tile D – Anstehende (bestätigte, zukünftige) Interviews mit Join-Link. */
 export function AnstehendeInterviewsTile() {
+  const { t } = useTranslation(['clientDashboard', 'interviews']);
   const { data, isLoading } = useClientUpcomingInterviews();
   const items = data || [];
 
   return (
     <BentoTile
       icon={CalendarDays}
-      title="Anstehende Interviews"
+      title={t('tiles.upcomingInterviews')}
       count={isLoading ? undefined : items.length}
       to="/dashboard/interviews"
-      toLabel="Kalender"
+      toLabel={t('tiles.calendar')}
     >
       {isLoading ? (
         <div className="space-y-2">
@@ -42,13 +49,13 @@ export function AnstehendeInterviewsTile() {
         </div>
       ) : items.length === 0 ? (
         <div className="flex h-full items-center justify-center py-6 text-center text-sm text-muted-foreground">
-          Keine anstehenden Termine
+          {t('tiles.noUpcoming')}
         </div>
       ) : (
         <div className="space-y-1.5">
           {items.map((iv: UpcomingInterview) => {
             const Icon = formatIcon(iv.meetingFormat);
-            const isToday = dateLabel(iv.scheduledAt) === 'Heute';
+            const isToday = isTodayIso(iv.scheduledAt);
             return (
               <div
                 key={iv.id}
@@ -65,15 +72,15 @@ export function AnstehendeInterviewsTile() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-mono text-sm font-medium">{iv.anonId}</p>
-                  <p className="flex items-center gap-1 text-xs capitalize text-muted-foreground">
+                  <p className="flex items-center gap-1 text-xs text-muted-foreground">
                     <Icon className="h-3 w-3" />
-                    {iv.meetingFormat || 'Interview'}
+                    {meetingTypeLabel(iv.meetingFormat)}
                   </p>
                 </div>
                 {iv.joinUrl && (
                   <Button asChild size="sm" variant="outline" className="h-7 shrink-0 text-xs">
                     <a href={iv.joinUrl} target="_blank" rel="noreferrer">
-                      Beitreten
+                      {t('tiles.join')}
                     </a>
                   </Button>
                 )}

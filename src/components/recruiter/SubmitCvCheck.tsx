@@ -8,18 +8,18 @@
 import { useRef, useState } from 'react';
 import { CheckCircle2, FileText, FileUp, Info, Loader2, Mail, Upload, X, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
+import { intlLocale } from '@/i18n/languages';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
   CV_ACCEPT,
-  CV_MISSING_MESSAGE,
   CurrentCv,
   CvMismatch,
-  cvAgeLabel,
   cvAgeMonths,
   cvFileProblem,
   cvStandDate,
-  formatCvDate,
   isCvStale,
 } from '@/lib/candidateCv';
 import { confirmCvCurrent, cvViewUrl } from '@/hooks/useCandidateCv';
@@ -27,8 +27,11 @@ import { confirmCvCurrent, cvViewUrl } from '@/hooks/useCandidateCv';
 async function openCv(cv: CurrentCv) {
   const url = await cvViewUrl(cv);
   if (url) window.open(url, '_blank', 'noopener');
-  else toast.error('Der Lebenslauf konnte nicht geöffnet werden.');
+  else toast.error(i18n.t('recruiterSubmissions:cv.openFailed'));
 }
+
+/** Datum des Lebenslaufs in der Sprache der Oberfläche (deutsch wie formatCvDate: 05.11.2026). */
+const cvDate = (d: Date, language: string) => d.toLocaleDateString(intlLocale(language), { day: '2-digit', month: '2-digit', year: 'numeric' });
 
 export function SubmitCvCheck({
   cv,
@@ -45,13 +48,14 @@ export function SubmitCvCheck({
   /** Beim Kandidaten anfragen (05.11.2026), z. B. „Bei Lena anfragen“ */
   anfrage?: { label: string; onClick: () => void };
 }) {
+  const { t, i18n: lang } = useTranslation('recruiterSubmissions');
   const [confirmedId, setConfirmedId] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
 
   if (loading) {
     return (
       <div className="flex items-center gap-2 rounded-lg border border-border p-4 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" /> Lebenslauf wird geprüft …
+        <Loader2 className="h-4 w-4 animate-spin" /> {t('cv.checking')}
       </div>
     );
   }
@@ -65,7 +69,7 @@ export function SubmitCvCheck({
       await confirmCvCurrent(cv.id);
       setConfirmedId(cv.id);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Bestätigung konnte nicht gespeichert werden.');
+      toast.error(e instanceof Error ? e.message : t('cv.confirmFailed'));
     } finally {
       setConfirming(false);
     }
@@ -74,14 +78,14 @@ export function SubmitCvCheck({
   return (
     <div className="space-y-2 rounded-lg border border-border p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-sm font-medium">Lebenslauf</span>
+        <span className="text-sm font-medium">{t('cv.title')}</span>
         {cv && (
           <span className="text-xs text-muted-foreground">
             <button type="button" className="text-foreground underline-offset-2 hover:underline" onClick={() => openCv(cv)}>
               <FileText className="mr-1 inline h-3.5 w-3.5" />
               {cv.file_name}
             </button>
-            {' · '}Stand {formatCvDate(cvStandDate(cv))}
+            {' · '}{t('cv.stand', { date: cvDate(cvStandDate(cv), lang.language) })}
           </span>
         )}
       </div>
@@ -90,11 +94,11 @@ export function SubmitCvCheck({
         <div className="space-y-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
           <p>
             <XCircle className="mr-1.5 inline h-4 w-4" />
-            Lebenslauf fehlt. {CV_MISSING_MESSAGE}
+            {t('cv.missing')}
           </p>
           <div className="flex flex-wrap gap-2">
             <Button type="button" size="sm" variant="outline" className="bg-background" onClick={onUpload}>
-              <Upload className="mr-1.5 h-3.5 w-3.5" /> Lebenslauf hochladen
+              <Upload className="mr-1.5 h-3.5 w-3.5" /> {t('cv.upload')}
             </Button>
             {anfrage && (
               <Button type="button" size="sm" variant="outline" className="bg-background" onClick={anfrage.onClick}>
@@ -108,15 +112,17 @@ export function SubmitCvCheck({
       {cv && stale && (
         <div className="space-y-2 rounded-md bg-warning/10 px-3 py-2 text-sm text-warning">
           <p>
-            Stand {formatCvDate(cvStandDate(cv))}, {cvAgeLabel(cvAgeMonths(cv))}. Ist der Lebenslauf noch aktuell?
+            {cvAgeMonths(cv) < 1
+              ? t('cv.staleUnderMonth', { date: cvDate(cvStandDate(cv), lang.language) })
+              : t('cv.stale', { date: cvDate(cvStandDate(cv), lang.language), count: cvAgeMonths(cv) })}
           </p>
           <div className="flex flex-wrap gap-2">
             <Button type="button" size="sm" variant="outline" className="bg-background" disabled={confirming} onClick={confirm}>
               {confirming && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-              Ja, aktuell
+              {t('cv.yesCurrent')}
             </Button>
             <Button type="button" size="sm" variant="outline" className="bg-background" onClick={onUpload}>
-              <Upload className="mr-1.5 h-3.5 w-3.5" /> Neuen hochladen
+              <Upload className="mr-1.5 h-3.5 w-3.5" /> {t('cv.uploadNew')}
             </Button>
           </div>
         </div>
@@ -124,7 +130,7 @@ export function SubmitCvCheck({
 
       {cv && confirmedId === cv.id && (
         <p className="text-xs text-success">
-          <CheckCircle2 className="mr-1 inline h-3.5 w-3.5" /> Als aktuell bestätigt.
+          <CheckCircle2 className="mr-1 inline h-3.5 w-3.5" /> {t('cv.confirmed')}
         </p>
       )}
 
@@ -132,22 +138,22 @@ export function SubmitCvCheck({
         <div className="space-y-1.5 rounded-md bg-primary/5 px-3 py-2 text-sm">
           <p className="font-medium text-primary">
             <Info className="mr-1.5 inline h-4 w-4" />
-            Hinweis: Akte und Lebenslauf weichen ab
+            {t('cv.mismatchTitle')}
           </p>
           <ul className="space-y-0.5 text-xs">
             {mismatches.map((m) => (
               <li key={m.key}>
-                <span className="font-medium">{m.label}:</span> Akte „{m.akte}“ · Lebenslauf „{m.cv}“
+                <span className="font-medium">{m.label}:</span> {t('cv.mismatchRow', { akte: m.akte, cv: m.cv })}
               </li>
             ))}
           </ul>
-          <p className="text-xs text-muted-foreground">Einreichen geht trotzdem. Prüfe, ob die Akte stimmt, oder lade einen neuen Lebenslauf hoch.</p>
+          <p className="text-xs text-muted-foreground">{t('cv.mismatchHint')}</p>
         </div>
       )}
 
       {cv && !stale && mismatches.length === 0 && confirmedId !== cv.id && (
         <p className="text-xs text-success">
-          <CheckCircle2 className="mr-1 inline h-3.5 w-3.5" /> Lebenslauf liegt vor.
+          <CheckCircle2 className="mr-1 inline h-3.5 w-3.5" /> {t('cv.present')}
         </p>
       )}
     </div>
@@ -156,6 +162,7 @@ export function SubmitCvCheck({
 
 /** Pflichtfeld Lebenslauf beim neuen Kandidaten: nur PDF oder Word, kein Link. */
 export function CvFileDrop({ file, onChange }: { file: File | null; onChange: (file: File | null) => void }) {
+  const { t } = useTranslation('recruiterSubmissions');
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -169,7 +176,7 @@ export function CvFileDrop({ file, onChange }: { file: File | null; onChange: (f
   return (
     <div className="space-y-1.5">
       <p className="text-sm font-medium">
-        Lebenslauf (PDF oder Word) <span className="text-destructive">*</span>
+        {t('cv.drop.label')} <span className="text-destructive">*</span>
       </p>
       <div
         role="button"
@@ -193,15 +200,15 @@ export function CvFileDrop({ file, onChange }: { file: File | null; onChange: (f
               type="button"
               className="ml-1 text-muted-foreground hover:text-destructive"
               onClick={(e) => { e.stopPropagation(); onChange(null); }}
-              aria-label="Datei entfernen"
+              aria-label={t('cv.drop.remove')}
             >
               <X className="inline h-3.5 w-3.5" />
             </button>
           </p>
         ) : (
           <>
-            <p className="text-sm">Datei hierher ziehen oder klicken</p>
-            <p className="text-xs text-muted-foreground">PDF oder Word, bis 10 MB. Ein Link reicht nicht.</p>
+            <p className="text-sm">{t('cv.drop.hint')}</p>
+            <p className="text-xs text-muted-foreground">{t('cv.drop.rules')}</p>
           </>
         )}
       </div>

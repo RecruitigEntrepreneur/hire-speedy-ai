@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+import { intlLocale } from '@/i18n/languages';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -118,24 +120,9 @@ interface CandidateCardProps {
   cvMissing?: boolean;
 }
 
-const statusLabels: Record<string, string> = {
-  new: 'Neu',
-  contacted: 'Kontaktiert',
-  interview: 'Interview',
-  offer: 'Angebot',
-  placed: 'Platziert',
-  rejected: 'Absage',
-};
-
-const submissionStatusLabels: Record<string, string> = {
-  submitted: 'Vorgestellt',
-  exposed: 'Exposé',
-  interview_requested: 'Interview angefragt',
-  interview_scheduled: 'Interview geplant',
-  offer: 'Angebot',
-  placed: 'Platziert',
-  rejected: 'Absage',
-};
+// Beschriftung: candidates:status.<status> und candidates:submissionStatus.<status>
+const STATUS_KEYS = ['new', 'contacted', 'interview', 'offer', 'placed', 'rejected'];
+const SUBMISSION_STATUS_KEYS = ['submitted', 'exposed', 'interview_requested', 'interview_scheduled', 'offer', 'placed', 'rejected'];
 
 export function CandidateCard({
   candidate,
@@ -150,7 +137,9 @@ export function CandidateCard({
   onAddToPool,
   cvMissing,
 }: CandidateCardProps) {
-  const statusLabel = statusLabels[candidate.candidate_status || 'new'] || candidate.candidate_status;
+  const { t, i18n } = useTranslation('candidates');
+  const status = candidate.candidate_status || 'new';
+  const statusLabel = STATUS_KEYS.includes(status) ? t(`status.${status}`) : candidate.candidate_status;
 
   return (
     <Card
@@ -178,7 +167,7 @@ export function CandidateCard({
               <h3 className="font-semibold">{candidate.full_name}</h3>
               {cvMissing && <CvMissingBadge className="mb-0.5" />}
               <p className="text-sm text-muted-foreground">
-                {candidate.job_title ? `${candidate.job_title}${candidate.company ? ` bei ${candidate.company}` : ''}` : candidate.email}
+                {candidate.job_title ? (candidate.company ? t('card.titleAt', { title: candidate.job_title, company: candidate.company }) : candidate.job_title) : candidate.email}
               </p>
               {candidate.candidate_status && (
                 <Badge variant="outline" className="mt-1 text-xs">
@@ -196,19 +185,19 @@ export function CandidateCard({
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => onView(candidate)}>
                 <Eye className="h-4 w-4 mr-2" />
-                Details anzeigen
+                {t('actions.viewDetails')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onEdit(candidate)}>
                 <Edit className="h-4 w-4 mr-2" />
-                Bearbeiten
+                {t('actions.edit')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onAssignTag(candidate.id)}>
                 <Tag className="h-4 w-4 mr-2" />
-                Tags verwalten
+                {t('actions.manageTags')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onAddToPool(candidate)}>
                 <UserPlus className="h-4 w-4 mr-2" />
-                Zum Talent Pool
+                {t('actions.toTalentPool')}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
@@ -216,7 +205,7 @@ export function CandidateCard({
                 className="text-destructive"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
-                Löschen
+                {t('actions.delete')}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -233,7 +222,7 @@ export function CandidateCard({
                 e.stopPropagation();
                 window.location.href = `tel:${candidate.phone}`;
               }}
-              title="Anrufen"
+              title={t('actions.call')}
             >
               <Phone className="h-4 w-4" />
             </Button>
@@ -246,7 +235,7 @@ export function CandidateCard({
               e.stopPropagation();
               window.location.href = `mailto:${candidate.email}`;
             }}
-            title="E-Mail senden"
+            title={t('actions.sendEmail')}
           >
             <Mail className="h-4 w-4" />
           </Button>
@@ -259,7 +248,7 @@ export function CandidateCard({
                 e.stopPropagation();
                 window.open(candidate.linkedin_url!, '_blank');
               }}
-              title="LinkedIn öffnen"
+              title={t('actions.openLinkedin')}
             >
               <Linkedin className="h-4 w-4" />
             </Button>
@@ -271,13 +260,13 @@ export function CandidateCard({
           {candidate.experience_years !== null && (
             <div className="flex items-center gap-2 text-muted-foreground">
               <Briefcase className="h-3 w-3" />
-              {candidate.experience_years} Jahre Erfahrung
+              {t('card.experience', { count: candidate.experience_years })}
             </div>
           )}
           {candidate.expected_salary && (
             <div className="flex items-center gap-2 text-muted-foreground">
               <Euro className="h-3 w-3" />
-              {candidate.expected_salary.toLocaleString('de-DE')} € erwartet
+              {t('card.expectedSalary', { amount: candidate.expected_salary.toLocaleString(intlLocale(i18n.language)) })}
             </div>
           )}
         </div>
@@ -317,7 +306,7 @@ export function CandidateCard({
         {/* Submissions / Vorstellungen */}
         {submissions.length > 0 && (
           <div className="mt-3 pt-3 border-t">
-            <p className="text-xs text-muted-foreground mb-2">Vorgestellt bei:</p>
+            <p className="text-xs text-muted-foreground mb-2">{t('card.presentedAt')}</p>
             <div className="space-y-1.5">
               {submissions.slice(0, 2).map((sub, i) => (
                 <div key={i} className="flex items-center gap-2 text-sm">
@@ -327,12 +316,12 @@ export function CandidateCard({
                     variant={sub.status === 'placed' ? 'default' : sub.status === 'rejected' ? 'destructive' : 'secondary'} 
                     className="text-xs shrink-0"
                   >
-                    {submissionStatusLabels[sub.status] || sub.status}
+                    {SUBMISSION_STATUS_KEYS.includes(sub.status) ? t(`submissionStatus.${sub.status}`) : sub.status}
                   </Badge>
                 </div>
               ))}
               {submissions.length > 2 && (
-                <p className="text-xs text-muted-foreground">+{submissions.length - 2} weitere</p>
+                <p className="text-xs text-muted-foreground">{t('card.more', { count: submissions.length - 2 })}</p>
               )}
             </div>
           </div>

@@ -8,9 +8,12 @@
  * erreichen ihn über „Rundgang“ im Dashboard. Technik und Einblendung teilt er
  * mit dem Headhunter-Rundgang (lib/recruiterGuide.ts), nur mit „Sie“.
  */
+import i18n from '@/i18n';
 import type { GuideStep } from './recruiterGuide';
 
-export const CLIENT_GUIDE_CHAPTERS = ['Willkommen', 'Stelle anlegen', 'Nach dem Einreichen', 'Kandidaten & Team'] as const;
+/** Kapitel als Schlüssel; die Namen liest `clientGuideChapters()` in der aktuellen Sprache. */
+export const CLIENT_GUIDE_CHAPTERS = ['welcome', 'create', 'after', 'candidates'] as const;
+export const clientGuideChapters = (): string[] => CLIENT_GUIDE_CHAPTERS.map((key) => i18n.t(`clientGuide:chapters.${key}`));
 
 /** Ab dieser Breite gibt es das Seitenmenü (md). */
 const MENU = 768;
@@ -19,66 +22,61 @@ const nav = (href: string) => `[data-tour="nav:${href}"]`;
 /** Die Aufnahme liegt unter /dashboard/aufnahme und /dashboard/aufnahme/:id. */
 const AUFNAHME = '/dashboard/aufnahme*';
 
+// Texte stehen in src/i18n/locales/clientGuide und werden erst beim Lesen geholt (README Regel 7),
+// damit ein Sprachwechsel sofort gilt. Wer die Schritte zeigt, lädt den Namespace `clientGuide`.
+const tx = (key: string): string => i18n.t(`clientGuide:${key}`);
+const text = (target: object, field: string, read: () => string) =>
+  Object.defineProperty(target, field, { enumerable: true, get: read });
+
+type StepDef = Omit<GuideStep, 'title' | 'body' | 'narrowBody' | 'click' | 'wait' | 'hold'> & {
+  /** Eigene Texte unter steps.<id>.narrowBody / .wait / .hold. */
+  narrow?: boolean; wait?: boolean; hold?: boolean;
+  /** Klick-Schritt; die Beschriftung steht unter steps.<id>.action. */
+  click?: { to?: string; minWidth?: number };
+};
+/** Schritt, dessen Texte bei jedem Lesen aus der Übersetzung kommen. */
+const step = ({ narrow, wait, hold, click, ...rest }: StepDef): GuideStep => {
+  const s = { ...rest } as GuideStep;
+  const k = (field: string) => () => tx(`steps.${rest.id}.${field}`);
+  text(s, 'title', k('title'));
+  text(s, 'body', k('body'));
+  if (narrow) text(s, 'narrowBody', k('narrowBody'));
+  if (wait) text(s, 'wait', k('wait'));
+  if (hold) text(s, 'hold', k('hold'));
+  if (click) s.click = text({ ...click }, 'label', k('action')) as GuideStep['click'];
+  return s;
+};
+
 export const CLIENT_GUIDE_STEPS: GuideStep[] = [
   // 1 · Willkommen
-  { id: 'c-welcome', chapter: 1, route: '/dashboard', title: 'Willkommen bei Matchunt',
-    body: 'In wenigen Minuten zeigen wir Ihnen, wie Sie eine Stelle an unsere Headhunter geben und passende Kandidaten bekommen. Dabei legen Sie gleich Ihre erste Stelle an. Sie klicken selbst, wir erklären.' },
-  { id: 'c-entry', chapter: 1, route: '/dashboard', target: at('client.entry'), title: 'Hier beginnt jede Stelle',
-    body: '„Position aufnehmen“ ist der wichtigste Knopf. Angefangene Stellen finden Sie hier später unter „Weitermachen“.' },
-  { id: 'c-decide', chapter: 1, route: '/dashboard', target: at('client.decide'), title: 'Was auf Sie wartet',
-    body: '„Braucht Entscheidung“ zeigt Kandidaten und Termine, bei denen Sie am Zug sind. Je schneller Sie reagieren, desto besser die Chancen.' },
+  step({ id: 'c-welcome', chapter: 1, route: '/dashboard' }),
+  step({ id: 'c-entry', chapter: 1, route: '/dashboard', target: at('client.entry') }),
+  step({ id: 'c-decide', chapter: 1, route: '/dashboard', target: at('client.decide') }),
 
   // 2 · Stelle anlegen
-  { id: 'c-start', chapter: 2, route: '/dashboard', target: at('client.entry'), title: 'Legen wir Ihre erste Stelle an',
-    body: 'Fügen Sie Ihre Stellenanzeige ein und klicken Sie auf „Profil bauen“. Keine Anzeige zur Hand? Dann „Von Hand beschreiben“.',
-    narrowBody: 'Tippen Sie auf „Position aufnehmen“.',
-    click: { label: 'Position aufnehmen', to: AUFNAHME } },
-  { id: 'c-kind', chapter: 2, route: AUFNAHME, target: at('intake.kind'), autoSkip: true,
-    title: 'Festanstellung oder Contracting?',
-    body: 'Danach richtet sich, wonach wir fragen und was in der Vereinbarung steht. Wählen Sie die passende Art.',
-    click: { label: 'Weiter' } },
-  { id: 'c-ways', chapter: 2, route: AUFNAHME, target: at('intake.ways'), autoSkip: true,
-    title: 'Der schnellste Weg: Ihre Anzeige',
-    body: 'Anzeige einfügen, Link oder PDF: Wir bauen daraus das Profil, Sie prüfen nur noch. Ohne Anzeige beschreiben Sie die Stelle von Hand.',
-    click: { label: 'Weiter' } },
-  { id: 'c-profile', chapter: 2, route: AUFNAHME, target: at('intake.head'),
-    wait: 'Der Rundgang wartet, bis Ihr Profil steht.',
-    title: 'Prüfen statt tippen',
-    body: 'Ihr Profil steht. Alles aus Ihrer Anzeige ist mit „aus der Anzeige“ markiert: „✓ stimmt“ bestätigt, sonst einfach ändern. „Alle bestätigen“ übernimmt alles auf einmal.' },
-  { id: 'c-criteria', chapter: 2, route: AUFNAHME, target: at('intake.criteria'),
-    title: 'Die wichtigste Angabe',
-    body: 'Stufen Sie jede Anforderung ein: unverzichtbar, verhandelbar oder lernbar. Daran messen die Headhunter jeden Kandidaten.' },
-  { id: 'c-briefing', chapter: 2, route: AUFNAHME, target: at('intake.briefing'),
-    title: 'Das Briefing: was in keiner Anzeige steht',
-    body: 'Acht Fragen aus echten Vermittlungsgesprächen, etwa warum die Stelle offen ist und wer bei Ihnen Erfolg hat. Genau das macht die Ansprache der Headhunter überzeugend.' },
-  { id: 'c-save', chapter: 2, route: AUFNAHME, target: at('intake.footer'),
-    title: 'Nichts geht verloren',
-    body: 'Alles wird laufend gespeichert. Mit „Später“ machen Sie jederzeit unter „Weitermachen“ weiter. „Weiter“ führt zum Einreichen, sobald Briefing und Anforderungen stehen.' },
-  { id: 'c-submit', chapter: 2, route: AUFNAHME, example: 'clientSubmit',
-    title: 'Füllen Sie in Ruhe aus',
-    body: 'Beantworten Sie jetzt die Fragen und reichen Sie ein, wenn Sie so weit sind. Der Rundgang wartet so lange und geht danach unter „Meine Jobs“ weiter.' },
+  step({ id: 'c-start', narrow: true, chapter: 2, route: '/dashboard', target: at('client.entry'),
+    click: { to: AUFNAHME } }),
+  step({ id: 'c-kind', chapter: 2, route: AUFNAHME, target: at('intake.kind'), autoSkip: true,
+    click: {} }),
+  step({ id: 'c-ways', chapter: 2, route: AUFNAHME, target: at('intake.ways'), autoSkip: true,
+    click: {} }),
+  step({ id: 'c-profile', wait: true, chapter: 2, route: AUFNAHME, target: at('intake.head') }),
+  step({ id: 'c-criteria', chapter: 2, route: AUFNAHME, target: at('intake.criteria') }),
+  step({ id: 'c-briefing', chapter: 2, route: AUFNAHME, target: at('intake.briefing') }),
+  step({ id: 'c-save', chapter: 2, route: AUFNAHME, target: at('intake.footer') }),
+  step({ id: 'c-submit', chapter: 2, route: AUFNAHME, example: 'clientSubmit' }),
 
   // 3 · Nach dem Einreichen
-  { id: 'c-jobs', chapter: 3, route: '/dashboard/jobs', target: at('jobs.main'), example: 'clientStatus', exampleWhenMissing: true,
-    hold: 'Der Rundgang geht weiter, sobald Sie eingereicht oder „Später“ gewählt haben.', holdWhile: AUFNAHME,
-    title: 'Wo steht meine Stelle?',
-    body: 'Unter „Meine Jobs“ sehen Sie jede Stelle mit ihrem Stand: Eingereicht → Prüfung durch Matchunt (meist unter 24 Std.) → Live → Erste Kandidaten. Entwürfe stehen unter „Entwürfe“.' },
+  step({ id: 'c-jobs', hold: true, chapter: 3, route: '/dashboard/jobs', target: at('jobs.main'), example: 'clientStatus', exampleWhenMissing: true, holdWhile: AUFNAHME }),
 
   // 4 · Kandidaten & Team
-  { id: 'c-navCandidates', chapter: 4, route: '/dashboard/jobs', target: nav('/dashboard/candidates'),
-    title: 'Ihre Kandidaten', body: 'Klicken Sie links im Menü auf „Bewerber“.', narrowBody: 'Tippen Sie auf „Bewerber öffnen“.',
-    click: { label: 'Bewerber öffnen', to: '/dashboard/candidates', minWidth: MENU } },
-  { id: 'c-candidates', chapter: 4, route: '/dashboard/candidates', target: at('candidates.header'), example: 'clientCandidate',
-    title: 'Kandidaten kommen anonym',
-    body: 'Sie sehen zuerst ein anonymes Profil mit der Einschätzung des Headhunters. Wollen Sie jemanden kennenlernen, fragt der Headhunter die Person. Danach sehen Sie Namen und Lebenslauf.' },
-  { id: 'c-navTeam', chapter: 4, route: '/dashboard/candidates', target: nav('/dashboard/team'),
-    title: 'Ihr Team', body: 'Klicken Sie links im Menü auf „Team“.', narrowBody: 'Tippen Sie auf „Team öffnen“.',
-    click: { label: 'Team öffnen', to: '/dashboard/team', minWidth: MENU } },
-  { id: 'c-team', chapter: 4, route: '/dashboard/team', target: at('team.header'),
-    title: 'Holen Sie Ihr Team dazu',
-    body: 'Laden Sie Kollegen ein: HR reicht Stellen ein, der Fachbereich gibt Feedback zu Kandidaten.' },
-  { id: 'c-done', chapter: 4, route: '/dashboard/team', title: 'Geschafft',
-    body: 'Sie kennen jetzt die wichtigsten Wege. Den Rundgang starten Sie jederzeit neu über „Rundgang“ im Dashboard.' },
+  step({ id: 'c-navCandidates', narrow: true, chapter: 4, route: '/dashboard/jobs', target: nav('/dashboard/candidates'),
+    click: { to: '/dashboard/candidates', minWidth: MENU } }),
+  step({ id: 'c-candidates', chapter: 4, route: '/dashboard/candidates', target: at('candidates.header'), example: 'clientCandidate' }),
+  step({ id: 'c-navTeam', narrow: true, chapter: 4, route: '/dashboard/candidates', target: nav('/dashboard/team'),
+    click: { to: '/dashboard/team', minWidth: MENU } }),
+  step({ id: 'c-team', chapter: 4, route: '/dashboard/team', target: at('team.header') }),
+  step({ id: 'c-done', chapter: 4, route: '/dashboard/team' }),
 ];
 
 /** Laufender Rundgang je Browser-Tab. */

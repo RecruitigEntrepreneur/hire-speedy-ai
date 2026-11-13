@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Trans, useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -40,31 +41,36 @@ const referenceSchema = z.object({
 
 type ReferenceFormData = z.infer<typeof referenceSchema>;
 
+// Auswahlwerte: `value` wird so gespeichert (bleibt deutsch), angezeigt wird reference:provide.<liste>.<key>.
 const strengthOptions = [
-  'Technische Kompetenz',
-  'Problemlösung',
-  'Kommunikation',
-  'Teamarbeit',
-  'Eigeninitiative',
-  'Lernbereitschaft',
-  'Zuverlässigkeit',
-  'Führungsfähigkeiten',
-  'Kreativität',
-  'Zeitmanagement',
-];
+  { key: 'technical', value: 'Technische Kompetenz' },
+  { key: 'problemSolving', value: 'Problemlösung' },
+  { key: 'communication', value: 'Kommunikation' },
+  { key: 'teamwork', value: 'Teamarbeit' },
+  { key: 'initiative', value: 'Eigeninitiative' },
+  { key: 'learning', value: 'Lernbereitschaft' },
+  { key: 'reliability', value: 'Zuverlässigkeit' },
+  { key: 'leadership', value: 'Führungsfähigkeiten' },
+  { key: 'creativity', value: 'Kreativität' },
+  { key: 'timeManagement', value: 'Zeitmanagement' },
+] as const;
 
 const improvementOptions = [
-  'Kommunikation',
-  'Zeitmanagement',
-  'Delegation',
-  'Detailgenauigkeit',
-  'Stressresistenz',
-  'Flexibilität',
-  'Technische Fähigkeiten',
-];
+  { key: 'communication', value: 'Kommunikation' },
+  { key: 'timeManagement', value: 'Zeitmanagement' },
+  { key: 'delegation', value: 'Delegation' },
+  { key: 'detail', value: 'Detailgenauigkeit' },
+  { key: 'stress', value: 'Stressresistenz' },
+  { key: 'flexibility', value: 'Flexibilität' },
+  { key: 'technical', value: 'Technische Fähigkeiten' },
+] as const;
+
+const RATING_FIELDS = ['overall_performance', 'technical_skills', 'communication', 'teamwork', 'reliability', 'leadership'] as const;
+const LEVELS = ['strong_yes', 'yes', 'neutral', 'no', 'strong_no'] as const;
 
 export default function ProvideReference() {
   const { token } = useParams<{ token: string }>();
+  const { t } = useTranslation('reference');
   const navigate = useNavigate();
   const { data: request, isLoading, error } = useReferenceByToken(token);
   const submitReference = useSubmitReference();
@@ -102,7 +108,7 @@ export default function ProvideReference() {
         <Card className="w-full max-w-md">
           <CardContent className="py-12 text-center">
             <Loader2 className="h-12 w-12 animate-spin mx-auto text-primary" />
-            <p className="mt-4 text-muted-foreground">Wird geladen...</p>
+            <p className="mt-4 text-muted-foreground">{t('provide.loading')}</p>
           </CardContent>
         </Card>
       </div>
@@ -115,9 +121,9 @@ export default function ProvideReference() {
         <Card className="w-full max-w-md">
           <CardContent className="py-12 text-center">
             <XCircle className="h-12 w-12 mx-auto text-destructive" />
-            <h3 className="mt-4 text-lg font-semibold">Link ungültig</h3>
+            <h3 className="mt-4 text-lg font-semibold">{t('provide.invalidTitle')}</h3>
             <p className="text-muted-foreground">
-              Diese Referenzanfrage ist ungültig, abgelaufen oder wurde bereits beantwortet.
+              {t('provide.invalidBody')}
             </p>
           </CardContent>
         </Card>
@@ -131,9 +137,9 @@ export default function ProvideReference() {
         <Card className="w-full max-w-md">
           <CardContent className="py-12 text-center">
             <CheckCircle2 className="h-12 w-12 mx-auto text-green-500" />
-            <h3 className="mt-4 text-lg font-semibold">Vielen Dank!</h3>
+            <h3 className="mt-4 text-lg font-semibold">{t('provide.thanksTitle')}</h3>
             <p className="text-muted-foreground">
-              Ihre Referenz wurde erfolgreich eingereicht.
+              {t('provide.thanksBody')}
             </p>
           </CardContent>
         </Card>
@@ -146,11 +152,11 @@ export default function ProvideReference() {
       <div className="max-w-2xl mx-auto">
         <Card>
           <CardHeader>
-            <CardTitle>Referenzauskunft</CardTitle>
+            <CardTitle>{t('provide.title')}</CardTitle>
             <CardDescription>
-              Bitte geben Sie eine Referenz für <strong>{request.candidates?.full_name}</strong> ab.
+              <Trans t={t} i18nKey="provide.intro" values={{ name: request.candidates?.full_name ?? '' }} components={{ strong: <strong /> }} />
               <br />
-              Diese Informationen werden vertraulich behandelt.
+              {t('provide.confidential')}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -158,16 +164,9 @@ export default function ProvideReference() {
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
                 {/* Rating Fields */}
                 <div className="space-y-6">
-                  <h3 className="font-semibold">Bewertungen (1-5)</h3>
+                  <h3 className="font-semibold">{t('provide.ratings')}</h3>
                   
-                  {[
-                    { name: 'overall_performance', label: 'Gesamtleistung' },
-                    { name: 'technical_skills', label: 'Fachliche/Technische Fähigkeiten' },
-                    { name: 'communication', label: 'Kommunikation' },
-                    { name: 'teamwork', label: 'Teamarbeit' },
-                    { name: 'reliability', label: 'Zuverlässigkeit' },
-                    { name: 'leadership', label: 'Führungsqualitäten (optional)' },
-                  ].map((field) => (
+                  {RATING_FIELDS.map((name) => ({ name, label: t(`provide.fields.${name}`) })).map((field) => (
                     <FormField
                       key={field.name}
                       control={form.control}
@@ -211,11 +210,11 @@ export default function ProvideReference() {
                   name="strengths"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Stärken (mehrere möglich)</FormLabel>
+                      <FormLabel>{t('provide.strengthsLabel')}</FormLabel>
                       <div className="grid grid-cols-2 gap-2">
-                        {strengthOptions.map((strength) => (
+                        {strengthOptions.map(({ key, value: strength }) => (
                           <label
-                            key={strength}
+                            key={key}
                             className="flex items-center gap-2 p-2 border rounded cursor-pointer hover:bg-muted"
                           >
                             <Checkbox
@@ -228,7 +227,7 @@ export default function ProvideReference() {
                                 }
                               }}
                             />
-                            <span className="text-sm">{strength}</span>
+                            <span className="text-sm">{t(`provide.strengths.${key}`)}</span>
                           </label>
                         ))}
                       </div>
@@ -243,11 +242,11 @@ export default function ProvideReference() {
                   name="areas_for_improvement"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Verbesserungspotenzial (optional)</FormLabel>
+                      <FormLabel>{t('provide.improvementLabel')}</FormLabel>
                       <div className="grid grid-cols-2 gap-2">
-                        {improvementOptions.map((area) => (
+                        {improvementOptions.map(({ key, value: area }) => (
                           <label
-                            key={area}
+                            key={key}
                             className="flex items-center gap-2 p-2 border rounded cursor-pointer hover:bg-muted"
                           >
                             <Checkbox
@@ -260,7 +259,7 @@ export default function ProvideReference() {
                                 }
                               }}
                             />
-                            <span className="text-sm">{area}</span>
+                            <span className="text-sm">{t(`provide.improvements.${key}`)}</span>
                           </label>
                         ))}
                       </div>
@@ -275,10 +274,10 @@ export default function ProvideReference() {
                   name="notable_achievements"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Bemerkenswerte Erfolge</FormLabel>
+                      <FormLabel>{t('provide.achievements')}</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Beschreiben Sie bemerkenswerte Projekte oder Erfolge..."
+                          placeholder={t('provide.achievementsPlaceholder')}
                           rows={3}
                           {...field}
                         />
@@ -294,10 +293,10 @@ export default function ProvideReference() {
                   name="working_style"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Arbeitsstil</FormLabel>
+                      <FormLabel>{t('provide.workingStyle')}</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Wie würden Sie den Arbeitsstil beschreiben?"
+                          placeholder={t('provide.workingStylePlaceholder')}
                           rows={2}
                           {...field}
                         />
@@ -313,7 +312,7 @@ export default function ProvideReference() {
                   name="would_rehire"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Würden Sie diese Person wieder einstellen?</FormLabel>
+                      <FormLabel>{t('provide.rehire')}</FormLabel>
                       <FormControl>
                         <RadioGroup
                           onValueChange={(v) => field.onChange(v === 'true')}
@@ -322,11 +321,11 @@ export default function ProvideReference() {
                         >
                           <div className="flex items-center space-x-2">
                             <RadioGroupItem value="true" id="rehire-yes" />
-                            <Label htmlFor="rehire-yes">Ja</Label>
+                            <Label htmlFor="rehire-yes">{t('provide.yes')}</Label>
                           </div>
                           <div className="flex items-center space-x-2">
                             <RadioGroupItem value="false" id="rehire-no" />
-                            <Label htmlFor="rehire-no">Nein</Label>
+                            <Label htmlFor="rehire-no">{t('provide.no')}</Label>
                           </div>
                         </RadioGroup>
                       </FormControl>
@@ -341,20 +340,14 @@ export default function ProvideReference() {
                   name="recommendation_level"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Empfehlungsgrad</FormLabel>
+                      <FormLabel>{t('provide.recommendation')}</FormLabel>
                       <FormControl>
                         <RadioGroup
                           onValueChange={field.onChange}
                           defaultValue={field.value}
                           className="grid grid-cols-5 gap-2"
                         >
-                          {[
-                            { value: 'strong_yes', label: 'Sehr empfohlen' },
-                            { value: 'yes', label: 'Empfohlen' },
-                            { value: 'neutral', label: 'Neutral' },
-                            { value: 'no', label: 'Nicht empfohlen' },
-                            { value: 'strong_no', label: 'Abraten' },
-                          ].map((option) => (
+                          {LEVELS.map((value) => ({ value, label: t(`provide.levels.${value}`) })).map((option) => (
                             <div key={option.value} className="text-center">
                               <RadioGroupItem
                                 value={option.value}
@@ -384,10 +377,10 @@ export default function ProvideReference() {
                   name="additional_comments"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Weitere Kommentare</FormLabel>
+                      <FormLabel>{t('provide.comments')}</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="Gibt es noch etwas, das Sie hinzufügen möchten?"
+                          placeholder={t('provide.commentsPlaceholder')}
                           rows={3}
                           {...field}
                         />
@@ -405,7 +398,7 @@ export default function ProvideReference() {
                   {submitReference.isPending && (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   )}
-                  Referenz absenden
+                  {t('provide.submit')}
                 </Button>
               </form>
             </Form>

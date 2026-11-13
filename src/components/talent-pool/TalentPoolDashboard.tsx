@@ -7,15 +7,18 @@ import { TalentPoolCard } from './TalentPoolCard';
 import { TalentMatchAlert } from './TalentMatchAlert';
 import { Users, Star, Clock, Coffee, Bell } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useTranslation } from 'react-i18next';
 
+// Beschriftung über t('type.<schlüssel>') beim Anzeigen
 const poolTypeConfig = {
-  general: { label: 'Allgemein', icon: Users, color: 'bg-gray-100 text-gray-800' },
-  silver_medalist: { label: 'Silber-Medaillist', icon: Star, color: 'bg-amber-100 text-amber-800' },
-  future_fit: { label: 'Zukunft', icon: Clock, color: 'bg-blue-100 text-blue-800' },
-  passive: { label: 'Passiv', icon: Coffee, color: 'bg-purple-100 text-purple-800' },
+  general: { icon: Users, color: 'bg-gray-100 text-gray-800' },
+  silver_medalist: { icon: Star, color: 'bg-amber-100 text-amber-800' },
+  future_fit: { icon: Clock, color: 'bg-blue-100 text-blue-800' },
+  passive: { icon: Coffee, color: 'bg-purple-100 text-purple-800' },
 };
 
 export function TalentPoolDashboard() {
+  const { t } = useTranslation('talentPool');
   const { entries, isLoading: loadingEntries } = useTalentPool();
   const { alerts, isLoading: loadingAlerts, updateAlert } = useTalentAlerts();
 
@@ -71,7 +74,7 @@ export function TalentPoolDashboard() {
               <Users className="h-5 w-5 text-muted-foreground" />
               <div>
                 <p className="text-2xl font-bold">{stats.total}</p>
-                <p className="text-sm text-muted-foreground">Im Pool</p>
+                <p className="text-sm text-muted-foreground">{t('stats.inPool')}</p>
               </div>
             </div>
           </CardContent>
@@ -83,7 +86,7 @@ export function TalentPoolDashboard() {
               <Star className="h-5 w-5 text-amber-500" />
               <div>
                 <p className="text-2xl font-bold">{entriesByType.silver_medalist.length}</p>
-                <p className="text-sm text-muted-foreground">Silber-Medaillisten</p>
+                <p className="text-sm text-muted-foreground">{t('stats.silver')}</p>
               </div>
             </div>
           </CardContent>
@@ -95,7 +98,7 @@ export function TalentPoolDashboard() {
               <Clock className="h-5 w-5 text-orange-500" />
               <div>
                 <p className="text-2xl font-bold">{stats.pendingContact}</p>
-                <p className="text-sm text-muted-foreground">Kontakt fällig</p>
+                <p className="text-sm text-muted-foreground">{t('stats.contactDue')}</p>
               </div>
             </div>
           </CardContent>
@@ -107,7 +110,7 @@ export function TalentPoolDashboard() {
               <Bell className="h-5 w-5 text-blue-500" />
               <div>
                 <p className="text-2xl font-bold">{stats.newAlerts}</p>
-                <p className="text-sm text-muted-foreground">Job-Matches</p>
+                <p className="text-sm text-muted-foreground">{t('stats.matches')}</p>
               </div>
             </div>
           </CardContent>
@@ -120,7 +123,7 @@ export function TalentPoolDashboard() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Bell className="h-5 w-5" />
-              Neue Job-Matches
+              {t('newMatches')}
               <Badge variant="secondary">{alerts.length}</Badge>
             </CardTitle>
           </CardHeader>
@@ -143,12 +146,12 @@ export function TalentPoolDashboard() {
       <Tabs defaultValue="all">
         <TabsList>
           <TabsTrigger value="all">
-            Alle ({entriesByType.all.length})
+            {t('tabAll', { count: entriesByType.all.length })}
           </TabsTrigger>
           {Object.entries(poolTypeConfig).map(([type, config]) => (
             <TabsTrigger key={type} value={type}>
               <config.icon className="h-4 w-4 mr-1" />
-              {config.label} ({entriesByType[type as keyof typeof entriesByType].length})
+              {t('tabType', { label: t(`type.${type}`), count: entriesByType[type as keyof typeof entriesByType].length })}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -162,9 +165,9 @@ export function TalentPoolDashboard() {
               <Card>
                 <CardContent className="py-12 text-center text-muted-foreground">
                   <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Noch keine Kandidaten im Talent Pool</p>
+                  <p>{t('empty')}</p>
                   <p className="text-sm">
-                    Fügen Sie abgelehnte Kandidaten hinzu, um sie für zukünftige Jobs zu reaktivieren
+                    {t('emptyHint')}
                   </p>
                 </CardContent>
               </Card>
@@ -181,7 +184,7 @@ export function TalentPoolDashboard() {
               {entriesByType[type as keyof typeof entriesByType].length === 0 && (
                 <Card>
                   <CardContent className="py-12 text-center text-muted-foreground">
-                    <p>Keine Kandidaten in dieser Kategorie</p>
+                    <p>{t('emptyType')}</p>
                   </CardContent>
                 </Card>
               )}

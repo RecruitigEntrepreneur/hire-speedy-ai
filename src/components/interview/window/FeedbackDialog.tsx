@@ -1,11 +1,12 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { fmtDayLong, interviewApi, type FeedbackWay } from '@/lib/interviewScheduling';
 import { useLiveInterviewNotes } from '@/hooks/useLiveInterviewNotes';
 import { FeedbackPanel } from './FeedbackPanel';
 import { ContextView } from '@/components/client/tasks/ClientTaskParts';
-import type { TaskContext } from '@/lib/clientTasksApi';
+import type { TaskContext, TaskFact } from '@/lib/clientTasksApi';
 
 interface Props {
   interviewId: string | null;
@@ -19,10 +20,13 @@ interface Props {
   context?: TaskContext | null;
 }
 
-const FORMAT = { teams: 'Teams', phone: 'Telefon', onsite: 'Vor Ort' } as const;
+
+/** Das Gespräch selbst steht schon oben; Schlüssel statt Etikett, weil das Etikett übersetzt kommt (ohne Schlüssel: Server vor dem Deploy). */
+const notMeeting = (f: TaskFact) => (f.key ? f.key !== 'meeting' : f.label !== 'Gespräch');
 
 /** Feedback nach dem Gespräch als Fenster in der Mitte (aus Profil und Agenda). */
 export function FeedbackDialog({ interviewId, open, onOpenChange, candidateName, onNext, onSaved, context }: Props) {
+  const { t } = useTranslation(['clientInterviews', 'interviews']);
   const queryClient = useQueryClient();
   const details = useQuery({
     queryKey: ['interview-details', interviewId],
@@ -39,16 +43,16 @@ export function FeedbackDialog({ interviewId, open, onOpenChange, candidateName,
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Wie war {d && d.round > 1 ? `Interview ${d.round}` : 'das Interview'} mit {first}?</DialogTitle>
+          <DialogTitle>{d && d.round > 1 ? t('feedbackDialog.titleRound', { n: d.round, name: first }) : t('feedbackDialog.title', { name: first })}</DialogTitle>
           <DialogDescription>
-            {d?.scheduledAt ? `${fmtDayLong(d.scheduledAt)} · ${FORMAT[d.format]}` : ''}{people ? ` · mit ${people}` : ''}
+            {d?.scheduledAt ? `${fmtDayLong(d.scheduledAt)} · ${t(`interviews:meeting.${d.format}`)}` : ''}{people ? t('feedbackDialog.with', { people }) : ''}
           </DialogDescription>
         </DialogHeader>
-        {context && context.facts.some((f) => f.label !== 'Gespräch') && (
-          <ContextView context={{ ...context, facts: context.facts.filter((f) => f.label !== 'Gespräch'), line: [], why: null, foot: null }} />
+        {context && context.facts.some(notMeeting) && (
+          <ContextView context={{ ...context, facts: context.facts.filter(notMeeting), line: [], why: null, foot: null }} />
         )}
         {details.isLoading || !d ? (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> wird geladen …</p>
+          <p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> {t('feedbackDialog.loading')}</p>
         ) : (
           <FeedbackPanel
             interviewId={d.id}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CalendarClock, CalendarOff, Check, CheckCircle2, Copy, ExternalLink, Loader2, Phone, Video } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -24,7 +25,8 @@ import { useRuecksprung, useTerminseite } from './useTerminseite';
  */
 const RUECKSPRUNG = '/recruiter/profile/terminseite';
 const DAUERN = [15, 30, 45, 60];
-const VORLAUF = [{ value: 1, label: 'in 1 Std' }, { value: 4, label: 'in 4 Std' }, { value: 24, label: 'ab morgen' }, { value: 48, label: 'ab 2 Tagen' }];
+// Beschriftung je Vorlauf: recruiterTermin → seite.vorlauf.h<Stunden>
+const VORLAUF = [1, 4, 24, 48] as const;
 
 function Schritt({ nr, fertig, titel, rechts, children }: { nr: number; fertig: boolean; titel: string; rechts?: React.ReactNode; children: React.ReactNode }) {
   return <section className="flex gap-3 border-t border-border py-4 first:border-t-0 first:pt-0">
@@ -39,6 +41,8 @@ function Schritt({ nr, fertig, titel, rechts, children }: { nr: number; fertig: 
 }
 
 export function TerminseiteBereich({ zurueck }: { zurueck?: string | null }) {
+  const { t } = useTranslation('recruiterTermin');
+  const vorlauf = useMemo(() => VORLAUF.map((value) => ({ value, label: t(`seite.vorlauf.h${value}`) })), [t]);
   useRuecksprung();
   const kontakt = useRecruiterKontakt();
   const kal = useCalendarStatus();
@@ -67,111 +71,111 @@ export function TerminseiteBereich({ zurueck }: { zurueck?: string | null }) {
   const verbunden = kal.state === 'connected';
   const aktiv = !!zeile?.active;
   const link = `${TERMINSEITE_BASIS}${slug}`;
-  const name = kontakt?.name || 'Dein Name';
-  const initialen = useMemo(() => name.split(/\s+/).slice(0, 2).map(t => t[0]?.toUpperCase()).join(''), [name]);
+  const name = kontakt?.name || t('seite.yourName');
+  const initialen = useMemo(() => name.split(/\s+/).slice(0, 2).map(teil => teil[0]?.toUpperCase()).join(''), [name]);
 
   const pruefeSlug = async (s: string) => {
-    if (!SLUG_MUSTER.test(s) || s.length < 3 || s === 'termin') { setSlugFehler('Nur Kleinbuchstaben, Ziffern und Bindestriche, mindestens 3 Zeichen.'); return false; }
-    if (!(await slugFrei(s))) { setSlugFehler('Diese Adresse ist schon vergeben.'); return false; }
+    if (!SLUG_MUSTER.test(s) || s.length < 3 || s === 'termin') { setSlugFehler(t('seite.slugInvalid')); return false; }
+    if (!(await slugFrei(s))) { setSlugFehler(t('seite.slugTaken')); return false; }
     setSlugFehler('');
     return true;
   };
 
   const sichern = async (aktivNeu = aktiv) => {
-    if (!teams && !telefon) { toast.error('Wähle mindestens eine Gesprächsart.'); return; }
+    if (!teams && !telefon) { toast.error(t('seite.chooseMode')); return; }
     if (!(await pruefeSlug(slug))) return;
-    if (aktivNeu && !verbunden) { toast.error('Verbinde zuerst deinen Kalender. Ohne ihn zeigt die Seite keine freien Zeiten.'); return; }
+    if (aktivNeu && !verbunden) { toast.error(t('seite.connectFirst')); return; }
     try {
       await speichern.mutateAsync({ slug, active: aktivNeu, rules: normalizeRules(regeln), duration_minutes: dauer, allow_teams: teams, allow_phone: telefon });
       setGeaendert(false);
-      toast.success(aktivNeu && !aktiv ? 'Terminseite ist aktiv.' : 'Gespeichert.');
+      toast.success(aktivNeu && !aktiv ? t('seite.activated') : t('seite.saved'));
       if (aktivNeu && zurueck) window.location.href = zurueck;
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Speichern hat nicht geklappt.');
+      toast.error(e instanceof Error ? e.message : t('seite.saveFailed'));
     }
   };
 
   const kopieren = async () => {
-    try { await navigator.clipboard.writeText(link); toast.success('Link kopiert.'); } catch { toast.error('Kopieren ging nicht.'); }
+    try { await navigator.clipboard.writeText(link); toast.success(t('seite.linkCopied')); } catch { toast.error(t('seite.copyFailed')); }
   };
 
   const aendere = <T,>(set: (v: T) => void) => (v: T) => { set(v); setGeaendert(true); };
 
-  if (isLoading || kal.isLoading) return <Card><CardContent className="flex items-center gap-2 p-5 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin"/>Lädt …</CardContent></Card>;
+  if (isLoading || kal.isLoading) return <Card><CardContent className="flex items-center gap-2 p-5 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin"/>{t('seite.loading')}</CardContent></Card>;
 
   return <Card id="terminseite">
     <CardContent className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
       <div className="min-w-0">
-        <h2 className="flex items-center gap-2 text-lg font-semibold"><CalendarClock className="h-5 w-5"/>Deine Terminseite</h2>
-        <p className="mb-4 mt-1 text-sm text-muted-foreground">Kandidaten aus deinen LinkedIn-Beiträgen buchen hier ein Gespräch mit dir, nur zu Zeiten, die in deinem Kalender wirklich frei sind.</p>
+        <h2 className="flex items-center gap-2 text-lg font-semibold"><CalendarClock className="h-5 w-5"/>{t('seite.title')}</h2>
+        <p className="mb-4 mt-1 text-sm text-muted-foreground">{t('seite.intro')}</p>
 
-        <Schritt nr={1} fertig={verbunden} titel="Kalender verbinden" rechts={verbunden ? <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" disabled={kal.disconnect.isPending} onClick={() => kal.disconnect.mutate()}>Trennen</Button> : undefined}>
+        <Schritt nr={1} fertig={verbunden} titel={t('seite.step1')} rechts={verbunden ? <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" disabled={kal.disconnect.isPending} onClick={() => kal.disconnect.mutate()}>{t('seite.disconnect')}</Button> : undefined}>
           {verbunden
-            ? <p className="flex items-center gap-1.5 text-sm text-emerald-600"><CheckCircle2 className="h-4 w-4"/>Outlook verbunden{kal.status?.accountEmail ? ` · ${kal.status.accountEmail}` : ''}</p>
+            ? <p className="flex items-center gap-1.5 text-sm text-emerald-600"><CheckCircle2 className="h-4 w-4"/>{kal.status?.accountEmail ? t('seite.outlookConnectedAs', { email: kal.status.accountEmail }) : t('seite.outlookConnected')}</p>
             : kal.state === 'not_configured'
-              ? <p className="text-sm text-muted-foreground">Die Kalender-Anbindung ist bei Matchunt noch nicht eingerichtet.</p>
+              ? <p className="text-sm text-muted-foreground">{t('seite.notConfigured')}</p>
               : <div className="space-y-2">
-                {kal.state === 'expired' && <p className="text-sm text-amber-700">Die Verbindung ist abgelaufen. Bitte neu verbinden.</p>}
-                {kal.state === 'it_pending' && <p className="text-sm text-amber-700">Deine IT muss der Verbindung einmal zustimmen; wir haben ihr den Link geschickt.</p>}
+                {kal.state === 'expired' && <p className="text-sm text-amber-700">{t('seite.expired')}</p>}
+                {kal.state === 'it_pending' && <p className="text-sm text-amber-700">{t('seite.itPending')}</p>}
                 <Button size="sm" disabled={kal.connect.isPending} onClick={() => kal.connect.mutate(zurueck ? `${RUECKSPRUNG}?zurueck=${encodeURIComponent(zurueck)}` : RUECKSPRUNG)}>
-                  {kal.connect.isPending ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin"/> : null}Mit Outlook verbinden
+                  {kal.connect.isPending ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin"/> : null}{t('seite.connectOutlook')}
                 </Button>
               </div>}
-          <p className="text-xs text-muted-foreground">Matchunt sieht nur frei/belegt und trägt gebuchte Termine mit Teams-Link ein. Keine Mails, keine Inhalte. Google folgt.</p>
+          <p className="text-xs text-muted-foreground">{t('seite.privacy')}</p>
         </Schritt>
 
-        <Schritt nr={2} fertig={!!zeile && !geaendert} titel="Wann du buchbar bist">
-          <InterviewHoursEditor value={regeln} onChange={aendere(setRegeln)} compact noticeOptions={VORLAUF}/>
+        <Schritt nr={2} fertig={!!zeile && !geaendert} titel={t('seite.step2')}>
+          <InterviewHoursEditor value={regeln} onChange={aendere(setRegeln)} compact noticeOptions={vorlauf}/>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Dauer eines Gesprächs</Label>
+              <Label className="text-xs text-muted-foreground">{t('seite.duration')}</Label>
               <Select value={String(dauer)} onValueChange={v => aendere(setDauer)(Number(v))}>
                 <SelectTrigger className="h-9"><SelectValue/></SelectTrigger>
-                <SelectContent>{DAUERN.map(d => <SelectItem key={d} value={String(d)}>{d} Minuten</SelectItem>)}</SelectContent>
+                <SelectContent>{DAUERN.map(d => <SelectItem key={d} value={String(d)}>{t('seite.minutes', { count: d })}</SelectItem>)}</SelectContent>
               </Select>
             </div>
           </div>
           <div className="space-y-1.5">
-            <p className="text-xs text-muted-foreground">Gesprächsart, die Kandidaten wählen können</p>
+            <p className="text-xs text-muted-foreground">{t('seite.modes')}</p>
             <div className="flex flex-wrap gap-5 text-sm">
-              <label className="flex items-center gap-2"><Checkbox checked={teams} onCheckedChange={v => aendere(setTeams)(v === true)}/>Teams <span className="text-xs text-muted-foreground">Link aus deinem Outlook</span></label>
-              <label className="flex items-center gap-2"><Checkbox checked={telefon} onCheckedChange={v => aendere(setTelefon)(v === true)}/>Telefon <span className="text-xs text-muted-foreground">du rufst an</span></label>
+              <label className="flex items-center gap-2"><Checkbox checked={teams} onCheckedChange={v => aendere(setTeams)(v === true)}/>{t('seite.teams')} <span className="text-xs text-muted-foreground">{t('seite.teamsHint')}</span></label>
+              <label className="flex items-center gap-2"><Checkbox checked={telefon} onCheckedChange={v => aendere(setTelefon)(v === true)}/>{t('seite.phone')} <span className="text-xs text-muted-foreground">{t('seite.phoneHint')}</span></label>
             </div>
-            <p className="text-xs text-muted-foreground">Beides an: Kandidat wählt. Eins an: steht fest. Bei Telefon ist seine Nummer Pflicht.</p>
+            <p className="text-xs text-muted-foreground">{t('seite.modesHint')}</p>
           </div>
         </Schritt>
 
-        <Schritt nr={3} fertig={aktiv} titel="Freischalten" rechts={<label className="flex items-center gap-2 text-xs text-muted-foreground">aktiv<Switch checked={aktiv} disabled={speichern.isPending} onCheckedChange={v => void sichern(v)}/></label>}>
+        <Schritt nr={3} fertig={aktiv} titel={t('seite.step3')} rechts={<label className="flex items-center gap-2 text-xs text-muted-foreground">{t('seite.activeSwitch')}<Switch checked={aktiv} disabled={speichern.isPending} onCheckedChange={v => void sichern(v)}/></label>}>
           <div className="space-y-1.5">
-            <Label htmlFor="termin-slug" className="text-xs text-muted-foreground">Adresse deiner Terminseite</Label>
+            <Label htmlFor="termin-slug" className="text-xs text-muted-foreground">{t('seite.address')}</Label>
             <div className="flex items-center gap-2">
               <div className="flex min-w-0 flex-1 items-center rounded-md border border-input bg-background pl-3 text-sm focus-within:ring-2 focus-within:ring-ring">
                 <span className="shrink-0 text-muted-foreground">matchunt.ai/t/</span>
                 <Input id="termin-slug" value={slug} className="h-9 border-0 px-1 shadow-none focus-visible:ring-0" onChange={e => { setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')); setGeaendert(true); }} onBlur={() => void pruefeSlug(slug)}/>
               </div>
-              <Button variant="outline" size="sm" onClick={() => void kopieren()} disabled={!zeile}><Copy className="mr-1.5 h-3.5 w-3.5"/>Kopieren</Button>
+              <Button variant="outline" size="sm" onClick={() => void kopieren()} disabled={!zeile}><Copy className="mr-1.5 h-3.5 w-3.5"/>{t('seite.copy')}</Button>
             </div>
             {slugFehler && <p role="alert" className="text-xs text-destructive">{slugFehler}</p>}
-            <p className="text-xs text-muted-foreground">Je Stelle kommt der Teil …/tax-manager-… dazu. Ausschalten stoppt neue Buchungen, gebuchte Termine bleiben.</p>
+            <p className="text-xs text-muted-foreground">{t('seite.addressHint')}</p>
           </div>
-          {!verbunden && <p className="flex items-center gap-1.5 text-xs text-amber-700"><CalendarOff className="h-3.5 w-3.5"/>Erst den Kalender verbinden, dann lässt sich die Seite freischalten.</p>}
+          {!verbunden && <p className="flex items-center gap-1.5 text-xs text-amber-700"><CalendarOff className="h-3.5 w-3.5"/>{t('seite.calendarFirst')}</p>}
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" disabled={speichern.isPending || (!geaendert && !!zeile)} onClick={() => void sichern()}>{speichern.isPending && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin"/>}Speichern</Button>
-            {zurueck && aktiv && <Button size="sm" variant="outline" onClick={() => { window.location.href = zurueck; }}>Zurück zum Beitrag</Button>}
+            <Button size="sm" disabled={speichern.isPending || (!geaendert && !!zeile)} onClick={() => void sichern()}>{speichern.isPending && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin"/>}{t('seite.save')}</Button>
+            {zurueck && aktiv && <Button size="sm" variant="outline" onClick={() => { window.location.href = zurueck; }}>{t('seite.backToPost')}</Button>}
           </div>
         </Schritt>
       </div>
 
       <aside className="space-y-3 rounded-lg bg-muted/40 p-4">
-        <p className="text-xs text-muted-foreground">Vorschau · so sehen Kandidaten es</p>
+        <p className="text-xs text-muted-foreground">{t('seite.preview')}</p>
         <div className="space-y-3 rounded-lg border border-border bg-card p-4">
-          <div className="flex items-center gap-2.5"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-xs font-medium">{initialen || '·'}</span><div><p className="text-sm font-medium">{name}</p><p className="text-xs text-muted-foreground">Headhunter</p></div></div>
-          <div><p className="text-sm font-medium">{dauer} Minuten, vertraulich</p><p className="flex items-center gap-2 text-xs text-muted-foreground">{teams && <span className="inline-flex items-center gap-1"><Video className="h-3 w-3"/>Teams</span>}{telefon && <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3"/>Telefon</span>}<span>· Zeitzone Berlin</span></p></div>
+          <div className="flex items-center gap-2.5"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-xs font-medium">{initialen || '·'}</span><div><p className="text-sm font-medium">{name}</p><p className="text-xs text-muted-foreground">{t('seite.headhunter')}</p></div></div>
+          <div><p className="text-sm font-medium">{t('seite.confidential', { count: dauer })}</p><p className="flex items-center gap-2 text-xs text-muted-foreground">{teams && <span className="inline-flex items-center gap-1"><Video className="h-3 w-3"/>{t('seite.teams')}</span>}{telefon && <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3"/>{t('seite.phone')}</span>}<span>{t('seite.timezone')}</span></p></div>
           <div className="grid grid-cols-3 gap-1.5">{['9:00', '9:30', '10:15', '11:30', '14:00', '16:15'].map(z => <span key={z} className="rounded-md border border-border py-1 text-center text-xs">{z}</span>)}</div>
-          <p className="text-[11px] text-muted-foreground">Beispielzeiten; echte Zeiten kommen aus deinem Kalender.</p>
+          <p className="text-[11px] text-muted-foreground">{t('seite.sampleTimes')}</p>
         </div>
-        {aktiv && <Button variant="outline" size="sm" asChild><a href={`/t/${slug}`} target="_blank" rel="noreferrer"><ExternalLink className="mr-1.5 h-3.5 w-3.5"/>Seite öffnen</a></Button>}
-        <p className="text-xs text-muted-foreground">Name und Position kommen aus „Über dich“. Dein Foto bleibt privat.</p>
+        {aktiv && <Button variant="outline" size="sm" asChild><a href={`/t/${slug}`} target="_blank" rel="noreferrer"><ExternalLink className="mr-1.5 h-3.5 w-3.5"/>{t('seite.openPage')}</a></Button>}
+        <p className="text-xs text-muted-foreground">{t('seite.previewHint')}</p>
       </aside>
     </CardContent>
   </Card>;

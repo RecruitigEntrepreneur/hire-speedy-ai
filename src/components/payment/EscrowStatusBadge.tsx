@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Clock, Lock, CheckCircle, AlertTriangle, RotateCcw } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface EscrowStatusBadgeProps {
   status: string;
@@ -7,35 +8,36 @@ interface EscrowStatusBadgeProps {
 }
 
 export function EscrowStatusBadge({ status, releaseDate }: EscrowStatusBadgeProps) {
+  const { t } = useTranslation('payment');
   const getStatusConfig = () => {
     switch (status) {
       case "pending":
         return {
-          label: "Ausstehend",
+          label: t('escrow.pending'),
           icon: Clock,
           className: "bg-muted text-muted-foreground border-border",
         };
       case "held":
         return {
-          label: "In Escrow",
+          label: t('escrow.held'),
           icon: Lock,
           className: "bg-blue-500/10 text-blue-600 border-blue-500/20",
         };
       case "released":
         return {
-          label: "Freigegeben",
+          label: t('escrow.released'),
           icon: CheckCircle,
           className: "bg-green-500/10 text-green-600 border-green-500/20",
         };
       case "disputed":
         return {
-          label: "Dispute",
+          label: t('escrow.disputed'),
           icon: AlertTriangle,
           className: "bg-red-500/10 text-red-600 border-red-500/20",
         };
       case "refunded":
         return {
-          label: "Erstattet",
+          label: t('escrow.refunded'),
           icon: RotateCcw,
           className: "bg-orange-500/10 text-orange-600 border-orange-500/20",
         };
@@ -58,9 +60,9 @@ export function EscrowStatusBadge({ status, releaseDate }: EscrowStatusBadgeProp
     const diffDays = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     
     if (diffDays > 0) {
-      return `Freigabe in ${diffDays} Tagen`;
+      return t('releaseIn', { count: diffDays });
     }
-    return "Freigabe möglich";
+    return t('releasePossible');
   };
 
   return (

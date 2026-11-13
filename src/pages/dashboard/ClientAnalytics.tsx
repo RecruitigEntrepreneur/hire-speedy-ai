@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { FunnelChart } from '@/components/analytics/FunnelChart';
 import { ConversionRateCard } from '@/components/analytics/ConversionRateCard';
@@ -12,6 +13,7 @@ import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function ClientAnalytics() {
+  const { t } = useTranslation('clientDashboard');
   const { user } = useAuth();
   const [periodDays, setPeriodDays] = useState(30);
 
@@ -31,14 +33,14 @@ export default function ClientAnalytics() {
         entity_id: user.id,
         period_days: periodDays,
       });
-      toast.success('Analytics updated successfully');
+      toast.success(t('analytics.updated'));
     } catch (error) {
-      toast.error('Failed to update analytics');
+      toast.error(t('analytics.updateFailed'));
     }
   };
 
   const handleExport = () => {
-    toast.info('Export functionality coming soon');
+    toast.info(t('analytics.exportSoon'));
   };
 
   // Calculate overall conversion
@@ -52,9 +54,9 @@ export default function ClientAnalytics() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Your Hiring Analytics</h1>
+            <h1 className="text-3xl font-bold">{t('analytics.title')}</h1>
             <p className="text-muted-foreground">
-              Track your recruitment performance and conversion rates
+              {t('analytics.subtitle')}
             </p>
           </div>
           <PeriodSelector
@@ -69,31 +71,31 @@ export default function ClientAnalytics() {
         {/* Key Metrics */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <MetricCard
-            title="Total Submissions"
+            title={t('analytics.totalSubmissions')}
             value={clientMetrics?.total_submissions || 0}
             icon={Users}
-            description="Candidates received"
+            description={t('analytics.candidatesReceived')}
             isLoading={metricsLoading}
           />
           <MetricCard
-            title="Interviews"
+            title={t('analytics.interviews')}
             value={clientMetrics?.opt_in_to_interview || 0}
             icon={Briefcase}
-            description="Completed interviews"
+            description={t('analytics.completedInterviews')}
             isLoading={metricsLoading}
           />
           <MetricCard
-            title="Placements"
+            title={t('analytics.placements')}
             value={clientMetrics?.offer_to_placement || 0}
             icon={UserCheck}
-            description="Successful hires"
+            description={t('analytics.successfulHires')}
             isLoading={metricsLoading}
           />
           <MetricCard
-            title="Avg. Time to Fill"
-            value={clientMetrics?.avg_time_to_fill_days?.toFixed(0) || 'N/A'}
+            title={t('analytics.avgTimeToFill')}
+            value={clientMetrics?.avg_time_to_fill_days?.toFixed(0) || t('analytics.na')}
             icon={Clock}
-            description="days"
+            description={t('analytics.days')}
             isLoading={metricsLoading}
           />
         </div>
@@ -103,33 +105,33 @@ export default function ClientAnalytics() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Target className="w-5 h-5" />
-              Conversion Overview
+              {t('analytics.conversionOverview')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <div className="text-center p-4 bg-muted/50 rounded-lg">
                 <p className="text-3xl font-bold text-blue-600">{clientMetrics?.total_submissions || 0}</p>
-                <p className="text-sm text-muted-foreground mt-1">Submitted</p>
+                <p className="text-sm text-muted-foreground mt-1">{t('analytics.stage.submitted')}</p>
               </div>
               <div className="text-center p-4 bg-muted/50 rounded-lg">
                 <p className="text-3xl font-bold text-cyan-600">{clientMetrics?.submissions_to_opt_in || 0}</p>
-                <p className="text-sm text-muted-foreground mt-1">Opted In</p>
+                <p className="text-sm text-muted-foreground mt-1">{t('analytics.stage.optedIn')}</p>
                 <p className="text-xs text-cyan-600 mt-1">{clientMetrics?.opt_in_rate?.toFixed(0) || 0}%</p>
               </div>
               <div className="text-center p-4 bg-muted/50 rounded-lg">
                 <p className="text-3xl font-bold text-emerald-600">{clientMetrics?.opt_in_to_interview || 0}</p>
-                <p className="text-sm text-muted-foreground mt-1">Interviewed</p>
+                <p className="text-sm text-muted-foreground mt-1">{t('analytics.stage.interviewed')}</p>
                 <p className="text-xs text-emerald-600 mt-1">{clientMetrics?.interview_rate?.toFixed(0) || 0}%</p>
               </div>
               <div className="text-center p-4 bg-muted/50 rounded-lg">
                 <p className="text-3xl font-bold text-amber-600">{clientMetrics?.interview_to_offer || 0}</p>
-                <p className="text-sm text-muted-foreground mt-1">Offered</p>
+                <p className="text-sm text-muted-foreground mt-1">{t('analytics.stage.offered')}</p>
                 <p className="text-xs text-amber-600 mt-1">{clientMetrics?.offer_rate?.toFixed(0) || 0}%</p>
               </div>
               <div className="text-center p-4 bg-muted/50 rounded-lg">
                 <p className="text-3xl font-bold text-green-600">{clientMetrics?.offer_to_placement || 0}</p>
-                <p className="text-sm text-muted-foreground mt-1">Placed</p>
+                <p className="text-sm text-muted-foreground mt-1">{t('analytics.stage.placed')}</p>
                 <p className="text-xs text-green-600 mt-1">{clientMetrics?.acceptance_rate?.toFixed(0) || 0}%</p>
               </div>
             </div>
@@ -140,7 +142,7 @@ export default function ClientAnalytics() {
                 <TrendingUp className="w-6 h-6 text-primary" />
                 <span className="text-4xl font-bold text-primary">{overallConversion}%</span>
               </div>
-              <p className="text-sm text-muted-foreground mt-1">Overall Submission-to-Hire Rate</p>
+              <p className="text-sm text-muted-foreground mt-1">{t('analytics.overallRate')}</p>
             </div>
           </CardContent>
         </Card>
@@ -148,27 +150,27 @@ export default function ClientAnalytics() {
         {/* Conversion Rates */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <ConversionRateCard
-            title="Opt-In Rate"
+            title={t('analytics.optInRate')}
             value={clientMetrics?.opt_in_rate || 0}
-            description="Submission → Opt-In"
+            description={t('analytics.optInFlow')}
             isLoading={metricsLoading}
           />
           <ConversionRateCard
-            title="Interview Rate"
+            title={t('analytics.interviewRate')}
             value={clientMetrics?.interview_rate || 0}
-            description="Opt-In → Interview"
+            description={t('analytics.interviewFlow')}
             isLoading={metricsLoading}
           />
           <ConversionRateCard
-            title="Offer Rate"
+            title={t('analytics.offerRate')}
             value={clientMetrics?.offer_rate || 0}
-            description="Interview → Offer"
+            description={t('analytics.offerFlow')}
             isLoading={metricsLoading}
           />
           <ConversionRateCard
-            title="Acceptance Rate"
+            title={t('analytics.acceptanceRate')}
             value={clientMetrics?.acceptance_rate || 0}
-            description="Offer → Placement"
+            description={t('analytics.acceptanceFlow')}
             isLoading={metricsLoading}
           />
         </div>
@@ -184,34 +186,34 @@ export default function ClientAnalytics() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Clock className="w-5 h-5" />
-              Time Metrics
+              {t('analytics.timeMetrics')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               <div className="text-center">
                 <p className="text-2xl font-bold">
-                  {clientMetrics?.avg_time_to_opt_in_hours?.toFixed(0) || 'N/A'}
+                  {clientMetrics?.avg_time_to_opt_in_hours?.toFixed(0) || t('analytics.na')}
                 </p>
-                <p className="text-xs text-muted-foreground">Hours to Opt-In</p>
+                <p className="text-xs text-muted-foreground">{t('analytics.hoursToOptIn')}</p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold">
-                  {clientMetrics?.avg_time_to_interview_days?.toFixed(0) || 'N/A'}
+                  {clientMetrics?.avg_time_to_interview_days?.toFixed(0) || t('analytics.na')}
                 </p>
-                <p className="text-xs text-muted-foreground">Days to Interview</p>
+                <p className="text-xs text-muted-foreground">{t('analytics.daysToInterview')}</p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold">
-                  {clientMetrics?.avg_time_to_offer_days?.toFixed(0) || 'N/A'}
+                  {clientMetrics?.avg_time_to_offer_days?.toFixed(0) || t('analytics.na')}
                 </p>
-                <p className="text-xs text-muted-foreground">Days to Offer</p>
+                <p className="text-xs text-muted-foreground">{t('analytics.daysToOffer')}</p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold text-primary">
-                  {clientMetrics?.avg_time_to_fill_days?.toFixed(0) || 'N/A'}
+                  {clientMetrics?.avg_time_to_fill_days?.toFixed(0) || t('analytics.na')}
                 </p>
-                <p className="text-xs text-muted-foreground">Total Days to Fill</p>
+                <p className="text-xs text-muted-foreground">{t('analytics.daysToFill')}</p>
               </div>
             </div>
           </CardContent>
@@ -221,7 +223,7 @@ export default function ClientAnalytics() {
         <div className="grid md:grid-cols-2 gap-4">
           <Card>
             <CardHeader>
-              <CardTitle>Average Match Score</CardTitle>
+              <CardTitle>{t('analytics.avgMatch')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-4">
@@ -236,7 +238,7 @@ export default function ClientAnalytics() {
                     />
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Average candidate-job fit score
+                    {t('analytics.avgMatchLead')}
                   </p>
                 </div>
               </div>
@@ -245,7 +247,7 @@ export default function ClientAnalytics() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Average Candidate Score</CardTitle>
+              <CardTitle>{t('analytics.avgCandidate')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-4">
@@ -260,7 +262,7 @@ export default function ClientAnalytics() {
                     />
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Average candidate quality score
+                    {t('analytics.avgCandidateLead')}
                   </p>
                 </div>
               </div>

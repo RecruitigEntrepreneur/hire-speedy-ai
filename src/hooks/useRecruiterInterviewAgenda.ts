@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { anonymizeCompanyName } from '@/lib/anonymization';
+import i18n from '@/i18n';
+import { intlLocale } from '@/i18n/languages';
 
 export interface RecruiterAgendaSlot {
   datetime: string;
@@ -102,9 +104,9 @@ function dayLabel(d: Date): string {
   const that = new Date(d);
   that.setHours(0, 0, 0, 0);
   const diff = Math.round((that.getTime() - today.getTime()) / 86_400_000);
-  if (diff === 0) return 'Heute';
-  if (diff === 1) return 'Morgen';
-  return d.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
+  if (diff === 0) return i18n.t('recruiterInterviews:page.day.today');
+  if (diff === 1) return i18n.t('recruiterInterviews:page.day.tomorrow');
+  return d.toLocaleDateString(intlLocale(i18n.language), { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
 /**
@@ -204,12 +206,12 @@ export function useRecruiterInterviewAgenda() {
           cancellationReason: r.cancellation_reason ?? null,
           cancelledBy: r.cancelled_by ?? null,
           noShowBy: r.no_show_by ?? null,
-          candidateName: cand?.full_name || 'Kandidat',
+          candidateName: cand?.full_name || i18n.t('interviews:fallback.candidate'),
           candidatePhone: cand?.phone ?? null,
           candidateEmail: cand?.email ?? null,
-          jobTitle: job?.title || 'Position',
+          jobTitle: job?.title || i18n.t('interviews:fallback.position'),
           companyLabel: revealed
-            ? job?.company_name || 'Unternehmen'
+            ? job?.company_name || i18n.t('jobBriefing:anon.company')
             : anonymizeCompanyName(job?.industry ?? null),
           companyRevealed: revealed,
           potentialFee: calcFee(

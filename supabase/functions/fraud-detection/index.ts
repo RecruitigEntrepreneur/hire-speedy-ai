@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { notifyLang, tx } from "../_shared/notify-i18n.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -534,11 +535,12 @@ async function executeAutoAction(
       .eq('role', 'admin');
 
     for (const admin of admins || []) {
+      const fl = await notifyLang(supabase, admin.user_id);
       await supabase.from('notifications').insert({
         user_id: admin.user_id,
         type: 'fraud_alert',
-        title: 'Kritischer Betrugsverdacht',
-        message: `Einreichung ${submissionId} wurde automatisch blockiert.`,
+        title: tx(fl, 'Kritischer Betrugsverdacht', 'Critical fraud suspicion', 'Allvarlig misstanke om bedrägeri', 'Alvorlig mistanke om svindel'),
+        message: tx(fl, `Einreichung ${submissionId} wurde automatisch blockiert.`, `Submission ${submissionId} was blocked automatically.`, `Inskickningen ${submissionId} blockerades automatiskt.`, `Innsendingen ${submissionId} ble blokkert automatisk.`),
         related_type: 'submission',
         related_id: submissionId,
       });

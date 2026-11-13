@@ -6,7 +6,8 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { useTranslation } from 'react-i18next';
+import { dateFnsLocale } from '@/lib/candidateDateLocale';
 import { LucideIcon } from 'lucide-react';
 
 interface CandidateKeyFactsGridProps {
@@ -34,21 +35,13 @@ interface KeyFact {
   highlight?: 'green' | 'blue';
 }
 
-const seniorityLabels: Record<string, string> = {
-  junior: 'Junior', mid: 'Mid-Level', senior: 'Senior',
-  lead: 'Lead', director: 'Director', executive: 'Executive',
-};
-
-const noticePeriodLabels: Record<string, string> = {
-  immediate: 'Sofort', '2_weeks': '2 Wochen', '1_month': '1 Monat', '6_weeks': '6 Wochen',
-  '2_months': '2 Monate', '3_months': '3 Monate', '3_months_eoq': '3 Monate zum Quartalsende', '6_months': '6 Monate',
-};
-
-const remoteLabels: Record<string, string> = {
-  remote: 'Remote', hybrid: 'Hybrid', onsite: 'Vor Ort', flexible: 'Flexibel',
-};
+// Beschriftung: candidateDetail:facts.seniority.<wert>, facts.notice.<wert>, facts.remote.<wert>
+const SENIORITY = ['junior', 'mid', 'senior', 'lead', 'director', 'executive'];
+const NOTICE = ['immediate', '2_weeks', '1_month', '6_weeks', '2_months', '3_months', '3_months_eoq', '6_months'];
+const REMOTE = ['remote', 'hybrid', 'onsite', 'flexible'];
 
 export function CandidateKeyFactsGrid({ candidate }: CandidateKeyFactsGridProps) {
+  const { t, i18n } = useTranslation('candidateDetail');
   const formatSalary = (value: number | null | undefined) => {
     if (!value) return null;
     return `${Math.round(value / 1000)}k€`;
@@ -67,26 +60,26 @@ export function CandidateKeyFactsGrid({ candidate }: CandidateKeyFactsGridProps)
   const getAvailabilityText = () => {
     if (candidate.availability_date) {
       const date = new Date(candidate.availability_date);
-      if (date <= new Date()) return 'Sofort';
-      return `Ab ${format(date, 'MMM yyyy', { locale: de })}`;
+      if (date <= new Date()) return t('facts.now');
+      return t('facts.from', { date: format(date, 'MMM yyyy', { locale: dateFnsLocale(i18n.language) }) });
     }
     if (candidate.notice_period) {
-      return noticePeriodLabels[candidate.notice_period] || candidate.notice_period;
+      return NOTICE.includes(candidate.notice_period) ? t(`facts.notice.${candidate.notice_period}`) : candidate.notice_period;
     }
     return null;
   };
 
   const getRemoteText = () => {
-    if (candidate.remote_preference) return remoteLabels[candidate.remote_preference] || candidate.remote_preference;
-    if (candidate.remote_possible) return 'Remote möglich';
+    if (candidate.remote_preference) return REMOTE.includes(candidate.remote_preference) ? t(`facts.remote.${candidate.remote_preference}`) : candidate.remote_preference;
+    if (candidate.remote_possible) return t('facts.remotePossible');
     return null;
   };
 
   const facts: KeyFact[] = [
-    { icon: TrendingUp, label: 'Seniority', value: candidate.seniority ? seniorityLabels[candidate.seniority] || candidate.seniority : null },
-    { icon: Euro, label: 'Gehalt', value: salaryRange, highlight: salaryRange ? 'green' : undefined },
-    { icon: Clock, label: 'Verfügbar', value: getAvailabilityText() },
-    { icon: Home, label: 'Arbeitsmodell', value: getRemoteText(), highlight: getRemoteText() ? 'blue' : undefined },
+    { icon: TrendingUp, label: t('facts.labelSeniority'), value: candidate.seniority ? (SENIORITY.includes(candidate.seniority) ? t(`facts.seniority.${candidate.seniority}`) : candidate.seniority) : null },
+    { icon: Euro, label: t('facts.labelSalary'), value: salaryRange, highlight: salaryRange ? 'green' : undefined },
+    { icon: Clock, label: t('facts.labelAvailable'), value: getAvailabilityText() },
+    { icon: Home, label: t('facts.labelWorkModel'), value: getRemoteText(), highlight: getRemoteText() ? 'blue' : undefined },
   ];
 
   return (

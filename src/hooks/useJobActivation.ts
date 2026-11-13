@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
+import i18n from '@/i18n';
 import { endJobSearch, errorHint, errorText, mySearchCapacity, startJobSearch, type StartSearchResult } from '@/lib/jobSearch';
 
 export interface JobActivation {
@@ -66,7 +67,7 @@ export function useJobActivation(jobIds?: string[]) {
 
   const activateJob = useCallback(
     async (jobId: string, forSubmission = false): Promise<{ success: boolean; result?: StartSearchResult; error?: string; hint?: string }> => {
-      if (!user) return { success: false, error: 'Nicht eingeloggt' };
+      if (!user) return { success: false, error: i18n.t('recruiterJobs:errors.notLoggedIn') };
       try {
         const result = await startJobSearch(jobId, forSubmission);
         await fetchActivations();

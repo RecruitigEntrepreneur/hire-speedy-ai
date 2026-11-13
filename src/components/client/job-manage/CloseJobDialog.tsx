@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Loader2, PhoneCall } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -17,14 +18,10 @@ export interface CloseCandidate {
 
 type Choice = CloseReason | 'temporary';
 
-const CHOICES: { key: Choice; label: string }[] = [
-  { key: 'filled_via_matchunt', label: 'Besetzt mit einem Kandidaten von Matchunt' },
-  { key: 'filled_elsewhere', label: 'Anderweitig besetzt' },
-  { key: 'no_candidates', label: 'Keine passenden Kandidaten, dauert zu lange' },
-  { key: 'cancelled', label: 'Stelle entfällt (Budget, Umstrukturierung)' },
-  { key: 'temporary', label: 'Nur vorübergehend' },
-];
+/** Beschriftung unter clientJobs:close.choice.<key>. */
+const CHOICES: Choice[] = ['filled_via_matchunt', 'filled_elsewhere', 'no_candidates', 'cancelled', 'temporary'];
 
+/** Gespeicherte Werte (gehen in die Notiz an Matchunt); angezeigt über clientJobs:close.how.h<n>. */
 const ELSEWHERE = ['Intern', 'Eigene Bewerbung', 'Andere Agentur', 'Sonstiges'];
 
 /**
@@ -49,6 +46,7 @@ export function CloseJobDialog({
   onClosed: () => void;
   onPauseInstead: () => void;
 }) {
+  const { t } = useTranslation('clientJobs');
   const [choice, setChoice] = useState<Choice | null>(null);
   const [step, setStep] = useState<'reason' | 'detail' | 'confirm'>('reason');
   const [hire, setHire] = useState<string>('');
@@ -98,7 +96,7 @@ export function CloseJobDialog({
         hireSalary: choice === 'filled_via_matchunt' && salary ? Number(salary.replace(/\D/g, '')) || null : null,
         notMatchunt: choice === 'filled_elsewhere' ? notMatchunt : undefined,
       });
-      toast.success(choice === 'filled_via_matchunt' ? 'Einstellung gemeldet. Matchunt meldet sich.' : 'Stelle geschlossen');
+      toast.success(choice === 'filled_via_matchunt' ? t('close.hireReported') : t('close.closed'));
       handleOpenChange(false);
       onClosed();
     } catch (err) {
@@ -112,7 +110,7 @@ export function CloseJobDialog({
     setBusy(true);
     try {
       await requestCallback(jobId, note);
-      toast.success('Wir rufen Sie an. Die Stelle bleibt offen.');
+      toast.success(t('close.callbackDone'));
       handleOpenChange(false);
     } catch (err) {
       toast.error(errorText(err));
@@ -128,25 +126,25 @@ export function CloseJobDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Stelle schließen</DialogTitle>
+          <DialogTitle>{t('close.title')}</DialogTitle>
           <DialogDescription>{jobTitle}</DialogDescription>
         </DialogHeader>
 
         {step === 'reason' && (
           <div className="space-y-2 text-sm">
-            <p className="font-medium">Warum schließen Sie die Stelle?</p>
-            {CHOICES.map((c) => (
+            <p className="font-medium">{t('close.why')}</p>
+            {CHOICES.map((key) => (
               <button
-                key={c.key}
+                key={key}
                 type="button"
-                onClick={() => setChoice(c.key)}
+                onClick={() => setChoice(key)}
                 className={cn(
                   'block w-full rounded-md border px-3 py-2 text-left transition-colors',
-                  choice === c.key ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted/50',
+                  choice === key ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted/50',
                 )}
               >
-                {c.label}
-                {c.key === 'temporary' && <span className="block text-xs text-muted-foreground">Dann ist Pausieren die bessere Wahl.</span>}
+                {t(`close.choice.${key}`)}
+                {key === 'temporary' && <span className="block text-xs text-muted-foreground">{t('close.pauseBetter')}</span>}
               </button>
             ))}
           </div>
@@ -154,9 +152,9 @@ export function CloseJobDialog({
 
         {step === 'detail' && choice === 'filled_via_matchunt' && (
           <div className="space-y-3 text-sm">
-            <p className="font-medium">Mit wem?</p>
+            <p className="font-medium">{t('close.withWhom')}</p>
             {candidates.length === 0 ? (
-              <p className="text-xs text-muted-foreground">Für diese Stelle sind noch keine Kandidaten von Matchunt vorgestellt.</p>
+              <p className="text-xs text-muted-foreground">{t('close.noCandidates')}</p>
             ) : (
               <div className="space-y-1.5">
                 {candidates.map((c) => (
@@ -169,21 +167,21 @@ export function CloseJobDialog({
             )}
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <Label htmlFor="hire-start" className="text-xs">Startdatum</Label>
+                <Label htmlFor="hire-start" className="text-xs">{t('close.startDate')}</Label>
                 <Input id="hire-start" type="date" value={start} onChange={(e) => setStart(e.target.value)} />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="hire-salary" className="text-xs">Jahresgehalt (€)</Label>
-                <Input id="hire-salary" inputMode="numeric" value={salary} onChange={(e) => setSalary(e.target.value)} placeholder="z. B. 75000" />
+                <Label htmlFor="hire-salary" className="text-xs">{t('close.salary')}</Label>
+                <Input id="hire-salary" inputMode="numeric" value={salary} onChange={(e) => setSalary(e.target.value)} placeholder={t('close.salaryPh')} />
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">Damit melden Sie die Einstellung. Matchunt meldet sich, die Rechnung kommt nach Antritt.</p>
+            <p className="text-xs text-muted-foreground">{t('close.hireNote')}</p>
           </div>
         )}
 
         {step === 'detail' && choice === 'filled_elsewhere' && (
           <div className="space-y-3 text-sm">
-            <p className="font-medium">Wie haben Sie besetzt?</p>
+            <p className="font-medium">{t('close.how.title')}</p>
             <div className="flex flex-wrap gap-2">
               {ELSEWHERE.map((h) => (
                 <button
@@ -192,18 +190,18 @@ export function CloseJobDialog({
                   onClick={() => setHow(h)}
                   className={cn('rounded-md border px-2.5 py-1 text-xs', how === h ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-muted/50')}
                 >
-                  {h}
+                  {t(`close.how.h${ELSEWHERE.indexOf(h)}`)}
                 </button>
               ))}
             </div>
             <label className="flex cursor-pointer items-start gap-2.5">
               <Checkbox checked={notMatchunt} onCheckedChange={(v) => setNotMatchunt(v === true)} className="mt-0.5" />
-              <span className="text-xs">Die eingestellte Person wurde uns nicht über Matchunt vorgestellt.</span>
+              <span className="text-xs">{t('close.notMatchunt')}</span>
             </label>
             <p className="text-xs text-muted-foreground">
-              War es doch ein Kandidat von Matchunt?{' '}
+              {t('close.wasMatchunt')}{' '}
               <button type="button" className="text-primary hover:underline" onClick={() => setChoice('filled_via_matchunt')}>
-                Dann hier entlang
+                {t('close.thisWay')}
               </button>
             </p>
           </div>
@@ -211,30 +209,30 @@ export function CloseJobDialog({
 
         {step === 'detail' && choice === 'no_candidates' && (
           <div className="space-y-3 text-sm">
-            <p className="font-medium">Bevor Sie schließen</p>
+            <p className="font-medium">{t('close.before')}</p>
             <p className="text-muted-foreground">
-              Oft liegt es am Gehaltsband oder an zu vielen Muss-Kriterien. Sollen wir das kurz mit Ihnen anschauen?
+              {t('close.beforeLead')}
             </p>
-            <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional: Was sollen wir wissen?" rows={2} />
+            <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('close.notePh')} rows={2} />
             <Button variant="default" className="w-full gap-1.5" disabled={busy} onClick={callback}>
               <PhoneCall className="h-4 w-4" />
-              Rückruf von Matchunt
+              {t('close.callback')}
             </Button>
           </div>
         )}
 
         {step === 'detail' && choice === 'cancelled' && (
           <div className="space-y-2 text-sm">
-            <Label htmlFor="close-note" className="text-xs">Optional: kurzer Hinweis für uns</Label>
+            <Label htmlFor="close-note" className="text-xs">{t('close.noteLabel')}</Label>
             <Textarea id="close-note" value={note} onChange={(e) => setNote(e.target.value)} rows={2} />
           </div>
         )}
 
         {step === 'detail' && choice !== 'filled_via_matchunt' && (
           <ul className="space-y-1 rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
-            <li>Die Headhunter werden informiert und suchen nicht weiter.</li>
-            <li>Laufende Gespräche führen wir zu Ende, wenn Sie nichts anderes sagen.</li>
-            <li>Für bereits vorgestellte Kandidaten gilt die Schutzfrist von 12 Monaten weiter.</li>
+            <li>{t('close.info1')}</li>
+            <li>{t('close.info2')}</li>
+            <li>{t('close.info3')}</li>
           </ul>
         )}
 
@@ -242,25 +240,25 @@ export function CloseJobDialog({
           {step === 'detail' ? (
             <Button variant="ghost" className="gap-1" onClick={() => setStep('reason')} disabled={busy}>
               <ArrowLeft className="h-4 w-4" />
-              Zurück
+              {t('common.back')}
             </Button>
           ) : (
             <Button variant="outline" onClick={() => handleOpenChange(false)}>
-              Abbrechen
+              {t('common.cancel')}
             </Button>
           )}
           {step === 'reason' ? (
             <Button onClick={next} disabled={!choice}>
-              Weiter
+              {t('common.next')}
             </Button>
           ) : choice === 'no_candidates' ? (
             <Button variant="outline" className="text-destructive" disabled={busy} onClick={submit}>
-              Trotzdem schließen
+              {t('close.closeAnyway')}
             </Button>
           ) : (
             <Button variant={choice === 'filled_via_matchunt' ? 'default' : 'destructive'} disabled={busy || !detailValid} onClick={submit}>
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-              {choice === 'filled_via_matchunt' ? 'Einstellung melden' : 'Stelle schließen'}
+              {choice === 'filled_via_matchunt' ? t('close.reportHire') : t('close.title')}
             </Button>
           )}
         </DialogFooter>

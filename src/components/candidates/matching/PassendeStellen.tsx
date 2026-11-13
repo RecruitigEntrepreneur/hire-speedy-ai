@@ -14,7 +14,10 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
+import { dateFnsLocale } from '@/lib/candidateDateLocale';
+import { term } from '@/lib/candidateTerms';
 import { ChevronRight, Loader2, RefreshCw, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -27,36 +30,39 @@ import { useMatchV41, type MatchV41Row } from '@/hooks/useMatchV41';
 import { effectiveTier, shortLine, TIER_STYLE } from '@/lib/matchV41';
 import { cn } from '@/lib/utils';
 
-const REMOTE_LABELS: Record<string, string> = { remote: 'remote', hybrid: 'hybrid', onsite: 'vor Ort', field: 'Außendienst' };
+// Beschriftung: candidateDetail:jobs.remote.<art>
+const REMOTE_KEYS = ['remote', 'hybrid', 'onsite', 'field'];
 
 export function jobMeta(r: MatchV41Row): string {
   const j = r.job;
   if (!j) return '';
-  const budget = j.salary_max ? `${j.salary_min ? `${Math.round(j.salary_min / 1000)}–` : 'bis '}${Math.round(j.salary_max / 1000)}k` : null;
-  return [j.location, j.remote_type ? REMOTE_LABELS[j.remote_type] ?? j.remote_type : null, budget].filter(Boolean).join(' · ');
+  const budget = j.salary_max ? (j.salary_min ? `${Math.round(j.salary_min / 1000)}–${Math.round(j.salary_max / 1000)}k` : i18n.t('candidateDetail:jobs.upTo', { max: Math.round(j.salary_max / 1000) })) : null;
+  return [j.location, j.remote_type ? (REMOTE_KEYS.includes(j.remote_type) ? i18n.t(`candidateDetail:jobs.remote.${j.remote_type}`) : j.remote_type) : null, budget].filter(Boolean).join(' · ');
 }
 
 function TierBadge({ row }: { row: MatchV41Row }) {
-  const t = effectiveTier(row);
-  if (t === 'ausgeblendet') return <Badge variant="outline" className="shrink-0 text-xs font-normal">Ausgeblendet</Badge>;
-  return <Badge variant="outline" className={cn('shrink-0 text-xs font-normal', TIER_STYLE[t].className)}>{TIER_STYLE[t].label}</Badge>;
+  const { t } = useTranslation(['candidateDetail', 'candidateTerms']);
+  const tier = effectiveTier(row);
+  if (tier === 'ausgeblendet') return <Badge variant="outline" className="shrink-0 text-xs font-normal">{t('jobs.hidden')}</Badge>;
+  return <Badge variant="outline" className={cn('shrink-0 text-xs font-normal', TIER_STYLE[tier].className)}>{term(TIER_STYLE[tier].label)}</Badge>;
 }
 
 type Gate = ReturnType<typeof useActivationGate>;
 
 /** Eine Stelle: die ganze Zeile führt ins Mandatsbriefing. */
 function MatchLine({ row }: { row: MatchV41Row }) {
+  const { t, i18n: lang } = useTranslation('candidateDetail');
   return (
     <li>
       <Link to={`/recruiter/jobs/${row.job_id}`} className="group flex items-center gap-3 py-2.5">
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium group-hover:underline">{row.job?.title ?? 'Stelle'}</span>
+          <span className="block truncate text-sm font-medium group-hover:underline">{row.job?.title ?? t('jobs.role')}</span>
           <span className="block truncate text-xs text-muted-foreground">{jobMeta(row)}</span>
           <span className="block truncate text-xs text-muted-foreground">{shortLine(row)}</span>
         </span>
         <TierBadge row={row} />
         {row.submittedAt && (
-          <span className="shrink-0 text-xs text-muted-foreground">Eingereicht {format(new Date(row.submittedAt), 'd.M.', { locale: de })}</span>
+          <span className="shrink-0 text-xs text-muted-foreground">{t('jobs.submittedOn', { date: format(new Date(row.submittedAt), 'd.M.', { locale: dateFnsLocale(lang.language) }) })}</span>
         )}
         <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
       </Link>
@@ -68,6 +74,7 @@ export function PassendeStellenCard({ candidateId, firstName }: {
   candidateId: string;
   firstName: string;
 }) {
+  const { t } = useTranslation('candidateDetail');
   const m = useMatchV41(candidateId);
   const gate = useActivationGate();
   const [listOpen, setListOpen] = useState(false);
@@ -87,11 +94,11 @@ export function PassendeStellenCard({ candidateId, firstName }: {
       <CardHeader className="pb-1">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="flex items-center gap-2 text-sm">
-            <Sparkles className="h-4 w-4 text-primary" /> Passende Stellen
+            <Sparkles className="h-4 w-4 text-primary" /> {t('jobs.title')}
           </CardTitle>
           {m.rows.length > 0 && (
             <button type="button" className="flex items-center gap-0.5 text-xs text-primary hover:underline" onClick={() => setListOpen(true)}>
-              Alle ansehen ({visible.length}) <ChevronRight className="h-3 w-3" />
+              {t('jobs.viewAll', { count: visible.length })} <ChevronRight className="h-3 w-3" />
             </button>
           )}
         </div>
@@ -100,16 +107,16 @@ export function PassendeStellenCard({ candidateId, firstName }: {
         {m.loading ? (
           <div className="space-y-3 py-1">
             {[0, 1, 2].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
-            <p className="text-xs text-muted-foreground">Die KI prüft die offenen Stellen Kriterium für Kriterium …</p>
+            <p className="text-xs text-muted-foreground">{t('jobs.checking')}</p>
           </div>
         ) : m.error ? (
           <p className="text-sm text-destructive">{m.error}</p>
         ) : top.length === 0 ? (
           <div className="space-y-1 py-1 text-sm text-muted-foreground">
-            <p>{m.pending > 0 ? 'Die offenen Stellen werden noch geprüft …' : 'Unter den offenen Stellen passt gerade keine.'}</p>
+            <p>{m.pending > 0 ? t('jobs.stillChecking') : t('jobs.none')}</p>
             {excluded > 0 && (
               <button type="button" className="text-xs text-primary hover:underline" onClick={() => setListOpen(true)}>
-                {excluded} ausgeschlossen – Gründe ansehen
+                {t('jobs.excluded', { count: excluded })}
               </button>
             )}
           </div>
@@ -119,7 +126,7 @@ export function PassendeStellenCard({ candidateId, firstName }: {
           </ul>
         )}
         {m.pending > 0 && top.length > 0 && (
-          <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> {m.pending === 1 ? '1 weitere Stelle wird' : `${m.pending} weitere Stellen werden`} geprüft …</p>
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> {t('jobs.moreChecking', { count: m.pending })}</p>
         )}
       </CardContent>
 
@@ -137,6 +144,7 @@ function PassendeStellenSheet({ open, onOpenChange, firstName, match, gate }: {
   match: ReturnType<typeof useMatchV41>;
   gate: Gate;
 }) {
+  const { t } = useTranslation('candidateDetail');
   const [filter, setFilter] = useState<Filter>('alle');
   const [recomputing, setRecomputing] = useState(false);
   const isVisible = (r: MatchV41Row) => ['sehr_passend', 'passend', 'pruefen'].includes(effectiveTier(r));
@@ -147,15 +155,14 @@ function PassendeStellenSheet({ open, onOpenChange, firstName, match, gate }: {
     eingereicht: match.rows.filter((r) => !!r.submittedAt),
     ausgeschlossen: match.rows.filter((r) => !isVisible(r)),
   };
-  const LABEL: Record<Filter, string> = { alle: 'Alle', einreichbar: 'Du suchst', aktivierbar: 'Noch nicht gesucht', eingereicht: 'Eingereicht', ausgeschlossen: 'Ausgeschlossen' };
   const list = groups[filter];
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
         <SheetHeader>
-          <SheetTitle>Passende Stellen für {firstName}</SheetTitle>
-          <SheetDescription>Die KI prüft jedes Kriterium mit Beleg. Die Stufe ist ein Vorschlag – du entscheidest.</SheetDescription>
+          <SheetTitle>{t('jobs.sheetTitle', { name: firstName })}</SheetTitle>
+          <SheetDescription>{t('jobs.sheetDescription')}</SheetDescription>
         </SheetHeader>
         <div className="mt-4 flex flex-wrap gap-1.5">
           {(Object.keys(groups) as Filter[]).map((f) => (
@@ -165,22 +172,22 @@ function PassendeStellenSheet({ open, onOpenChange, firstName, match, gate }: {
               onClick={() => setFilter(f)}
               className={cn('rounded-full border px-2.5 py-1 text-xs', filter === f ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground hover:bg-muted')}
             >
-              {LABEL[f]} {groups[f].length}
+              {t(`jobs.filter.${f}`)} {groups[f].length}
             </button>
           ))}
         </div>
         {filter === 'ausgeschlossen' && (
-          <p className="mt-3 text-xs text-muted-foreground">Ausgeschlossen wird nur mit Beleg. Du kannst jede Stelle trotzdem ansehen.</p>
+          <p className="mt-3 text-xs text-muted-foreground">{t('jobs.excludedNote')}</p>
         )}
         {list.length === 0 ? (
-          <p className="mt-6 text-center text-sm text-muted-foreground">Keine Stellen in dieser Auswahl.</p>
+          <p className="mt-6 text-center text-sm text-muted-foreground">{t('jobs.noneInFilter')}</p>
         ) : (
           <ul className="mt-2 divide-y divide-border">
             {list.map((r) => <MatchLine key={r.job_id} row={r} />)}
           </ul>
         )}
         <div className="mt-6 flex items-center justify-between border-t border-border pt-3 text-xs text-muted-foreground">
-          <span>{match.pending > 0 ? `${match.pending === 1 ? '1 Stelle wird' : `${match.pending} Stellen werden`} noch geprüft …` : `${match.rows.length} offene Stellen geprüft`}</span>
+          <span>{match.pending > 0 ? t('jobs.pending', { count: match.pending }) : t('jobs.checked', { count: match.rows.length })}</span>
           <Button
             variant="ghost"
             size="sm"
@@ -188,7 +195,7 @@ function PassendeStellenSheet({ open, onOpenChange, firstName, match, gate }: {
             disabled={recomputing}
             onClick={async () => { setRecomputing(true); try { await match.recompute(); } finally { setRecomputing(false); } }}
           >
-            <RefreshCw className={cn('mr-1.5 h-3 w-3', recomputing && 'animate-spin')} /> Neu prüfen
+            <RefreshCw className={cn('mr-1.5 h-3 w-3', recomputing && 'animate-spin')} /> {t('jobs.recheck')}
           </Button>
         </div>
       </SheetContent>

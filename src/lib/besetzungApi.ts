@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
 import { callFunction } from '@/lib/interviewScheduling';
+import i18n from '@/i18n';
 
 /**
  * Kunden-Seite „Besetzungen“ (Etappe 2, 25.10.2026; Umbau 11.11.2026): Typen und Aufrufe der
@@ -105,25 +106,25 @@ const call = <T,>(action: string, body: Record<string, unknown> = {}, fallback?:
 export const besetzungApi = {
   overview: () => call<BesetzungOverview>('client_overview'),
   moveStart: (placementId: string, startDate: string, note: string) =>
-    call<{ ok: true; startDate: string }>('move_start', { placementId, startDate, note }, 'Der neue Starttermin konnte nicht gespeichert werden.'),
+    call<{ ok: true; startDate: string }>('move_start', { placementId, startDate, note }, i18n.t('clientPlacements:errors.moveStart')),
   /** K7: started = „Ja, hat angefangen“, later = „Fängt später an“, agree/disagree = „Stimmt“ / „Stimmt so nicht“ */
   startAnswer: (input: { placementId: string; way: 'started' | 'later' | 'agree' | 'disagree'; startedOn?: string; startDate?: string; note?: string }) =>
-    call<{ ok: true; state: string }>('start_answer', input, 'Der Antritt konnte nicht gespeichert werden.'),
+    call<{ ok: true; state: string }>('start_answer', input, i18n.t('clientPlacements:errors.startAnswer')),
   /** K5 „Besetzung endet“ */
   reportEnd: (input: ReportEndInput) =>
-    call<{ ok: true; outcome: EndOutcome; kind: 'non_start' | 'departure'; reviewUntil: string | null }>('report_end', { ...input }, 'Die Meldung konnte nicht gespeichert werden.'),
+    call<{ ok: true; outcome: EndOutcome; kind: 'non_start' | 'departure'; reviewUntil: string | null }>('report_end', { ...input }, i18n.t('clientPlacements:errors.reportEnd')),
   endDocument: (placementId: string, fileName: string, fileBase64: string) =>
-    call<{ ok: true }>('end_document', { placementId, fileName, fileBase64 }, 'Die Datei konnte nicht hochgeladen werden.'),
+    call<{ ok: true }>('end_document', { placementId, fileName, fileBase64 }, i18n.t('clientPlacements:errors.endDocument')),
   confirmPosition: (placementId: string, changed: boolean) =>
-    call<{ ok: true; state: string }>('confirm_research_position', { placementId, changed }, 'Die Bestätigung konnte nicht gespeichert werden.'),
+    call<{ ok: true; state: string }>('confirm_research_position', { placementId, changed }, i18n.t('clientPlacements:errors.confirmPosition')),
   endResearch: (placementId: string, note?: string) =>
-    call<{ ok: true }>('end_research', { placementId, note }, 'Die Nachbesetzung konnte nicht beendet werden.'),
+    call<{ ok: true }>('end_research', { placementId, note }, i18n.t('clientPlacements:errors.endResearch')),
   answerOffer: (placementId: string, accept: boolean) =>
-    call<{ ok: true; state: string; invoiceId?: string | null; released?: boolean }>('answer_research_offer', { placementId, accept }, 'Die Antwort konnte nicht gespeichert werden.'),
+    call<{ ok: true; state: string; invoiceId?: string | null; released?: boolean }>('answer_research_offer', { placementId, accept }, i18n.t('clientPlacements:errors.answerOffer')),
   reopenJob: (placementId: string) =>
-    call<{ ok: true; jobId: string; already?: boolean }>('reopen_job', { placementId }, 'Die Stelle konnte nicht geöffnet werden.'),
+    call<{ ok: true; jobId: string; already?: boolean }>('reopen_job', { placementId }, i18n.t('clientPlacements:errors.reopenJob')),
   setPurchaseOrder: (placementId: string, purchaseOrder: string, costCenter: string) =>
-    call<{ ok: true }>('set_purchase_order', { placementId, purchaseOrder, costCenter }, 'Die Bestellnummer konnte nicht gespeichert werden.'),
+    call<{ ok: true }>('set_purchase_order', { placementId, purchaseOrder, costCenter }, i18n.t('clientPlacements:errors.purchaseOrder')),
 };
 
 /** Besetzungen des angemeldeten Kunden (ganzes Team, das die Stellen sieht). */
@@ -143,7 +144,7 @@ export function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(String(r.result).split(',')[1] ?? '');
-    r.onerror = () => reject(new Error('Die Datei ließ sich nicht lesen.'));
+    r.onerror = () => reject(new Error(i18n.t('clientPlacements:errors.readFile')));
     r.readAsDataURL(file);
   });
 }

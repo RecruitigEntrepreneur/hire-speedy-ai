@@ -5,6 +5,8 @@ import { serviceClient, logEvent, touchDraft, inDays } from '../_shared/intake-c
 import { requireAdmin } from '../_shared/admin-auth.ts';
 import { sendIntakeMail, layout, esc } from '../_shared/intake-mail.ts';
 import { intakeClarifyUrl } from '../_shared/app-url.ts';
+import { customerMailLanguage, withIntakeLang } from '../_shared/intake-language.ts';
+import { clarifyMailTexts } from '../_shared/intake-i18n.ts';
 
 /**
  * intake-clarify — Rueckfragen des Admins an den Kunden.
@@ -35,7 +37,7 @@ const ERLAUBTE_FELDER = new Set([
   'contact_name', 'contact_phone', 'contact_role', 'billing_email',
 ]);
 
-serve(async (req) => {
+serve(withIntakeLang(async (req) => {
   const pre = preflight(req);
   if (pre) return pre;
 
@@ -85,28 +87,31 @@ serve(async (req) => {
       await touchDraft(supabase, draft.id, { review_state: 'changes_requested' });
 
       const url = intakeClarifyUrl(token);
+      // Der Rahmen der Mail in der Sprache des Kunden (Entwurf, sonst Link). Die
+      // Frage selbst steht so da, wie der Admin sie geschrieben hat.
+      const mailLang = await customerMailLanguage(supabase, draft);
+      const text = clarifyMailTexts(mailLang, { days: CLARIFY_DAYS });
       const mail = await sendIntakeMail(supabase, {
         to: draft.contact_email,
-        subject: 'Rückfrage zu Ihrer Anfrage',
+        subject: text.subject,
         template: 'intake_clarification',
         meta: { draft_id: draft.id, clarification_id: rf.id },
         html: layout({
-          preheader: 'Wir haben eine kurze Rückfrage zu Ihrer Anfrage.',
-          heading: 'Eine kurze Rückfrage',
+          lang: mailLang,
+          preheader: text.preheader,
+          heading: text.heading,
           body: `
-            <p style="margin:0 0 16px 0;">Guten Tag ${esc(draft.contact_name ?? '')},</p>
+            <p style="margin:0 0 16px 0;">${text.hello} ${esc(draft.contact_name ?? '')},</p>
             <p style="margin:0 0 16px 0;">
-              zu Ihrer Anfrage für <strong>${esc(draft.title ?? 'die Position')}</strong>
-              haben wir eine Rückfrage:
+              ${text.lead(`<strong>${esc(draft.title ?? text.positionFallback)}</strong>`)}
             </p>
             <blockquote style="margin:0 0 20px 0;padding:12px 16px;border-left:3px solid #d1d5db;color:#374151;">
               ${esc(question)}
             </blockquote>
             <p style="margin:0 0 24px 0;">
-              Über den folgenden Link können Sie direkt antworten. Er ist
-              ${CLARIFY_DAYS} Tage gültig und öffnet ausschließlich diese Rückfrage.
+              ${text.link}
             </p>`,
-          cta: { label: 'Rückfrage beantworten', url },
+          cta: { label: text.cta, url },
         }),
       });
 
@@ -241,4 +246,4 @@ serve(async (req) => {
     console.error('[intake-clarify]', e);
     return fail('internal_error', 'Die Rückfrage konnte nicht verarbeitet werden.');
   }
-});
+}));

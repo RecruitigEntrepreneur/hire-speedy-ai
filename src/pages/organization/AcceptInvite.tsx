@@ -12,7 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Building2, CheckCircle2, XCircle, Clock, LogIn } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { dfLocale } from '@/lib/localeFormat';
 
 export default function AcceptInvite() {
   const { t } = useTranslation();
@@ -150,7 +150,7 @@ export default function AcceptInvite() {
                     <Clock className="h-4 w-4" />
                     {invite.expires_at &&
                       formatDistanceToNow(new Date(invite.expires_at), {
-                        locale: de,
+                        locale: dfLocale(),
                         addSuffix: true,
                       })}
                   </span>
@@ -187,7 +187,7 @@ export default function AcceptInvite() {
                       id="invite-name"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Max Mustermann"
+                      placeholder={t('auth.fullNamePlaceholder')}
                     />
                   </div>
                   <div className="space-y-2">

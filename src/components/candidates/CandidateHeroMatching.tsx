@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +15,7 @@ interface CandidateHeroMatchingProps {
 }
 
 export function CandidateHeroMatching({ candidateId, onNavigateToMatching }: CandidateHeroMatchingProps) {
+  const { t } = useTranslation('candidateDetail');
   const { calculateBatchMatch, loading, results, sortByRelevance } = useMatchScoreV31();
 
   // Fetch published job IDs
@@ -77,7 +79,7 @@ export function CandidateHeroMatching({ candidateId, onNavigateToMatching }: Can
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-primary" />
-            KI-Matching V3.1
+            {t('heroMatching.title')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -104,11 +106,11 @@ export function CandidateHeroMatching({ candidateId, onNavigateToMatching }: Can
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-primary" />
-            KI-Matching V3.1
+            {t('heroMatching.title')}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-xs text-muted-foreground">Keine offenen Jobs vorhanden</p>
+          <p className="text-xs text-muted-foreground">{t('heroMatching.noJobs')}</p>
         </CardContent>
       </Card>
     );
@@ -120,13 +122,13 @@ export function CandidateHeroMatching({ candidateId, onNavigateToMatching }: Can
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-primary" />
-            KI-Matching V3.1
+            {t('heroMatching.title')}
           </CardTitle>
           <button
             onClick={onNavigateToMatching}
             className="text-xs text-primary hover:underline flex items-center gap-0.5"
           >
-            Alle anzeigen
+            {t('common.showAll')}
             <ChevronRight className="h-3 w-3" />
           </button>
         </div>
@@ -159,7 +161,7 @@ export function CandidateHeroMatching({ candidateId, onNavigateToMatching }: Can
             {top3.map(match => (
               <div key={match.jobId} className="flex items-center gap-3">
                 <span className="text-xs truncate min-w-0 flex-shrink-0 max-w-[140px]">
-                  {jobTitles?.[match.jobId] || 'Laden...'}
+                  {jobTitles?.[match.jobId] || t('common.loading')}
                 </span>
                 <Progress value={match.overall} className="h-1.5 flex-1" />
                 <span className="text-xs font-medium tabular-nums w-8 text-right">
@@ -169,7 +171,7 @@ export function CandidateHeroMatching({ candidateId, onNavigateToMatching }: Can
             ))}
           </div>
         ) : hasResults ? (
-          <p className="text-xs text-muted-foreground">Keine passenden Matches gefunden</p>
+          <p className="text-xs text-muted-foreground">{t('heroMatching.noMatches')}</p>
         ) : null}
       </CardContent>
     </Card>

@@ -1,0 +1,51 @@
+// Kandidaten des Headhunters: Liste, Akte (Seitenrahmen) und Talent Pool.
+const de = {
+  list: {
+    title: 'Meine Kandidaten',
+    subtitle: 'Verwalten Sie Ihre Kandidaten-Datenbank',
+    manageTags: 'Tags verwalten',
+    updated: 'Kandidat aktualisiert',
+    added: 'Kandidat hinzugefügt',
+    saveFailed: 'Fehler beim Speichern',
+    confirmDelete: 'Möchten Sie diesen Kandidaten wirklich löschen?',
+    deleteFailed: 'Fehler beim Löschen',
+    deleted: 'Kandidat gelöscht',
+    csvHeader: 'Name,E-Mail,Telefon,Erfahrung,Gehalt,Skills',
+    csvFile: 'kandidaten.csv',
+    exported_one: '{{count}} Kandidat exportiert',
+    exported_other: '{{count}} Kandidaten exportiert',
+    confirmBulkDelete_one: '{{count}} Kandidaten wirklich löschen?',
+    confirmBulkDelete_other: '{{count}} Kandidaten wirklich löschen?',
+    bulkDeleted_one: '{{count}} Kandidat gelöscht',
+    bulkDeleted_other: '{{count}} Kandidaten gelöscht',
+    tagAssigned: 'Tag zugewiesen',
+    tagRemoved: 'Tag entfernt',
+    emptyTitle: 'Noch keine Kandidaten',
+    emptyText: 'Leg deinen ersten am besten per Lebenslauf an. Ohne Lebenslauf kannst du ihn später nicht einreichen.',
+    noneFound: 'Keine Kandidaten gefunden',
+    poolFeature: 'Talent Pool Feature',
+    imported: 'Kandidaten importiert',
+    createdFromCv: 'Kandidat aus CV erstellt',
+  },
+  detail: {
+    status: {
+      new: 'Neu',
+      contacted: 'Kontaktiert',
+      interview: 'Interview',
+      offer: 'Angebot',
+      placed: 'Platziert',
+      rejected: 'Absage',
+    },
+    notFound: 'Kandidat nicht gefunden',
+    activityAdded: 'Aktivität hinzugefügt',
+    backToList: 'Zurück zur Übersicht',
+    back: 'Zurück',
+    interviewWith: 'Interview mit {{name}}',
+  },
+  pool: {
+    title: 'Talent Pool',
+    subtitle: 'Verwalten Sie Ihren Kandidatenpool für zukünftige Positionen',
+  },
+};
+
+export default de;

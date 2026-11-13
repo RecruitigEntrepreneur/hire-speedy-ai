@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
 import { callFunction } from '@/lib/interviewScheduling';
+import i18n from '@/i18n';
 
 /**
  * Kunden-Bereich „Rechnungen“ (Etappe 3, 25.10.2026; Umbau 11.11.2026 K9–K12): Typen und
@@ -97,7 +98,7 @@ const call = <T,>(action: string, body: Record<string, unknown> = {}, fallback?:
 export const billingApi = {
   list: () => call<ClientInvoices>('client_invoices'),
   files: (invoiceIds: string[]) => call<{ files: { id: string; number: string; url: string }[] }>('invoice_files', { invoiceIds }),
-  saveSettings: (input: BillingSettingsInput) => call<{ ok: true; settings: BillingSettings }>('billing_settings', input, 'Die Rechnungsdaten konnten nicht gespeichert werden.'),
+  saveSettings: (input: BillingSettingsInput) => call<{ ok: true; settings: BillingSettings }>('billing_settings', input, i18n.t('clientInvoices:errors.saveSettings')),
 };
 
 /** Rechnungen des angemeldeten Kunden; auch für den Menüpunkt (canSee, offene Belege). */

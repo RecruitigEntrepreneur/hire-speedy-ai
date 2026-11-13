@@ -6,6 +6,8 @@ import { isPlausibleEmail } from '../_shared/domain.ts';
 import { serviceClient, logEvent, issueDraftToken } from '../_shared/intake-core.ts';
 import { sendIntakeMail, layout, esc } from '../_shared/intake-mail.ts';
 import { intakeResumeUrl } from '../_shared/app-url.ts';
+import { callLanguage, customerMailLanguage, withIntakeLang } from '../_shared/intake-language.ts';
+import { resumeMailTexts } from '../_shared/intake-i18n.ts';
 
 /**
  * intake-resume — "später fortsetzen" und "Link erneut senden". Ohne Login.
@@ -19,7 +21,7 @@ import { intakeResumeUrl } from '../_shared/app-url.ts';
  * Absender gehoert; ein Link dorthin waere ein Zustellversprechen an einen
  * Unbekannten.
  */
-serve(async (req) => {
+serve(withIntakeLang(async (req) => {
   const pre = preflight(req);
   if (pre) return pre;
 
@@ -45,7 +47,7 @@ serve(async (req) => {
 
     const { data: drafts } = await supabase
       .from('intake_drafts')
-      .select('id, link_id, contact_name, company_name, title, built, identity_state, review_state')
+      .select('*')
       .ilike('contact_email', email)
       .eq('identity_state', 'email_verified')
       .in('review_state', ['not_submitted', 'changes_requested'])
@@ -65,25 +67,27 @@ serve(async (req) => {
     if ('error' in issued) return json(generic);
 
     const url = intakeResumeUrl(issued.token);
-    const position = (draft.built as any)?.title ?? draft.title ?? 'Ihre Position';
+    // In der Sprache des Entwurfs, sonst des Links, sonst des Aufrufs.
+    const mailLang = await customerMailLanguage(supabase, draft, callLanguage(body));
+    const text = resumeMailTexts(mailLang);
+    const position = (draft.built as any)?.title ?? draft.title ?? text.positionFallback;
 
     const html = layout({
-      preheader: 'Hier geht es weiter mit Ihrer Stellenaufnahme.',
-      heading: 'Ihre Stellenaufnahme fortsetzen',
+      lang: mailLang,
+      preheader: text.preheader,
+      heading: text.heading,
       body: `
-        <p style="margin:0 0 16px 0;">Guten Tag${draft.contact_name ? ' ' + esc(draft.contact_name) : ''},</p>
+        <p style="margin:0 0 16px 0;">${text.hello}${draft.contact_name ? ' ' + esc(draft.contact_name) : ''},</p>
         <p style="margin:0 0 16px 0;">
-          Ihre begonnene Aufnahme für <strong>${esc(position)}</strong> ist gespeichert.
-          Über den Link machen Sie genau dort weiter, wo Sie aufgehört haben.
+          ${text.body(`<strong>${esc(position)}</strong>`)}
         </p>`,
-      cta: { label: 'Aufnahme fortsetzen', url },
-      footnote:
-        'Der Link gilt 14 Tage. Ohne Aktivität löschen wir die begonnene Aufnahme 30 Tage nach der letzten Änderung.',
+      cta: { label: text.cta, url },
+      footnote: text.footnote,
     });
 
     await sendIntakeMail(supabase, {
       to: email,
-      subject: `Ihre Stellenaufnahme bei Matchunt fortsetzen`,
+      subject: text.subject,
       html,
       template: 'intake_resume',
       meta: { draft_id: draft.id },
@@ -100,4 +104,4 @@ serve(async (req) => {
     // ein Signal.
     return json(generic);
   }
-});
+}, { success: true }));

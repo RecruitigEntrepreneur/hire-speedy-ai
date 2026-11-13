@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { besetzungApi, type BesetzungItem } from '@/lib/besetzungApi';
 import { first, type ResearchPanel } from './besetzungView';
 import { PanelRows } from './BesetzungParts';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Stand der Nachbesetzung im Fenster „Besetzung“ (K6, J2, J3, 11.11.2026): von der Meldung
@@ -29,6 +30,7 @@ interface Props {
 }
 
 export function NachbesetzungPanel({ item, panel, busy, run, onEditJob, onSubmissions, onInvoice, onOpenSubmission }: Props) {
+  const { t } = useTranslation('clientPlacements');
   const p = item.placement!;
   const r = p.research;
   const [confirmEnd, setConfirmEnd] = useState(false);
@@ -39,38 +41,36 @@ export function NachbesetzungPanel({ item, panel, busy, run, onEditJob, onSubmis
 
   const buttons: React.ReactNode[] = [];
   if (panel.variant === 'position' && item.can?.confirmPosition) {
-    buttons.push(btn(adjusted ? 'Angepasste Stelle bestätigen' : 'Stelle so bestätigen', () => run(async () => {
+    buttons.push(btn(adjusted ? t('research.confirmAdjusted') : t('research.confirmAsIs'), () => run(async () => {
       const res = await besetzungApi.confirmPosition(p.id, adjusted);
       markAdjusted(p.id, false);
       return res.state === 'running'
-        ? 'Bestätigt. Ihre Stelle ist jetzt für alle Headhunter neu ausgeschrieben.'
-        : 'Bestätigt. Sobald die Rechnung bezahlt ist, schreiben wir die Stelle für alle Headhunter neu aus.';
+        ? t('research.confirmedRunning')
+        : t('research.confirmedAfterPay');
     }), true));
-    buttons.push(btn('Stelle anpassen', () => { markAdjusted(p.id, true); onEditJob(r?.jobId ?? item.jobId); }));
+    buttons.push(btn(t('research.adjust'), () => { markAdjusted(p.id, true); onEditJob(r?.jobId ?? item.jobId); }));
   }
   if (panel.variant === 'payment') {
     const inv = r?.kind === 'joker' ? p.researchInvoice : item.invoice;
-    if (inv?.id && inv.number) buttons.push(btn('Rechnung ansehen', () => onInvoice(inv.id), true));
+    if (inv?.id && inv.number) buttons.push(btn(t('research.invoice'), () => onInvoice(inv.id), true));
   }
-  if (panel.variant === 'running') buttons.push(btn('Vorstellungen ansehen', () => onSubmissions(r?.jobId ?? item.jobId)));
-  if (panel.variant === 'found' && r?.replacement) buttons.push(btn(`Zur Besetzung von ${first(r.replacement.name)}`, () => onOpenSubmission(r.replacement!.submissionId)));
+  if (panel.variant === 'running') buttons.push(btn(t('research.submissions'), () => onSubmissions(r?.jobId ?? item.jobId)));
+  if (panel.variant === 'found' && r?.replacement) buttons.push(btn(t('research.toPlacement', { first: first(r.replacement.name) }), () => onOpenSubmission(r.replacement!.submissionId)));
   if (panel.variant === 'offer' && item.can?.answerOffer) {
-    buttons.push(btn('Nein, danke', () => run(async () => {
+    buttons.push(btn(t('research.noThanks'), () => run(async () => {
       await besetzungApi.answerOffer(p.id, false);
-      return 'Gemeldet, danke. Möchten Sie die Stelle wieder öffnen? Das geht hier im Fenster, mit normalem Honorar.';
+      return t('research.declinedDone');
     })));
-    buttons.push(btn('Annehmen', () => run(async () => {
+    buttons.push(btn(t('research.accept'), () => run(async () => {
       const res = await besetzungApi.answerOffer(p.id, true);
-      if (res.state === 'running') return 'Angenommen. Ihre Stelle ist jetzt für alle Headhunter neu ausgeschrieben.';
-      return res.released
-        ? 'Angenommen. Die Rechnung kommt per Mail. Sobald sie bezahlt ist, schreiben wir die Stelle für alle Headhunter neu aus.'
-        : 'Angenommen. Matchunt stellt Ihnen die Rechnung. Sobald sie bezahlt ist, schreiben wir die Stelle für alle Headhunter neu aus.';
+      if (res.state === 'running') return t('research.acceptedRunning');
+      return res.released ? t('research.acceptedReleased') : t('research.acceptedInvoice');
     }), true));
   }
   if (['core', 'rejected', 'late', 'outside', 'ended'].includes(panel.variant) && item.can?.reopenJob) {
-    buttons.push(btn('Stelle wieder öffnen', () => run(async () => {
+    buttons.push(btn(t('research.reopen'), () => run(async () => {
       await besetzungApi.reopenJob(p.id);
-      return 'Die Stelle ist wieder offen. Die Headhunter können wieder Kandidaten vorstellen, es gilt das normale Honorar.';
+      return t('research.reopened');
     })));
   }
 
@@ -82,23 +82,23 @@ export function NachbesetzungPanel({ item, panel, busy, run, onEditJob, onSubmis
         <p key={n} className={n === 0 && !panel.rows.length ? 'text-sm' : 'text-sm text-muted-foreground'}>{l}</p>
       ))}
       {panel.variant === 'position' && adjusted && (
-        <p className="text-xs text-muted-foreground">Sie haben die Stelle angepasst? Dann bestätigen Sie hier. Sonst erst über „Stelle anpassen“ ändern.</p>
+        <p className="text-xs text-muted-foreground">{t('research.adjustedHint')}</p>
       )}
       {buttons.length > 0 && <div className="flex flex-wrap gap-2 pt-1">{buttons}</div>}
 
       {item.can?.endResearch && !confirmEnd && (
-        <button type="button" className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => setConfirmEnd(true)}>Nachbesetzung beenden</button>
+        <button type="button" className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => setConfirmEnd(true)}>{t('research.end')}</button>
       )}
       {item.can?.endResearch && confirmEnd && (
         <div className="space-y-2 rounded-md bg-muted/50 p-2.5 text-sm">
-          <p>Nachbesetzung beenden?</p>
-          <p className="text-xs text-muted-foreground">Die Stelle wird für die Headhunter geschlossen. Das gezahlte Honorar bleibt bestehen, es gibt keine Erstattung. Eine zweite Nachbesetzung gibt es nicht.</p>
+          <p>{t('research.endQ')}</p>
+          <p className="text-xs text-muted-foreground">{t('research.endHint')}</p>
           <div className="flex justify-end gap-2">
-            <Button size="sm" variant="ghost" onClick={() => setConfirmEnd(false)}>Abbrechen</Button>
+            <Button size="sm" variant="ghost" onClick={() => setConfirmEnd(false)}>{t('common.cancel')}</Button>
             <Button size="sm" variant="outline" disabled={busy} onClick={() => run(async () => {
               await besetzungApi.endResearch(p.id);
-              return 'Die Nachbesetzung ist beendet. Die Stelle ist für die Headhunter geschlossen.';
-            })}>Ja, beenden</Button>
+              return t('research.endDone');
+            })}>{t('research.endYes')}</Button>
           </div>
         </div>
       )}

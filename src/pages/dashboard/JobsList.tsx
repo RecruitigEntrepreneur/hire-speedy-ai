@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { fmtDate } from '@/lib/localeFormat';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -67,10 +69,10 @@ const returnedReason = (j: JobRow): string | null =>
 const daysSince = (iso?: string | null) =>
   iso ? Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000)) : 0;
 
-const formatDate = (iso: string) =>
-  new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+const formatDate = (iso: string) => fmtDate(iso);
 
 export default function JobsList() {
+  const { t } = useTranslation(['clientJobs', 'clientDashboard']);
   const { user } = useAuth();
   const { toast } = useToast();
   const [jobs, setJobs] = useState<JobRow[]>([]);
@@ -80,8 +82,8 @@ export default function JobsList() {
   // wo die gerade eingereichte Stelle steht.
   const [searchParams] = useSearchParams();
   const [tab, setTab] = useState<LifecycleTab>(() => {
-    const t = searchParams.get('tab');
-    return t === 'review' || t === 'drafts' || t === 'archive' ? t : 'active';
+    const fromUrl = searchParams.get('tab');
+    return fromUrl === 'review' || fromUrl === 'drafts' || fromUrl === 'archive' ? fromUrl : 'active';
   });
   const [chipFilter, setChipFilter] = useState<'returned' | 'stale' | 'waiting' | null>(null);
   const [pauseFor, setPauseFor] = useState<JobRow | null>(null);
@@ -151,7 +153,7 @@ export default function JobsList() {
       );
     } catch (e) {
       console.error('Error fetching jobs:', e);
-      toast({ title: 'Fehler beim Laden', variant: 'destructive' });
+      toast({ title: t('list.loadError'), variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -168,7 +170,7 @@ export default function JobsList() {
     const r = j.raw;
     const { error } = await supabase.from('jobs').insert({
       client_id: user?.id,
-      title: `${j.title} (Kopie)`,
+      title: t('list.copyTitle', { title: j.title }),
       company_name: r.company_name,
       description: r.description,
       requirements: r.requirements,
@@ -189,10 +191,10 @@ export default function JobsList() {
       status: 'draft',
     } as any);
     if (error) {
-      toast({ title: 'Fehler beim Duplizieren', variant: 'destructive' });
+      toast({ title: t('list.duplicateError'), variant: 'destructive' });
       return;
     }
-    toast({ title: 'Als Entwurf dupliziert' });
+    toast({ title: t('list.duplicated') });
     fetchJobs();
   };
 
@@ -201,7 +203,7 @@ export default function JobsList() {
   const handleResume = async (j: JobRow) => {
     try {
       await resumeJob(j.id);
-      toast({ title: 'Stelle läuft wieder' });
+      toast({ title: t('list.resumed') });
       fetchJobs();
     } catch (e) {
       toast({ title: errorText(e), variant: 'destructive' });
@@ -211,17 +213,17 @@ export default function JobsList() {
   const handleDeleteDraft = async (j: JobRow) => {
     const { error } = await supabase.from('jobs').delete().eq('id', j.id).eq('status', 'draft');
     if (error) {
-      toast({ title: 'Löschen fehlgeschlagen', variant: 'destructive' });
+      toast({ title: t('list.deleteError'), variant: 'destructive' });
       return;
     }
-    toast({ title: 'Entwurf gelöscht' });
+    toast({ title: t('list.deleted') });
     fetchJobs();
   };
 
   const handleWithdraw = async (j: JobRow) => {
     const { error } = await supabase.from('jobs').update({ status: 'draft' }).eq('id', j.id);
     if (!error) {
-      toast({ title: 'Aus der Prüfung zurückgezogen — wieder als Entwurf verfügbar.' });
+      toast({ title: t('list.withdrawn') });
       fetchJobs();
     }
   };
@@ -250,10 +252,10 @@ export default function JobsList() {
   }, [jobs, tab, chipFilter, searchQuery]);
 
   const TABS: { key: LifecycleTab; label: string }[] = [
-    { key: 'active', label: 'Aktiv' },
-    { key: 'review', label: 'In Prüfung' },
-    { key: 'drafts', label: 'Entwürfe' },
-    { key: 'archive', label: 'Archiv' },
+    { key: 'active', label: t('list.tab.active') },
+    { key: 'review', label: t('list.tab.review') },
+    { key: 'drafts', label: t('list.tab.drafts') },
+    { key: 'archive', label: t('list.tab.archive') },
   ];
 
   if (loading) {
@@ -272,14 +274,14 @@ export default function JobsList() {
         {/* Header */}
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Meine Stellen</h1>
+            <h1 className="text-2xl font-bold tracking-tight">{t('list.title')}</h1>
             <p className="text-sm text-muted-foreground">
-              {counts.active} aktiv · {counts.review} in Prüfung · {counts.drafts} Entwürfe
+              {t('list.counts', { active: counts.active, review: counts.review, drafts: counts.drafts })}
             </p>
           </div>
           <Button variant="hero" size="sm" onClick={() => navigate('/dashboard/aufnahme', { state: { from: '/dashboard/jobs' } })}>
             <Plus className="mr-2 h-4 w-4" />
-            Neue Stelle
+            {t('list.newJob')}
           </Button>
         </div>
 
@@ -295,7 +297,7 @@ export default function JobsList() {
                   chipFilter === 'returned' && 'ring-2 ring-amber-500/40',
                 )}
               >
-                <AlertTriangle className="h-3.5 w-3.5" /> {counts.returned} zurückgegeben
+                <AlertTriangle className="h-3.5 w-3.5" /> {t('list.chipReturned', { count: counts.returned })}
               </button>
             )}
             {counts.waiting > 0 && (
@@ -307,7 +309,7 @@ export default function JobsList() {
                   chipFilter === 'waiting' && 'ring-2 ring-primary/40',
                 )}
               >
-                <Eye className="h-3.5 w-3.5" /> {counts.waiting} Kandidaten warten auf Review
+                <Eye className="h-3.5 w-3.5" /> {t('list.chipWaiting', { count: counts.waiting })}
               </button>
             )}
             {counts.stale > 0 && (
@@ -319,7 +321,7 @@ export default function JobsList() {
                   chipFilter === 'stale' && 'ring-2 ring-destructive/40',
                 )}
               >
-                <Clock className="h-3.5 w-3.5" /> {counts.stale} Stelle{counts.stale > 1 ? 'n' : ''} lange ohne Kandidaten
+                <Clock className="h-3.5 w-3.5" /> {t('list.chipStale', { count: counts.stale })}
               </button>
             )}
           </div>
@@ -328,26 +330,26 @@ export default function JobsList() {
         {/* Tabs + Suche */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-1 rounded-lg border p-1">
-            {TABS.map((t) => (
+            {TABS.map((x) => (
               <Button
-                key={t.key}
-                variant={tab === t.key && !chipFilter ? 'secondary' : 'ghost'}
+                key={x.key}
+                variant={tab === x.key && !chipFilter ? 'secondary' : 'ghost'}
                 size="sm"
                 className="h-7 gap-1.5 text-xs"
                 onClick={() => {
-                  setTab(t.key);
+                  setTab(x.key);
                   setChipFilter(null);
                 }}
               >
-                {t.label}
-                <span className="text-muted-foreground">{counts[t.key]}</span>
+                {x.label}
+                <span className="text-muted-foreground">{counts[x.key]}</span>
               </Button>
             ))}
           </div>
           <div className="relative w-full sm:w-60">
             <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Stellen durchsuchen …"
+              placeholder={t('list.searchPh')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="h-9 pl-8"
@@ -362,15 +364,15 @@ export default function JobsList() {
               <Briefcase className="h-8 w-8 text-muted-foreground/40" />
               <div>
                 <h3 className="text-sm font-medium">
-                  {searchQuery || chipFilter ? 'Keine passenden Stellen' : tab === 'drafts' ? 'Keine Entwürfe' : tab === 'review' ? 'Nichts in Prüfung' : tab === 'archive' ? 'Kein Archiv' : 'Noch keine aktive Stelle'}
+                  {searchQuery || chipFilter ? t('list.empty.filtered') : tab === 'drafts' ? t('list.empty.drafts') : tab === 'review' ? t('list.empty.review') : tab === 'archive' ? t('list.empty.archive') : t('list.empty.active')}
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  {searchQuery || chipFilter ? 'Filter anpassen oder zurücksetzen.' : 'Eine neue Position ist in wenigen Minuten aufgenommen.'}
+                  {searchQuery || chipFilter ? t('list.empty.filteredLead') : t('list.empty.lead')}
                 </p>
               </div>
               {!searchQuery && !chipFilter && tab === 'active' && (
                 <Button variant="hero" size="sm" onClick={() => navigate('/dashboard/aufnahme', { state: { from: '/dashboard/jobs' } })}>
-                  Neue Stelle
+                  {t('list.newJob')}
                 </Button>
               )}
             </CardContent>
@@ -396,22 +398,22 @@ export default function JobsList() {
                         {j.title}
                       </h3>
                       {lifecycle === 'active' && !j.paused_at && (
-                        <Badge variant="outline" className="h-5 border-emerald-500/40 px-1.5 text-[10px] text-emerald-600">Aktiv</Badge>
+                        <Badge variant="outline" className="h-5 border-emerald-500/40 px-1.5 text-[10px] text-emerald-600">{t('list.badge.active')}</Badge>
                       )}
                       {lifecycle === 'active' && j.paused_at && (
                         <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
-                          {j.raw?.pause_until ? `Pausiert bis ${formatDate(j.raw.pause_until)}` : `Pausiert seit ${formatDate(j.paused_at)}`}
+                          {j.raw?.pause_until ? t('list.badge.pausedUntil', { date: formatDate(j.raw.pause_until) }) : t('list.badge.pausedSince', { date: formatDate(j.paused_at) })}
                         </Badge>
                       )}
                       {lifecycle === 'active' && !j.paused_at && j.submissions_count === 0 && j.days_open > 14 && (
                         <Badge variant="outline" className="h-5 border-amber-500/40 px-1.5 text-[10px] text-amber-600">
-                          {j.days_open} d ohne Kandidaten
+                          {t('list.badge.noCandidates', { days: j.days_open })}
                         </Badge>
                       )}
                       {lifecycle === 'review' && (
                         <Badge variant="outline" className="h-5 gap-1 border-amber-500/40 px-1.5 text-[10px] text-amber-600">
                           <Clock className="h-3 w-3" />
-                          {verlauf?.kurz ?? 'In Prüfung bei Matchunt'}
+                          {verlauf?.kurz ?? t('clientDashboard:verlauf.short.pruefung')}
                         </Badge>
                       )}
                       {verlauf?.aktuell && (lifecycle === 'review' || (lifecycle === 'active' && !j.paused_at)) && (
@@ -419,36 +421,36 @@ export default function JobsList() {
                       )}
                       {lifecycle === 'drafts' && !returned && (
                         <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
-                          Entwurf{j.intake_completeness ? ` · Reife ${j.intake_completeness} %` : ''}
+                          {j.intake_completeness ? t('list.badge.draftReady', { pct: j.intake_completeness }) : t('list.badge.draft')}
                         </Badge>
                       )}
                       {returned && (
                         <Badge variant="outline" className="h-5 max-w-[280px] gap-1 truncate border-amber-500/50 px-1.5 text-[10px] text-amber-600">
-                          <AlertTriangle className="h-3 w-3 shrink-0" /> Zurückgegeben: „{returned}"
+                          <AlertTriangle className="h-3 w-3 shrink-0" /> {t('list.badge.returned', { reason: returned })}
                         </Badge>
                       )}
                       {lifecycle === 'archive' && (
-                        <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">Geschlossen</Badge>
+                        <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">{t('list.badge.closed')}</Badge>
                       )}
                     </div>
                     <p className="mt-0.5 truncate text-xs text-muted-foreground">
                       {lifecycle === 'active' && (
                         <>
                           {j.searching > 0 ? (
-                            <span className="text-emerald-600">{j.searching === 1 ? '1 Headhunter sucht' : `${j.searching} Headhunter suchen`}</span>
+                            <span className="text-emerald-600">{t('list.searching', { count: j.searching })}</span>
                           ) : (
-                            <span>Noch kein Headhunter aktiv</span>
+                            <span>{t('searchers.none')}</span>
                           )}
-                          {` · ${j.submissions_count} Kandidaten · ${j.interviews_count} Interviews${j.new_candidates > 0 ? ` · ${j.new_candidates} neu zu prüfen` : ''}`}
+                          {t('list.activeLine', { candidates: j.submissions_count, interviews: j.interviews_count })}{j.new_candidates > 0 ? t('list.newToReview', { count: j.new_candidates }) : ''}
                         </>
                       )}
                       {lifecycle === 'review' && verlauf?.aktuell &&
                         [
                           `${verlauf.aktuell.label} · ${verlauf.aktuell.hinweis ?? ''}`,
-                          verlauf.schritte[0].datum ? `eingereicht am ${verlaufDatum(verlauf.schritte[0].datum)}` : null,
+                          verlauf.schritte[0].datum ? t('list.submittedOn', { date: verlaufDatum(verlauf.schritte[0].datum) }) : null,
                         ].filter(Boolean).join(' · ')}
-                      {lifecycle === 'drafts' && `zuletzt bearbeitet vor ${daysSince(j.updated_at || j.created_at)} Tagen${j.location ? ` · ${j.location}` : ''}`}
-                      {lifecycle === 'archive' && `geschlossen · ${j.submissions_count} Kandidaten insgesamt`}
+                      {lifecycle === 'drafts' && `${t('list.lastEdited', { count: daysSince(j.updated_at || j.created_at) })}${j.location ? ` · ${j.location}` : ''}`}
+                      {lifecycle === 'archive' && t('list.archiveLine', { count: j.submissions_count })}
                     </p>
                   </Link>
 
@@ -466,25 +468,25 @@ export default function JobsList() {
                   {lifecycle === 'active' && (
                     <Button asChild variant="outline" size="sm" className="h-8 shrink-0 gap-1 text-xs">
                       <Link to={`/dashboard/candidates?job=${j.id}&tab=alle`}>
-                        <Users className="h-3.5 w-3.5" /> Bewerber{j.submissions_count > 0 ? ` (${j.submissions_count})` : ''}
+                        <Users className="h-3.5 w-3.5" /> {t('list.applicants')}{j.submissions_count > 0 ? ` (${j.submissions_count})` : ''}
                       </Link>
                     </Button>
                   )}
                   {lifecycle === 'drafts' && !returned && (
                     <Button variant="outline" size="sm" className="h-8 shrink-0 gap-1 border-primary/40 text-xs text-primary" onClick={() => openInStudio(j)}>
-                      <Sparkles className="h-3.5 w-3.5" /> Aufnahme fortsetzen
+                      <Sparkles className="h-3.5 w-3.5" /> {t('list.continueIntake')}
                     </Button>
                   )}
                   {returned && (
                     <Button variant="outline" size="sm" className="h-8 shrink-0 gap-1 border-amber-500/40 text-xs text-amber-600" onClick={() => openInStudio(j)}>
-                      Ergänzen & einreichen <ArrowRight className="h-3.5 w-3.5" />
+                      {t('list.completeSubmit')} <ArrowRight className="h-3.5 w-3.5" />
                     </Button>
                   )}
 
                   {/* Sekundäraktionen */}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground" aria-label="Weitere Aktionen">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground" aria-label={t('list.moreActions')}>
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -493,31 +495,31 @@ export default function JobsList() {
                         <>
                           {j.paused_at ? (
                             <DropdownMenuItem onClick={() => handleResume(j)}>
-                              <Play className="mr-2 h-4 w-4" /> Jetzt weitersuchen
+                              <Play className="mr-2 h-4 w-4" /> {t('manage.resume')}
                             </DropdownMenuItem>
                           ) : (
                             <DropdownMenuItem onClick={() => setPauseFor(j)}>
-                              <Pause className="mr-2 h-4 w-4" /> Pausieren …
+                              <Pause className="mr-2 h-4 w-4" /> {t('manage.pause')}
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuItem onClick={() => setBriefingDialog({ open: true, jobId: j.id, jobTitle: j.title, notes: j.briefing_notes || '' })}>
-                            <FileText className="mr-2 h-4 w-4" /> Briefing-Notizen
+                            <FileText className="mr-2 h-4 w-4" /> {t('list.briefingNotes')}
                           </DropdownMenuItem>
                         </>
                       )}
                       {lifecycle === 'review' && (
                         <DropdownMenuItem onClick={() => handleWithdraw(j)}>
-                          <XCircle className="mr-2 h-4 w-4" /> Aus Prüfung zurückziehen
+                          <XCircle className="mr-2 h-4 w-4" /> {t('list.withdraw')}
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuItem onClick={() => handleDuplicate(j)}>
-                        <Copy className="mr-2 h-4 w-4" /> Duplizieren
+                        <Copy className="mr-2 h-4 w-4" /> {t('list.duplicate')}
                       </DropdownMenuItem>
                       {lifecycle === 'active' && (
                         <>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => navigate(`/dashboard/jobs/${j.id}?schliessen=1`)} className="text-destructive focus:text-destructive">
-                            <XCircle className="mr-2 h-4 w-4" /> Stelle schließen …
+                            <XCircle className="mr-2 h-4 w-4" /> {t('manage.close')}
                           </DropdownMenuItem>
                         </>
                       )}
@@ -525,7 +527,7 @@ export default function JobsList() {
                         <>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => handleDeleteDraft(j)} className="text-destructive focus:text-destructive">
-                            <Trash2 className="mr-2 h-4 w-4" /> Entwurf löschen
+                            <Trash2 className="mr-2 h-4 w-4" /> {t('list.deleteDraft')}
                           </DropdownMenuItem>
                         </>
                       )}

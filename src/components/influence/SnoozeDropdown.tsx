@@ -8,6 +8,7 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
+import { useTranslation } from 'react-i18next';
 
 interface SnoozeDropdownProps {
   onSnooze: (until: Date) => void;
@@ -15,24 +16,25 @@ interface SnoozeDropdownProps {
 }
 
 export function SnoozeDropdown({ onSnooze, triggerClassName }: SnoozeDropdownProps) {
+  const { t } = useTranslation('taskDetail');
   const presets = [
     {
-      label: 'In 2 Stunden',
+      label: t('snooze.in2h'),
       icon: Clock,
       getDate: () => addHours(new Date(), 2),
     },
     {
-      label: 'Morgen früh (08:00)',
+      label: t('snooze.tomorrow'),
       icon: Sun,
       getDate: () => setMinutes(setHours(startOfTomorrow(), 8), 0),
     },
     {
-      label: 'In 3 Tagen',
+      label: t('snooze.in3d'),
       icon: Calendar,
       getDate: () => addDays(new Date(), 3),
     },
     {
-      label: 'Nächste Woche (Mo)',
+      label: t('snooze.nextWeek'),
       icon: ArrowRight,
       getDate: () => setMinutes(setHours(nextMonday(new Date()), 8), 0),
     },
@@ -52,7 +54,7 @@ export function SnoozeDropdown({ onSnooze, triggerClassName }: SnoozeDropdownPro
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52" onClick={(e) => e.stopPropagation()}>
         <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-          Snooze
+          {t('snooze.title')}
         </div>
         <DropdownMenuSeparator />
         {presets.map((preset) => (

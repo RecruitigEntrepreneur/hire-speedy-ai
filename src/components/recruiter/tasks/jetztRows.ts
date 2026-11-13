@@ -1,7 +1,12 @@
 import type { UnifiedTaskItem } from '@/hooks/useUnifiedTaskInbox';
 import { BUNDLED_CATEGORIES, bundleByJob, type StalledBundle } from '@/lib/kundePrueft';
 import { istGleichDran, VORBEREITEN_RANG, type VorbereitenArt } from '@/lib/kandidatVorbereiten';
+import i18n from '@/i18n';
 import { groupByPerson, type PersonGroup } from './taskWindow';
+import { clockTime } from './sprache';
+
+// Texte: src/i18n/locales/recruiterTasks (wait.*), gelesen beim Aufruf
+const tx = (key: string, options?: Record<string, unknown>): string => i18n.t(`recruiterTasks:wait.${key}`, options);
 
 export type JetztRow =
   | { kind: 'person'; key: string; prio: number; fee: number; critical: boolean; group: PersonGroup }
@@ -120,13 +125,13 @@ export interface WaitInfo {
   tone: 'red' | 'amber' | 'muted';
 }
 
-const clock = (ms: number) => new Date(ms).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' });
+const clock = (ms: number) => clockTime(ms, 'Europe/Berlin');
 const berlinDay = (ms: number) => new Date(ms).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
 
 function whoOf(it: UnifiedTaskItem): WaitInfo['who'] {
   const c = it.taskCategory;
   if (it.itemType === 'task') return 'du';
-  if (c === 'offer_deliver') return it.title.startsWith('Rückruf') ? 'kandidat' : 'kunde';
+  if (c === 'offer_deliver') return it.variant === 'callback' ? 'kandidat' : 'kunde';
   if (c.startsWith('contract_') || c === 'recommendation_due' || c === 'client_unsure' || c === 'client_undecided') return 'kunde';
   return 'kandidat';
 }
@@ -141,26 +146,25 @@ export function waitOf(r: JetztRow, now = new Date()): WaitInfo {
   if (r.kind === 'bundle') {
     const n = rowItems(r).length;
     who = 'kandidaten';
-    whoLabel = n === 1 ? 'Kandidat' : `${n} Kandidaten`;
+    whoLabel = n === 1 ? tx('who.candidate') : tx('who.candidates', { count: n });
   } else {
     who = whoOf(base);
-    whoLabel = who === 'kunde' ? 'Kunde' : who === 'du' ? 'Du' : 'Kandidat';
+    whoLabel = who === 'kunde' ? tx('who.client') : who === 'du' ? tx('who.you') : tx('who.candidate');
   }
   if (deadline) {
     const ms = Date.parse(deadline.dueAt!);
     if (ms - t <= DAY_MS) {
-      const day = berlinDay(ms) === berlinDay(t) ? '' : 'morgen ';
-      return { who, whoLabel, time: `bis ${day}${clock(ms)}`, tone: 'red' };
+      return { who, whoLabel, time: berlinDay(ms) === berlinDay(t) ? tx('untilTime', { time: clock(ms) }) : tx('untilTomorrow', { time: clock(ms) }), tone: 'red' };
     }
     // Kalendertage bis zur Frist (Berlin), wie „Noch 6 Tage“ im Fenster
     const days = Math.round((Date.parse(`${berlinDay(ms)}T12:00:00Z`) - Date.parse(`${berlinDay(t)}T12:00:00Z`)) / DAY_MS);
-    return { who, whoLabel, time: `${days} T. bis ${deadline.taskCategory === 'offer_deliver' ? 'Antwort' : 'Frist'}`, tone: 'amber' };
+    return { who, whoLabel, time: tx(deadline.taskCategory === 'offer_deliver' ? 'daysToAnswer' : 'daysToDeadline', { days }), tone: 'amber' };
   }
   const days = r.kind === 'bundle'
     ? Math.max(r.bundle.days, ...r.more.map(b => b.days))
     : Math.max(0, Math.floor((t - Date.parse(rowItem(r).createdAt)) / DAY_MS));
-  const where = r.kind === 'bundle' ? (r.bundle.kind === 'feedback' ? 'ohne Feedback' : 'beim Kunden') : 'offen';
-  const time = days === 0 ? 'seit heute' : `${days} T. ${where}`;
+  const where = r.kind === 'bundle' ? (r.bundle.kind === 'feedback' ? 'daysNoFeedback' : 'daysWithClient') : 'daysOpen';
+  const time = days === 0 ? tx('sinceToday') : tx(where, { days });
   // Rot, sobald etwas überfällig ist (Frist vorbei) oder als kritisch gilt
   const overdue = rowItems(r).some(i => i.dueAt && Date.parse(i.dueAt) < t);
   return { who, whoLabel, time, tone: r.critical || overdue ? 'red' : 'muted' };

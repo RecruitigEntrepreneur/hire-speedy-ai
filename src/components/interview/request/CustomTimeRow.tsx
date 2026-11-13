@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AlertTriangle, Check, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +27,7 @@ type Check =
  * sofort geprüft wie eine Kachel im Raster.
  */
 export function CustomTimeRow({ dayKey, dayLabel, durationMinutes, selected, onAdd, onClose, onCheckTime }: Props) {
+  const { t } = useTranslation('clientInterviews');
   const [time, setTime] = useState('');
   const [check, setCheck] = useState<Check>({ state: 'idle' });
   const seq = useRef(0);
@@ -38,14 +40,14 @@ export function CustomTimeRow({ dayKey, dayLabel, durationMinutes, selected, onA
   useEffect(() => {
     if (!/^\d{1,2}:\d{2}$/.test(time)) return setCheck({ state: 'idle' });
     const iso = berlinLocalToIso(dayKey, time);
-    if (!iso) return setCheck({ state: 'error', message: 'Bitte eine Uhrzeit im Format HH:MM eingeben.' });
-    if (selected.some((s) => Date.parse(s) === Date.parse(iso))) return setCheck({ state: 'error', message: 'Diese Zeit ist schon ausgewählt.' });
+    if (!iso) return setCheck({ state: 'error', message: t('custom.format') });
+    if (selected.some((s) => Date.parse(s) === Date.parse(iso))) return setCheck({ state: 'error', message: t('custom.already') });
     const id = ++seq.current;
     setCheck({ state: 'checking', iso });
     const timer = window.setTimeout(() => {
       onCheckTime(iso)
         .then((result) => { if (id === seq.current) setCheck({ state: 'done', iso, result }); })
-        .catch((e) => { if (id === seq.current) setCheck({ state: 'error', message: e instanceof Error ? e.message : 'Die Zeit konnte nicht geprüft werden.' }); });
+        .catch((e) => { if (id === seq.current) setCheck({ state: 'error', message: e instanceof Error ? e.message : t('custom.checkFailed') }); });
     }, 350);
     return () => window.clearTimeout(timer);
     // onCheckTime ändert sich mit jedem Render des Formulars; geprüft wird bei neuer Eingabe
@@ -58,10 +60,10 @@ export function CustomTimeRow({ dayKey, dayLabel, durationMinutes, selected, onA
     onClose();
   };
 
-  let status: ReactNode = <span className="text-muted-foreground">Uhrzeit eingeben, z. B. 14:30</span>;
+  let status: ReactNode = <span className="text-muted-foreground">{t('custom.enter')}</span>;
   let action: ReactNode = null;
   if (check.state === 'checking') {
-    status = <span className="inline-flex items-center gap-1 text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" /> wird geprüft …</span>;
+    status = <span className="inline-flex items-center gap-1 text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" /> {t('custom.checking')}</span>;
   } else if (check.state === 'error') {
     status = <span className="text-destructive">{check.message}</span>;
   } else if (check.state === 'done') {
@@ -72,35 +74,35 @@ export function CustomTimeRow({ dayKey, dayLabel, durationMinutes, selected, onA
       status = (
         <span className="inline-flex items-center gap-1 text-muted-foreground">
           <X className="h-3.5 w-3.5" />
-          {r.status === 'booked' ? `${range} überschneidet sich mit einem Matchunt-Interview` : `${range} überschneidet sich mit einem Termin in Outlook`}
+          {r.status === 'booked' ? t('custom.overlapInterview', { range }) : t('custom.overlapOutlook', { range })}
         </span>
       );
     } else {
       const notes = [
-        !r.inHours ? 'außerhalb Ihrer Interview-Zeiten' : '',
-        r.shortNotice ? 'kurzfristig' : '',
-        r.missing.length ? `nicht dabei: ${r.missing.join(', ')}` : '',
+        !r.inHours ? t('custom.outsideHours') : '',
+        r.shortNotice ? t('custom.shortNotice') : '',
+        r.missing.length ? t('custom.notThere', { names: r.missing.join(', ') }) : '',
       ].filter(Boolean);
       status = unchecked ? (
         <span className="inline-flex items-center gap-1 text-foreground">
-          <AlertTriangle className="h-3.5 w-3.5 text-warning" /> {range} ungeprüft – Outlook nicht {r.connected ? 'lesbar' : 'verbunden'}
+          <AlertTriangle className="h-3.5 w-3.5 text-warning" /> {r.connected ? t('custom.uncheckedUnreadable', { range }) : t('custom.uncheckedNotConnected', { range })}
           {notes.length ? ` · ${notes.join(' · ')}` : ''}
         </span>
       ) : notes.length ? (
         <span className="inline-flex items-center gap-1 text-foreground">
-          <AlertTriangle className="h-3.5 w-3.5 text-warning" /> {range} frei · {notes.join(' · ')}
+          <AlertTriangle className="h-3.5 w-3.5 text-warning" /> {t('custom.free', { range })} · {notes.join(' · ')}
         </span>
       ) : (
         <span className="inline-flex items-center gap-1 text-success">
-          <Check className="h-3.5 w-3.5" /> {range} frei
+          <Check className="h-3.5 w-3.5" /> {t('custom.free', { range })}
         </span>
       );
       const hesitant = unchecked || !r.inHours || r.shortNotice;
       action = full ? (
-        <span className="text-xs text-muted-foreground">Höchstens {MAX_PROPOSALS} Vorschläge</span>
+        <span className="text-xs text-muted-foreground">{t('grid.max', { n: MAX_PROPOSALS })}</span>
       ) : (
         <Button type="button" size="sm" variant={hesitant ? 'outline' : 'default'} className="h-8" onClick={() => add(check.iso)}>
-          {hesitant ? 'Trotzdem hinzufügen' : 'Hinzufügen'}
+          {hesitant ? t('custom.addAnyway') : t('custom.add')}
         </Button>
       );
     }
@@ -109,7 +111,7 @@ export function CustomTimeRow({ dayKey, dayLabel, durationMinutes, selected, onA
   return (
     <div className="rounded-lg border p-3">
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="text-xs font-medium text-muted-foreground">{dayLabel} · Uhrzeit</span>
+        <span className="text-xs font-medium text-muted-foreground">{t('custom.dayTime', { day: dayLabel })}</span>
         <Input
           type="time"
           step={900}
@@ -119,7 +121,7 @@ export function CustomTimeRow({ dayKey, dayLabel, durationMinutes, selected, onA
             if (e.key === 'Enter') e.preventDefault();
           }}
           className="h-8 w-28"
-          aria-label={`Uhrzeit am ${dayLabel}`}
+          aria-label={t('custom.timeAria', { day: dayLabel })}
           autoFocus
         />
         <span className="min-w-0 flex-1 text-xs">{status}</span>
@@ -128,7 +130,7 @@ export function CustomTimeRow({ dayKey, dayLabel, durationMinutes, selected, onA
           type="button"
           onClick={onClose}
           className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          aria-label="Uhrzeit-Eingabe schließen"
+          aria-label={t('custom.closeAria')}
         >
           <X className="h-3.5 w-3.5" />
         </button>

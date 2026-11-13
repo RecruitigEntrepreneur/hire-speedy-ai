@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import { Check } from 'lucide-react';
 import type { CanonicalStage } from '@/lib/submissionStage';
 import { Honorar } from './Honorar';
+import { Trans, useTranslation } from 'react-i18next';
 
 export interface FunnelEntry {
   stage: CanonicalStage;
@@ -36,6 +37,7 @@ const formatEarning = (amount: number): string =>
   amount >= 1000 ? `€${(amount / 1000).toFixed(1)}k` : `€${amount.toLocaleString()}`;
 
 export function SubmissionsFunnelGrid({ breakdown }: { breakdown: FunnelEntry[] }) {
+  const { t } = useTranslation('recruiterSubmissions');
   // Beendete Phasen ohne Faelle sind kein Informationsgewinn.
   const visible = breakdown.filter((e) => !e.closed || e.count > 0);
   const laufend = breakdown.filter((e) => !e.closed).reduce((sum, e) => sum + e.count, 0);
@@ -46,9 +48,9 @@ export function SubmissionsFunnelGrid({ breakdown }: { breakdown: FunnelEntry[] 
   return (
     <Card className="border-border/50">
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg">Übersicht</CardTitle>
+        <CardTitle className="text-lg">{t('funnel.title')}</CardTitle>
         <p className="text-sm text-muted-foreground">
-          {laufend} laufend · offenes Honorar <Honorar>{formatEarning(offenesHonorar)}</Honorar>
+          <Trans t={t} i18nKey="funnel.summary" values={{ count: laufend, amount: formatEarning(offenesHonorar) }} components={{ fee: <Honorar>{''}</Honorar> }} />
         </p>
       </CardHeader>
       <CardContent>

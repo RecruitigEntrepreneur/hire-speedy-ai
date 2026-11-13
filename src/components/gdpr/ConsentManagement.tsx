@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -36,13 +37,14 @@ function ConsentItem({ type, label, description, checked, disabled, onChange }: 
 
 export function ConsentManagement() {
   const { consents, updateConsent, acceptAll, rejectAll, loading } = useConsent();
+  const { t } = useTranslation("privacy");
 
   if (loading) {
     return (
       <Card>
         <CardContent className="py-8 text-center">
           <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-muted-foreground" />
-          <p className="text-muted-foreground">Lade Einstellungen...</p>
+          <p className="text-muted-foreground">{t("consent.loading")}</p>
         </CardContent>
       </Card>
     );
@@ -53,19 +55,19 @@ export function ConsentManagement() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Shield className="h-5 w-5" />
-          Einwilligungen verwalten
+          {t("consent.title")}
         </CardTitle>
         <CardDescription>
-          Verwalten Sie Ihre Cookie- und Datenverarbeitungseinstellungen
+          {t("consent.description")}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex gap-2 mb-4">
           <Button variant="outline" size="sm" onClick={acceptAll}>
-            Alle akzeptieren
+            {t("consent.acceptAll")}
           </Button>
           <Button variant="outline" size="sm" onClick={rejectAll}>
-            Alle ablehnen
+            {t("consent.rejectAll")}
           </Button>
         </div>
 
@@ -74,8 +76,8 @@ export function ConsentManagement() {
         <div className="space-y-1">
           <ConsentItem
             type="functional"
-            label="Notwendige Cookies"
-            description="Diese Cookies sind für den Betrieb der Website erforderlich und können nicht deaktiviert werden."
+            label={t("consent.functional")}
+            description={t("consent.functionalText")}
             checked={true}
             disabled
             onChange={updateConsent}
@@ -83,16 +85,16 @@ export function ConsentManagement() {
           <Separator />
           <ConsentItem
             type="analytics"
-            label="Analyse-Cookies"
-            description="Helfen uns zu verstehen, wie Besucher mit der Website interagieren, um das Nutzererlebnis zu verbessern."
+            label={t("consent.analytics")}
+            description={t("consent.analyticsText")}
             checked={consents.analytics}
             onChange={updateConsent}
           />
           <Separator />
           <ConsentItem
             type="marketing"
-            label="Marketing-Cookies"
-            description="Werden verwendet, um Ihnen relevante Werbung basierend auf Ihren Interessen zu zeigen."
+            label={t("consent.marketing")}
+            description={t("consent.marketingText")}
             checked={consents.marketing}
             onChange={updateConsent}
           />
@@ -101,18 +103,18 @@ export function ConsentManagement() {
         <Separator />
 
         <div className="space-y-1">
-          <h4 className="font-medium">Rechtliche Dokumente</h4>
+          <h4 className="font-medium">{t("consent.legal")}</h4>
           <ConsentItem
             type="privacy_policy"
-            label="Datenschutzerklärung"
-            description="Ich habe die Datenschutzerklärung gelesen und akzeptiert."
+            label={t("consent.privacyPolicy")}
+            description={t("consent.privacyPolicyText")}
             checked={consents.privacy_policy}
             onChange={updateConsent}
           />
           <ConsentItem
             type="terms_of_service"
-            label="Nutzungsbedingungen"
-            description="Ich habe die Nutzungsbedingungen gelesen und akzeptiert."
+            label={t("consent.terms")}
+            description={t("consent.termsText")}
             checked={consents.terms_of_service}
             onChange={updateConsent}
           />

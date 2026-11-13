@@ -5,6 +5,8 @@
  * Vertrag (wer das Dashboard sieht, hat ihn), Rundgang, Firmendaten und
  * Bankverbindung im Profil.
  */
+import i18n from '@/i18n';
+
 export type StartStepId = 'contract' | 'tour' | 'company' | 'bank';
 export interface StartProfile { company_name?: string | null; company_address?: string | null; tax_id?: string | null; bank_iban?: string | null }
 export interface StartStep { id: StartStepId; label: string; done: boolean }
@@ -14,28 +16,30 @@ export const START_HIDDEN_KEY = 'recruiter_start_hidden_at';
 
 const filled = (value?: string | null) => !!value && value.trim().length > 0;
 
+// Texte: src/i18n/locales/recruiterDashboard (start.*), gelesen beim Aufruf (README Regel 7).
+const tx = (key: string): string => i18n.t(`recruiterDashboard:start.${key}`);
+
 export function startSteps(profile: StartProfile, tourDone: boolean): StartStep[] {
   return [
-    { id: 'contract', label: 'Vertrag', done: true },
-    { id: 'tour', label: 'Rundgang', done: tourDone },
-    { id: 'company', label: 'Firmendaten', done: filled(profile.company_name) && filled(profile.company_address) && filled(profile.tax_id) },
-    { id: 'bank', label: 'Bankverbindung', done: filled(profile.bank_iban) },
+    { id: 'contract', label: tx('steps.contract'), done: true },
+    { id: 'tour', label: tx('steps.tour'), done: tourDone },
+    { id: 'company', label: tx('steps.company'), done: filled(profile.company_name) && filled(profile.company_address) && filled(profile.tax_id) },
+    { id: 'bank', label: tx('steps.bank'), done: filled(profile.bank_iban) },
   ];
 }
 
 export const startPercent = (steps: StartStep[]) => Math.round(steps.filter(s => s.done).length / steps.length * 100);
 
-const withArticle: Record<StartStepId, string> = { contract: 'dein Vertrag', tour: 'der Rundgang', company: 'deine Firmendaten', bank: 'deine Bankverbindung' };
+/** Jede Kombination offener Schritte hat ihren eigenen ganzen Satz (keine Bruchstücke, README Regel 8). */
+const SUMMARY: Record<string, string> = {
+  tour: 'tour', company: 'company', bank: 'bank',
+  'tour+company': 'tourCompany', 'tour+bank': 'tourBank', 'company+bank': 'companyBank', 'tour+company+bank': 'all',
+};
 
 /** Ein Satz dazu, was noch fehlt und wofür. Leer, wenn alles erledigt ist. */
 export function openSummary(steps: StartStep[]): string {
-  const open = steps.filter(s => !s.done);
-  if (!open.length) return '';
-  const list = open.length === 1 ? withArticle[open[0].id] : `${open.slice(0, -1).map(s => s.label).join(', ')} und ${open[open.length - 1].label}`;
-  const money = open.filter(s => s.id === 'company' || s.id === 'bank');
-  const why = !money.length ? (open.length === 1 ? 'Er zeigt dir in wenigen Minuten das Wichtigste.' : '')
-    : `${money.length === open.length ? 'Die' : money.length === 2 ? 'Firmendaten und Bankverbindung' : money[0].id === 'bank' ? 'Die Bankverbindung' : 'Die Firmendaten'} brauchen wir, bevor wir dir deine erste Provision überweisen.`;
-  return `Noch offen: ${list}.${why ? ` ${why}` : ''}`;
+  const key = SUMMARY[steps.filter(s => !s.done && s.id !== 'contract').map(s => s.id).join('+')];
+  return key ? tx(`summary.${key}`) : '';
 }
 
 type CompanyField = 'company_name' | 'company_address' | 'tax_id';

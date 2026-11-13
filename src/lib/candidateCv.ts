@@ -12,18 +12,23 @@
 
 import type { DossierForm } from './candidateDossier';
 import { CvExtraction, dossierFromCv } from './cvImport';
+import i18n from '@/i18n';
+
+// Meldungen beim Aufruf übersetzt (Namespace candidateLogic).
+const tl = (key: string, options?: Record<string, unknown>): string => i18n.t(`candidateLogic:${key}`, options) as string;
 
 export const CV_FILE_RE = /\.(pdf|docx?)$/i;
 export const CV_ACCEPT = '.pdf,.doc,.docx';
 export const CV_MAX_BYTES = 10 * 1024 * 1024;
 export const CV_STALE_MONTHS = 6;
-export const CV_MISSING_MESSAGE = 'Ohne Lebenslauf kann der Kandidat nicht eingereicht werden.';
+/** Meldung ohne Lebenslauf, in der Sprache der Oberfläche. */
+export const cvMissingMessage = () => tl('cv.missing');
 
 export const isCvFileName = (name: string | null | undefined) => !!name && CV_FILE_RE.test(name.trim());
 
 export function cvFileProblem(file: { name: string; size: number }): string | null {
-  if (!isCvFileName(file.name)) return 'Bitte eine PDF- oder Word-Datei hochladen.';
-  if (file.size > CV_MAX_BYTES) return 'Die Datei darf höchstens 10 MB groß sein.';
+  if (!isCvFileName(file.name)) return tl('cv.fileType');
+  if (file.size > CV_MAX_BYTES) return tl('cv.fileSize');
   return null;
 }
 
@@ -226,9 +231,9 @@ export function cvStoragePath(fileUrl: string): string | null {
 }
 
 /** Verständliche Meldung für Fehler beim Einreichen (Regeln aus der Datenbank). */
-export function submissionErrorText(error: unknown, fallback = 'Fehler beim Einreichen'): string {
+export function submissionErrorText(error: unknown, fallback?: string): string {
   const e = error as { message?: string; hint?: string; code?: string } | null;
-  if (e?.hint === 'cv_missing') return CV_MISSING_MESSAGE;
+  if (e?.hint === 'cv_missing') return cvMissingMessage();
   if (e?.code === 'P0001' && e.message) return e.message;
-  return fallback;
+  return fallback ?? tl('cv.submitFailed');
 }

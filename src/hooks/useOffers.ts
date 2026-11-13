@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import i18n from '@/i18n';
 import { useToast } from '@/hooks/use-toast';
 
 export interface Offer {
@@ -147,13 +148,13 @@ export function useCreateOffer() {
       queryClient.invalidateQueries({ queryKey: ['offers'] });
       queryClient.invalidateQueries({ queryKey: ['submissions'] });
       toast({
-        title: 'Angebot erstellt',
-        description: 'Das Angebot wurde erfolgreich erstellt.',
+        title: i18n.t('offerAnswer:toast.createdTitle'),
+        description: i18n.t('offerAnswer:toast.createdBody'),
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Fehler',
+        title: i18n.t('offerAnswer:toast.error'),
         description: error.message,
         variant: 'destructive',
       });
@@ -178,13 +179,13 @@ export function useSendOffer() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['offers'] });
       toast({
-        title: 'Angebot gesendet',
-        description: 'Das Angebot wurde an den Kandidaten gesendet.',
+        title: i18n.t('offerAnswer:toast.sentTitle'),
+        description: i18n.t('offerAnswer:toast.sentBody'),
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Fehler',
+        title: i18n.t('offerAnswer:toast.error'),
         description: error.message,
         variant: 'destructive',
       });
@@ -218,24 +219,24 @@ export function useProcessOfferResponse() {
       
       if (variables.action === 'accept') {
         toast({
-          title: '🎉 Angebot angenommen!',
-          description: 'Herzlichen Glückwunsch zu Ihrer neuen Stelle!',
+          title: i18n.t('offerAnswer:toast.acceptedTitle'),
+          description: i18n.t('offerAnswer:toast.acceptedBody'),
         });
       } else if (variables.action === 'reject') {
         toast({
-          title: 'Angebot abgelehnt',
-          description: 'Das Unternehmen wurde informiert.',
+          title: i18n.t('offerAnswer:toast.rejectedTitle'),
+          description: i18n.t('offerAnswer:toast.rejectedBody'),
         });
       } else if (variables.action === 'counter_offer') {
         toast({
-          title: 'Gegenangebot gesendet',
-          description: 'Das Unternehmen wird über Ihr Gegenangebot informiert.',
+          title: i18n.t('offerAnswer:toast.counterTitle'),
+          description: i18n.t('offerAnswer:toast.counterBody'),
         });
       }
     },
     onError: (error: Error) => {
       toast({
-        title: 'Fehler',
+        title: i18n.t('offerAnswer:toast.error'),
         description: error.message,
         variant: 'destructive',
       });
@@ -262,13 +263,13 @@ export function useUpdateOffer() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['offers'] });
       toast({
-        title: 'Angebot aktualisiert',
-        description: 'Das Angebot wurde erfolgreich aktualisiert.',
+        title: i18n.t('offerAnswer:toast.updatedTitle'),
+        description: i18n.t('offerAnswer:toast.updatedBody'),
       });
     },
     onError: (error: Error) => {
       toast({
-        title: 'Fehler',
+        title: i18n.t('offerAnswer:toast.error'),
         description: error.message,
         variant: 'destructive',
       });

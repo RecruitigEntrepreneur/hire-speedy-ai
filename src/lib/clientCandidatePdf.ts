@@ -1,4 +1,6 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
+import i18n from '@/i18n';
+import { fmtDate, tFor } from '@/lib/localeFormat';
 
 export type PdfRow = { label: string; value: string };
 export type PdfStation = { title: string; company: string; period: string; description?: string | null };
@@ -14,6 +16,8 @@ export interface ClientCandidatePdfInput {
   ausbildung: string[];
   skills: string[];
   sprachen: string[];
+  /** Sprache des PDF-Rahmens (Überschriften, Fußzeile); Standard: Sprache der Oberfläche. */
+  lang?: string;
 }
 
 const INK = rgb(0.1, 0.1, 0.1);
@@ -32,7 +36,10 @@ export async function buildClientCandidatePdf(input: ClientCandidatePdfInput): P
   const doc = await PDFDocument.create();
   const regular = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
-  doc.setTitle(`Kandidatenprofil ${input.code}`);
+  const lang = input.lang ?? i18n.language;
+  const t = tFor(lang, 'clientCandidates');
+  const p = (key: string, options?: Record<string, unknown>) => t(`pdf.${key}`, options ?? {});
+  doc.setTitle(p('title', { code: input.code }));
   doc.setCreator('Matchunt');
 
   let page = doc.addPage([W, H]);
@@ -92,16 +99,16 @@ export async function buildClientCandidatePdf(input: ClientCandidatePdfInput): P
     }
   };
 
-  text('Matchunt · Kandidatenprofil', { size: 9, color: MUTED, gap: 10 });
+  text(p('brand'), { size: 9, color: MUTED, gap: 10 });
   text(input.code, { size: 20, font: bold, gap: 6 });
-  text(`${input.role} · für ${input.jobTitle}`, { size: 11, color: MUTED, gap: 6 });
-  if (input.anonym) text('Anonymes Profil: Name, Kontakt und Firmen nach Interview-Zusage.', { size: 9, color: MUTED });
+  text(p('roleFor', { role: input.role, job: input.jobTitle }), { size: 11, color: MUTED, gap: 6 });
+  if (input.anonym) text(p('anonym'), { size: 9, color: MUTED });
 
-  if (input.facts.length) { section('Eckdaten'); rows(input.facts); }
-  if (input.gespraech.length) { section('Aus dem Gespräch mit dem Headhunter'); rows(input.gespraech); }
+  if (input.facts.length) { section(p('facts')); rows(input.facts); }
+  if (input.gespraech.length) { section(p('talk')); rows(input.gespraech); }
 
   if (input.werdegang.length) {
-    section('Werdegang');
+    section(p('career'));
     for (const s of input.werdegang) {
       ensure(30);
       text(s.title, { size: 10.5, font: bold, gap: 2 });
@@ -111,13 +118,13 @@ export async function buildClientCandidatePdf(input: ClientCandidatePdfInput): P
     }
   }
 
-  if (input.ausbildung.length) { section('Ausbildung'); input.ausbildung.forEach((a) => text(a, { size: 10 })); }
-  if (input.skills.length) { section('Skills'); text(input.skills.join(' · '), { size: 10 }); }
-  if (input.sprachen.length) { section('Sprachen'); text(input.sprachen.join(' · '), { size: 10 }); }
+  if (input.ausbildung.length) { section(p('education')); input.ausbildung.forEach((a) => text(a, { size: 10 })); }
+  if (input.skills.length) { section(p('skills')); text(input.skills.join(' · '), { size: 10 }); }
+  if (input.sprachen.length) { section(p('languages')); text(input.sprachen.join(' · '), { size: 10 }); }
 
-  const stand = new Date().toLocaleDateString('de-DE');
-  doc.getPages().forEach((p, i, all) => {
-    p.drawText(safe(regular, `Stand ${stand} · Seite ${i + 1} von ${all.length} · vertraulich, nur zur internen Verwendung`), { x: M, y: 28, size: 8, font: regular, color: MUTED });
+  const stand = fmtDate(new Date(), lang);
+  doc.getPages().forEach((pg, i, all) => {
+    pg.drawText(safe(regular, p('footer', { date: stand, page: i + 1, pages: all.length })), { x: M, y: 28, size: 8, font: regular, color: MUTED });
   });
   return doc.save();
 }

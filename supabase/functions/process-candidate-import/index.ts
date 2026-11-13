@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { pick } from "../_shared/mail-i18n.ts";
+import { recruiterLanguage } from "../_shared/recipient-language.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -484,16 +486,20 @@ async function sendConfirmationEmail(
     return;
   }
 
+  // Antwort an den Headhunter in seiner Profilsprache (du); ohne Angabe Deutsch wie bisher
+  const lang = await recruiterLanguage(supabase, recruiterId);
+  const T = (de: string, en: string, sv: string, nb: string) => pick(lang, { de, en, sv, nb });
+  const names = candidateNames.join(", ");
   let statusText: string;
   if (needsReview) {
-    statusText = "Konnte nicht automatisch zugeordnet werden – bitte manuell pruefen.";
+    statusText = T("Konnte nicht automatisch zugeordnet werden – bitte manuell pruefen.", "Could not be matched automatically – please check it manually.", "Kunde inte matchas automatiskt – kontrollera manuellt.", "Kunne ikke kobles automatisk – sjekk manuelt.");
   } else if (isUpdate) {
-    statusText = `Kandidat aktualisiert: ${candidateNames.join(", ")}`;
+    statusText = T(`Kandidat aktualisiert: ${names}`, `Candidate updated: ${names}`, `Kandidat uppdaterad: ${names}`, `Kandidat oppdatert: ${names}`);
   } else {
-    statusText = `Neu angelegt: ${candidateNames.join(", ")}`;
+    statusText = T(`Neu angelegt: ${names}`, `Newly created: ${names}`, `Nyskapad: ${names}`, `Nyopprettet: ${names}`);
   }
 
-  const notesLine = notesAttached ? "\nDeine Notizen wurden dem Kandidatenprofil angehaengt." : "";
+  const notesLine = notesAttached ? T("\nDeine Notizen wurden dem Kandidatenprofil angehaengt.", "\nYour notes have been added to the candidate profile.", "\nDina anteckningar har lagts till i kandidatprofilen.", "\nNotatene dine er lagt til i kandidatprofilen.") : "";
 
   try {
     await fetch("https://api.resend.com/emails", {
@@ -505,8 +511,8 @@ async function sendConfirmationEmail(
       body: JSON.stringify({
         from: "Matchunt <noreply@matchunt.ai>",
         to: [toEmail],
-        subject: `Re: ${subject || "Kandidaten-Import"}`,
-        text: `Hallo,\n\ndeine E-Mail wurde verarbeitet.\n\n${statusText}${notesLine}\n\nViele Gruesse,\nMatchunt`,
+        subject: `Re: ${subject || T("Kandidaten-Import", "Candidate import", "Kandidatimport", "Kandidatimport")}`,
+        text: `${T("Hallo,\n\ndeine E-Mail wurde verarbeitet.", "Hi,\n\nyour email has been processed.", "Hej,\n\nditt mejl har behandlats.", "Hei,\n\ne-posten din er behandlet.")}\n\n${statusText}${notesLine}\n\n${T("Viele Gruesse,\nMatchunt", "Best regards,\nMatchunt", "Vänliga hälsningar,\nMatchunt", "Vennlig hilsen\nMatchunt")}`,
       }),
     });
   } catch (err) {

@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { AlertCircle, FileCheck2, Loader2, Upload } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { docxToText, isDocx } from '@/lib/docxText';
@@ -26,7 +27,7 @@ export function LebenslaufFeld({
   onDatei,
   linkedin,
   onLinkedin,
-  linkedinHinweis = 'oder dein LinkedIn-Profil',
+  linkedinHinweis,
 }: {
   ziel: LebenslaufZiel;
   hhVorname: string;
@@ -36,22 +37,23 @@ export function LebenslaufFeld({
   onLinkedin: (v: string) => void;
   linkedinHinweis?: string;
 }) {
+  const { t } = useTranslation('candidatePages');
   const input = useRef<HTMLInputElement>(null);
   const [ziehen, setZiehen] = useState(false);
 
   const waehlen = async (f: File | undefined) => {
     if (!f) return;
-    if (f.size > 10 * 1024 * 1024) { onDatei({ name: f.name, id: null, status: 'fehler', meldung: 'Die Datei ist größer als 10 MB.' }); return; }
+    if (f.size > 10 * 1024 * 1024) { onDatei({ name: f.name, id: null, status: 'fehler', meldung: t('common.fileTooLarge') }); return; }
     const pdf = f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
     const word = isDocx(f) || /\.docx?$/i.test(f.name);
-    if (!pdf && !word) { onDatei({ name: f.name, id: null, status: 'fehler', meldung: 'Bitte lade den Lebenslauf als PDF oder Word hoch.' }); return; }
+    if (!pdf && !word) { onDatei({ name: f.name, id: null, status: 'fehler', meldung: t('feld.wrongType') }); return; }
     onDatei({ name: f.name, id: null, status: 'laedt' });
     try {
       const text = word && isDocx(f) ? await docxToText(f).catch(() => '') : '';
       const r = await terminSeiteApi.lebenslauf(ziel, { name: f.name, typ: f.type, base64: await zuBase64(f), text: text || undefined });
       onDatei({ name: f.name, id: r.upload_id, status: 'fertig' });
     } catch (e) {
-      onDatei({ name: f.name, id: null, status: 'fehler', meldung: e instanceof Error ? e.message : 'Der Lebenslauf konnte nicht hochgeladen werden.' });
+      onDatei({ name: f.name, id: null, status: 'fehler', meldung: e instanceof Error ? e.message : t('feld.uploadFailed') });
     }
   };
 
@@ -70,19 +72,19 @@ export function LebenslaufFeld({
         : datei?.status === 'fehler' ? <AlertCircle className="h-5 w-5 shrink-0 text-destructive"/>
         : <Upload className="h-5 w-5 shrink-0 text-muted-foreground"/>}
       <span className="min-w-0 flex-1">
-        <span className="block truncate font-medium">{datei ? datei.name : 'Lebenslauf hochladen'}</span>
+        <span className="block truncate font-medium">{datei ? datei.name : t('feld.upload')}</span>
         <span className={cn('block text-xs', datei?.status === 'fehler' ? 'text-destructive' : fertig ? 'text-emerald-600' : 'text-muted-foreground')}>
-          {datei?.status === 'laedt' ? 'Wird hochgeladen …'
-            : fertig ? `Hochgeladen · ${hhVorname} sieht ihn vor dem Gespräch`
+          {datei?.status === 'laedt' ? t('feld.uploading')
+            : fertig ? t('feld.uploaded', { name: hhVorname })
             : datei?.status === 'fehler' ? datei.meldung
-            : 'PDF oder Word, auch vom Handy'}
+            : t('feld.hint')}
         </span>
       </span>
-      {datei && datei.status !== 'laedt' && <span className="text-xs text-muted-foreground underline">ändern</span>}
+      {datei && datei.status !== 'laedt' && <span className="text-xs text-muted-foreground underline">{t('common.change')}</span>}
     </button>
     <div className="space-y-1">
-      <p className="text-xs text-muted-foreground">{linkedinHinweis}</p>
-      <Input placeholder="linkedin.com/in/…" value={linkedin} onChange={e => onLinkedin(e.target.value)} aria-label="LinkedIn-Profil"/>
+      <p className="text-xs text-muted-foreground">{linkedinHinweis ?? t('feld.linkedinOr')}</p>
+      <Input placeholder="linkedin.com/in/…" value={linkedin} onChange={e => onLinkedin(e.target.value)} aria-label={t('common.linkedinProfile')}/>
     </div>
   </div>;
 }

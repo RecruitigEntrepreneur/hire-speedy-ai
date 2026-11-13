@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { CheckCircle2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -21,6 +22,7 @@ export function LebenslaufNachreichen({
   linkedinHinweis?: string;
   onFertig?: () => void;
 }) {
+  const { t } = useTranslation('candidatePages');
   const hhVorname = hhName.split(' ')[0];
   const [datei, setDatei] = useState<LebenslaufDatei | null>(null);
   const [linkedin, setLinkedin] = useState('');
@@ -31,7 +33,7 @@ export function LebenslaufNachreichen({
 
   if (fertig) {
     return <p className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-400">
-      <CheckCircle2 className="h-4 w-4"/>Danke, {hhVorname} hat {fertig === 'lebenslauf' ? 'deinen Lebenslauf' : 'dein LinkedIn-Profil'}.
+      <CheckCircle2 className="h-4 w-4"/>{fertig === 'lebenslauf' ? t('nachreichen.thanksCv', { name: hhVorname }) : t('nachreichen.thanksLinkedin', { name: hhVorname })}
     </p>;
   }
 
@@ -43,7 +45,7 @@ export function LebenslaufNachreichen({
       setFertig(r.lebenslauf ? 'lebenslauf' : 'linkedin');
       onFertig?.();
     } catch (e) {
-      setFehler(e instanceof Error ? e.message : 'Das hat gerade nicht geklappt.');
+      setFehler(e instanceof Error ? e.message : t('common.genericError'));
     } finally { setSendet(false); }
   };
 
@@ -52,11 +54,11 @@ export function LebenslaufNachreichen({
     <LebenslaufFeld ziel={ziel} hhVorname={hhVorname} datei={datei} onDatei={setDatei} linkedin={linkedin} onLinkedin={setLinkedin} linkedinHinweis={linkedinHinweis}/>
     <label className="flex items-start gap-2.5 text-xs text-muted-foreground">
       <Checkbox checked={consent} onCheckedChange={v => setConsent(v === true)} className="mt-0.5"/>
-      <span>Ich bin einverstanden, dass Matchunt und {hhName} meinen Lebenslauf für die Vermittlung verarbeiten. <Link to="/datenschutz" target="_blank" className="underline">Datenschutz</Link></span>
+      <span>{t('nachreichen.consent', { name: hhName })} <Link to="/datenschutz" target="_blank" className="underline">{t('common.privacy')}</Link></span>
     </label>
     {fehler && <p role="alert" className="text-xs text-destructive">{fehler}</p>}
     <Button type="button" className="w-full" disabled={!hatEtwas || !consent || sendet || datei?.status === 'laedt'} onClick={() => void senden()}>
-      {sendet && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}Lebenslauf senden
+      {sendet && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}{t('nachreichen.send')}
     </Button>
   </div>;
 }

@@ -6,6 +6,9 @@ import { ChevronDown, Info, Loader2, MessageSquare, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
+import { intlLocale } from '@/i18n/languages';
 import { captureViewport, FEEDBACK_IGNORE_ATTR, type Screenshot } from '@/lib/feedback/capture';
 import { composeImages, type Box } from '@/lib/feedback/compose';
 import { describeArea, describeShort } from '@/lib/feedback/elements';
@@ -67,28 +70,19 @@ type Tool = 'mark' | 'blackout';
 interface Size { w: number; h: number }
 interface Draft { x0: number; y0: number; x1: number; y1: number }
 
-function copyFor(du: boolean) {
-  return du
-    ? {
-        drawHint: 'Rahmen um die Stelle ziehen. Vertrauliches vorher schwärzen.',
-        placeholder: 'Was ist hier falsch oder unklar? Was hättest du erwartet?',
-        tooShort: 'Beschreib kurz, was du meinst.',
-        failed: 'Das hat nicht geklappt. Versuch es noch einmal.',
-        noImage: 'Ein Bild war hier nicht möglich. Beschreib die Stelle kurz im Text.',
-        label: 'Dein Hinweis',
-        mine: 'Deine Meldungen',
-        privacy: 'Nur Matchunt sieht das. Geschwärzte Stellen verlassen deinen Rechner nicht.',
-      }
-    : {
-        drawHint: 'Rahmen um die Stelle ziehen. Vertrauliches vorher schwärzen.',
-        placeholder: 'Was ist hier falsch oder unklar? Was hätten Sie erwartet?',
-        tooShort: 'Beschreiben Sie kurz, was Sie meinen.',
-        failed: 'Das hat nicht geklappt. Bitte versuchen Sie es noch einmal.',
-        noImage: 'Ein Bild war hier nicht möglich. Beschreiben Sie die Stelle kurz im Text.',
-        label: 'Ihr Hinweis',
-        mine: 'Ihre Meldungen',
-        privacy: 'Nur Matchunt sieht das. Geschwärzte Stellen verlassen Ihren Rechner nicht.',
-      };
+/** Texte nach Anrede (du/sie), gelesen beim Rendern in der Sprache der Oberfläche. */
+function copyFor(t: TFunction, du: boolean) {
+  const k = (key: string) => t(`${du ? 'du' : 'sie'}.${key}`);
+  return {
+    drawHint: k('drawHint'),
+    placeholder: k('placeholder'),
+    tooShort: k('tooShort'),
+    failed: k('failed'),
+    noImage: k('noImage'),
+    label: k('label'),
+    mine: k('mine'),
+    privacy: k('privacy'),
+  };
 }
 
 /** Eigener Container am Body, der Ereignisse nicht an Dialoge darunter weiterreicht. */
@@ -114,7 +108,8 @@ const isNarrow = () => window.innerWidth < 640;
 
 export function FeedbackWidget({ du, guestToken, canNotify, adminOnlyHint }: FeedbackWidgetProps) {
   const host = useIsolatedHost();
-  const copy = copyFor(du);
+  const { t, i18n } = useTranslation('feedbackWidget');
+  const copy = copyFor(t, du);
   const queryClient = useQueryClient();
 
   const [phase, setPhase] = useState<Phase>('idle');
@@ -312,8 +307,8 @@ export function FeedbackWidget({ du, guestToken, canNotify, adminOnlyHint }: Fee
       );
       reset();
       queryClient.invalidateQueries({ queryKey: ['my-feedback'] });
-      toast.success(ticketNo ? `Danke, ist angekommen (${ticketLabel(ticketNo)})` : 'Danke, ist angekommen', {
-        description: canNotify ? 'Wir melden uns, wenn es live ist.' : 'Wir kümmern uns darum.',
+      toast.success(ticketNo ? t('thanksTicket', { ticket: ticketLabel(ticketNo) }) : t('thanks'), {
+        description: canNotify ? t('notifyLive') : t('weHandle'),
       });
     } catch (e) {
       setSending(false);
@@ -345,8 +340,8 @@ export function FeedbackWidget({ du, guestToken, canNotify, adminOnlyHint }: Fee
           onMouseDown={(e) => e.preventDefault()}
           onClick={start}
           disabled={phase === 'capturing'}
-          aria-label="Feedback geben"
-          title={adminOnlyHint ? 'Nur für Admins sichtbar. Für alle einschalten unter Admin › Feedback.' : 'Feedback geben'}
+          aria-label={t('give')}
+          title={adminOnlyHint ? t('adminOnly') : t('give')}
           className={cn(
             'pointer-events-auto fixed right-0 top-1/2 z-[90] flex -translate-y-1/2 rotate-180 items-center gap-1.5',
             'rounded-r-md bg-foreground px-1.5 py-3 text-xs font-medium text-background shadow-lg [writing-mode:vertical-rl]',
@@ -359,7 +354,7 @@ export function FeedbackWidget({ du, guestToken, canNotify, adminOnlyHint }: Fee
           ) : (
             <MessageSquare className="h-3.5 w-3.5 rotate-90" aria-hidden />
           )}
-          Feedback
+          {t('tab')}
           {adminOnlyHint && <span className="h-1.5 w-1.5 rounded-full bg-amber-400" aria-hidden />}
         </button>
       )}
@@ -369,7 +364,7 @@ export function FeedbackWidget({ du, guestToken, canNotify, adminOnlyHint }: Fee
           ref={overlayRef}
           role="dialog"
           aria-modal="true"
-          aria-label="Feedback geben"
+          aria-label={t('give')}
           className="pointer-events-auto fixed inset-0 z-[2147483000] select-none overflow-hidden"
         >
           {/* Die eingefrorene Seite */}
@@ -406,8 +401,8 @@ export function FeedbackWidget({ du, guestToken, canNotify, adminOnlyHint }: Fee
 
             {blackouts.map((b, i) => (
               <div key={`b${i}`} className="group absolute flex items-center justify-center rounded-sm bg-black" style={px(b)}>
-                <span className="text-[10px] text-white/60">geschwärzt</span>
-                <RemoveButton label={`Schwärzung ${i + 1} entfernen`} onClick={() => setBlackouts((all) => all.filter((_, j) => j !== i))} />
+                <span className="text-[10px] text-white/60">{t('blackedOut')}</span>
+                <RemoveButton label={t('removeBlackout', { n: i + 1 })} onClick={() => setBlackouts((all) => all.filter((_, j) => j !== i))} />
               </div>
             ))}
 
@@ -422,10 +417,10 @@ export function FeedbackWidget({ du, guestToken, canNotify, adminOnlyHint }: Fee
                   >
                     {i + 1}
                   </span>
-                  <RemoveButton label={`Markierung ${i + 1} entfernen`} onClick={() => setMarks((all) => all.filter((_, j) => j !== i))} />
+                  <RemoveButton label={t('removeMark', { n: i + 1 })} onClick={() => setMarks((all) => all.filter((_, j) => j !== i))} />
                   {found && (
                     <span className="pointer-events-none absolute left-0 top-full mt-1 max-w-[320px] truncate rounded-md bg-popover px-2 py-0.5 text-[11px] text-popover-foreground shadow">
-                      Erkannt: {found}
+                      {t('detected', { what: found })}
                     </span>
                   )}
                 </div>
@@ -447,24 +442,24 @@ export function FeedbackWidget({ du, guestToken, canNotify, adminOnlyHint }: Fee
           >
             <span className="text-sm">
               {tool === 'blackout'
-                ? 'Über vertrauliche Stellen ziehen, sie werden geschwärzt.'
+                ? t('blackoutHint')
                 : marks.length
-                ? `${marks.length} markiert · weitere möglich`
+                ? t('marked', { count: marks.length })
                 : copy.drawHint}
             </span>
             <div className="flex items-center gap-1">
               <Chip active={tool === 'mark' && !(panelOpen && marks.length === 0)} onClick={() => chooseTool('mark')}>
-                Rahmen
+                {t('frame')}
               </Chip>
               <Chip active={tool === 'blackout'} onClick={() => chooseTool('blackout')}>
-                Schwärzen{blackouts.length ? ` (${blackouts.length})` : ''}
+                {blackouts.length ? t('blackoutCount', { count: blackouts.length }) : t('blackout')}
               </Chip>
               <Chip active={panelOpen && marks.length === 0 && tool === 'mark'} onClick={wholePage}>
-                Ganze Seite
+                {t('wholePage')}
               </Chip>
-              <Chip onClick={reset}>Abbrechen</Chip>
+              <Chip onClick={reset}>{t('cancel')}</Chip>
               {!panelOpen && (marks.length > 0 || blackouts.length > 0) && (
-                <Chip active onClick={() => setPanelOpen(true)}>Weiter</Chip>
+                <Chip active onClick={() => setPanelOpen(true)}>{t('next')}</Chip>
               )}
             </div>
           </div>
@@ -477,11 +472,11 @@ export function FeedbackWidget({ du, guestToken, canNotify, adminOnlyHint }: Fee
               style={{ width: narrow ? undefined : PANEL_WIDTH }}
             >
               <header className="flex items-center justify-between border-b border-border px-4 py-3">
-                <h2 className="text-sm font-semibold">Feedback geben</h2>
+                <h2 className="text-sm font-semibold">{t('give')}</h2>
                 <button
                   type="button"
                   onClick={reset}
-                  aria-label="Abbrechen"
+                  aria-label={t('cancel')}
                   className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
                 >
                   <X className="h-4 w-4" />
@@ -493,22 +488,22 @@ export function FeedbackWidget({ du, guestToken, canNotify, adminOnlyHint }: Fee
                   <Preview shot={shot} frame={frame} marks={marks} blackouts={blackouts} />
                   <div className="mt-1.5 flex items-center justify-between text-xs text-muted-foreground">
                     <span>
-                      {marks.length === 0 ? 'Ganze Seite' : marks.length === 1 ? '1 Markierung' : `${marks.length} Markierungen`}
-                      {blackouts.length > 0 && ` · ${blackouts.length} geschwärzt`}
+                      {marks.length === 0 ? t('wholePage') : t('marks', { count: marks.length })}
+                      {blackouts.length > 0 && t('blackedOutCount', { count: blackouts.length })}
                     </span>
                     <button type="button" onClick={drawAgain} className="underline-offset-2 hover:underline">
-                      {marks.length ? 'neu ziehen' : 'Bereich markieren'}
+                      {marks.length ? t('drawAgain') : t('markArea')}
                     </button>
                   </div>
                   {!shot && <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">{copy.noImage}</p>}
                 </div>
 
                 <fieldset>
-                  <legend className="mb-1.5 text-xs font-medium">Worum geht es?</legend>
+                  <legend className="mb-1.5 text-xs font-medium">{t('about')}</legend>
                   <div className="flex flex-wrap gap-1.5">
                     {KIND_OPTIONS.map((o) => (
                       <Chip key={o.value} active={kind === o.value} onClick={() => setKind(kind === o.value ? null : o.value)}>
-                        {o.label}
+                        {t(`kind.${o.value}`, { defaultValue: o.label })}
                       </Chip>
                     ))}
                   </div>
@@ -538,18 +533,18 @@ export function FeedbackWidget({ du, guestToken, canNotify, adminOnlyHint }: Fee
                     </p>
                   )}
                   {marks.length > 1 && (
-                    <p className="mt-1.5 text-xs text-muted-foreground">Mit „1“, „2“ … auf die Markierungen verweisen.</p>
+                    <p className="mt-1.5 text-xs text-muted-foreground">{t('refer')}</p>
                   )}
                 </div>
 
                 <fieldset>
                   <legend className="mb-1.5 text-xs font-medium">
-                    Wie sehr stört es? <span className="font-normal text-muted-foreground">(optional)</span>
+                    {t('severity')} <span className="font-normal text-muted-foreground">{t('optional')}</span>
                   </legend>
                   <div className="flex flex-wrap gap-1.5">
                     {SEVERITY_OPTIONS.map((o) => (
                       <Chip key={o.value} active={severity === o.value} onClick={() => setSeverity(severity === o.value ? null : o.value)}>
-                        {o.label}
+                        {t(`severityOption.${o.value}`, { defaultValue: o.label })}
                       </Chip>
                     ))}
                   </div>
@@ -565,14 +560,14 @@ export function FeedbackWidget({ du, guestToken, canNotify, adminOnlyHint }: Fee
                     >
                       <Info className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden />
                       <span className="flex-1">
-                        <span className="font-medium text-foreground">Automatisch dabei: </span>
+                        <span className="font-medium text-foreground">{t('autoIncluded')}</span>
                         {[
-                          shot ? (blackouts.length ? `Bild (${blackouts.length} geschwärzt)` : 'Bild') : null,
-                          'Seite',
-                          auto.breadcrumbs.length ? `Klickpfad (${auto.breadcrumbs.length} Schritte)` : null,
-                          auto.network_errors.length ? `${auto.network_errors.length} Netzwerkfehler` : null,
-                          auto.console_errors.length ? `${auto.console_errors.length} Fehlermeldungen` : null,
-                          'Browser',
+                          shot ? (blackouts.length ? t('autoImageBlacked', { count: blackouts.length }) : t('autoImage')) : null,
+                          t('autoPage'),
+                          auto.breadcrumbs.length ? t('autoTrail', { count: auto.breadcrumbs.length }) : null,
+                          auto.network_errors.length ? t('autoNetwork', { count: auto.network_errors.length }) : null,
+                          auto.console_errors.length ? t('autoConsole', { count: auto.console_errors.length }) : null,
+                          t('autoBrowser'),
                         ]
                           .filter(Boolean)
                           .join(' · ')}
@@ -582,18 +577,18 @@ export function FeedbackWidget({ du, guestToken, canNotify, adminOnlyHint }: Fee
                     {showContext && (
                       <div className="space-y-2 border-t border-border px-3 py-2 text-muted-foreground">
                         <p>
-                          <span className="text-foreground">Seite:</span> {auto.page_path}
+                          <span className="text-foreground">{t('pageLabel')}</span> {auto.page_path}
                         </p>
                         <p>
-                          <span className="text-foreground">Browser:</span> {shortBrowser(auto.user_agent)} · {auto.viewport.w}×{auto.viewport.h}
+                          <span className="text-foreground">{t('browserLabel')}</span> {shortBrowser(auto.user_agent)} · {auto.viewport.w}×{auto.viewport.h}
                         </p>
                         {auto.breadcrumbs.length > 0 && (
                           <div>
-                            <p className="text-foreground">Klickpfad (ohne getippte Werte):</p>
+                            <p className="text-foreground">{t('trailLabel')}</p>
                             <ol className="mt-1 max-h-32 space-y-0.5 overflow-y-auto">
                               {auto.breadcrumbs.slice(-12).map((b, i) => (
                                 <li key={i} className={cn('truncate', b.type === 'error' && 'text-destructive')}>
-                                  {new Date(b.t).toLocaleTimeString('de-DE')} · {b.label}
+                                  {new Date(b.t).toLocaleTimeString(intlLocale(i18n.language))} · {b.label}
                                 </li>
                               ))}
                             </ol>
@@ -609,18 +604,18 @@ export function FeedbackWidget({ du, guestToken, canNotify, adminOnlyHint }: Fee
               <footer className="border-t border-border px-4 py-3">
                 <div className="flex justify-end gap-2">
                   <Button variant="ghost" size="sm" onClick={reset} disabled={sending}>
-                    Abbrechen
+                    {t('cancel')}
                   </Button>
                   <Button size="sm" onClick={send} disabled={sending}>
                     {sending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden />}
-                    Senden
+                    {t('send')}
                   </Button>
                 </div>
                 {canNotify && mine.length > 0 && (
                   <details className="mt-3 text-xs">
                     <summary className="cursor-pointer text-muted-foreground">
                       {copy.mine} ({mine.length})
-                      {mine.some((m) => m.status === 'done') && ` · ${mine.filter((m) => m.status === 'done').length} erledigt`}
+                      {mine.some((m) => m.status === 'done') && t('doneCount', { count: mine.filter((m) => m.status === 'done').length })}
                     </summary>
                     <ul className="mt-2 max-h-36 space-y-1 overflow-y-auto">
                       {mine.map((m) => (
@@ -628,7 +623,7 @@ export function FeedbackWidget({ du, guestToken, canNotify, adminOnlyHint }: Fee
                           <span className="shrink-0 tabular-nums text-muted-foreground">{ticketLabel(m.ticket_no)}</span>
                           <span className="min-w-0 flex-1 truncate">{m.summary}</span>
                           <span className={cn('shrink-0', m.status === 'done' ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground')}>
-                            {STATUS_FOR_REPORTER[m.status] ?? m.status}
+                            {t(`status.${m.status}`, { defaultValue: STATUS_FOR_REPORTER[m.status] ?? m.status })}
                           </span>
                         </li>
                       ))}
@@ -679,13 +674,14 @@ function Chip({ active, onClick, children }: { active?: boolean; onClick?: () =>
 
 /** Verkleinertes Bild mit Rahmen und Schwärzungen, wie es im Ticket ankommt. */
 function Preview({ shot, frame, marks, blackouts }: { shot: Screenshot | null; frame: Size; marks: FeedbackMark[]; blackouts: Box[] }) {
+  const { t } = useTranslation('feedbackWidget');
   const pct = (b: Box) => ({ left: `${b.x * 100}%`, top: `${b.y * 100}%`, width: `${b.w * 100}%`, height: `${b.h * 100}%` });
   return (
     <div
       className="relative w-full overflow-hidden rounded-md border border-border bg-muted"
       style={{ aspectRatio: `${frame.w} / ${frame.h}` }}
     >
-      {shot && <img src={shot.dataUrl} alt="Bild der Seite" className="absolute inset-0 h-full w-full" />}
+      {shot && <img src={shot.dataUrl} alt={t('previewAlt')} className="absolute inset-0 h-full w-full" />}
       {blackouts.map((b, i) => (
         <div key={`b${i}`} className="absolute bg-black" style={pct(b)} />
       ))}

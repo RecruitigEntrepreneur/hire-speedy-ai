@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { besetzungApi, fileToBase64, type BesetzungItem } from '@/lib/besetzungApi';
 import { dateDe, endDoneText, endReasons, first, todayKey } from './besetzungView';
+import { useTranslation } from 'react-i18next';
 
 /**
  * K5 „Besetzung endet“ (11.11.2026): ein Dialog für vor und nach dem Start. Ersetzt
@@ -24,6 +25,7 @@ interface Props {
 }
 
 export function BesetzungEndForm({ item, preset = null, onCancel, onDone }: Props) {
+  const { t } = useTranslation('clientPlacements');
   const p = item.placement!;
   const who = first(item.name);
   const today = todayKey();
@@ -52,11 +54,11 @@ export function BesetzungEndForm({ item, preset = null, onCancel, onDone }: Prop
       let text = endDoneText(r.outcome, r.kind, r.reviewUntil, reason);
       if (file) {
         try { await besetzungApi.endDocument(p.id, file.name, await fileToBase64(file)); }
-        catch (e) { text += ` Die Datei kam nicht an (${e instanceof Error ? e.message : 'Fehler'}); Sie können sie über „Unterlage nachreichen“ hochladen.`; }
+        catch (e) { text += t('end.fileFailed', { error: e instanceof Error ? e.message : t('common.error') }); }
       }
       onDone(text);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Das hat nicht geklappt.');
+      setError(e instanceof Error ? e.message : t('common.failed'));
     } finally {
       setBusy(false);
     }
@@ -71,47 +73,47 @@ export function BesetzungEndForm({ item, preset = null, onCancel, onDone }: Prop
   return (
     <div className="space-y-3">
       <div>
-        <p className="text-sm font-medium">Besetzung endet · {item.name}</p>
+        <p className="text-sm font-medium">{t('end.title', { name: item.name })}</p>
         <p className="text-xs text-muted-foreground">{item.jobTitle}{item.package.replacement ? '' : ` · ${pkgShort}`}</p>
       </div>
 
       <div className="space-y-1.5">
-        {label(`Hat ${who} schon angefangen?`)}
+        {label(t('end.startedQ', { who }))}
         <div className="flex flex-wrap gap-1.5">
-          {canYes && chip(started === true, `Ja${p.startDate ? `, seit ${dateDe(p.startDate)}` : ''}`, () => { setStarted(true); setReason(''); })}
-          {!fixed && chip(started === false, 'Nein', () => { setStarted(false); setReason(''); })}
+          {canYes && chip(started === true, p.startDate ? t('end.yesSince', { date: dateDe(p.startDate) }) : t('end.yes'), () => { setStarted(true); setReason(''); })}
+          {!fixed && chip(started === false, t('end.no'), () => { setStarted(false); setReason(''); })}
         </div>
       </div>
 
       {started !== null && (
         <div className="space-y-1.5">
-          {label('Was ist passiert?')}
+          {label(t('end.what'))}
           <div className="flex flex-wrap gap-1.5">{reasons.map((r) => chip(reason === r.key, r.label, () => setReason(r.key)))}</div>
         </div>
       )}
 
       {started !== null && (
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="block text-sm">{label('Davon erfahren am')}
+          <label className="block text-sm">{label(t('end.knownOn'))}
             <Input type="date" max={today} className="mt-1 h-9" value={knownOn} onChange={(e) => setKnownOn(e.target.value)} /></label>
           {started && (
-            <label className="block text-sm">{label('Letzter Arbeitstag')}
+            <label className="block text-sm">{label(t('end.lastDay'))}
               <Input type="date" min={p.startDate ?? undefined} className="mt-1 h-9" value={lastDay} onChange={(e) => setLastDay(e.target.value)} /></label>
           )}
         </div>
       )}
 
       {started !== null && (
-        <label className="block text-sm">{label(reason === 'other' ? 'Kurz in eigenen Worten (Pflicht)' : 'Kurz in eigenen Worten')}
-          <Textarea rows={2} className="mt-1" placeholder={started ? 'z. B. geht zum alten Arbeitgeber zurück …' : 'z. B. Gegenangebot angenommen …'} value={note} onChange={(e) => setNote(e.target.value)} /></label>
+        <label className="block text-sm">{label(reason === 'other' ? t('end.ownWordsRequired') : t('end.ownWords'))}
+          <Textarea rows={2} className="mt-1" placeholder={started ? t('end.placeholderStarted') : t('end.placeholderNotStarted')} value={note} onChange={(e) => setNote(e.target.value)} /></label>
       )}
 
       {started !== null && (
         <div className="space-y-1">
-          {label(started ? `Kündigung oder Nachricht von ${who}` : `Absage oder Nachricht von ${who}`)}
+          {label(started ? t('end.fileStarted', { who }) : t('end.fileNotStarted', { who }))}
           <label className="flex cursor-pointer items-center gap-2 rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground hover:bg-muted/40">
             <Upload className="h-4 w-4" />
-            <span className="flex-1 truncate">{file ? file.name : 'Datei wählen (freiwillig, auch später)'}</span>
+            <span className="flex-1 truncate">{file ? file.name : t('end.filePick')}</span>
             <input type="file" accept={ACCEPT} className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
           </label>
         </div>
@@ -119,14 +121,14 @@ export function BesetzungEndForm({ item, preset = null, onCancel, onDone }: Prop
 
       {continuity && (
         <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
-          Mit {pkgShort} schreiben wir Ihre Stelle ohne neues Honorar neu für alle Headhunter aus, wenn der Grund nicht bei Ihnen liegt. Bitte melden Sie es binnen 14 Tagen, nachdem Sie davon erfahren haben.
+          {t('end.continuity', { pkg: pkgShort })}
         </p>
       )}
 
       {error && <p className="text-sm text-destructive">{error}</p>}
       <div className="flex justify-end gap-2 border-t pt-3">
-        <Button variant="ghost" onClick={onCancel}>Abbrechen</Button>
-        <Button disabled={busy || !ok} onClick={() => void submit()}>{busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}Melden</Button>
+        <Button variant="ghost" onClick={onCancel}>{t('common.cancel')}</Button>
+        <Button disabled={busy || !ok} onClick={() => void submit()}>{busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}{t('common.report')}</Button>
       </div>
     </div>
   );

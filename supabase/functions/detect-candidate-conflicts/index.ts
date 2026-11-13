@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { notifyLang, tx } from "../_shared/notify-i18n.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -122,8 +123,8 @@ serve(async (req) => {
               .insert({
                 user_id: currentSubmission.recruiter_id,
                 type: 'conflict_detected',
-                title: 'Konflikt erkannt',
-                message: `Ein schwerwiegender Konflikt wurde für einen Kandidaten erkannt. Bitte prüfen Sie die Details.`,
+                title: tx(await notifyLang(supabase, currentSubmission.recruiter_id), 'Konflikt erkannt', 'Conflict detected', 'Konflikt upptäckt', 'Konflikt oppdaget'),
+                message: tx(await notifyLang(supabase, currentSubmission.recruiter_id), `Ein schwerwiegender Konflikt wurde für einen Kandidaten erkannt. Bitte prüfen Sie die Details.`, 'A serious conflict was detected for a candidate. Please check the details.', 'En allvarlig konflikt upptäcktes för en kandidat. Kontrollera detaljerna.', 'En alvorlig konflikt ble oppdaget for en kandidat. Sjekk detaljene.'),
                 related_type: 'candidate',
                 related_id: candidate_id
               });

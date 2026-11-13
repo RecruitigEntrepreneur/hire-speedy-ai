@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -38,6 +39,7 @@ export function CandidatePlaybookPanel({
   candidateName = '[Name]',
   companyName = '[Firma]',
 }: CandidatePlaybookPanelProps) {
+  const { t } = useTranslation('candidateDetail');
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
@@ -57,7 +59,7 @@ export function CandidatePlaybookPanel({
     const processedText = replacePlaceholders(text);
     await navigator.clipboard.writeText(processedText);
     setCopiedField(field);
-    toast.success('In Zwischenablage kopiert');
+    toast.success(t('playbook.copied'));
     setTimeout(() => setCopiedField(null), 2000);
   };
 
@@ -96,7 +98,7 @@ export function CandidatePlaybookPanel({
         >
           <div className="flex items-center gap-2 text-sm min-w-0">
             <Lightbulb className="h-4 w-4 text-primary shrink-0" />
-            <span className="text-muted-foreground shrink-0">Hilfe:</span>
+            <span className="text-muted-foreground shrink-0">{t('playbook.help')}</span>
             <span className="font-medium truncate">{alertTitle || playbook.title}</span>
           </div>
           <Badge variant="outline" className="text-xs shrink-0 ml-2">
@@ -113,7 +115,7 @@ export function CandidatePlaybookPanel({
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-base">
             <BookOpen className="h-4 w-4 text-primary" />
-            Coaching-Playbook
+            {t('playbook.title')}
           </CardTitle>
           <Button
             variant="ghost"
@@ -138,7 +140,7 @@ export function CandidatePlaybookPanel({
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm font-medium">
               <CheckSquare className="h-4 w-4 text-primary" />
-              Quick-Checklist
+              {t('playbook.checklist')}
             </div>
             <div className="space-y-1.5 pl-1">
               {playbook.quick_checklist.map((item, i) => (
@@ -191,7 +193,7 @@ export function CandidatePlaybookPanel({
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm font-medium">
               <Lightbulb className="h-4 w-4 text-primary" />
-              Talking Points
+              {t('playbook.talkingPoints')}
             </div>
             <ul className="space-y-1.5 pl-6">
               {playbook.talking_points.map((point, i) => (
@@ -209,7 +211,7 @@ export function CandidatePlaybookPanel({
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm font-medium text-destructive">
                 <AlertTriangle className="h-4 w-4" />
-                Red Flags
+                {t('playbook.redFlags')}
               </div>
               <ul className="space-y-1 text-xs">
                 {playbook.red_flags.slice(0, 4).map((flag, i) => (
@@ -225,7 +227,7 @@ export function CandidatePlaybookPanel({
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm font-medium text-emerald-600">
                 <ThumbsUp className="h-4 w-4" />
-                Gute Zeichen
+                {t('playbook.goodSigns')}
               </div>
               <ul className="space-y-1 text-xs">
                 {playbook.success_indicators.slice(0, 4).map((indicator, i) => (
@@ -244,7 +246,7 @@ export function CandidatePlaybookPanel({
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm font-medium">
               <Shield className="h-4 w-4 text-primary" />
-              Bei Einwänden
+              {t('playbook.objections')}
             </div>
             <div className="space-y-2">
               {playbook.objection_handlers.slice(0, 4).map((handler, i) => (
@@ -264,11 +266,11 @@ export function CandidatePlaybookPanel({
           <TabsList className="grid w-full grid-cols-3 h-8">
             <TabsTrigger value="phone" className="text-xs gap-1">
               <Phone className="h-3 w-3" />
-              Telefon
+              {t('playbook.phone')}
             </TabsTrigger>
             <TabsTrigger value="email" className="text-xs gap-1">
               <Mail className="h-3 w-3" />
-              Email
+              {t('playbook.email')}
             </TabsTrigger>
             <TabsTrigger value="whatsapp" className="text-xs gap-1">
               <MessageSquare className="h-3 w-3" />
@@ -290,7 +292,7 @@ export function CandidatePlaybookPanel({
               </div>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-4">
-                Kein Telefon-Skript verfügbar
+                {t('playbook.noPhone')}
               </p>
             )}
           </TabsContent>
@@ -309,7 +311,7 @@ export function CandidatePlaybookPanel({
               </div>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-4">
-                Keine Email-Vorlage verfügbar
+                {t('playbook.noEmail')}
               </p>
             )}
           </TabsContent>
@@ -328,7 +330,7 @@ export function CandidatePlaybookPanel({
               </div>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-4">
-                Keine WhatsApp-Vorlage verfügbar
+                {t('playbook.noWhatsapp')}
               </p>
             )}
           </TabsContent>

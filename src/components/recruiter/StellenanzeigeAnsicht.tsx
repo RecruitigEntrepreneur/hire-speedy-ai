@@ -1,6 +1,14 @@
 import { Banknote, Bike, Check, Clock, GraduationCap, HeartPulse, Home, Laptop, PiggyBank, Plane, Sparkles, Train, TrendingUp, Users, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Posting, PostingBlock } from '@/lib/jobPosting';
+import { useTranslation } from 'react-i18next';
+import { candidateLanguage, tFor } from '@/lib/localeFormat';
+
+// Die Anzeige ist in der Sprache gebaut, in der der Headhunter Kandidaten anspricht (jobPosting.ts);
+// Überschriften und Erkennung der Marken lesen dieselbe Sprache.
+const tp = (key: string) => tFor(candidateLanguage(), 'jobPosting')(key) as string;
+const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const vorsatz = (key: string) => new RegExp(`^${escape(tp(key))}:\\s*`);
 
 /**
  * Die Anzeige als gut strukturierte Stellenanzeige (21.10.2026): lesbare
@@ -55,18 +63,19 @@ function Block({ b }: { b: PostingBlock }) {
         {punkte.map(p => { const Icon = symbol(p); return <div key={p} className="flex items-start gap-3 rounded-lg bg-muted/50 px-3.5 py-3"><Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" /><span className="text-sm leading-6">{p}</span></div>; })}
       </div>
       {absaetze.map(a => <p key={a}>{a}</p>)}
-      {b.nachsatz && <blockquote className="border-l-2 border-border pl-4 text-sm italic leading-6 text-muted-foreground">{b.nachsatz.replace(/^Ein Beispiel:\s*/, '')}</blockquote>}
+      {b.nachsatz && <blockquote className="border-l-2 border-border pl-4 text-sm italic leading-6 text-muted-foreground">{b.nachsatz.replace(vorsatz('posting.exampleLabel'), '')}</blockquote>}
     </Abschnitt>;
   }
   if (b.id === 'ablauf') {
-    const schritte = punkte.filter(p => !/^vom ja bis zum vertrag/i.test(p));
+    const frist = (p: string) => p.toLowerCase().startsWith(tp('posting.contractDaysStart').toLowerCase());
+    const schritte = punkte.filter(p => !frist(p));
     // „Vom Ja bis zum Vertrag: ca. 7 Tage“ nur, wenn kein Schritt die Frist schon nennt (21.10.2026).
-    const vertrag = punkte.find(p => /^vom ja bis zum vertrag/i.test(p));
+    const vertrag = punkte.find(frist);
     const schonGenannt = vertrag && schritte.some(s => /\d+\s*(werk)?tag/i.test(s));
     return <Abschnitt titel={b.title}>
       <ol className="space-y-0">
         {schritte.map((s, i) => {
-          const ziel = i === schritte.length - 1 && /angebot|vertrag/i.test(s);
+          const ziel = i === schritte.length - 1 && /angebot|vertrag|offer|contract|erbjudande|avtal|tilbud/i.test(s);
           return <li key={s} className="relative flex items-start gap-3 pb-4 last:pb-0">
             {i < schritte.length - 1 && <span aria-hidden className="absolute left-3 top-7 h-[calc(100%-1.75rem)] w-px bg-border" />}
             <span className={cn('relative flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs', ziel ? 'bg-emerald-500/15 text-emerald-600' : 'bg-primary/10 text-primary')}>{ziel ? <Check className="h-3.5 w-3.5" /> : i + 1}</span>
@@ -86,12 +95,12 @@ function Block({ b }: { b: PostingBlock }) {
     </Abschnitt>;
   }
   if (b.id === 'profil') {
-    const zwingend = b.gruppen?.find(g => g.titel === 'Zwingend')?.bullets ?? [];
-    const vorteil = (b.gruppen?.find(g => g.titel === 'Von Vorteil')?.bullets ?? []).map(ohneVorteil).filter(Boolean);
+    const zwingend = b.gruppen?.find(g => g.titel === tp('posting.block.required'))?.bullets ?? [];
+    const vorteil = (b.gruppen?.find(g => g.titel === tp('posting.block.plus'))?.bullets ?? []).map(ohneVorteil).filter(Boolean);
     return <Abschnitt titel={b.title}>
       {b.lead && <p>{b.lead}</p>}
       {zwingend.length > 0 && <Punkte werte={zwingend} icon={Check} />}
-      {vorteil.length > 0 && <p className="text-sm"><span className="text-muted-foreground">Von Vorteil: </span>{vorteil.join(' · ')}</p>}
+      {vorteil.length > 0 && <p className="text-sm"><span className="text-muted-foreground">{tp('posting.block.plus')}: </span>{vorteil.join(' · ')}</p>}
       {punkte.map(p => <p key={p} className="text-sm text-muted-foreground">{p}</p>)}
     </Abschnitt>;
   }
@@ -100,20 +109,21 @@ function Block({ b }: { b: PostingBlock }) {
     {punkte.length > 0 && <Punkte werte={punkte} />}
     {absaetze.map(a => <p key={a}>{a}</p>)}
     {b.gruppen?.map(g => <div key={g.titel} className="space-y-1.5"><p className="font-medium">{g.titel}</p><Punkte werte={g.bullets} /></div>)}
-    {b.nachsatz && (/^Arbeitsalltag:\s*/.test(b.nachsatz)
-      ? <div className="space-y-1 pt-1"><h3 className="text-[15px] font-semibold">Ein typischer Tag</h3><p>{b.nachsatz.replace(/^Arbeitsalltag:\s*/, '')}</p></div>
+    {b.nachsatz && (vorsatz('posting.dailyLabel').test(b.nachsatz)
+      ? <div className="space-y-1 pt-1"><h3 className="text-[15px] font-semibold">{tp('posting.typicalDay')}</h3><p>{b.nachsatz.replace(vorsatz('posting.dailyLabel'), '')}</p></div>
       : <p className="text-muted-foreground">{b.nachsatz}</p>)}
   </Abschnitt>;
 }
 
 export function StellenanzeigeAnsicht({ posting }: { posting: Posting }) {
+  useTranslation('jobPosting'); // neu zeichnen, wenn die Sprache wechselt
   const k = posting.kontakt;
   const kuerzel = (k?.name ?? '').trim().split(/\s+/).slice(0, 2).map(t => t[0]?.toUpperCase()).join('');
   return <div className="max-w-[42rem] space-y-9 text-[15px] leading-7">
     {posting.blocks.map(b => <Block key={b.id} b={b} />)}
     {k?.name && <section className="flex items-center gap-3 border-t border-border pt-6">
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-medium">{kuerzel || '·'}</span>
-      <div className="text-sm leading-6"><p className="text-muted-foreground">Deine Ansprechperson</p><p>{[k.name, k.email, k.phone].filter(Boolean).join(' · ')}</p></div>
+      <div className="text-sm leading-6"><p className="text-muted-foreground">{tp('posting.contact')}</p><p>{[k.name, k.email, k.phone].filter(Boolean).join(' · ')}</p></div>
     </section>}
   </div>;
 }

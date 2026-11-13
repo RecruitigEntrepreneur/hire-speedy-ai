@@ -14,6 +14,9 @@ import {
 } from '@/components/ui/alert-dialog';
 import { daysUntil, fmtDayShort, mySearches, type ClientAnswer, type MySearch } from '@/lib/jobSearch';
 import { ClientQuestionFlow } from './ClientQuestionFlow';
+import { useTranslation, Trans } from 'react-i18next';
+
+type T = (key: string, options?: Record<string, unknown>) => string;
 
 /** Die eigene Suche auf dieser Stelle (oder null). `revision` lädt neu. */
 export function useMySearch(jobId: string | undefined, revision = 0) {
@@ -45,14 +48,15 @@ export function useMySearch(jobId: string | undefined, revision = 0) {
 
 export type SearchState = ReturnType<typeof useMySearch>;
 
-const pausedText = (until: string | null | undefined) => (until ? `Pausiert bis ${fmtDayShort(until)}` : 'Pausiert');
+const pausedText = (until: string | null | undefined, t: T) => (until ? t('hero.pausedUntil', { date: fmtDayShort(until) }) : t('hero.paused'));
 
 /** Kopfzeile der Stellenseite: nur solange der Kunde pausiert. */
 export function JobPausedBadge({ until }: { until: string | null | undefined }) {
+  const { t } = useTranslation('recruiterSearch');
   return (
     <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-500">
       <PauseCircle className="h-3.5 w-3.5" aria-hidden="true" />
-      {pausedText(until)}
+      {pausedText(until, t)}
     </span>
   );
 }
@@ -74,16 +78,18 @@ const ruht = (search: SearchState, jobPaused: boolean) => jobPaused || search.ro
 /** Hauptknopf im Kopf der Stellenseite, neben dem Verdienst. */
 /** `candidateName`: Stelle wurde für einen Kandidaten geöffnet („Ansehen“ in der Stellenwahl). */
 export function SearchHeroAction({ search, jobPaused, pausedUntil, onStart, onSubmit, candidateName }: Pick<HeroProps, 'search' | 'jobPaused' | 'pausedUntil' | 'onStart' | 'onSubmit'> & { candidateName?: string | null }) {
-  if (search.loading) return <Button size="lg" disabled><Loader2 className="animate-spin" />Lädt …</Button>;
+  const { t } = useTranslation('recruiterSearch');
+  if (search.loading) return <Button size="lg" disabled><Loader2 className="animate-spin" />{t('hero.loading')}</Button>;
   if (ruht(search, jobPaused)) {
-    return <Button size="lg" disabled><PauseCircle />{jobPaused ? pausedText(pausedUntil) : 'Suche ruht'}</Button>;
+    return <Button size="lg" disabled><PauseCircle />{jobPaused ? pausedText(pausedUntil, t) : t('hero.searchRests')}</Button>;
   }
-  if (!search.searching) return <Button size="lg" onClick={onStart}><Search />{candidateName ? `Ich suche und stelle ${candidateName} vor` : 'Ich suche'}</Button>;
-  return <Button size="lg" onClick={onSubmit}><Plus />{candidateName ? `${candidateName} vorstellen` : 'Vorstellung vorbereiten'}</Button>;
+  if (!search.searching) return <Button size="lg" onClick={onStart}><Search />{candidateName ? t('hero.searchAndPresent', { name: candidateName }) : t('hero.iSearch')}</Button>;
+  return <Button size="lg" onClick={onSubmit}><Plus />{candidateName ? t('hero.present', { name: candidateName }) : t('hero.prepare')}</Button>;
 }
 
 /** Eine Zeile unter dem Kopf: was „Ich suche“ bedeutet, Stand der Suche, offene Kundenfrage oder Pause. */
 export function SearchHeroStatus({ search, jobPaused, pausedUntil, companyName, capacity, onAnswer, onEnd }: Omit<HeroProps, 'onStart' | 'onSubmit'>) {
+  const { t } = useTranslation('recruiterSearch');
   const { row, loading, searching, openQuestion } = search;
   if (loading) return null;
   const link = 'underline underline-offset-2 hover:text-foreground';
@@ -93,19 +99,19 @@ export function SearchHeroStatus({ search, jobPaused, pausedUntil, companyName, 
     return (
       <span className="text-amber-500">
         {review
-          ? 'Deine Suche ruht: Matchunt prüft deine Angabe „Stelle schon direkt“.'
-          : `Der Kunde hat die Suche angehalten${pausedUntil ? ` · neue Vorschläge ab ${fmtDayShort(pausedUntil)}` : ''}${searching ? ' · deine Frist steht still' : ''}`}
+          ? t('hero.review')
+          : [t('hero.clientPaused'), pausedUntil ? t('hero.newFrom', { date: fmtDayShort(pausedUntil) }) : null, searching ? t('hero.deadlineStill') : null].filter(Boolean).join(' · ')}
       </span>
     );
   }
   if (!searching) {
-    return <span>Der Kunde sieht dich · 30 Tage für die erste Einreichung · {capacity.used} von {capacity.limit} Plätzen belegt</span>;
+    return <span>{t('hero.notSearching', { used: capacity.used, limit: capacity.limit })}</span>;
   }
   if (openQuestion) {
     return (
       <button type="button" onClick={onAnswer} className="inline-flex items-center gap-1.5 text-amber-500 hover:text-amber-400">
         <HelpCircle className="h-3.5 w-3.5" aria-hidden="true" />
-        Kennst du {companyName || 'das Unternehmen'} schon? <span className="underline underline-offset-2">Jetzt beantworten</span>
+        <span><Trans t={t} i18nKey="hero.question" values={{ company: companyName || t('q.theCompany') }} components={{ u: <span className="underline underline-offset-2" /> }} /></span>
       </button>
     );
   }
@@ -114,24 +120,25 @@ export function SearchHeroStatus({ search, jobPaused, pausedUntil, companyName, 
     <span className="inline-flex flex-wrap items-center gap-x-1.5 sm:justify-end">
       <span className="inline-flex items-center gap-1 text-emerald-500"><Check className="h-3.5 w-3.5" aria-hidden="true" />
         {row!.submissions > 0
-          ? `Du suchst · ${row!.submissions} ${row!.submissions === 1 ? 'Kandidat' : 'Kandidaten'} eingereicht`
-          : `Du suchst · noch ${days ?? 30} ${days === 1 ? 'Tag' : 'Tage'} für die erste Einreichung`}
+          ? t('hero.searchingSubmitted', { count: row!.submissions })
+          : t('hero.searchingDaysLeft', { count: days ?? 30 })}
       </span>
       <span aria-hidden="true">·</span>
-      <button type="button" className={link} onClick={onEnd}>Suche beenden</button>
+      <button type="button" className={link} onClick={onEnd}>{t('end.confirm')}</button>
     </span>
   );
 }
 
 /** Untere Leiste am Handy: derselbe nächste Schritt wie im Kopf. */
 export function SearchMobileAction({ search, jobPaused, pausedUntil, onStart, onSubmit, candidateName }: Pick<HeroProps, 'search' | 'jobPaused' | 'pausedUntil' | 'onStart' | 'onSubmit'> & { candidateName?: string | null }) {
+  const { t } = useTranslation('recruiterSearch');
   if (ruht(search, jobPaused)) {
-    return <Button className="min-w-0 flex-1" disabled><PauseCircle />{jobPaused ? pausedText(pausedUntil) : 'Suche ruht'}</Button>;
+    return <Button className="min-w-0 flex-1" disabled><PauseCircle />{jobPaused ? pausedText(pausedUntil, t) : t('hero.searchRests')}</Button>;
   }
   if (!search.loading && !search.searching) {
-    return <Button className="min-w-0 flex-1" onClick={onStart}><Search />{candidateName ? `${candidateName} vorstellen` : 'Ich suche'}</Button>;
+    return <Button className="min-w-0 flex-1" onClick={onStart}><Search />{candidateName ? t('hero.present', { name: candidateName }) : t('hero.iSearch')}</Button>;
   }
-  return <Button className="min-w-0 flex-1" onClick={onSubmit}><Plus />{candidateName ? `${candidateName} vorstellen` : 'Vorstellung vorbereiten'}</Button>;
+  return <Button className="min-w-0 flex-1" onClick={onSubmit}><Plus />{candidateName ? t('hero.present', { name: candidateName }) : t('hero.prepare')}</Button>;
 }
 
 /** „Kennst du X schon?“, wenn die Frage nach dem „Ich suche“ offen geblieben ist. */
@@ -143,12 +150,13 @@ export function SearchQuestionDialog({ open, onOpenChange, jobId, jobTitle, comp
   companyName: string | null;
   onDone: (answer: ClientAnswer) => void;
 }) {
+  const { t } = useTranslation('recruiterSearch');
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{jobTitle}</DialogTitle>
-          <DialogDescription>Bitte vor der ersten Einreichung beantworten.</DialogDescription>
+          <DialogDescription>{t('q.beforeFirst')}</DialogDescription>
         </DialogHeader>
         <ClientQuestionFlow jobId={jobId} jobTitle={jobTitle} companyName={companyName} onDone={onDone} />
       </DialogContent>
@@ -163,19 +171,20 @@ export function EndSearchDialog({ open, onOpenChange, submissions, busy, onConfi
   busy: boolean;
   onConfirm: () => void;
 }) {
+  const { t } = useTranslation('recruiterSearch');
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Suche beenden?</AlertDialogTitle>
+          <AlertDialogTitle>{t('end.title')}</AlertDialogTitle>
           <AlertDialogDescription>
             {submissions > 0
-              ? 'Deine eingereichten Kandidaten laufen weiter. Neue Einreichungen gehen erst nach erneutem „Ich suche“.'
-              : 'Ohne Einreichung bleibt der Platz bis 30 Tage nach deinem „Ich suche“ belegt. Der Kunde sieht dich weiter als „hat gesucht“.'}
+              ? t('end.withSubmissions')
+              : t('end.withoutSubmissions')}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={busy}>Abbrechen</AlertDialogCancel>
+          <AlertDialogCancel disabled={busy}>{t('end.cancel')}</AlertDialogCancel>
           <AlertDialogAction
             disabled={busy}
             onClick={(e) => {
@@ -183,7 +192,7 @@ export function EndSearchDialog({ open, onOpenChange, submissions, busy, onConfi
               onConfirm();
             }}
           >
-            Suche beenden
+            {t('end.confirm')}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

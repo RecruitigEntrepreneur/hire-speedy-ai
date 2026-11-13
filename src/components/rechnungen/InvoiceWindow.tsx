@@ -12,6 +12,7 @@ import type { BillingSettings, ClientInvoice } from '@/lib/billingApi';
 import { clientTasksApi } from '@/lib/clientTasksApi';
 import { placementApi } from '@/lib/placementApi';
 import { dateDe, eurC, forLine, invoiceState, taxLine } from './invoiceView';
+import { Trans, useTranslation } from 'react-i18next';
 
 /**
  * Beleg-Fenster (Etappe 3, 25.10.2026; Umbau 11.11.2026, K10): Eckdaten, Empfänger,
@@ -33,6 +34,7 @@ interface Props {
 const todayIso = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
 
 export function InvoiceWindow({ invoice, settings, financeOnly, canManage = true, open, onOpenChange }: Props) {
+  const { t } = useTranslation('clientInvoices');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [form, setForm] = useState<'paid' | 'frage' | null>(null);
@@ -50,12 +52,12 @@ export function InvoiceWindow({ invoice, settings, financeOnly, canManage = true
   const run = async (work: () => Promise<string>) => {
     setBusy(true);
     try { setDone(await work()); queryClient.invalidateQueries({ queryKey: ['client-invoices'] }); queryClient.invalidateQueries({ queryKey: ['client-tasks'] }); }
-    catch (e) { toast.error(e instanceof Error ? e.message : 'Das hat nicht geklappt.'); }
+    catch (e) { toast.error(e instanceof Error ? e.message : t('common.failed')); }
     finally { setBusy(false); }
   };
   const openPdf = async () => {
     try { const { url } = await placementApi.file(i.id); window.open(url, '_blank', 'noopener'); }
-    catch (e) { toast.error(e instanceof Error ? e.message : 'Das PDF ist gerade nicht abrufbar.'); }
+    catch (e) { toast.error(e instanceof Error ? e.message : t('common.pdfUnavailable')); }
   };
   const fact = (label: string, value: string) => (
     <div className="rounded-lg border p-2.5"><p className="text-xs text-muted-foreground">{label}</p><p className="text-sm">{value}</p></div>
@@ -72,36 +74,36 @@ export function InvoiceWindow({ invoice, settings, financeOnly, canManage = true
       <>
         <div className="flex items-start gap-2 rounded-lg border p-3 text-sm">
           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
-          <div><p className="font-medium">Erledigt.</p><p className="text-muted-foreground">{done}</p></div>
+          <div><p className="font-medium">{t('common.done')}</p><p className="text-muted-foreground">{done}</p></div>
         </div>
         <div className="flex justify-end gap-2 border-t pt-3">
-          <Button variant="ghost" onClick={() => { setDone(null); setForm(null); }}>Zurück zum Beleg</Button>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Schließen</Button>
+          <Button variant="ghost" onClick={() => { setDone(null); setForm(null); }}>{t('window.backToDoc')}</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t('common.close')}</Button>
         </div>
       </>
     );
   } else if (form === 'paid') {
     body = (
       <div className="space-y-3">
-        <p className="text-sm font-medium">Überweisung melden</p>
-        <label className="block text-sm"><span className="text-muted-foreground">Überwiesen am</span>
+        <p className="text-sm font-medium">{t('window.reportTransfer')}</p>
+        <label className="block text-sm"><span className="text-muted-foreground">{t('window.transferredOn')}</span>
           <Input type="date" max={todayIso()} className="mt-1 h-9 w-48" value={date} onChange={(e) => setDate(e.target.value)} /></label>
-        <p className="text-xs text-muted-foreground">Das ist ein Hinweis an Matchunt, kein Zahlungsnachweis. Bis Matchunt den Eingang bucht, steht hier „Zahlung wird geprüft“.</p>
+        <p className="text-xs text-muted-foreground">{t('window.transferHint')}</p>
         <div className="flex justify-end gap-2 border-t pt-3">
-          <Button variant="ghost" onClick={() => setForm(null)}>Abbrechen</Button>
-          <Button disabled={busy || !date} onClick={() => run(async () => { await clientTasksApi.invoicePaid(i.id, date); return 'Gemeldet. Matchunt prüft den Zahlungseingang.'; })}>{busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}Melden</Button>
+          <Button variant="ghost" onClick={() => setForm(null)}>{t('common.cancel')}</Button>
+          <Button disabled={busy || !date} onClick={() => run(async () => { await clientTasksApi.invoicePaid(i.id, date); return t('window.transferDone'); })}>{busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}{t('common.report')}</Button>
         </div>
       </div>
     );
   } else if (form === 'frage') {
     body = (
       <div className="space-y-3">
-        <p className="text-sm font-medium">Frage zur Rechnung</p>
-        <Textarea rows={3} placeholder="z. B. Bestellnummer fehlt, Anschrift falsch …" value={question} onChange={(e) => setQuestion(e.target.value)} />
-        <p className="text-xs text-muted-foreground">Matchunt antwortet per Mail. Ist eine Angabe falsch, stellt Matchunt eine Korrektur und storniert die alte Rechnung sichtbar.</p>
+        <p className="text-sm font-medium">{t('window.question')}</p>
+        <Textarea rows={3} placeholder={t('window.questionPlaceholder')} value={question} onChange={(e) => setQuestion(e.target.value)} />
+        <p className="text-xs text-muted-foreground">{t('window.questionHint')}</p>
         <div className="flex justify-end gap-2 border-t pt-3">
-          <Button variant="ghost" onClick={() => setForm(null)}>Abbrechen</Button>
-          <Button disabled={busy || question.trim().length < 3} onClick={() => run(async () => { await clientTasksApi.invoiceQuestion(i.id, question.trim()); return 'Gesendet. Matchunt antwortet per Mail.'; })}>{busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}Senden</Button>
+          <Button variant="ghost" onClick={() => setForm(null)}>{t('common.cancel')}</Button>
+          <Button disabled={busy || question.trim().length < 3} onClick={() => run(async () => { await clientTasksApi.invoiceQuestion(i.id, question.trim()); return t('window.questionDone'); })}>{busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}{t('common.send')}</Button>
         </div>
       </div>
     );
@@ -109,61 +111,61 @@ export function InvoiceWindow({ invoice, settings, financeOnly, canManage = true
     body = (
       <>
         <div className="grid grid-cols-2 gap-2">
-          {fact('Rechnungsdatum', dateDe(i.issuedAt))}
-          {fact('Fällig', i.dueDate ? `${dateDe(i.dueDate)}${settings ? ` · ${settings.paymentTermsDays} Tage` : ''}` : '–')}
-          {fact('Bestellnummer', i.purchaseOrder ?? (i.poFollows ? 'folgt' : '–'))}
-          {fact('Kostenstelle', i.costCenter ?? '–')}
+          {fact(t('window.issued'), dateDe(i.issuedAt))}
+          {fact(t('window.due'), i.dueDate ? (settings ? t('window.dueDays', { date: dateDe(i.dueDate), days: settings.paymentTermsDays }) : dateDe(i.dueDate)) : '–')}
+          {fact(t('window.po'), i.purchaseOrder ?? (i.poFollows ? t('common.follows') : '–'))}
+          {fact(t('window.costCenter'), i.costCenter ?? '–')}
         </div>
         {(i.correctsNumber || i.cancelledByNumber) && (
           <p className="text-sm text-muted-foreground">
-            {i.correctsNumber ? `Bezieht sich auf Rechnung ${i.correctsNumber}.` : ''}{i.correctsNumber && i.cancelledByNumber ? ' ' : ''}{i.cancelledByNumber ? `Storniert durch ${i.cancelledByNumber}.` : ''}
+            {i.correctsNumber ? t('window.refers', { number: i.correctsNumber }) : ''}{i.correctsNumber && i.cancelledByNumber ? ' ' : ''}{i.cancelledByNumber ? t('window.cancelledBy', { number: i.cancelledByNumber }) : ''}
           </p>
         )}
         <div className="rounded-lg border p-2.5 text-sm">
-          <p className="text-xs text-muted-foreground">Empfänger</p>
+          <p className="text-xs text-muted-foreground">{t('window.recipient')}</p>
           <p>{r.name ?? settings?.name ?? '–'}</p>
-          <p className="text-xs text-muted-foreground">{[address || 'Anschrift fehlt auf diesem Beleg', r.vatId ? `USt-ID ${r.vatId}` : null].filter(Boolean).join(' · ')}</p>
+          <p className="text-xs text-muted-foreground">{[address || t('window.noAddress'), r.vatId ? t('window.vatId', { id: r.vatId }) : null].filter(Boolean).join(' · ')}</p>
         </div>
         <div className="divide-y text-sm">
           <div className="flex justify-between gap-3 py-2">
-            <div className="min-w-0"><p>{line?.title ?? 'Personalvermittlung'}</p>{details.map((d) => <p key={d} className="text-xs text-muted-foreground">{d}</p>)}</div>
+            <div className="min-w-0"><p>{line?.title ?? t('forDefault')}</p>{details.map((d) => <p key={d} className="text-xs text-muted-foreground">{d}</p>)}</div>
             <span className="shrink-0 tabular-nums">{eurC(i.netCents)}</span>
           </div>
           <div className="flex justify-between gap-3 py-2">
             <span>{taxLine(i)}</span>
             <span className="shrink-0 tabular-nums">{eurC(i.vatCents)}</span>
           </div>
-          <div className="flex justify-between gap-3 py-2 font-semibold"><span>Gesamt</span><span className="tabular-nums">{eurC(i.totalCents)}</span></div>
+          <div className="flex justify-between gap-3 py-2 font-semibold"><span>{t('window.total')}</span><span className="tabular-nums">{eurC(i.totalCents)}</span></div>
         </div>
         {payments.length > 0 && (
           <div>
-            <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Zahlungen</p>
+            <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('window.payments')}</p>
             <div className="divide-y text-sm">
               {payments.map((p, n) => (
                 <div key={n} className="flex justify-between gap-3 py-1.5">
-                  <span>Überweisung eingegangen · {dateDe(p.date)}</span>
+                  <span>{t('window.received', { date: dateDe(p.date) })}</span>
                   <span className="shrink-0 tabular-nums">− {eurC(p.amountCents)}</span>
                 </div>
               ))}
-              {i.open && <div className="flex justify-between gap-3 py-1.5 font-medium"><span>Noch offen</span><span className="tabular-nums">{eurC(rest)}</span></div>}
+              {i.open && <div className="flex justify-between gap-3 py-1.5 font-medium"><span>{t('window.stillOpen')}</span><span className="tabular-nums">{eurC(rest)}</span></div>}
             </div>
           </div>
         )}
         {i.open && bank && (
           <div className="rounded-lg bg-muted/40 p-2.5 text-sm">
-            <p>Bitte überweisen Sie {eurC(rest)} an {bank.holder} · Verwendungszweck <span className="font-medium">{i.number}</span></p>
-            <p className="text-xs text-muted-foreground">IBAN {bank.iban}{bank.bic ? ` · BIC ${bank.bic}` : ''}</p>
+            <p><Trans ns="clientInvoices" i18nKey="window.pleaseTransfer" values={{ amount: eurC(rest), holder: bank.holder, number: i.number }} components={{ b: <span className="font-medium" /> }} /></p>
+            <p className="text-xs text-muted-foreground">{t('window.iban', { iban: bank.iban })}{bank.bic ? t('window.bic', { bic: bank.bic }) : ''}</p>
           </div>
         )}
         <div className="flex flex-wrap gap-2">
-          {i.open && !i.reportedPaidOn && canManage && <Button size="sm" onClick={() => setForm('paid')}>Überwiesen melden</Button>}
-          {i.hasPdf && <Button size="sm" variant="outline" onClick={() => void openPdf()}>PDF</Button>}
-          <Button size="sm" variant="outline" onClick={() => setForm('frage')}>Frage zur Rechnung</Button>
-          {!financeOnly && i.submissionId && <Button size="sm" variant="outline" onClick={() => { onOpenChange(false); navigate(`/dashboard/besetzungen?besetzung=${i.submissionId}`); }}>Zur Besetzung</Button>}
+          {i.open && !i.reportedPaidOn && canManage && <Button size="sm" onClick={() => setForm('paid')}>{t('window.reportPaid')}</Button>}
+          {i.hasPdf && <Button size="sm" variant="outline" onClick={() => void openPdf()}>{t('window.pdf')}</Button>}
+          <Button size="sm" variant="outline" onClick={() => setForm('frage')}>{t('window.question')}</Button>
+          {!financeOnly && i.submissionId && <Button size="sm" variant="outline" onClick={() => { onOpenChange(false); navigate(`/dashboard/besetzungen?besetzung=${i.submissionId}`); }}>{t('window.toPlacement')}</Button>}
         </div>
         {i.events.length > 0 && (
           <div>
-            <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Verlauf</p>
+            <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('window.history')}</p>
             <ol className="divide-y text-sm">
               {i.events.map((e, n) => (
                 <li key={n} className="flex justify-between gap-3 py-1.5"><span>{e.text}</span><span className="shrink-0 text-xs text-muted-foreground">{dateDe(e.at)}</span></li>
@@ -171,7 +173,7 @@ export function InvoiceWindow({ invoice, settings, financeOnly, canManage = true
             </ol>
           </div>
         )}
-        <div className="flex justify-end border-t pt-3"><Button variant="ghost" onClick={() => onOpenChange(false)}>Schließen</Button></div>
+        <div className="flex justify-end border-t pt-3"><Button variant="ghost" onClick={() => onOpenChange(false)}>{t('common.close')}</Button></div>
       </>
     );
   }
@@ -181,7 +183,7 @@ export function InvoiceWindow({ invoice, settings, financeOnly, canManage = true
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader className="text-left">
           <DialogTitle className="pr-6">
-            Rechnung {i.number}
+            {t('window.title', { number: i.number })}
             <span className={cn('font-normal', state.tone === 'bad' ? 'text-destructive' : 'text-muted-foreground')}> · {state.text}</span>
           </DialogTitle>
           <DialogDescription>{forLine(i)}</DialogDescription>

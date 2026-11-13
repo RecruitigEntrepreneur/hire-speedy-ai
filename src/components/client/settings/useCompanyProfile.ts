@@ -1,3 +1,4 @@
+import i18n from '@/i18n';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
@@ -214,17 +215,20 @@ export function useCompanyProfile() {
 /** Fehlende Angaben für „Noch offen“ und die Kachel „Auftritt bei Headhuntern“. */
 export function fehlendeAuftrittAngaben(p: CompanyProfile): { feld: 'headcount' | 'unique_selling_point'; frage: string; hilfe: string }[] {
   const offen: { feld: 'headcount' | 'unique_selling_point'; frage: string; hilfe: string }[] = [];
-  if (p.headcount == null) offen.push({ feld: 'headcount', frage: 'Wie viele Mitarbeitende hat Ihr Unternehmen?', hilfe: 'Headhunter nennen das im ersten Gespräch mit Kandidaten.' });
-  if (!p.unique_selling_point?.trim()) offen.push({ feld: 'unique_selling_point', frage: 'Was macht Sie als Arbeitgeber besonders?', hilfe: 'Ein Satz, mit dem Headhunter Sie vorstellen.' });
+  const t = (key: string) => i18n.t(`clientSettings:open.${key}`);
+  if (p.headcount == null) offen.push({ feld: 'headcount', frage: t('headcount'), hilfe: t('headcountHint') });
+  if (!p.unique_selling_point?.trim()) offen.push({ feld: 'unique_selling_point', frage: t('usp'), hilfe: t('uspHint') });
   return offen;
 }
 
 /** Fehlende Rechnungsangaben (für den Vertrag nötig). */
 export function fehlendeFirmendaten(p: CompanyProfile): string[] {
+  // Nur zur Anzeige (Kachel „Unternehmen“), deshalb in der Sprache der Oberfläche.
+  const t = (key: string) => i18n.t(`clientSettings:missingField.${key}`);
   const fehlt: string[] = [];
-  if (!p.company_name?.trim()) fehlt.push('Firmenname');
-  if (!p.legal_name?.trim()) fehlt.push('Firmierung');
-  if (!p.street?.trim() || !p.postal_code?.trim() || !p.city?.trim()) fehlt.push('Anschrift');
-  if (!p.billing_email?.trim()) fehlt.push('Rechnungs-E-Mail');
+  if (!p.company_name?.trim()) fehlt.push(t('companyName'));
+  if (!p.legal_name?.trim()) fehlt.push(t('legalName'));
+  if (!p.street?.trim() || !p.postal_code?.trim() || !p.city?.trim()) fehlt.push(t('address'));
+  if (!p.billing_email?.trim()) fehlt.push(t('billingEmail'));
   return fehlt;
 }

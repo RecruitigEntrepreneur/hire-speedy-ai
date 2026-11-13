@@ -17,6 +17,7 @@ import { CandidateJobStrip } from '@/components/recruiter/search/CandidateJobStr
 import { useCandidateForJob } from '@/hooks/useCandidateForJob';
 import { useToast } from '@/hooks/use-toast';
 import { endJobSearch, errorText, fmtDayShort } from '@/lib/jobSearch';
+import { useTranslation } from 'react-i18next';
 
 type RecruiterJob = WorkspaceJob & { company_revealed?: boolean; paused_at?: string | null; pause_until?: string | null };
 type Submission = JobSubmission & { company_revealed: boolean; full_access_granted: boolean };
@@ -24,6 +25,7 @@ type Submission = JobSubmission & { company_revealed: boolean; full_access_grant
 export default function JobDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const { t } = useTranslation('recruiterJobDetail');
   const [job, setJob] = useState<RecruiterJob | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,28 +53,28 @@ export default function JobDetail() {
   // Einreichen nur mit laufender Suche, nicht während einer Pause und erst nach der Kundenfrage
   const openSubmit = useCallback(() => {
     if (jobPaused) {
-      toast({ title: job?.pause_until ? `Pausiert bis ${fmtDayShort(job.pause_until)}` : 'Stelle pausiert', description: 'Der Kunde hat die Suche angehalten. Bis dahin kannst du nicht einreichen.' });
+      toast({ title: job?.pause_until ? t('page.pausedUntil', { date: fmtDayShort(job.pause_until) }) : t('page.paused'), description: t('page.pausedText') });
       return;
     }
     if (search.row?.status === 'paused') {
-      toast({ title: 'Deine Suche ruht', description: 'Matchunt prüft deine Angabe „Stelle schon direkt“.' });
+      toast({ title: t('page.searchRests'), description: t('page.searchRestsText') });
       return;
     }
     if (!search.searching && !(id && gate.isActivated(id))) { setActivateMode('submit'); return; }
     if (search.openQuestion) { setSubmitAfterQuestion(true); setShowQuestion(true); return; }
     setShowSubmit(true);
-  }, [id, gate, search.row, search.searching, search.openQuestion, jobPaused, job?.pause_until, toast]);
+  }, [id, gate, search.row, search.searching, search.openQuestion, jobPaused, job?.pause_until, toast, t]);
   const endSearch = async () => {
     if (!id) return;
     setEnding(true);
     try {
       await endJobSearch(id);
-      toast({ title: 'Suche beendet' });
+      toast({ title: t('page.searchEnded') });
       setShowEnd(false);
       gate.refetch();
       void search.reload();
     } catch (err) {
-      toast({ title: 'Beenden hat nicht geklappt', description: errorText(err), variant: 'destructive' });
+      toast({ title: t('page.endFailed'), description: errorText(err), variant: 'destructive' });
     } finally {
       setEnding(false);
     }
@@ -105,17 +107,18 @@ export default function JobDetail() {
         setSubmissions((submissionsResult.data ?? []) as Submission[]);
       } catch (cause) {
         console.error('Job briefing could not be loaded:', cause);
-        if (!cancelled) setError('Das Mandat konnte nicht vollständig geladen werden. Bitte versuche es erneut.');
+        if (!cancelled) setError(t('page.loadError'));
       } finally {
         if (!cancelled) setLoading(false);
       }
     };
     void load();
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, user?.id, revision]);
 
-  if (loading) return <DashboardLayout fluid><div role="status" className="flex min-h-64 items-center justify-center gap-3 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" />Mandatsbriefing wird geladen …</div></DashboardLayout>;
-  if (error || !job) return <DashboardLayout fluid><div className="mx-auto max-w-lg space-y-5 py-16 text-center"><h1 className="text-xl font-semibold">Mandat nicht verfügbar</h1><p role="alert" className="text-sm text-muted-foreground">{error || 'Die Stelle ist nicht veröffentlicht oder für deinen Zugang nicht verfügbar.'}</p><div className="flex flex-wrap justify-center gap-3"><Button variant="outline" onClick={reload}><RotateCcw />Erneut laden</Button><Button variant="ghost" asChild><Link to="/recruiter/jobs"><ArrowLeft />Zurück zu Jobs</Link></Button></div></div></DashboardLayout>;
+  if (loading) return <DashboardLayout fluid><div role="status" className="flex min-h-64 items-center justify-center gap-3 text-sm text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" />{t('page.loading')}</div></DashboardLayout>;
+  if (error || !job) return <DashboardLayout fluid><div className="mx-auto max-w-lg space-y-5 py-16 text-center"><h1 className="text-xl font-semibold">{t('page.unavailable')}</h1><p role="alert" className="text-sm text-muted-foreground">{error || t('page.unavailableText')}</p><div className="flex flex-wrap justify-center gap-3"><Button variant="outline" onClick={reload}><RotateCcw />{t('page.reload')}</Button><Button variant="ghost" asChild><Link to="/recruiter/jobs"><ArrowLeft />{t('page.backToJobs')}</Link></Button></div></div></DashboardLayout>;
 
   const companyRevealed = job.company_revealed === true || submissions.some(submission => submission.company_revealed);
   const fullAccess = submissions.some(submission => submission.full_access_granted);
@@ -135,8 +138,8 @@ export default function JobDetail() {
     <Dialog open={showSubmit} onOpenChange={setShowSubmit}>
       <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{forCandidate ? forCandidate.firstName : 'Kandidat'} bei „{job.title}“ vorstellen</DialogTitle>
-          <DialogDescription>{forCandidate ? 'Kandidat aus deiner Stellenwahl, schon ausgewählt.' : 'Zur Auswahl stehen nur Kandidaten, die laut Matching zu dieser Stelle passen.'}</DialogDescription>
+          <DialogTitle>{forCandidate ? t('page.presentNamed', { name: forCandidate.firstName, title: job.title }) : t('page.presentGeneric', { title: job.title })}</DialogTitle>
+          <DialogDescription>{forCandidate ? t('page.presentPreselected') : t('page.presentOnlyFitting')}</DialogDescription>
         </DialogHeader>
         <CandidateSubmitForm initialCandidateId={forCandidate?.id} jobId={job.id} jobTitle={job.title} job={job as unknown as Record<string, unknown>} mustHaves={getRecruiterCriteria(job).required} onSuccess={() => { setShowSubmit(false); reload(); }} />
       </DialogContent>

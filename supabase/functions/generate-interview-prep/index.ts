@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { notifyLang, tx } from "../_shared/notify-i18n.ts";
 import { canUserActOnJob } from "../_shared/team-access.ts";
 
 const corsHeaders = {
@@ -294,11 +295,12 @@ Die Zusammenfassung sollte die wichtigsten Qualifikationen, Erfahrungen und den 
     console.log(`[generate-interview-prep] Successfully generated prep for interview: ${interview_id}`);
 
     // Create notification for recruiter
+    const pl = await notifyLang(supabase, submission.recruiter_id);
     await supabase.from('notifications').insert({
       user_id: submission.recruiter_id,
       type: 'interview_prep_ready',
-      title: 'Interview-Vorbereitung bereit',
-      message: `Die AI-gestützte Interview-Vorbereitung für ${candidate.full_name} ist jetzt verfügbar.`,
+      title: tx(pl, 'Interview-Vorbereitung bereit', 'Interview preparation ready', 'Intervjuförberedelse klar', 'Intervjuforberedelse klar'),
+      message: tx(pl, `Die AI-gestützte Interview-Vorbereitung für ${candidate.full_name} ist jetzt verfügbar.`, `The AI-assisted interview preparation for ${candidate.full_name} is now available.`, `Den AI-stödda intervjuförberedelsen för ${candidate.full_name} finns nu.`, `Den AI-støttede intervjuforberedelsen for ${candidate.full_name} er nå tilgjengelig.`),
       related_type: 'interview',
       related_id: interview_id,
     });

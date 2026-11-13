@@ -9,7 +9,8 @@ import { useBesetzungen, type BesetzungGroup, type BesetzungItem } from '@/lib/b
 import { useClientTasks } from '@/lib/clientTasksApi';
 import { BesetzungCard } from '@/components/besetzungen/BesetzungParts';
 import { BesetzungWindow, type BesetzungForm } from '@/components/besetzungen/BesetzungWindow';
-import { INTRO, dayMonth, eur } from '@/components/besetzungen/besetzungView';
+import { introOf, dayMonth, eur } from '@/components/besetzungen/besetzungView';
+import { useTranslation } from 'react-i18next';
 import { OfferTaskWindow } from '@/components/offers/OfferTaskWindow';
 import { ContractTaskWindow } from '@/components/contracts/ContractTaskWindow';
 
@@ -22,19 +23,8 @@ import { ContractTaskWindow } from '@/components/contracts/ContractTaskWindow';
  * (Aufgabe „… hat vor dem Start abgesagt“). Rechnungen: eigener Bereich.
  */
 
-const TABS: { key: BesetzungGroup; label: string }[] = [
-  { key: 'angebot', label: 'Im Angebot' },
-  { key: 'start', label: 'Bis zum Start' },
-  { key: 'haus', label: 'Im Haus' },
-  { key: 'ab', label: 'Abgeschlossen' },
-];
-
-const EMPTY: Record<BesetzungGroup, string> = {
-  angebot: 'Gerade läuft kein Angebot. Ein Angebot machen Sie im Bewerberprofil nach dem Interview.',
-  start: 'Niemand zwischen Zusage und erstem Arbeitstag.',
-  haus: 'Noch niemand im Haus, der über Matchunt kam.',
-  ab: 'Noch nichts abgeschlossen. Hier landen Besetzungen nach der Nachbesetzungs-Frist bzw. 6 Monate nach Start und beendete Besetzungen.',
-};
+// Beschriftung und leere Listen: clientPlacements:page.tabs.<key> bzw. page.empty.<key>
+const TABS: { key: BesetzungGroup }[] = [{ key: 'angebot' }, { key: 'start' }, { key: 'haus' }, { key: 'ab' }];
 
 function Kpi({ label, value, sub, onClick }: { label: string; value: string; sub?: string | null; onClick?: () => void }) {
   const inner = (
@@ -50,6 +40,7 @@ function Kpi({ label, value, sub, onClick }: { label: string; value: string; sub
 }
 
 export default function ClientBesetzungen() {
+  const { t } = useTranslation('clientPlacements');
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const q = useBesetzungen();
@@ -106,37 +97,37 @@ export default function ClientBesetzungen() {
     <DashboardLayout>
       <div className="mx-auto max-w-4xl space-y-5">
         <div>
-          <h1 className="text-2xl font-bold">Besetzungen</h1>
-          <p className="text-sm text-muted-foreground">Alles nach dem Interview: Angebot, Zusage, Vertrag, Start, Nachbesetzung.</p>
+          <h1 className="text-2xl font-bold">{t('page.title')}</h1>
+          <p className="text-sm text-muted-foreground">{t('page.subtitle')}</p>
         </div>
 
         {q.isLoading ? (
           <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
         ) : q.error ? (
-          <p className="text-sm text-destructive">{q.error instanceof Error ? q.error.message : 'Die Besetzungen konnten nicht geladen werden.'}</p>
+          <p className="text-sm text-destructive">{q.error instanceof Error ? q.error.message : t('page.loadError')}</p>
         ) : (
           <>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              <Kpi label={`Besetzt ${new Date().getFullYear()}`} value={String(k?.placedThisYear ?? 0)} sub="unterschrieben" />
-              <Kpi label="Offene Rechnungen" value={k?.openInvoiceCents ? eur(k.openInvoiceCents) : '0 €'} sub="zu den Rechnungen" onClick={() => navigate('/dashboard/rechnungen')} />
-              <Kpi label="Nächster Start" value={k?.nextStart ? dayMonth(k.nextStart.date) : '–'} sub={k?.nextStart?.name ?? null} />
+              <Kpi label={t('page.placedYear', { year: new Date().getFullYear() })} value={String(k?.placedThisYear ?? 0)} sub={t('page.signed')} />
+              <Kpi label={t('page.openInvoices')} value={eur(k?.openInvoiceCents ?? 0)} sub={t('page.toInvoices')} onClick={() => navigate('/dashboard/rechnungen')} />
+              <Kpi label={t('page.nextStart')} value={k?.nextStart ? dayMonth(k.nextStart.date) : '–'} sub={k?.nextStart?.name ?? null} />
             </div>
 
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-1.5">
-                {TABS.map((t) => (
-                  <Button key={t.key} size="sm" variant={tab === t.key ? 'default' : 'outline'} className="h-8" onClick={() => setTab(t.key)}>
-                    {t.label} ({counts[t.key]})
+                {TABS.map((tb) => (
+                  <Button key={tb.key} size="sm" variant={tab === tb.key ? 'default' : 'outline'} className="h-8" onClick={() => setTab(tb.key)}>
+                    {t('page.tabCount', { label: t(`page.tabs.${tb.key}`), count: counts[tb.key] })}
                   </Button>
                 ))}
                 <div className="relative ml-auto w-full sm:w-56">
                   <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                  <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Name, Stelle, Headhunter" className="h-8 pl-8 text-sm" aria-label="Suchen" />
+                  <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('page.searchPlaceholder')} className="h-8 pl-8 text-sm" aria-label={t('page.search')} />
                 </div>
               </div>
               {jobs.length > 1 && (
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <Button size="sm" variant={jobFilter ? 'outline' : 'secondary'} className="h-7 text-xs" onClick={() => setJobFilter(null)}>Alle Stellen</Button>
+                  <Button size="sm" variant={jobFilter ? 'outline' : 'secondary'} className="h-7 text-xs" onClick={() => setJobFilter(null)}>{t('page.allJobs')}</Button>
                   {jobs.map((j) => (
                     <Button key={j.id} size="sm" variant={jobFilter === j.id ? 'secondary' : 'outline'} className="h-7 max-w-[16rem] text-xs" onClick={() => setJobFilter(jobFilter === j.id ? null : j.id)}>
                       <span className="truncate">{j.title}</span>&nbsp;· {j.n}
@@ -144,12 +135,12 @@ export default function ClientBesetzungen() {
                   ))}
                 </div>
               )}
-              <p className="text-sm text-muted-foreground">{INTRO[tab]}</p>
+              <p className="text-sm text-muted-foreground">{introOf(tab)}</p>
             </div>
 
             <div className="space-y-2">
               {list.length === 0 ? (
-                <p className={cn('rounded-xl border bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground')}>{search || jobFilter ? 'Nichts gefunden.' : EMPTY[tab]}</p>
+                <p className={cn('rounded-xl border bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground')}>{search || jobFilter ? t('page.nothingFound') : t(`page.empty.${tab}`)}</p>
               ) : list.map((i) => <BesetzungCard key={i.submissionId} item={i} hasTask={taskSubs.has(i.submissionId)} onOpen={() => open(i)} />)}
             </div>
           </>

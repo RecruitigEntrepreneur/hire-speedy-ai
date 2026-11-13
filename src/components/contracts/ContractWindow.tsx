@@ -13,6 +13,8 @@ import { cn } from '@/lib/utils';
 import { notifyTasksChanged } from '@/hooks/useUnifiedTaskInbox';
 import { contractApi, dateDe, euro, linkLine, timeDe } from '@/lib/contractApi';
 import { ContractReportDialog } from './ContractReportDialog';
+import { useTranslation } from 'react-i18next';
+import { tFor } from '@/lib/localeFormat';
 
 interface Props {
   submissionId: string | null;
@@ -30,6 +32,7 @@ type CallOutcome = 'signed' | 'until' | 'questions' | 'unreachable' | 'new_contr
  * der Kundenmeldung, selbst melden, abgesprungen. Fenster in der Mitte.
  */
 export function ContractWindow({ submissionId, onClose, onDone, onLater }: Props) {
+  const { t } = useTranslation('contracts');
   const queryClient = useQueryClient();
   const q = useQuery({ queryKey: ['contract', submissionId], queryFn: () => contractApi.context(submissionId!), enabled: !!submissionId, staleTime: 10_000 });
   const [showReport, setShowReport] = useState(false);
@@ -54,8 +57,12 @@ export function ContractWindow({ submissionId, onClose, onDone, onLater }: Props
 
   const ctx = q.data ?? null;
   const c = ctx?.contract ?? null;
-  const first = (ctx?.candidateName ?? '').split(' ')[0] || 'der Kandidat';
-  const firma = ctx?.companyName ?? 'Der Kunde';
+  const first = (ctx?.candidateName ?? '').split(' ')[0] || t('common.theCandidate');
+  const firma = ctx?.companyName ?? t('common.theClient');
+  // Nachricht an den Kunden in seiner Sprache. Der Vertragskontext kennt weder Profilsprache noch Land: Deutsch (wie bisher)
+  const clientLang = 'de';
+  const tClient = (key: string, options?: Record<string, unknown>) => tFor(clientLang, 'contracts')(`clientText.${key}`, options) as string;
+  const firstClient = (ctx?.candidateName ?? '').split(' ')[0] || (tFor(clientLang, 'contracts')('common.theCandidate') as string);
 
   const run = async (work: () => Promise<unknown>, done: string) => {
     setBusy(true);
@@ -67,7 +74,7 @@ export function ContractWindow({ submissionId, onClose, onDone, onLater }: Props
       notifyTasksChanged();
       onDone?.();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Das hat nicht geklappt.');
+      toast.error(e instanceof Error ? e.message : t('common.failed'));
     } finally {
       setBusy(false);
     }
@@ -80,8 +87,8 @@ export function ContractWindow({ submissionId, onClose, onDone, onLater }: Props
   // Gegenprobe: wer zuerst bestätigt, du oder der Kandidat (29.10.2026)
   const checkOpen = !!c && ['signed', 'final'].includes(status) && c.reportedRole === 'client' && !c.recruiterCheck && !c.candidateCheck;
   // Was der Kandidat von uns weiß und geantwortet hat
-  const candAnswer = c?.candidateStatus === 'arrived' ? `Antwort: angekommen (${dateDe(c.candidateStatusAt)})`
-    : c?.candidateStatus === 'missing' ? `Antwort: noch nicht da (${dateDe(c.candidateStatusAt)})` : 'noch keine Antwort';
+  const candAnswer = c?.candidateStatus === 'arrived' ? t('window.answerArrived', { date: dateDe(c.candidateStatusAt) })
+    : c?.candidateStatus === 'missing' ? t('window.answerMissing', { date: dateDe(c.candidateStatusAt) }) : t('window.noAnswer');
   const canReport = ['preparing', 'sent_self', 'declined'].includes(status);
   const canDrop = ['preparing', 'sent_self', 'sent_digital', 'company_signed', 'declined'].includes(status);
   // Bis Tag 10 nichts zu tun (gleiche Regel wie „Wartet auf andere“, 28.10.2026)
@@ -92,10 +99,10 @@ export function ContractWindow({ submissionId, onClose, onDone, onLater }: Props
   const followOpen = ctx?.role === 'recruiter' && ['preparing', 'sent_self', 'sent_digital', 'company_signed', 'declined'].includes(status);
   // DocuSign nach der Firma: die Unterschrift meldet DocuSign selbst, den Kunden zu fragen bringt nichts
   const askClient = followOpen && status !== 'company_signed';
-  const defaultClientText = status === 'preparing' ? `Wie weit ist der Vertrag für ${first}? ${first} wartet darauf, um zu unterschreiben.`
-    : status === 'sent_self' ? `Ist der unterschriebene Vertrag von ${first} bei Ihnen zurück? Dann melden Sie die Unterschrift bitte im Dashboard.`
-      : status === 'sent_digital' ? `Der Vertrag für ${first} wartet in DocuSign auf Ihre Unterschrift. Danach bekommt ${first} ihn zum Unterschreiben.`
-        : `${first} hat den Vertrag in DocuSign abgelehnt${c?.declineReason ? ` („${c.declineReason}“)` : ''}. Schicken Sie einen angepassten Vertrag?`;
+  const defaultClientText = status === 'preparing' ? tClient('preparing', { first: firstClient })
+    : status === 'sent_self' ? tClient('sentSelf', { first: firstClient })
+      : status === 'sent_digital' ? tClient('sentDigital', { first: firstClient })
+        : c?.declineReason ? tClient('declinedReason', { first: firstClient, reason: c.declineReason }) : tClient('declined', { first: firstClient });
   const shownClientText = clientText ?? defaultClientText;
   const logCall = async (reached: boolean, title: string, extra: Record<string, unknown> = {}, note?: string) => {
     if (!ctx) return;
@@ -107,37 +114,41 @@ export function ContractWindow({ submissionId, onClose, onDone, onLater }: Props
   const pickCall = async (o: CallOutcome) => {
     setCallOutcome(o);
     if (o === 'signed') { if (canReport) setShowReport(true); else await logCall(true, `Erreicht: ${first} hat unterschrieben`, { outcome: 'signed' }); return; }
-    if (o === 'unreachable') { await logCall(false, 'Nicht erreicht'); toast.success('Festgehalten. Versuch es später noch einmal.'); return; }
+    // Titel im Aktivitätslog: gespeichert, bleiben deutsch
+    if (o === 'unreachable') { await logCall(false, 'Nicht erreicht'); toast.success(t('window.toast.unreachable')); return; }
     if (o === 'new_contract') {
       await logCall(true, 'Erreicht: neuer Vertrag nötig', { outcome: 'new_contract' });
-      toast.success('Festgehalten. Frag jetzt den Kunden nach einem angepassten Vertrag.');
+      toast.success(t('window.toast.newContract'));
     }
   };
   const saveUntil = async () => {
     if (!untilDate) return;
-    await logCall(true, `Erreicht: unterschreibt bis ${dateDe(untilDate)}`, { outcome: 'until', until: untilDate });
-    toast.success(`Festgehalten. Die Zeile wartet bis ${dateDe(untilDate)}.`);
+    await logCall(true, `Erreicht: unterschreibt bis ${new Date(`${untilDate}T12:00:00`).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}`, { outcome: 'until', until: untilDate });
+    toast.success(t('window.toast.until', { date: dateDe(untilDate) }));
   };
   const saveQuestions = async () => {
     const q = questions.trim();
     if (!q) return;
     await logCall(true, 'Erreicht: hat Fragen zum Vertrag', { outcome: 'questions' }, q);
-    setClientText(`${first} hat Fragen zum Vertrag: „${q}“. Können Sie das mit ${first} klären?`);
-    toast.success('Festgehalten. Gib die Fragen unten an den Kunden weiter.');
+    setClientText(tClient('questions', { first: firstClient, questions: q }));
+    toast.success(t('window.toast.questions'));
   };
   const askTheClient = async () => {
     if (!ctx) return;
     setBusy(true);
-    const { data, error } = await supabase.functions.invoke('recruiter-notify', { body: { action: 'client_nudge', submissionId: ctx.submissionId, text: shownClientText, anlass: 'contract' } });
+    const { data, error } = await supabase.functions.invoke('recruiter-notify', { body: { action: 'client_nudge', submissionId: ctx.submissionId, text: shownClientText, anlass: 'contract', lang: clientLang } });
     const failure = await functionError(error, data);
     setBusy(false);
     if (failure) { toast.error(failure); return; }
-    toast.success('Kunde gefragt. Die Zeile wartet 3 Werktage auf seine Antwort.');
+    toast.success(t('window.toast.asked'));
     setHistoryTick(t => t + 1);
     notifyTasksChanged();
     onDone?.();
   };
-  const values = c ? [c.salary ? `${euro(c.salary)}${c.variable ? ` + ${euro(c.variable)}` : ''}` : null, c.startDate ? `Start ${dateDe(c.startDate)}` : null].filter(Boolean).join(' · ') : '';
+  const values = c ? [
+    c.salary ? (c.variable ? t('window.valuesVariable', { salary: euro(c.salary), variable: euro(c.variable) }) : t('window.values', { salary: euro(c.salary) })) : null,
+    c.startDate ? t('window.valuesStart', { date: dateDe(c.startDate) }) : null,
+  ].filter(Boolean).join(' · ') : '';
   const step = (done: boolean, label: string, when?: string | null) => (
     <li className="flex items-center gap-2">
       {done ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Circle className="h-3.5 w-3.5 text-muted-foreground" />}
@@ -151,73 +162,73 @@ export function ContractWindow({ submissionId, onClose, onDone, onLater }: Props
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-xl">
         {!ctx ? (
           <>
-            <DialogHeader><DialogTitle>Vertrag</DialogTitle><DialogDescription>wird geladen …</DialogDescription></DialogHeader>
-            {q.error ? <p className="text-sm text-destructive">{q.error instanceof Error ? q.error.message : 'Konnte nicht geladen werden.'}</p> : <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
+            <DialogHeader><DialogTitle>{t('window.title')}</DialogTitle><DialogDescription>{t('common.loading')}</DialogDescription></DialogHeader>
+            {q.error ? <p className="text-sm text-destructive">{q.error instanceof Error ? q.error.message : t('common.loadError')}</p> : <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
           </>
         ) : (
           <>
             <DialogHeader className="text-left">
-              <DialogTitle>{checkOpen ? 'Gegenprobe' : 'Vertrag begleiten'}: {ctx.candidateName}</DialogTitle>
+              <DialogTitle>{t(checkOpen ? 'window.headingCheck' : 'window.headingFollow', { name: ctx.candidateName })}</DialogTitle>
               <DialogDescription>{firma} · {ctx.jobTitle}</DialogDescription>
             </DialogHeader>
 
             <div className="rounded-lg border border-border/60 bg-muted/30 p-3 text-sm">
               <ul className="space-y-1">
-                {step(true, 'Zusage', ctx.offer?.acceptedAt ? dateDe(ctx.offer.acceptedAt) : null)}
+                {step(true, t('window.stepAccepted'), ctx.offer?.acceptedAt ? dateDe(ctx.offer.acceptedAt) : null)}
                 {c?.way === 'digital' || ['sent_digital', 'company_signed'].includes(status) ? (
                   <>
-                    {step(!!c?.sentAt, embedded ? 'Vertrag hochgeladen' : 'Versendet über DocuSign', timeDe(c?.sentAt))}
-                    {step(!!c?.companySignedAt, `${firma} hat unterschrieben`, timeDe(c?.companySignedAt))}
-                    {step(!!c?.candidateSignedAt || status === 'final', `${first} unterschreibt`,
+                    {step(!!c?.sentAt, embedded ? t('window.stepUploaded') : t('window.stepDocuSign'), timeDe(c?.sentAt))}
+                    {step(!!c?.companySignedAt, t('window.stepCompanySigned', { company: firma }), timeDe(c?.companySignedAt))}
+                    {step(!!c?.candidateSignedAt || status === 'final', t('window.stepCandidateSigns', { first }),
                       c?.candidateSignedAt ? timeDe(c.candidateSignedAt) : embedded && status === 'company_signed' ? linkLine(candLink, null) : null)}
                   </>
                 ) : (
                   <>
-                    {step(status !== 'preparing', status === 'preparing' ? `${firma} bereitet den Vertrag vor` : `${firma} hat den Vertrag ${c?.sentAt ? `am ${dateDe(c.sentAt)} ` : ''}selbst geschickt`)}
+                    {step(status !== 'preparing', status === 'preparing' ? t('window.stepPreparing', { company: firma }) : c?.sentAt ? t('window.stepSentSelfOn', { company: firma, date: dateDe(c.sentAt) }) : t('window.stepSentSelf', { company: firma }))}
                     {(c?.candidateInformedAt || c?.candidateStatus) && step(c?.candidateStatus === 'arrived',
-                      c?.candidateInformedAt ? `${first} informiert ${dateDe(c.candidateInformedAt)} · ${candAnswer}` : `${first}: ${candAnswer}`)}
+                      c?.candidateInformedAt ? t('window.stepInformed', { first, date: dateDe(c.candidateInformedAt), answer: candAnswer }) : t('window.stepCandidateAnswer', { first, answer: candAnswer }))}
                   </>
                 )}
                 {status === 'reported' && step(false, c?.reportedRole === 'candidate'
-                  ? `${first} hat selbst gemeldet: unterschrieben am ${dateDe(c?.signedOn)}. ${firma} bestätigt noch.`
-                  : `Du hast gemeldet (${dateDe(c?.signedOn)}). ${firma} bestätigt noch.`)}
-                {['signed', 'final'].includes(status) && step(true, `Unterschrieben am ${dateDe(c?.signedOn)}`, values)}
-                {['signed', 'final'].includes(status) && c?.recruiterCheck === 'ok' && step(true, 'Von dir bestätigt')}
-                {['signed', 'final'].includes(status) && c?.recruiterCheck === 'differs' && step(true, `Abweichung gemeldet: ${c.recruiterCheckNote ?? ''}`)}
-                {['signed', 'final'].includes(status) && c?.candidateCheck === 'ok' && step(true, `Von ${first} bestätigt`, dateDe(c.candidateCheckedAt))}
-                {['signed', 'final'].includes(status) && c?.candidateCheck === 'differs' && step(true, `${first} sagt: stimmt so nicht${c.candidateCheckNote ? ` („${c.candidateCheckNote}“)` : ''} · Matchunt klärt das`)}
+                  ? t('window.reportedByCandidate', { first, date: dateDe(c?.signedOn), company: firma })
+                  : t('window.reportedByYou', { date: dateDe(c?.signedOn), company: firma }))}
+                {['signed', 'final'].includes(status) && step(true, t('window.signedOn', { date: dateDe(c?.signedOn) }), values)}
+                {['signed', 'final'].includes(status) && c?.recruiterCheck === 'ok' && step(true, t('window.confirmedByYou'))}
+                {['signed', 'final'].includes(status) && c?.recruiterCheck === 'differs' && step(true, t('window.differsReported', { note: c.recruiterCheckNote ?? '' }))}
+                {['signed', 'final'].includes(status) && c?.candidateCheck === 'ok' && step(true, t('window.confirmedByCandidate', { first }), dateDe(c.candidateCheckedAt))}
+                {['signed', 'final'].includes(status) && c?.candidateCheck === 'differs' && step(true, c.candidateCheckNote ? t('window.candidateDiffersNote', { first, note: c.candidateCheckNote }) : t('window.candidateDiffers', { first }))}
               </ul>
-              {quietUntil && <p className="mt-2 text-xs text-emerald-600">Nichts zu tun bis {dateDe(quietUntil)}. Danach steht der Vertrag wieder unter „Jetzt“.</p>}
+              {quietUntil && <p className="mt-2 text-xs text-emerald-600">{t('window.quietUntil', { date: dateDe(quietUntil) })}</p>}
               {c?.candidateStatus === 'missing' && ['preparing', 'sent_self'].includes(status) && (
-                <p className="mt-2 text-amber-700 dark:text-amber-400">{first} hat den Vertrag noch nicht. {firma} weiß es und soll ihn erneut schicken; ruf {first} kurz an.</p>
+                <p className="mt-2 text-amber-700 dark:text-amber-400">{t('window.missing', { first, company: firma })}</p>
               )}
-              {status === 'declined' && <p className="mt-2 text-amber-700 dark:text-amber-400">In DocuSign abgelehnt{c?.declineReason ? `: „${c.declineReason}“` : ''}. Bitte mit allen klären.</p>}
-              {status === 'dropped' && <p className="mt-2 text-muted-foreground">{first} ist abgesprungen{c?.dropReason ? `: „${c.dropReason}“` : ''}.</p>}
+              {status === 'declined' && <p className="mt-2 text-amber-700 dark:text-amber-400">{c?.declineReason ? t('window.declinedReason', { reason: c.declineReason }) : t('window.declined')}</p>}
+              {status === 'dropped' && <p className="mt-2 text-muted-foreground">{c?.dropReason ? t('window.droppedReason', { first, reason: c.dropReason }) : t('window.dropped', { first })}</p>}
               {['sent_digital', 'company_signed'].includes(status) && (
                 <p className="mt-2 text-xs text-muted-foreground">
                   {embedded
                     ? (status === 'company_signed'
-                      ? `${first} hat den Link per Mail von Matchunt.${candLink && !candLink.openedAt ? ` Noch nicht geöffnet: ruf ${first} an, ob die Mail angekommen ist.` : ''}`
-                      : `Erst unterschreibt ${firma}, dann bekommt ${first} einen Link per Mail von Matchunt.`)
-                    : `DocuSign meldet die Unterschrift von selbst; DocuSign erinnert ${first} zusätzlich.`}
+                      ? `${t('window.linkByMatchunt', { first })}${candLink && !candLink.openedAt ? t('window.linkNotOpened', { first }) : ''}`
+                      : t('window.companyFirst', { company: firma, first }))
+                    : t('window.docuSignReports', { first })}
                 </p>
               )}
             </div>
 
             {checkOpen && (
               <div className="rounded-lg border border-amber-500/30 bg-amber-500/[0.06] p-3 text-sm">
-                <p className="font-medium">{firma} meldet: {first} hat am {dateDe(c!.signedOn)} unterschrieben</p>
-                <p className="mt-0.5 text-muted-foreground">{values}. Passt das zu dem, was {first} sagt?</p>
+                <p className="font-medium">{t('window.checkTitle', { company: firma, first, date: dateDe(c!.signedOn) })}</p>
+                <p className="mt-0.5 text-muted-foreground">{t('window.checkText', { values, first })}</p>
                 {differs !== null ? (
                   <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <Input value={differs} onChange={(e) => setDiffers(e.target.value)} placeholder="Was weicht ab? z. B. Start laut Kandidat 01.02." className="h-8 min-w-[16rem] flex-1" aria-label="Abweichung" />
-                    <Button size="sm" disabled={busy || !differs.trim()} onClick={() => run(() => contractApi.check(submissionId!, 'differs', differs.trim()), 'Danke. Matchunt klärt das mit dem Kunden.')}>Senden</Button>
-                    <Button size="sm" variant="ghost" onClick={() => setDiffers(null)}>Abbrechen</Button>
+                    <Input value={differs} onChange={(e) => setDiffers(e.target.value)} placeholder={t('window.differsPlaceholder')} className="h-8 min-w-[16rem] flex-1" aria-label={t('window.differsLabel')} />
+                    <Button size="sm" disabled={busy || !differs.trim()} onClick={() => run(() => contractApi.check(submissionId!, 'differs', differs.trim()), t('window.differsSent'))}>{t('window.send')}</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setDiffers(null)}>{t('common.cancel')}</Button>
                   </div>
                 ) : (
                   <div className="mt-2 flex flex-wrap gap-2">
-                    <Button size="sm" disabled={busy} onClick={() => run(() => contractApi.check(submissionId!, 'ok'), 'Bestätigt.')}>Stimmt</Button>
-                    <Button size="sm" variant="outline" onClick={() => setDiffers('')}>Weicht ab</Button>
+                    <Button size="sm" disabled={busy} onClick={() => run(() => contractApi.check(submissionId!, 'ok'), t('window.confirmed'))}>{t('window.fits')}</Button>
+                    <Button size="sm" variant="outline" onClick={() => setDiffers('')}>{t('window.differs')}</Button>
                   </div>
                 )}
               </div>
@@ -225,36 +236,36 @@ export function ContractWindow({ submissionId, onClose, onDone, onLater }: Props
 
             {followOpen && (
               <div className="space-y-3 rounded-lg border border-border/60 bg-muted/30 p-3 text-sm">
-                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Nachfassen</p>
+                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t('window.followUp')}</p>
                 <div className="flex gap-2.5">
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-medium text-primary-foreground">1</span>
                   <div className="min-w-0 flex-1 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-medium">Bei {first}</span>
-                      {ctx.candidatePhone && <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" asChild><a href={`tel:${ctx.candidatePhone}`}><Phone className="h-3 w-3" />{first} anrufen</a></Button>}
+                      <span className="font-medium">{t('window.atCandidate', { first })}</span>
+                      {ctx.candidatePhone && <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" asChild><a href={`tel:${ctx.candidatePhone}`}><Phone className="h-3 w-3" />{t('window.call', { first })}</a></Button>}
                     </div>
-                    <p className="text-xs text-muted-foreground">Was sagt {first}?</p>
+                    <p className="text-xs text-muted-foreground">{t('window.whatSays', { first })}</p>
                     <div className="flex flex-wrap gap-1.5">
                       {(status === 'declined'
-                        ? [['new_contract', 'Neuer Vertrag nötig']] as [CallOutcome, string][]
-                        : [['signed', 'Hat unterschrieben'], ['until', 'Unterschreibt bis …'], ['questions', 'Hat Fragen'], ['unreachable', 'Nicht erreicht']] as [CallOutcome, string][]
-                      ).map(([k, label]) => (
-                        <Button key={k} size="sm" variant={callOutcome === k ? 'default' : 'outline'} className="h-7 text-xs" disabled={busy} onClick={() => pickCall(k)}>{label}</Button>
+                        ? ['new_contract'] as CallOutcome[]
+                        : ['signed', 'until', 'questions', 'unreachable'] as CallOutcome[]
+                      ).map((k) => (
+                        <Button key={k} size="sm" variant={callOutcome === k ? 'default' : 'outline'} className="h-7 text-xs" disabled={busy} onClick={() => pickCall(k)}>{t(`window.outcomes.${k}`)}</Button>
                       ))}
-                      {canDrop && <Button size="sm" variant="outline" className="h-7 text-xs" disabled={busy} onClick={() => setDropReason('')}>Abgesprungen</Button>}
+                      {canDrop && <Button size="sm" variant="outline" className="h-7 text-xs" disabled={busy} onClick={() => setDropReason('')}>{t('window.dropped2')}</Button>}
                     </div>
-                    {callOutcome === 'signed' && !canReport && <p className="text-xs text-muted-foreground">DocuSign meldet die Unterschrift von selbst, sobald {first} unterschrieben hat.</p>}
+                    {callOutcome === 'signed' && !canReport && <p className="text-xs text-muted-foreground">{t('window.docuSignSelf', { first })}</p>}
                     {callOutcome === 'until' && (
                       <div className="flex flex-wrap items-center gap-2">
-                        <Input type="date" value={untilDate} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setUntilDate(e.target.value)} className="h-8 w-40" aria-label="Unterschreibt bis" />
-                        <Button size="sm" className="h-8 text-xs" disabled={busy || !untilDate} onClick={saveUntil}>Festhalten</Button>
-                        <span className="text-xs text-muted-foreground">Bis dahin wartet die Zeile unter „Wartet auf andere“.</span>
+                        <Input type="date" value={untilDate} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setUntilDate(e.target.value)} className="h-8 w-40" aria-label={t('window.untilLabel')} />
+                        <Button size="sm" className="h-8 text-xs" disabled={busy || !untilDate} onClick={saveUntil}>{t('window.record')}</Button>
+                        <span className="text-xs text-muted-foreground">{t('window.untilWaits')}</span>
                       </div>
                     )}
                     {callOutcome === 'questions' && (
                       <div className="space-y-1.5">
-                        <Textarea value={questions} onChange={(e) => setQuestions(e.target.value)} rows={2} placeholder="Welche Fragen hat sie? z. B. Probezeit, Startdatum" className="text-sm" />
-                        <Button size="sm" className="h-8 text-xs" disabled={busy || !questions.trim()} onClick={saveQuestions}>Festhalten</Button>
+                        <Textarea value={questions} onChange={(e) => setQuestions(e.target.value)} rows={2} placeholder={t('window.questionsPlaceholder')} className="text-sm" />
+                        <Button size="sm" className="h-8 text-xs" disabled={busy || !questions.trim()} onClick={saveQuestions}>{t('window.record')}</Button>
                       </div>
                     )}
                   </div>
@@ -263,10 +274,10 @@ export function ContractWindow({ submissionId, onClose, onDone, onLater }: Props
                   <div className="flex gap-2.5">
                     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-[11px] text-muted-foreground">2</span>
                     <div className="min-w-0 flex-1 space-y-2">
-                      <span className="font-medium">Beim Kunden</span>
+                      <span className="font-medium">{t('window.atClient')}</span>
                       <p className="rounded-md border border-dashed border-border px-3 py-2 text-sm italic text-foreground/90">{shownClientText}</p>
-                      <Button size="sm" variant="outline" className="h-8 text-xs" disabled={busy} onClick={askTheClient}>Kunden fragen</Button>
-                      <p className="text-xs text-muted-foreground">Mail und Benachrichtigung an das Kundenteam. Höchstens einmal in drei Tagen.</p>
+                      <Button size="sm" variant="outline" className="h-8 text-xs" disabled={busy} onClick={askTheClient}>{t('window.askClient')}</Button>
+                      <p className="text-xs text-muted-foreground">{t('window.askClientInfo')}</p>
                     </div>
                   </div>
                 )}
@@ -280,27 +291,27 @@ export function ContractWindow({ submissionId, onClose, onDone, onLater }: Props
 
             {dropReason !== null && (
               <div className="flex flex-wrap items-center gap-2 text-sm">
-                <Input value={dropReason} onChange={(e) => setDropReason(e.target.value)} placeholder={`Warum ist ${first} abgesprungen?`} className="h-8 min-w-[16rem] flex-1" aria-label="Grund" />
-                <Button size="sm" variant="destructive" disabled={busy || !dropReason.trim()} onClick={() => run(() => contractApi.drop(submissionId!, dropReason.trim()), `Gespeichert. ${firma} ist informiert.`)}>Abgesprungen melden</Button>
-                <Button size="sm" variant="ghost" onClick={() => setDropReason(null)}>Abbrechen</Button>
+                <Input value={dropReason} onChange={(e) => setDropReason(e.target.value)} placeholder={t('window.dropPlaceholder', { first })} className="h-8 min-w-[16rem] flex-1" aria-label={t('window.dropLabel')} />
+                <Button size="sm" variant="destructive" disabled={busy || !dropReason.trim()} onClick={() => run(() => contractApi.drop(submissionId!, dropReason.trim()), t('window.dropSaved', { company: firma }))}>{t('window.reportDrop')}</Button>
+                <Button size="sm" variant="ghost" onClick={() => setDropReason(null)}>{t('common.cancel')}</Button>
               </div>
             )}
 
             <div className="flex flex-wrap justify-end gap-2 border-t pt-3">
               {ctx.candidatePhone && !followOpen && !['final', 'dropped'].includes(status) && (
-                <Button size="sm" variant="outline" className="gap-1" asChild><a href={`tel:${ctx.candidatePhone}`}><Phone className="h-3.5 w-3.5" />{first} anrufen</a></Button>
+                <Button size="sm" variant="outline" className="gap-1" asChild><a href={`tel:${ctx.candidatePhone}`}><Phone className="h-3.5 w-3.5" />{t('window.call', { first })}</a></Button>
               )}
               {onLater && followOpen && (
-                <Button size="sm" variant="outline" onClick={() => { const d = new Date(Date.now() + 86_400_000); d.setHours(9, 0, 0, 0); onLater(d); }}>Morgen wieder</Button>
+                <Button size="sm" variant="outline" onClick={() => { const d = new Date(Date.now() + 86_400_000); d.setHours(9, 0, 0, 0); onLater(d); }}>{t('window.tomorrowAgain')}</Button>
               )}
               {embedded && status === 'company_signed' && dropReason === null && (
-                <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => contractApi.resendLink(submissionId!), `Neuer Link an ${first} ist unterwegs.`)}>Link an {first} erneut senden</Button>
+                <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => contractApi.resendLink(submissionId!), t('window.linkResent', { first }))}>{t('window.resendLink', { first })}</Button>
               )}
-              {canDrop && !followOpen && dropReason === null && <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={() => setDropReason('')}>{first} ist abgesprungen</Button>}
-              {canReport && <Button size="sm" onClick={() => setShowReport(true)}>{first} hat unterschrieben</Button>}
-              {(!canReport || followOpen) && !checkOpen && <Button size="sm" variant="ghost" onClick={onClose}>Schließen</Button>}
+              {canDrop && !followOpen && dropReason === null && <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={() => setDropReason('')}>{t('window.hasDropped', { first })}</Button>}
+              {canReport && <Button size="sm" onClick={() => setShowReport(true)}>{t('window.hasSigned', { first })}</Button>}
+              {(!canReport || followOpen) && !checkOpen && <Button size="sm" variant="ghost" onClick={onClose}>{t('common.close')}</Button>}
             </div>
-            {canReport && <p className="text-xs text-muted-foreground">Meldest du zuerst, bestätigt {firma}. Erst dann ist die Einstellung verbindlich.</p>}
+            {canReport && <p className="text-xs text-muted-foreground">{t('window.reportHint', { company: firma })}</p>}
 
             <ContractReportDialog ctx={ctx} open={showReport} onOpenChange={setShowReport} onDone={() => { notifyTasksChanged(); onDone?.(); }} />
           </>

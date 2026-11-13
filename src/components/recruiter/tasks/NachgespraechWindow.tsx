@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Trans, useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
+import { dayMonth, dayMonthBare, dfLocale, loc } from './sprache';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -13,6 +16,8 @@ import { notifyTasksChanged, type UnifiedTaskItem } from '@/hooks/useUnifiedTask
 import { notifyCandidateChanged } from '@/hooks/useCandidateDossier';
 import { meetingTypeLabel } from '@/components/interview/agenda/meetingType';
 import { NOTICE_OPTIONS } from '@/lib/candidateDossier';
+import { term } from '@/lib/candidateTerms';
+import { clientLangOfLocation } from '@/lib/aufgabenTexte';
 import {
   ANGEBOT_PUNKTE, BAUCH, DREI, LEER, START, ausZeile, euroVoll, gehaltAbgleich, istAusgefuellt, kundenText,
   parseEuro, startAbgleich, zuZeile, zusammenfassung, type Abgleich, type Nachgespraech,
@@ -20,7 +25,6 @@ import {
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { format, isToday, isYesterday } from 'date-fns';
-import { de } from 'date-fns/locale';
 import { AlertTriangle, CalendarDays, Check, Lock, Mail, Phone } from 'lucide-react';
 import { Honorar } from '@/components/recruiter/Honorar';
 
@@ -36,6 +40,8 @@ export interface NachTarget {
   companyName: string | null;
   feeValue: number | null;
   scheduledAt: string | null;
+  /** Ort der Stelle, für die Sprache der Nachricht an den Kunden */
+  jobLocation?: string | null;
 }
 
 /** Aus der Sicht des Headhunters (Angebots-Kontext): für Empfehlung und Kundenfrage ohne Nachgespräch. */
@@ -63,16 +69,21 @@ export const nachTargetFromItem = (item: UnifiedTaskItem): NachTarget => ({
   companyName: item.companyName,
   feeValue: item.feeValue,
   scheduledAt: item.createdAt,
+  jobLocation: item.jobLocation ?? null,
 });
 
-const first = (name: string | null) => (name ? name.trim().split(/\s+/)[0] : 'den Kandidaten');
+const NS = 'recruiterTasks';
+const tr = (key: string, options?: Record<string, unknown>): string => i18n.t(`${NS}:${key}`, options);
+const first = (name: string | null) => (name ? name.trim().split(/\s+/)[0] : tr('fallback.theCandidateAcc'));
 const initials = (name: string | null) => (name ?? '?').split(/\s+/).map(p => p[0]).slice(0, 2).join('').toUpperCase();
-const kEuro = (n: number | null) => (n && n > 0 ? `${Math.round(n / 1000)}.000 €` : null);
-const uhr = (d: Date) => format(d, 'HH:mm', { locale: de });
-const wann = (d: Date) => (isToday(d) ? `heute ${uhr(d)}` : isYesterday(d) ? `gestern ${uhr(d)}` : `am ${format(d, 'dd.MM.', { locale: de })}`);
-/** Kein doppelter Punkt nach einem Datum („am 13.10.“). */
-const satz = (t: string) => (t.endsWith('.') ? t : `${t}.`);
-const tag = (iso: string) => new Date(`${iso.slice(0, 10)}T12:00:00`).toLocaleDateString('de-DE');
+const kEuro = (n: number | null) => (n && n > 0 ? tr('money.thousands', { k: Math.round(n / 1000) }) : null);
+const uhr = (d: Date) => format(d, 'HH:mm');
+/** „heute 14:30“, „gestern 14:30“, „am 13.10.“ */
+const wann = (d: Date) => (isToday(d) ? tr('nach.when.today', { time: uhr(d) }) : isYesterday(d) ? tr('nach.when.yesterday', { time: uhr(d) }) : tr('nach.when.on', { date: dayMonth(d) }));
+/** Ganzer Satz: „Interview war heute 14:30.“ (kein doppelter Punkt nach einem Datum) */
+const interviewWar = (d: Date) => (isToday(d) ? tr('nach.was.today', { time: uhr(d) }) : isYesterday(d) ? tr('nach.was.yesterday', { time: uhr(d) }) : tr('nach.was.on', { date: dayMonthBare(d) }));
+const tag = (iso: string) => new Date(`${iso.slice(0, 10)}T12:00:00`).toLocaleDateString(loc());
+// Eingabefeld: bleibt im deutschen Zahlenformat, so liest es parseEuro (lib/nachgespraech.ts)
 const zahl = (n: number | null) => (n ? n.toLocaleString('de-DE') : '');
 const tableMissing = (e: { code?: string; message?: string }) =>
   e.code === '42P01' || e.code === 'PGRST205' || /does not exist|could not find the table/i.test(e.message ?? '');
@@ -108,9 +119,10 @@ function MultiChips({ options, value, onChange }: { options: { key: string; labe
 }
 
 function Frage({ label, fehlt, children }: { label: string; fehlt?: boolean; children: ReactNode }) {
+  const { t } = useTranslation(NS);
   return (
     <div className="space-y-1.5 border-t border-border/50 pt-2.5 first:border-0 first:pt-0">
-      <p className={cn('text-xs font-medium', fehlt && 'text-amber-600')}>{label}{fehlt && <span className="ml-1.5 font-normal">· fehlt noch</span>}</p>
+      <p className={cn('text-xs font-medium', fehlt && 'text-amber-600')}>{label}{fehlt && <span className="ml-1.5 font-normal">{t('nach.missing')}</span>}</p>
       {children}
     </div>
   );
@@ -123,7 +135,8 @@ function Frage({ label, fehlt, children }: { label: string; fehlt?: boolean; chi
  * dann die Frage an den Kunden. Gehalt, Angebot, Start und Bedenken bleiben bei dir.
  */
 /** Feedback des Kunden aus interviews.feedback, kurz für den Headhunter. */
-const WEG: Record<string, string> = { next_round: 'nächste Runde', proceed: 'nächste Runde', offer: 'Angebot', unsure: 'noch unsicher', maybe: 'noch unsicher', reject: 'Absage' };
+// Anzeige über nach.weg.<wert>
+const WEG: Record<string, string> = { next_round: 'nextRound', proceed: 'nextRound', offer: 'offer', unsure: 'unsure', maybe: 'unsure', reject: 'reject' };
 function kundenFeedbackAus(raw: string | null): { key: string; weg: string; eindruck: string | null } | null {
   if (!raw) return null;
   try {
@@ -148,6 +161,7 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot, onEmpf
   /** „Später“-Menü der Aufgabenseite, wenn die Aufgabe vertagt werden kann */
   laterSlot?: ReactNode;
 }) {
+  const { t } = useTranslation(NS);
   const navigate = useNavigate();
   const { user } = useAuth();
   const { logActivity } = useActivityLogger();
@@ -231,15 +245,17 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot, onEmpf
   const start = useMemo(() => startAbgleich(aktuell, { noticePeriod: umfeld.akte.notice_period, availabilityDate: umfeld.akte.availability_date }, today), [aktuell, umfeld]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!target) return null;
-  const name = target.candidateName || 'Kandidat';
+  const name = target.candidateName || t('fallback.candidate');
+  // Auswahl-Knöpfe: Schlüssel und Reihenfolge aus lib/nachgespraech.ts (geteilt), Beschriftung hier in der Sprache der Oberfläche
+  const opts = <K extends string>(list: { key: K; label: string }[], group: string) => list.map(o => ({ key: o.key, label: t(`nach.options.${group}.${o.key}`, { defaultValue: o.label }) }));
   const vorname = first(target.candidateName);
   // Ohne Namen neutral statt „er“ (Live-Test 23.10.2026)
-  const werNom = target.candidateName?.trim() ? vorname : 'die Person';
+  const werNom = target.candidateName?.trim() ? vorname : t('fallback.thePerson');
   const fee = kEuro(target.feeValue);
   const ivAt = umfeld.interview?.scheduled_at ?? target.scheduledAt;
   const saved = !editing && !!savedAt;
   const set = <K extends keyof Nachgespraech>(k: K, v: Nachgespraech[K]) => setForm(f => ({ ...f, [k]: v }));
-  const noticeLabel = umfeld.akte.notice_period ? NOTICE_OPTIONS.find(o => o.value === umfeld.akte.notice_period)?.label ?? umfeld.akte.notice_period : null;
+  const noticeLabel = umfeld.akte.notice_period ? term(NOTICE_OPTIONS.find(o => o.value === umfeld.akte.notice_period)?.label ?? umfeld.akte.notice_period) : null;
 
   const save = async () => {
     if (!user) return;
@@ -249,7 +265,7 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot, onEmpf
       .select('*').single();
     setSaving(false);
     if (error) {
-      toast.error(tableMissing(error) ? 'Noch nicht gespeichert: Das Nachgespräch ist noch nicht live (Lovable Nr. 25).' : `Nicht gespeichert: ${error.message}`);
+      toast.error(tableMissing(error) ? t('nach.toast.notLive') : t('nach.toast.notSaved', { message: error.message }));
       return;
     }
     const f = ausZeile(data);
@@ -258,6 +274,7 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot, onEmpf
     setSavedAt(new Date());
     setEditing(false);
     if (target.candidateId) {
+      // Titel im Aktivitätslog: gespeichert, bleibt deutsch
       await logActivity(target.candidateId, 'note', existing ? 'Nachgespräch aktualisiert' : 'Nachgespräch festgehalten', undefined,
         { kind: 'nachgespraech', interview_id: target.interviewId }, target.submissionId ?? undefined);
     }
@@ -270,28 +287,28 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot, onEmpf
     if (!target.candidateId) return;
     const patch = a.field === 'expected_salary' ? { expected_salary: a.value, salary_fix: a.value } : { availability_date: a.value };
     const { error } = await supabase.from('candidates').update(patch as never).eq('id', target.candidateId);
-    if (error) { toast.error('Akte nicht geändert.'); return; }
+    if (error) { toast.error(t('nach.toast.fileNotChanged')); return; }
     setApplied(l => [...l, a.field]);
     setUmfeld(u => ({ ...u, akte: { ...u.akte, ...(a.field === 'expected_salary' ? { expected_salary: a.value as number } : { availability_date: a.value as string }) } }));
     notifyCandidateChanged(target.candidateId);
-    toast.success('In die Akte übernommen.');
+    toast.success(t('nach.toast.applied'));
   };
 
   const askClient = async () => {
     if (!target.submissionId) return;
     setAsking(true);
     const { data, error } = await supabase.functions.invoke('recruiter-notify', {
-      body: { action: 'client_nudge', submissionId: target.submissionId, text: kundenText(form), intent: 'interview_feedback' },
+      body: { action: 'client_nudge', submissionId: target.submissionId, text: kundenText(form, clientLangOfLocation(target.jobLocation)), intent: 'interview_feedback', lang: clientLangOfLocation(target.jobLocation) },
     });
     setAsking(false);
     const failure = error?.message || (data as any)?.error || ((data as any)?.message && !(data as any)?.ok ? (data as any).message : null);
     if (failure) {
-      const msg = typeof failure === 'string' ? failure : 'Senden fehlgeschlagen.';
-      toast.error(/Failed to send a request/i.test(msg) ? 'Senden nicht möglich: Die Function „recruiter-notify“ ist noch nicht deployt.' : msg);
+      const msg = typeof failure === 'string' ? failure : t('toast.sendFailed');
+      toast.error(/Failed to send a request/i.test(msg) ? t('toast.notDeployed') : msg);
       return;
     }
     setAskedAt(new Date());
-    toast.success(`Kunde gefragt (${(data as any)?.recipients ?? 1} Empfänger).`);
+    toast.success(t('nach.toast.clientAsked', { count: (data as any)?.recipients ?? 1 }));
     onDone?.();
     notifyTasksChanged();
   };
@@ -307,7 +324,7 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot, onEmpf
             <div className="min-w-0 flex-1">
               <DialogTitle className="flex flex-wrap items-center gap-x-2 text-base">
                 <span>{name}</span>
-                <Badge variant="secondary" className="h-4 px-1.5 text-[10px] font-medium">Nachgespräch</Badge>
+                <Badge variant="secondary" className="h-4 px-1.5 text-[10px] font-medium">{t('guide.debrief.pill')}</Badge>
                 {fee && <span className="text-sm font-medium tabular-nums text-emerald-500"><Honorar>{fee}</Honorar></span>}
               </DialogTitle>
               <DialogDescription className="flex items-center gap-1 text-xs">
@@ -318,11 +335,11 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot, onEmpf
           </div>
           <p className="text-sm">
             {saved
-              ? 'Nachgespräch festgehalten. Die Aufgabe ist erledigt.'
+              ? t('nach.headerSaved')
               : ivAt && Date.now() - new Date(ivAt).getTime() >= 48 * 3_600_000
                 // Nach zwei Tagen ist nichts mehr frisch (Durchklick 27.10.2026)
-                ? `${satz(`Interview war ${wann(new Date(ivAt))}`)} ${vorname} wartet auf deine Rückmeldung.`
-                : ivAt ? `${satz(`Interview war ${wann(new Date(ivAt))}`)} Ruf ${vorname} an, solange es frisch ist.` : `Ruf ${vorname} an, solange es frisch ist.`}
+                ? `${interviewWar(new Date(ivAt))} ${t('nach.waiting', { first: vorname })}`
+                : ivAt ? `${interviewWar(new Date(ivAt))} ${t('nach.callFresh', { first: vorname })}` : t('nach.callFresh', { first: vorname })}
           </p>
         </DialogHeader>
 
@@ -330,41 +347,41 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot, onEmpf
           {/* Links: Interview, Vergleich, Bisher / Festgehalten */}
           <div className="space-y-3">
             <div className="rounded-lg border border-border/60 bg-muted/30 p-3 text-sm">
-              <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Interview</p>
+              <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t('nach.interview')}</p>
               {ivAt ? (
-                <p>{format(new Date(ivAt), 'EEE, dd.MM., HH:mm', { locale: de })} Uhr · {umfeld.interview?.duration_minutes ?? 60} Min. · {meetingTypeLabel(umfeld.interview?.meeting_type ?? null)}</p>
-              ) : <p className="text-muted-foreground">Ohne Termin</p>}
+                <p>{t('nach.interviewLine', { date: format(new Date(ivAt), t('nach.datePattern'), { locale: dfLocale() }), minutes: umfeld.interview?.duration_minutes ?? 60, type: meetingTypeLabel(umfeld.interview?.meeting_type ?? null) })}</p>
+              ) : <p className="text-muted-foreground">{t('nach.noAppointment')}</p>}
               {umfeld.rollen.length > 0 && (
-                <p className="mt-1 text-xs text-muted-foreground">Beim Kunden dabei: {umfeld.rollen.map(r => `${r.title || 'ohne Funktion'}${r.is_decision_maker ? ' (entscheidet)' : ''}`).join(' · ')}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{t('nach.attendees', { list: umfeld.rollen.map(r => (r.is_decision_maker ? t('nach.decides', { title: r.title || t('nach.noRole') }) : r.title || t('nach.noRole'))).join(' · ') })}</p>
               )}
             </div>
             <div className="rounded-lg border border-border/60 bg-muted/30 p-3 text-sm">
-              <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Zum Vergleich, aus Akte und Stelle</p>
+              <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t('nach.compare')}</p>
               <ul className="space-y-0.5 text-xs">
-                <li>Wunschgehalt Akte: {umfeld.akte.expected_salary ? euroVoll(umfeld.akte.expected_salary) : <span className="text-muted-foreground">nicht eingetragen</span>}</li>
-                <li>Stelle: {umfeld.stelle.salary_min || umfeld.stelle.salary_max
+                <li>{t('nach.wishSalary')} {umfeld.akte.expected_salary ? euroVoll(umfeld.akte.expected_salary) : <span className="text-muted-foreground">{t('nach.notEntered')}</span>}</li>
+                <li>{t('nach.jobSalary')} {umfeld.stelle.salary_min || umfeld.stelle.salary_max
                   ? [umfeld.stelle.salary_min, umfeld.stelle.salary_max].filter(Boolean).map(n => euroVoll(n as number)).join('–')
-                  : <span className="text-muted-foreground">ohne Gehaltsangabe</span>}</li>
-                <li>Kündigungsfrist Akte: {noticeLabel ?? <span className="text-muted-foreground">nicht eingetragen</span>}</li>
-                {umfeld.akte.availability_date && <li>Verfügbar ab Akte: {tag(umfeld.akte.availability_date)}</li>}
+                  : <span className="text-muted-foreground">{t('nach.noSalary')}</span>}</li>
+                <li>{t('nach.notice')} {noticeLabel ?? <span className="text-muted-foreground">{t('nach.notEntered')}</span>}</li>
+                {umfeld.akte.availability_date && <li>{t('nach.availableFrom', { date: tag(umfeld.akte.availability_date) })}</li>}
               </ul>
             </div>
             {saved ? (
               <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
-                <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Festgehalten · {wann(savedAt!)}</p>
+                <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t('nach.saved', { when: wann(savedAt!) })}</p>
                 <ul className="space-y-0.5 text-xs">
                   {zusammenfassung(form, today, umfeld.akte.notice_period).map((z, i) => <li key={i}>{z}</li>)}
-                  {form.bedenken && <li className="text-muted-foreground">Bedenken: {form.bedenken}</li>}
+                  {form.bedenken && <li className="text-muted-foreground">{t('nach.concerns', { text: form.bedenken })}</li>}
                 </ul>
               </div>
             ) : (
               <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
-                <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Bisher</p>
+                <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t('window.history')}</p>
                 {umfeld.verlauf.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">{loading ? 'Lädt …' : 'Noch kein Kontakt zu diesem Deal.'}</p>
+                  <p className="text-xs text-muted-foreground">{loading ? t('nach.loading') : t('window.noContact')}</p>
                 ) : (
                   <ul className="space-y-1 text-xs">
-                    {umfeld.verlauf.map((h, i) => <li key={i} className="flex gap-2"><span className="w-12 shrink-0 tabular-nums text-muted-foreground">{format(new Date(h.created_at), 'dd.MM.', { locale: de })}</span><span>{h.title}</span></li>)}
+                    {umfeld.verlauf.map((h, i) => <li key={i} className="flex gap-2"><span className="w-12 shrink-0 tabular-nums text-muted-foreground">{dayMonth(h.created_at)}</span><span>{h.title}</span></li>)}
                   </ul>
                 )}
               </div>
@@ -373,66 +390,66 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot, onEmpf
 
           {/* Rechts: Deine Aufgabe */}
           <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
-            <p className="mb-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Deine Aufgabe</p>
+            <p className="mb-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t('window.yourTask')}</p>
             {!saved ? (
               <div className="space-y-3">
                 <div className="flex items-center gap-2.5">
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-[11px]">1</span>
-                  <p className="flex-1 text-sm font-medium">{vorname} anrufen</p>
+                  <p className="flex-1 text-sm font-medium">{t('plan.call', { first: vorname })}</p>
                   {target.candidatePhone
-                    ? <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" asChild><a href={`tel:${target.candidatePhone}`}><Phone className="h-3 w-3" />Anrufen</a></Button>
-                    : <span className="text-xs text-muted-foreground">Keine Nummer in der Akte</span>}
+                    ? <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" asChild><a href={`tel:${target.candidatePhone}`}><Phone className="h-3 w-3" />{t('guide.call')}</a></Button>
+                    : <span className="text-xs text-muted-foreground">{t('nach.noNumber')}</span>}
                 </div>
                 <div className="flex gap-2.5">
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-[11px]">2</span>
                   <div className="min-w-0 flex-1 space-y-2.5">
-                    <p className="text-sm font-medium">Festhalten, was {vorname} sagt</p>
-                    <Frage label="Wie ist es gelaufen?">
-                      <Textarea value={form.verlauf} onChange={e => set('verlauf', e.target.value)} rows={2} className="text-sm" placeholder={`Was hat ${werNom} gefallen, was nicht? Möglichst in eigenen Worten`} />
+                    <p className="text-sm font-medium">{t('nach.step2', { first: vorname })}</p>
+                    <Frage label={t('nach.q.howWent')}>
+                      <Textarea value={form.verlauf} onChange={e => set('verlauf', e.target.value)} rows={2} className="text-sm" placeholder={t('nach.q.howWentPlaceholder', { who: werNom })} />
                     </Frage>
-                    <Frage label="Bauchgefühl" fehlt={!form.bauchgefuehl}>
-                      <Chips options={BAUCH} value={form.bauchgefuehl} onChange={v => set('bauchgefuehl', v)} />
+                    <Frage label={t('nach.q.gut')} fehlt={!form.bauchgefuehl}>
+                      <Chips options={opts(BAUCH, 'bauch')} value={form.bauchgefuehl} onChange={v => set('bauchgefuehl', v)} />
                     </Frage>
-                    <Frage label="Zusammenarbeit mit den Ansprechpartnern vorstellbar?">
-                      <Chips options={DREI} value={form.zusammenarbeit} onChange={v => set('zusammenarbeit', v)} />
-                      <Input value={form.ansprechpartner} onChange={e => set('ansprechpartner', e.target.value)} className="h-8 text-sm" placeholder="Mit wem gesprochen, z. B. Teamleitung" />
+                    <Frage label={t('nach.q.collaboration')}>
+                      <Chips options={opts(DREI, 'drei')} value={form.zusammenarbeit} onChange={v => set('zusammenarbeit', v)} />
+                      <Input value={form.ansprechpartner} onChange={e => set('ansprechpartner', e.target.value)} className="h-8 text-sm" placeholder={t('nach.q.contactsPlaceholder')} />
                     </Frage>
-                    <Frage label="Über Gehalt gesprochen?">
-                      <Chips options={[{ key: 'ja', label: 'Ja' }, { key: 'nein', label: 'Nein' }]} value={form.gehalt_besprochen == null ? null : form.gehalt_besprochen ? 'ja' : 'nein'} onChange={v => set('gehalt_besprochen', v == null ? null : v === 'ja')} />
+                    <Frage label={t('nach.q.salary')}>
+                      <Chips options={[{ key: 'ja', label: t('nach.yes') }, { key: 'nein', label: t('nach.no') }]} value={form.gehalt_besprochen == null ? null : form.gehalt_besprochen ? 'ja' : 'nein'} onChange={v => set('gehalt_besprochen', v == null ? null : v === 'ja')} />
                       {form.gehalt_besprochen && (
                         <div className="grid grid-cols-2 gap-2">
-                          <Input value={euroText.gk} onChange={e => setEuroText(t => ({ ...t, gk: e.target.value }))} className="h-8 text-sm" placeholder={`${vorname} genannt, €`} inputMode="numeric" />
-                          <Input value={euroText.gf} onChange={e => setEuroText(t => ({ ...t, gf: e.target.value }))} className="h-8 text-sm" placeholder="Firma genannt, €" inputMode="numeric" />
+                          <Input value={euroText.gk} onChange={e => setEuroText(t => ({ ...t, gk: e.target.value }))} className="h-8 text-sm" placeholder={t('nach.q.salaryCandidate', { first: vorname })} inputMode="numeric" />
+                          <Input value={euroText.gf} onChange={e => setEuroText(t => ({ ...t, gf: e.target.value }))} className="h-8 text-sm" placeholder={t('nach.q.salaryCompany')} inputMode="numeric" />
                         </div>
                       )}
                     </Frage>
-                    <Frage label={`Wie müsste ein Angebot aussehen, damit ${werNom} annimmt?`}>
-                      <Input value={euroText.af} onChange={e => setEuroText(t => ({ ...t, af: e.target.value }))} className="h-8 text-sm" placeholder="Fixgehalt mindestens, €" inputMode="numeric" />
-                      <MultiChips options={ANGEBOT_PUNKTE} value={form.angebot_punkte} onChange={v => set('angebot_punkte', v)} />
-                      <Input value={form.angebot_text} onChange={e => set('angebot_text', e.target.value)} className="h-8 text-sm" placeholder="Was muss sonst drinstehen" />
+                    <Frage label={t('nach.q.offer', { who: werNom })}>
+                      <Input value={euroText.af} onChange={e => setEuroText(t => ({ ...t, af: e.target.value }))} className="h-8 text-sm" placeholder={t('nach.q.fixMin')} inputMode="numeric" />
+                      <MultiChips options={opts(ANGEBOT_PUNKTE, 'angebot')} value={form.angebot_punkte} onChange={v => set('angebot_punkte', v)} />
+                      <Input value={form.angebot_text} onChange={e => set('angebot_text', e.target.value)} className="h-8 text-sm" placeholder={t('nach.q.offerOther')} />
                     </Frage>
-                    <Frage label="Idealer Starttermin?">
-                      <Chips options={START} value={form.start_art} onChange={v => set('start_art', v)} />
+                    <Frage label={t('nach.q.start')}>
+                      <Chips options={opts(START, 'start')} value={form.start_art} onChange={v => set('start_art', v)} />
                       {form.start_art === 'fester_tag' && (
                         <Input type="date" value={form.start_datum ?? ''} onChange={e => set('start_datum', e.target.value || null)} className="h-8 w-44 text-sm" />
                       )}
                     </Frage>
-                    <Frage label={`Will ${werNom} weiter?`} fehlt={!form.will_weiter}>
-                      <Chips options={DREI} value={form.will_weiter} onChange={v => set('will_weiter', v)} />
-                      <Input value={form.bedenken} onChange={e => set('bedenken', e.target.value)} className="h-8 text-sm" placeholder="Offene Fragen oder Bedenken" />
+                    <Frage label={t('nach.q.wantsOn', { who: werNom })} fehlt={!form.will_weiter}>
+                      <Chips options={opts(DREI, 'drei')} value={form.will_weiter} onChange={v => set('will_weiter', v)} />
+                      <Input value={form.bedenken} onChange={e => set('bedenken', e.target.value)} className="h-8 text-sm" placeholder={t('nach.q.concernsPlaceholder')} />
                     </Frage>
                   </div>
                 </div>
                 <div className="flex gap-2.5">
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-[11px] text-muted-foreground">3</span>
-                  <p className="text-xs leading-5 text-muted-foreground">{kundenFeedback ? 'Der Kunde hat sein Feedback schon gegeben (unten).' : 'Danach fragst du den Kunden nach seinem Eindruck.'} Gehalt, Angebot, Start und Bedenken bleiben bei dir.</p>
+                  <p className="text-xs leading-5 text-muted-foreground">{kundenFeedback ? t('nach.step3Given') : t('nach.step3Ask')}</p>
                 </div>
               </div>
             ) : (
               <div className="space-y-3">
                 <div className="flex items-center gap-2.5">
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white"><Check className="h-3 w-3" /></span>
-                  <p className="text-sm font-medium">Nachgespräch festgehalten · {wann(savedAt!)}</p>
+                  <p className="text-sm font-medium">{t('nach.savedLine', { when: wann(savedAt!) })}</p>
                 </div>
                 {abgleich.map((a, i) => (
                   <div key={i} className={cn('rounded-md border px-3 py-2 text-xs', a.tone === 'warn' ? 'border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300')}>
@@ -440,20 +457,20 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot, onEmpf
                     {a.akte && !applied.includes(a.akte.field) && target.candidateId && (
                       <div className="mt-1.5 flex flex-wrap items-center gap-2">
                         <span>{a.akte.label}</span>
-                        <Button size="sm" variant="outline" className="h-6 bg-background text-[11px]" onClick={() => uebernehmen(a.akte!)}>Übernehmen</Button>
+                        <Button size="sm" variant="outline" className="h-6 bg-background text-[11px]" onClick={() => uebernehmen(a.akte!)}>{t('nach.apply')}</Button>
                       </div>
                     )}
                   </div>
                 ))}
-                {applied.length > 0 && <p className="text-xs text-emerald-600">✓ In die Akte übernommen</p>}
+                {applied.length > 0 && <p className="text-xs text-emerald-600">{t('nach.appliedMark')}</p>}
                 <div className="flex gap-2.5">
                   <span className={cn('flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-[11px]', (askedAt || kundenFeedback) && 'border-0 bg-emerald-500 text-white')}>{askedAt || kundenFeedback ? <Check className="h-3 w-3" /> : '3'}</span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium">{askedAt ? `Kunde gefragt · ${wann(askedAt)}` : form.will_weiter === 'nein' ? 'Dem Kunden Bescheid geben' : kundenFeedback ? 'Der Kunde hat sein Feedback schon gegeben (unten)' : 'Kunden nach seinem Eindruck fragen?'}</p>
+                    <p className="text-sm font-medium">{askedAt ? t('nach.askedLine', { when: wann(askedAt) }) : form.will_weiter === 'nein' ? t('nach.tellClient') : kundenFeedback ? t('nach.feedbackGiven') : t('nach.askClientQ')}</p>
                     {!askedAt && (!kundenFeedback || form.will_weiter === 'nein') && (
                       <>
-                        <p className="mt-1.5 rounded-md border border-dashed border-border bg-background px-3 py-2 text-sm italic text-foreground/90">{kundenText(form)}</p>
-                        <p className="mt-1.5 text-xs text-muted-foreground">Geht als Benachrichtigung ins Kunden-Dashboard und als Mail. Gehalt, Angebot, Start und Bedenken gehen nie automatisch an den Kunden.</p>
+                        <p className="mt-1.5 rounded-md border border-dashed border-border bg-background px-3 py-2 text-sm italic text-foreground/90">{kundenText(form, clientLangOfLocation(target.jobLocation))}</p>
+                        <p className="mt-1.5 text-xs text-muted-foreground">{t('nach.channelInfo')}</p>
                       </>
                     )}
                   </div>
@@ -465,34 +482,34 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot, onEmpf
 
         {kundenFeedback && (
           <div className="border-t px-4 pt-3 text-xs">
-            <span className="text-muted-foreground">Feedback des Kunden: </span><span className="font-medium">{kundenFeedback.weg}</span>
-            {kundenFeedback.eindruck && <span className="text-muted-foreground"> · „{kundenFeedback.eindruck}“</span>}
+            <span className="text-muted-foreground">{t('nach.clientFeedback')} </span><span className="font-medium">{t(`nach.weg.${kundenFeedback.weg}`)}</span>
+            {kundenFeedback.eindruck && <span className="text-muted-foreground"> {t('nach.quoted', { text: kundenFeedback.eindruck })}</span>}
           </div>
         )}
         <div className="flex flex-wrap items-center justify-between gap-2 border-t p-4 text-xs">
-          <span className="text-muted-foreground">Ziel: <span className="font-medium text-emerald-500">{saved ? (askedAt || kundenFeedback ? 'Erledigt' : 'Eindruck des Kunden') : 'Nachgespräch festgehalten'}</span></span>
+          <span className="text-muted-foreground"><Trans ns={NS} i18nKey="window.goal" values={{ goal: saved ? (askedAt || kundenFeedback ? t('guide.done') : t('nach.goalImpression')) : t('guide.debrief.goal') }} components={{ g: <span className="font-medium text-emerald-500" /> }} /></span>
           {!saved ? (
             <div className="flex flex-wrap items-center gap-1.5">
               {laterSlot}
-              {target.submissionId && <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => navigate(`/recruiter/submissions/${target.submissionId}`)}>Einreichung</Button>}
-              {existing && <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setEditing(false)}>Abbrechen</Button>}
-              <Button size="sm" className="h-8 text-xs" disabled={saving || loading || !istAusgefuellt(aktuell)} onClick={save}>{existing ? 'Aktualisieren' : 'Festhalten'}</Button>
+              {target.submissionId && <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => navigate(`/recruiter/submissions/${target.submissionId}`)}>{t('window.submission')}</Button>}
+              {existing && <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setEditing(false)}>{t('nach.cancel')}</Button>}
+              <Button size="sm" className="h-8 text-xs" disabled={saving || loading || !istAusgefuellt(aktuell)} onClick={save}>{existing ? t('nach.update') : t('nach.save')}</Button>
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-1.5">
-              <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setEditing(true)}>Ändern</Button>
+              <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setEditing(true)}>{t('nach.edit')}</Button>
               {form.will_weiter === 'nein' && target.submissionId && !askedAt ? (
-                <Button size="sm" className="h-8 gap-1 text-xs" disabled={asking} onClick={askClient}><Mail className="h-3 w-3" />{target.companyName ?? 'Dem Kunden'} Bescheid geben</Button>
+                <Button size="sm" className="h-8 gap-1 text-xs" disabled={asking} onClick={askClient}><Mail className="h-3 w-3" />{target.companyName ? t('nach.tellCompany', { company: target.companyName }) : t('nach.tellClient')}</Button>
               ) : kundenFeedback?.key === 'offer' && empfehlungOffen && onEmpfehlung && target.submissionId ? (
-                <Button size="sm" className="h-8 text-xs" onClick={() => { const id = target.submissionId!; onClose(); onEmpfehlung(id); }}>Weiter: Empfehlung schreiben</Button>
+                <Button size="sm" className="h-8 text-xs" onClick={() => { const id = target.submissionId!; onClose(); onEmpfehlung(id); }}>{t('nach.nextRecommendation')}</Button>
               ) : ['unsure', 'maybe'].includes(kundenFeedback?.key ?? '') && onFrage && target.submissionId ? (
-                <Button size="sm" className="h-8 text-xs" onClick={() => { const id = target.submissionId!; onClose(); onFrage(id); }}>Weiter: Frage beantworten</Button>
+                <Button size="sm" className="h-8 text-xs" onClick={() => { const id = target.submissionId!; onClose(); onFrage(id); }}>{t('nach.nextQuestion')}</Button>
               ) : askedAt || kundenFeedback || !target.submissionId ? (
-                <Button size="sm" className="h-8 text-xs" onClick={onClose}>Schließen</Button>
+                <Button size="sm" className="h-8 text-xs" onClick={onClose}>{t('window.close')}</Button>
               ) : (
                 <>
-                  <Button size="sm" variant="outline" className="h-8 text-xs" disabled={asking} onClick={onClose}>Nicht nötig</Button>
-                  <Button size="sm" className="h-8 gap-1 text-xs" disabled={asking} onClick={askClient}><Mail className="h-3 w-3" />Kunden fragen</Button>
+                  <Button size="sm" variant="outline" className="h-8 text-xs" disabled={asking} onClick={onClose}>{t('window.notNeeded')}</Button>
+                  <Button size="sm" className="h-8 gap-1 text-xs" disabled={asking} onClick={askClient}><Mail className="h-3 w-3" />{t('guide.askClient')}</Button>
                 </>
               )}
             </div>

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Check, UserPlus } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +12,6 @@ import { cn } from '@/lib/utils';
 
 // Inhaber, Admin und HR sehen alle Stellen; Fachbereich und Nur lesen brauchen Zugriff auf diese Stelle.
 const SIEHT_ALLE = ['owner', 'admin', 'hr'];
-const AUFTRITT_LABEL: Record<string, string> = { headcount: 'Mitarbeiterzahl', unique_selling_point: 'ein Satz zu Ihnen als Arbeitgeber' };
 
 type Punkt = { key: string; titel: string; text: string; erledigt: boolean; aktion?: ReactNode };
 
@@ -28,6 +28,7 @@ export function JobPrepChecklist({ jobId, jobTitle, organizationId, userId, canI
   canInvite: boolean;
   isOwner: boolean;
 }) {
+  const { t } = useTranslation('clientJobs');
   const navigate = useNavigate();
   const calendar = useCalendarStatus();
   const team = useTeamData(canInvite && organizationId ? organizationId : undefined);
@@ -41,14 +42,14 @@ export function JobPrepChecklist({ jobId, jobTitle, organizationId, userId, canI
   const verbunden = calendar.state === 'connected';
   punkte.push({
     key: 'kalender',
-    titel: verbunden ? 'Kalender verbunden' : 'Kalender verbinden',
+    titel: verbunden ? t('prep.calendarDone') : t('prep.calendar'),
     text: verbunden
-      ? `${calendar.status?.provider === 'microsoft' ? 'Outlook' : 'Kalender'} · Headhunter schlagen Interview-Termine in Ihren freien Zeiten vor.`
-      : 'Headhunter schlagen Interview-Termine dann direkt in Ihren freien Zeiten vor.',
+      ? t('prep.calendarDoneText', { provider: calendar.status?.provider === 'microsoft' ? 'Outlook' : t('prep.calendarWord') })
+      : t('prep.calendarText'),
     erledigt: verbunden,
     aktion: verbunden
-      ? <button type="button" className="text-xs text-primary hover:underline" onClick={() => navigate('/dashboard/settings?bereich=kalender')}>Ändern</button>
-      : <Button variant="outline" size="sm" onClick={() => navigate('/dashboard/settings?bereich=kalender')}>Verbinden</Button>,
+      ? <button type="button" className="text-xs text-primary hover:underline" onClick={() => navigate('/dashboard/settings?bereich=kalender')}>{t('prep.change')}</button>
+      : <Button variant="outline" size="sm" onClick={() => navigate('/dashboard/settings?bereich=kalender')}>{t('prep.connect')}</Button>,
   });
 
   if (canInvite && organizationId) {
@@ -57,10 +58,15 @@ export function JobPrepChecklist({ jobId, jobTitle, organizationId, userId, canI
     const dabei = kollegen.length > 0;
     punkte.push({
       key: 'team',
-      titel: dabei ? 'Kollegen sind dabei' : 'Kollegen dazuholen',
+      titel: dabei ? t('prep.teamDone') : t('prep.team'),
       text: dabei
-        ? `${kollegen.map((m) => m.full_name || m.email).filter(Boolean).slice(0, 3).join(', ')}${kollegen.length > 3 ? ` und ${kollegen.length - 3} weitere` : ''} ${kollegen.length === 1 ? 'sieht' : 'sehen'} diese Stelle.`
-        : 'Bisher sehen nur Sie diese Stelle. Wer aus dem Fachbereich soll Kandidaten mit ansehen?',
+        ? (() => {
+          const names = kollegen.map((m) => m.full_name || m.email).filter(Boolean).slice(0, 3).join(', ');
+          return kollegen.length > 3
+            ? t('prep.teamSeesMore', { names, count: kollegen.length - 3 })
+            : t('prep.teamSees', { names, count: kollegen.length });
+        })()
+        : t('prep.teamText'),
       erledigt: dabei,
       aktion: (
         <InviteMemberDialog
@@ -68,8 +74,8 @@ export function JobPrepChecklist({ jobId, jobTitle, organizationId, userId, canI
           jobContext={{ id: jobId, title: jobTitle }}
           onSuccess={() => void team.refetch()}
           trigger={dabei
-            ? <button type="button" className="text-xs text-primary hover:underline">Weitere einladen</button>
-            : <Button variant="outline" size="sm" className="gap-1.5"><UserPlus className="h-3.5 w-3.5" />Einladen</Button>}
+            ? <button type="button" className="text-xs text-primary hover:underline">{t('prep.inviteMore')}</button>
+            : <Button variant="outline" size="sm" className="gap-1.5"><UserPlus className="h-3.5 w-3.5" />{t('prep.invite')}</Button>}
         />
       ),
     });
@@ -77,18 +83,18 @@ export function JobPrepChecklist({ jobId, jobTitle, organizationId, userId, canI
 
   if (isOwner) {
     const offen = [
-      ...fehlendeAuftrittAngaben(company.profile).map((f) => AUFTRITT_LABEL[f.feld]),
-      ...(company.profile.logo_url ? [] : ['Logo']),
+      ...fehlendeAuftrittAngaben(company.profile).map((f) => t(`prep.missing.${f.feld}`)),
+      ...(company.profile.logo_url ? [] : [t('prep.missing.logo')]),
     ];
     punkte.push({
       key: 'auftritt',
-      titel: offen.length ? 'Firmenauftritt ergänzen' : 'Firmenauftritt vollständig',
+      titel: offen.length ? t('prep.profile') : t('prep.profileDone'),
       text: offen.length
-        ? `Noch offen: ${offen.join(', ')}. Headhunter nutzen das im ersten Gespräch mit Kandidaten.`
-        : 'Headhunter können Sie im ersten Gespräch gut vorstellen.',
+        ? t('prep.profileText', { items: offen.join(', ') })
+        : t('prep.profileDoneText'),
       erledigt: offen.length === 0,
       aktion: offen.length
-        ? <Button variant="outline" size="sm" onClick={() => navigate('/dashboard/settings?bereich=auftritt')}>Ergänzen</Button>
+        ? <Button variant="outline" size="sm" onClick={() => navigate('/dashboard/settings?bereich=auftritt')}>{t('prep.complete')}</Button>
         : undefined,
     });
   }
@@ -99,7 +105,7 @@ export function JobPrepChecklist({ jobId, jobTitle, organizationId, userId, canI
     return (
       <div className="flex items-center gap-2 rounded-xl border bg-card px-5 py-3 text-sm">
         <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-700"><Check className="h-3.5 w-3.5" /></span>
-        Alles vorbereitet. Sobald die Stelle live ist, kann es losgehen.
+        {t('prep.allDone')}
       </div>
     );
   }
@@ -108,8 +114,8 @@ export function JobPrepChecklist({ jobId, jobTitle, organizationId, userId, canI
     <Card>
       <CardContent className="p-5">
         <div className="flex items-baseline justify-between gap-2">
-          <h3 className="text-sm font-medium">Damit es nach dem Start schnell geht</h3>
-          <span className="text-xs text-muted-foreground">{fertig} von {punkte.length} erledigt</span>
+          <h3 className="text-sm font-medium">{t('prep.title')}</h3>
+          <span className="text-xs text-muted-foreground">{t('prep.progress', { done: fertig, total: punkte.length })}</span>
         </div>
         <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
           <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${(fertig / punkte.length) * 100}%` }} />

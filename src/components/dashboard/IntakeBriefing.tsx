@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -54,9 +56,19 @@ interface Question {
   showIf?: (a: Answers) => boolean;
 }
 
-const WN = 'Weiß ich nicht';
-
+/*
+ * Mehrsprachigkeit: Fragetext, Kapitel und Chips unten sind WERTE -- die Chips werden
+ * als Antwort gespeichert, Fragetext und Antwort gehen über serializeBriefing ins
+ * Briefing. Sie bleiben deutsch. Angezeigt wird über clientDashboard:brief.q.<id>.*
+ * (text, why, c<n> = Stelle in `chips`) und brief.chapter.<n>.
+ */
 const CHAPTERS = ['Kontext', 'Aufgaben', 'Profil', 'Harte K.O.', 'Geld & Flex', 'Arbeitsmodell', 'Sell', 'Prozess', 'Sourcing', 'Sichtbarkeit'];
+
+const showText = (q: Question) => i18n.t(`clientDashboard:brief.q.${q.id}.text`, { defaultValue: q.text }) as string;
+const showChapter = (chapter: string) => {
+  const i = CHAPTERS.indexOf(chapter);
+  return i >= 0 ? (i18n.t(`clientDashboard:brief.chapter.c${i}`, { defaultValue: chapter }) as string) : chapter;
+};
 
 const QUESTIONS: Question[] = [
   // ── Kontext ───────────────────────────────────────────────
@@ -314,7 +326,8 @@ export function openBriefingQuestions(type: JobType, built: BriefBuilt | undefin
   return applicableFor(type, built, answers)
     .filter((q) => !answers[q.id])
     .sort((a, b) => b.weight - a.weight)
-    .map((q) => ({ id: q.id, text: q.text, chapter: q.chapter, weight: q.weight }));
+    // Nur zur Anzeige (Qualitäts-Check), deshalb in der Sprache der Oberfläche.
+    .map((q) => ({ id: q.id, text: showText(q), chapter: showChapter(q.chapter), weight: q.weight }));
 }
 
 export function serializeBriefing(answers: Answers): string {
@@ -337,6 +350,7 @@ interface Props {
 }
 
 export function IntakeBriefing({ type, built, value, onChange, onDone }: Props) {
+  const { t } = useTranslation('clientDashboard');
   const applicable = useMemo(() => applicableFor(type, built, value), [type, built, value]);
 
   const [cursor, setCursor] = useState(0);
@@ -371,12 +385,12 @@ export function IntakeBriefing({ type, built, value, onChange, onDone }: Props) 
       <div className="space-y-4 text-center">
         <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-500" />
         <div>
-          <p className="text-lg font-semibold">Jobaufnahme {completeness}% · Briefing steht</p>
+          <p className="text-lg font-semibold">{t('brief.doneTitle', { pct: completeness })}</p>
           <p className="text-sm text-muted-foreground">
-            Die Recruiter haben jetzt alles für gezieltes, blindes Sourcing.
+            {t('brief.doneLead')}
           </p>
         </div>
-        <Button variant="outline" onClick={() => setCursor(0)}>Antworten ansehen</Button>
+        <Button variant="outline" onClick={() => setCursor(0)}>{t('brief.review')}</Button>
       </div>
     );
   }
@@ -384,6 +398,7 @@ export function IntakeBriefing({ type, built, value, onChange, onDone }: Props) 
   const chapterIdx = CHAPTERS.indexOf(q.chapter);
   const selected = value[q.id];
   const selectedMulti = (selected?.value as string[]) || [];
+  const chipLabel = (chip: string) => t(`brief.q.${q.id}.c${q.chips.indexOf(chip)}`, { defaultValue: chip });
 
   return (
     <div className="space-y-4">
@@ -398,7 +413,7 @@ export function IntakeBriefing({ type, built, value, onChange, onDone }: Props) 
                 i === chapterIdx ? 'bg-primary text-primary-foreground' : i < chapterIdx ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground',
               )}
             >
-              {c}
+              {showChapter(c)}
             </span>
           ))}
         </div>
@@ -413,10 +428,10 @@ export function IntakeBriefing({ type, built, value, onChange, onDone }: Props) 
       {/* Frage */}
       <div className="rounded-xl border bg-card p-5">
         <p className="mb-0.5 text-xs uppercase tracking-wider text-muted-foreground">
-          {q.chapter} · Frage {idx + 1} von {applicable.length}
+          {t('brief.questionOf', { chapter: showChapter(q.chapter), n: idx + 1, total: applicable.length })}
         </p>
-        <p className="text-base font-semibold">{q.text}</p>
-        {q.why && <p className="mt-1 text-xs text-muted-foreground">{q.why}</p>}
+        <p className="text-base font-semibold">{showText(q)}</p>
+        {q.why && <p className="mt-1 text-xs text-muted-foreground">{t(`brief.q.${q.id}.why`, { defaultValue: q.why })}</p>}
 
         <div className="mt-4 flex flex-wrap gap-2">
           {q.chips.map((chip) => {
@@ -436,7 +451,7 @@ export function IntakeBriefing({ type, built, value, onChange, onDone }: Props) 
                     : 'border-input bg-secondary/60 hover:border-primary/40 hover:bg-primary/10',
                 )}
               >
-                {chip}
+                {chipLabel(chip)}
               </button>
             );
           })}
@@ -444,7 +459,7 @@ export function IntakeBriefing({ type, built, value, onChange, onDone }: Props) 
             onClick={() => set({ unknown: true })}
             className="inline-flex items-center gap-1 rounded-full border border-dashed px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted"
           >
-            <HelpCircle className="h-3.5 w-3.5" /> {WN}
+            <HelpCircle className="h-3.5 w-3.5" /> {t('brief.unknown')}
           </button>
         </div>
 
@@ -454,7 +469,7 @@ export function IntakeBriefing({ type, built, value, onChange, onDone }: Props) 
               value={freeText}
               onChange={(e) => setFreeText(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && freeText.trim() && set({ value: freeText.trim() })}
-              placeholder="oder frei eingeben …"
+              placeholder={t('brief.freePlaceholder')}
               className="text-sm"
             />
             {freeText.trim() && <Button size="sm" onClick={() => set({ value: freeText.trim() })}>OK</Button>}
@@ -465,20 +480,20 @@ export function IntakeBriefing({ type, built, value, onChange, onDone }: Props) 
       {/* Navigation */}
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" disabled={idx === 0} onClick={() => setCursor((c) => Math.max(0, c - 1))} className="gap-1.5">
-          <ArrowLeft className="h-4 w-4" /> Zurück
+          <ArrowLeft className="h-4 w-4" /> {t('brief.back')}
         </Button>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => set({ unknown: true })}>Überspringen</Button>
+          <Button variant="ghost" size="sm" onClick={() => set({ unknown: true })}>{t('brief.skip')}</Button>
           {q.multi && (
             <Button size="sm" className="gap-1.5" onClick={() => setCursor((c) => c + 1)}>
-              Weiter <ArrowRight className="h-4 w-4" />
+              {t('brief.next')} <ArrowRight className="h-4 w-4" />
             </Button>
           )}
         </div>
       </div>
 
       <div className="text-center">
-        <Badge variant="secondary" className="text-xs">Übergabe ist jederzeit möglich — nichts ist Pflicht</Badge>
+        <Badge variant="secondary" className="text-xs">{t('brief.noPressure')}</Badge>
       </div>
     </div>
   );

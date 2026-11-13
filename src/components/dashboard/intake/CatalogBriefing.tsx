@@ -1,4 +1,6 @@
+import i18n from '@/i18n';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +12,9 @@ import {
   frageText, slotChipWert, slotChips, slotLabel,
   type BriefQuestion, type BriefSlot, type CatalogState, type Known,
 } from '@/lib/briefCatalog';
+import {
+  chipLabelT, frageChapterT, frageIntroT, frageTextT, frageWhyT, slotLabelNachKeyT, slotLabelT, slotPlaceholderT, wertAnzeigeT,
+} from '@/lib/briefCatalogText';
 import { AlertTriangle, Check, CheckCircle2, Circle, Loader2, Sparkles } from 'lucide-react';
 
 /**
@@ -56,7 +61,10 @@ interface Props {
   pflichtBriefing?: boolean;
 }
 
-/** Anzeige eines bereits bekannten Werts in der Bestaetigungszeile. */
+/**
+ * Ein Wert als Text fuer die ANTWORT AN DIE KI (bleibt deutsch, wie gespeichert).
+ * Auf dem Bildschirm steht stattdessen wertAnzeigeT.
+ */
 const zeige = (v: unknown): string => {
   if (Array.isArray(v)) return v.join(' · ');
   if (v && typeof v === 'object') {
@@ -70,19 +78,17 @@ const zeige = (v: unknown): string => {
   return String(v ?? '');
 };
 
-const QUELLE: Record<string, string> = {
-  ad: 'aus der Anzeige gelesen — bitte prüfen',
-  enrich: 'aus dem Impressum',
-  inherit: 'aus Ihrem Firmenprofil',
-  // Vorher stand hier "aus Ihrer Antwort abgeleitet" -- auch dann, wenn der
-  // Wert aus der Stellenanzeige stammte und der Kunde nichts geantwortet
-  // hatte. Eine Modellvermutung als Kundenaussage auszuweisen ist der
-  // schwerste Vertrauensfehler, den diese Oberflaeche machen kann.
-  derive: 'aus Ihren Angaben abgeleitet — bitte prüfen',
-  answer: '',
-};
+// Herkunft eines Werts; die Beschriftung steht unter intake:shared.source.<quelle>.
+// 'derive' heisst "aus Ihren Angaben abgeleitet -- bitte pruefen". Vorher stand
+// dort "aus Ihrer Antwort abgeleitet" -- auch dann, wenn der Wert aus der
+// Stellenanzeige stammte und der Kunde nichts geantwortet hatte. Eine
+// Modellvermutung als Kundenaussage auszuweisen ist der schwerste
+// Vertrauensfehler, den diese Oberflaeche machen kann. 'answer' hat keinen Hinweis.
+const QUELLEN = ['ad', 'enrich', 'inherit', 'derive'];
 
 export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi, pflichtBriefing = false }: Props) {
+  const { t } = useTranslation(['intake', 'intakeCatalog']);
+  const quelleText = (from: string | undefined) => (from && QUELLEN.includes(from) ? t(`shared.source.${from}`) : '');
   /** Entwurf der Antworten auf die gerade sichtbaren Zeilen. */
   const [entwurf, setEntwurf] = useState<Record<string, unknown>>({});
   const [followUp, setFollowUp] = useState<FollowUp | null>(null);
@@ -174,7 +180,7 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi,
         };
         const data = askAi
           ? await askAi(request)
-          : await supabase.functions.invoke('intake-questions', { body: request })
+          : await supabase.functions.invoke('intake-questions', { body: { ...request, lang: i18n.language } })
               .then((r) => { if (r.error) throw r.error; return r.data as Record<string, any>; });
 
         if (meine !== nr.current) return;
@@ -306,7 +312,7 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi,
     };
     (askAi
       ? askAi(request)
-      : supabase.functions.invoke('intake-questions', { body: request })
+      : supabase.functions.invoke('intake-questions', { body: { ...request, lang: i18n.language } })
           .then((r) => { if (r.error) throw r.error; return r.data as Record<string, any>; }))
       .then((data) => {
         const neu = data?.answer_suggestions;
@@ -325,11 +331,11 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi,
     return (
       <div className="rounded-xl border bg-card p-5 text-center">
         <CheckCircle2 className="mx-auto mb-2 h-6 w-6 text-primary" />
-        <p className="text-sm font-semibold">Das Briefing ist vollständig.</p>
+        <p className="text-sm font-semibold">{t('briefing.completeTitle')}</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Alle {fortschritt.dialogGesamt} Fragen des Gesprächs sind beantwortet.
+          {t('briefing.completeText', { total: fortschritt.dialogGesamt })}
         </p>
-        <Button className="mt-3" size="sm" onClick={onDone}>Weiter</Button>
+        <Button className="mt-3" size="sm" onClick={onDone}>{t('shared.next')}</Button>
       </div>
     );
   }
@@ -399,15 +405,15 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi,
     <div className="space-y-3">
       {/* ---- Fortschritt: gerechnet, in Fragen statt Prozent ---- */}
       <div className="flex items-center gap-2 text-xs">
-        <span className="font-semibold">Briefing</span>
+        <span className="font-semibold">{t('briefing.title')}</span>
         <span className="text-muted-foreground">
-          {fortschritt.dialogGesamt - fortschritt.dialogOffen} von {fortschritt.dialogGesamt} Fragen
+          {t('briefing.progress', { done: fortschritt.dialogGesamt - fortschritt.dialogOffen, total: fortschritt.dialogGesamt })}
         </span>
         <div className="ml-auto flex gap-0.5">
           {DIALOG_QUESTIONS.map((q) => (
             <span
               key={q.key}
-              title={frageText(q, type)}
+              title={frageTextT(q, type)}
               className={cn(
                 'h-1 w-4 rounded-full',
                 state.askedQuestions.includes(q.key) ? 'bg-primary' : 'bg-muted',
@@ -420,12 +426,12 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi,
       {/* ---- Die Katalogfrage ---- */}
       <div className="rounded-xl border bg-card p-4">
         <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {frage.chapter}
+          {frageChapterT(frage)}
         </p>
         {frage.intro && (
-          <p className="mb-1 text-xs italic text-muted-foreground">{frage.intro}</p>
+          <p className="mb-1 text-xs italic text-muted-foreground">{frageIntroT(frage)}</p>
         )}
-        <p className="mb-3 text-sm font-medium leading-snug">{frageText(frage, type)}</p>
+        <p className="mb-3 text-sm font-medium leading-snug">{frageTextT(frage, type)}</p>
 
         {/* Was schon dasteht — gezeigt statt gefragt. */}
         {bestaetigen.length > 0 && (
@@ -433,11 +439,11 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi,
             {bestaetigen.map((s) => (
               <p key={s.key} className="flex items-start gap-1.5 text-xs">
                 <Check className="mt-0.5 h-3 w-3 shrink-0 text-primary" />
-                <span className="text-muted-foreground">{slotLabel(s, type)}:</span>
-                <span className="font-medium">{zeige(state.known[s.key]?.value)}</span>
-                {QUELLE[state.known[s.key]?.from ?? ''] && (
+                <span className="text-muted-foreground">{slotLabelT(s, type)}:</span>
+                <span className="font-medium">{wertAnzeigeT(s.key, state.known[s.key]?.value, type)}</span>
+                {quelleText(state.known[s.key]?.from) && (
                   <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
-                    {QUELLE[state.known[s.key]!.from]}
+                    {quelleText(state.known[s.key]?.from)}
                   </span>
                 )}
               </p>
@@ -450,18 +456,18 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi,
           {fragen.map((s) => (
             <div key={s.key}>
               <p className="mb-1.5 flex flex-wrap items-baseline gap-x-1.5 text-xs text-muted-foreground">
-                {slotLabel(s, type)}
-                {!s.required && <span className="text-[10px]">(optional)</span>}
-                {QUELLE[state.known[s.key]?.from ?? ''] && (
+                {slotLabelT(s, type)}
+                {!s.required && <span className="text-[10px]">{t('shared.optional')}</span>}
+                {quelleText(state.known[s.key]?.from) && (
                   <span className="text-[10px] italic">
-                    {QUELLE[state.known[s.key]!.from]}
+                    {quelleText(state.known[s.key]?.from)}
                   </span>
                 )}
               </p>
               {/* Der Chip nennt die Ebene, die Anzeige die Rolle ("Werkleiter"). */}
               {typeof state.known[`${s.key}__wortlaut`]?.value === 'string' && (
                 <p className="-mt-1 mb-1.5 text-[10px] text-amber-600">
-                  laut Anzeige: „{String(state.known[`${s.key}__wortlaut`]!.value)}“
+                  {t('briefing.fromAd', { text: String(state.known[`${s.key}__wortlaut`]!.value) })}
                 </p>
               )}
               <SlotEingabe
@@ -478,20 +484,20 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi,
         <div className="mt-3 flex items-center gap-2 border-t pt-3">
           <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-muted-foreground"
                   onClick={() => absenden(true)}>
-            Weiß ich nicht
+            {t('shared.dontKnow')}
           </Button>
           {!kannWeiter && (
             <span className="ml-auto text-[11px] text-amber-600">
-              Es fehlt: {fehlendePflicht.map((s) => slotLabel(s, type)).join(', ')}
+              {t('briefing.missing', { fields: fehlendePflicht.map((s) => slotLabelT(s, type)).join(', ') })}
             </span>
           )}
           <Button size="sm" className={cn('h-7 px-3 text-xs', kannWeiter && 'ml-auto')}
                   disabled={!kannWeiter} onClick={() => absenden()}>
-            Weiter
+            {t('shared.next')}
           </Button>
         </div>
         <p className="mt-2 flex items-start gap-1.5 text-[11px] text-muted-foreground">
-          <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-primary/60" /> {frage.why}
+          <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-primary/60" /> {frageWhyT(frage)}
         </p>
       </div>
 
@@ -499,7 +505,7 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi,
       {followUp && (
         <div className="rounded-xl border border-primary/40 bg-primary/5 p-4">
           <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
-            <Sparkles className="h-3 w-3" /> Nachfrage
+            <Sparkles className="h-3 w-3" /> {t('briefing.followUp')}
           </p>
           <p className="mb-2.5 text-sm font-medium leading-snug">{followUp.question}</p>
           {followUp.chips.length > 0 && (
@@ -523,7 +529,7 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi,
           )}
           <div className="flex gap-2">
             <Input value={fuText} onChange={(e) => setFuText(e.target.value)}
-                   placeholder="Ergänzen …" className="h-7 text-xs"
+                   placeholder={t('briefing.addPlaceholder')} className="h-7 text-xs"
                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); followUpAbsenden(); } }} />
             <Button size="sm" variant="outline" className="h-7 px-2 text-xs"
                     onClick={() => {
@@ -531,9 +537,9 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi,
                       onState((p) => ({ ...p, askedFollowups: [...p.askedFollowups, id] }));
                       setFollowUp(null); setFuAuswahl([]); setFuText('');
                     }}>
-              Überspringen
+              {t('shared.skip')}
             </Button>
-            <Button size="sm" className="h-7 px-3 text-xs" onClick={followUpAbsenden}>OK</Button>
+            <Button size="sm" className="h-7 px-3 text-xs" onClick={followUpAbsenden}>{t('shared.ok')}</Button>
           </div>
           {followUp.why && <p className="mt-2 text-[11px] text-muted-foreground">{followUp.why}</p>}
         </div>
@@ -543,7 +549,7 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi,
       {state.conflicts.map((c, i) => (
         <div key={`${c.slot}-${i}`} className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-2.5 text-xs">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
-          <span>{c.note || `Zu „${c.slot}" steht schon „${c.existing}" — jetzt „${c.neu}".`}</span>
+          <span>{c.note || t('briefing.conflict', { slot: slotLabelNachKeyT(c.slot, type), existing: wertAnzeigeT(c.slot, c.existing, type), neu: wertAnzeigeT(c.slot, c.neu, type) })}</span>
           <button type="button" className="ml-auto shrink-0 text-muted-foreground hover:text-foreground"
                   onClick={() => onState((p) => ({ ...p, conflicts: p.conflicts.filter((_, j) => j !== i) }))}>
             ×
@@ -554,7 +560,7 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi,
       {/* ---- Was noch fehlt: das Ende ist sichtbar ---- */}
       <div className="rounded-xl border bg-card p-3">
         <p className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Was noch fehlt
+          {t('briefing.stillOpen')}
           {laeuft && <Loader2 className="h-3 w-3 animate-spin" />}
         </p>
         {(() => {
@@ -582,22 +588,22 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi,
                       gefuellt gezeigt, damit sichtbar ist, was Gewicht hat. */}
                   <Circle className={cn('mt-1 h-2 w-2 shrink-0',
                     q.order <= 30 ? 'fill-primary text-primary' : 'text-muted-foreground')} />
-                  <span className="line-clamp-1">{frageText(q, type)}</span>
+                  <span className="line-clamp-1">{frageTextT(q, type)}</span>
                 </p>
               ))}
               {rest.length > 7 && (
-                <p className="pl-3.5 text-xs text-muted-foreground">… und {rest.length - 7} weitere</p>
+                <p className="pl-3.5 text-xs text-muted-foreground">{t('briefing.andMore', { count: rest.length - 7 })}</p>
               )}
               {rest.length === 0 && (
-                <p className="text-xs text-muted-foreground">Das war die letzte Frage.</p>
+                <p className="text-xs text-muted-foreground">{t('briefing.wasLast')}</p>
               )}
             </div>
           );
         })()}
         <p className="mt-2 border-t pt-2 text-[11px] text-muted-foreground">
           {pflichtBriefing
-            ? 'Jede Frage einmal beantworten — „Weiß ich nicht“ zählt auch.'
-            : 'Sie können jederzeit übergeben — Lücken lassen sich später ergänzen.'}
+            ? t('briefing.hintRequired')
+            : t('briefing.hintAnytime')}
         </p>
       </div>
     </div>
@@ -631,6 +637,7 @@ export function SlotEingabe({
   onSet: (v: unknown) => void;
   onToggle: (chip: string) => void;
 }) {
+  const { t } = useTranslation(['intake', 'intakeCatalog']);
   const gewaehlt = Array.isArray(wert) ? (wert as string[]) : [];
   /**
    * Ein markierter Chip, der nur ein Vorschlag ist, wird durch den Klick
@@ -669,7 +676,7 @@ export function SlotEingabe({
                 (multi
                   ? onToggle(c)
                   : onSet(an && !nurVorschlag ? undefined : slotChipWert(slot, contract, c)))}
-              title={laut && !an ? 'So steht es in Ihrer Anzeige' : undefined}
+              title={laut && !an ? t('etappen.anzeige.optionTitle') : undefined}
               className={cn(
                 'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs transition-colors',
                 an ? 'border-primary bg-primary/10 text-foreground'
@@ -677,13 +684,13 @@ export function SlotEingabe({
                    : 'border-input text-muted-foreground hover:bg-accent hover:text-foreground',
               )}>
               {an && <Check className="h-2.5 w-2.5 shrink-0" />}
-              {c}
+              {chipLabelT(slot, contract, c)}
             </button>
           );
         })}
         {multi && slot.eigene && (
           <div className="basis-full">
-            <EigeneEintraege alle={gewaehlt} chips={slotChips(slot, contract) ?? []} placeholder={slot.placeholder} onChange={onSet} />
+            <EigeneEintraege alle={gewaehlt} chips={slotChips(slot, contract) ?? []} placeholder={slotPlaceholderT(slot)} onChange={onSet} />
           </div>
         )}
       </div>
@@ -694,10 +701,10 @@ export function SlotEingabe({
     const v = (wert ?? {}) as { min?: string; max?: string };
     return (
       <div className="flex items-center gap-2">
-        <Input type="number" placeholder="von" value={v.min ?? ''} className="h-8 text-xs"
+        <Input type="number" placeholder={t('briefing.rangeFrom')} value={v.min ?? ''} className="h-8 text-xs"
                onChange={(e) => onSet({ ...v, min: e.target.value })} />
-        <span className="text-xs text-muted-foreground">bis</span>
-        <Input type="number" placeholder="bis" value={v.max ?? ''} className="h-8 text-xs"
+        <span className="text-xs text-muted-foreground">{t('briefing.rangeTo')}</span>
+        <Input type="number" placeholder={t('briefing.rangeTo')} value={v.max ?? ''} className="h-8 text-xs"
                onChange={(e) => onSet({ ...v, max: e.target.value })} />
       </div>
     );
@@ -705,13 +712,13 @@ export function SlotEingabe({
 
   if (slot.form === 'short') {
     return <Input value={String(wert ?? '')} className="h-8 text-xs"
-                  placeholder={slot.placeholder}
+                  placeholder={slotPlaceholderT(slot)}
                   onChange={(e) => onSet(e.target.value)} />;
   }
 
   if (slot.form === 'number') {
     return <Input type="number" value={String(wert ?? '')} className="h-8 text-xs"
-                  placeholder={slot.placeholder}
+                  placeholder={slotPlaceholderT(slot)}
                   onChange={(e) => onSet(e.target.value)} />;
   }
 
@@ -783,7 +790,7 @@ export function SlotEingabe({
     <div>
       {!angebote?.length && laedt && (
         <p className="mb-1.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          <Loader2 className="h-3 w-3 animate-spin" /> Vorschläge passend zur Rolle …
+          <Loader2 className="h-3 w-3 animate-spin" /> {t('briefing.suggestionsLoading')}
         </p>
       )}
       {angebote?.length ? (
@@ -803,13 +810,13 @@ export function SlotEingabe({
                     : 'border-input text-muted-foreground hover:bg-accent hover:text-foreground',
               )}
             >
-              + {c}
+              + {chipLabelT(slot, contract, c)}
             </button>
           ))}
         </div>
       ) : null}
       <Textarea value={text} rows={slot.form === 'ai' ? 3 : 2}
-                placeholder={angebote?.length ? 'Anklicken oder selbst schreiben …' : 'In Ihren Worten …'}
+                placeholder={angebote?.length ? t('briefing.clickOrWrite') : t('briefing.ownWords')}
                 className="text-xs"
                 onChange={(e) => textSetzen(e.target.value)} />
     </div>
@@ -818,11 +825,12 @@ export function SlotEingabe({
 
 /** Freie Aufzaehlung ohne Vorgaben — fuer die drei Muss-Kriterien. */
 function FreieListe({ werte, onChange }: { werte: string[]; onChange: (v: string[]) => void }) {
+  const { t } = useTranslation(['intake', 'intakeCatalog']);
   const [neu, setNeu] = useState('');
   const hinzu = () => {
-    const t = neu.trim();
-    if (!t || werte.includes(t)) return;
-    onChange([...werte, t]);
+    const eintrag = neu.trim();
+    if (!eintrag || werte.includes(eintrag)) return;
+    onChange([...werte, eintrag]);
     setNeu('');
   };
   return (
@@ -838,7 +846,7 @@ function FreieListe({ werte, onChange }: { werte: string[]; onChange: (v: string
         </div>
       )}
       <div className="flex gap-2">
-        <Input value={neu} onChange={(e) => setNeu(e.target.value)} placeholder="Eintragen und Enter …"
+        <Input value={neu} onChange={(e) => setNeu(e.target.value)} placeholder={t('briefing.enterAndReturn')}
                className="h-8 text-xs"
                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); hinzu(); } }} />
         <Button size="sm" variant="outline" className="h-8 px-2 text-xs" disabled={!neu.trim()} onClick={hinzu}>

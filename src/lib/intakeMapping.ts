@@ -11,6 +11,7 @@
  * Es bildet denselben Entwurf auf die jobs-Zeile ab; Deno kann nicht aus src/
  * importieren. Wer hier etwas ändert, ändert es dort mit.
  */
+import i18n from '@/i18n';
 import { chipTreffer, sizeBand } from './briefCatalog';
 import {
   aufbauAusAnzeige, teamgroesseAus, type TeamStructureParsed,
@@ -638,9 +639,20 @@ export const toBriefBuilt = (j: BuiltJob): BriefBuilt => ({
   usps: j.usps,
 });
 
-export const remoteLabel = (r: string) => (r === 'remote' ? 'Remote' : r === 'onsite' ? 'Vor Ort' : 'Hybrid');
+/*
+ * Anzeige von Arbeitsmodell und Erfahrung in der Sprache des Lesers
+ * (intake: shared.remote.*, shared.level.*). Gelesen wird beim Aufruf; ist der
+ * Namespace `intake` auf einer Seite nicht geladen, steht der deutsche Text da.
+ */
+export const remoteLabel = (r: string) =>
+  r === 'remote' ? i18n.t('intake:shared.remote.remote', { defaultValue: 'Remote' })
+    : r === 'onsite' ? i18n.t('intake:shared.remote.onsite', { defaultValue: 'Vor Ort' })
+      : i18n.t('intake:shared.remote.hybrid', { defaultValue: 'Hybrid' });
 export const levelLabel = (l: string) =>
-  l === 'junior' ? 'Junior' : l === 'senior' ? 'Senior' : l === 'lead' ? 'Lead' : 'Mid-Level';
+  l === 'junior' ? i18n.t('intake:shared.level.junior', { defaultValue: 'Junior' })
+    : l === 'senior' ? i18n.t('intake:shared.level.senior', { defaultValue: 'Senior' })
+      : l === 'lead' ? i18n.t('intake:shared.level.lead', { defaultValue: 'Lead' })
+        : i18n.t('intake:shared.level.mid', { defaultValue: 'Mid-Level' });
 
 /** Der vollständige, serialisierbare Zustand einer Aufnahme. */
 export interface IntakeDraftState {

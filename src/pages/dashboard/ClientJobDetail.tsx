@@ -68,6 +68,7 @@ import { CloseJobDialog } from '@/components/client/job-manage/CloseJobDialog';
 import { JobSearchersCard } from '@/components/client/searchers/JobSearchersCard';
 import { DirectPositionBanner } from '@/components/client/searchers/DirectPositionBanner';
 import { errorText, resumeJob } from '@/lib/jobSearch';
+import { fmtDayMonth, fmtNumber } from '@/lib/localeFormat';
 
 interface JobSummary {
   key_facts: { icon: string; label: string; value: string }[];
@@ -129,6 +130,7 @@ export default function ClientJobDetail() {
   const openIntake = () => navigate(`/dashboard/aufnahme/${id}`, { state: { from: `/dashboard/jobs/${id}` } });
   const { user } = useAuth();
   const { t } = useTranslation();
+  const { t: tj } = useTranslation('clientJobDetail');
   const { toast } = useToast();
   const {
     organization: myOrg,
@@ -295,14 +297,14 @@ export default function ClientJobDetail() {
       }
       setSubmittingReview(false);
       if (error) {
-        toast({ title: 'Einreichen fehlgeschlagen', variant: 'destructive' });
+        toast({ title: tj('toast.submitError'), variant: 'destructive' });
         return;
       }
       if (target.status === 'pending_client_approval' && target.organizationId) {
         await notifyApproversOfIntake(target.organizationId, job.id, job.title, user?.id);
-        toast({ title: 'Zur internen Freigabe eingereicht — Admin/HR Ihres Teams wurden benachrichtigt.' });
+        toast({ title: tj('toast.submittedInternal') });
       } else {
-        toast({ title: 'Zur Prüfung eingereicht — wir benachrichtigen Sie, sobald die Stelle live ist.' });
+        toast({ title: tj('toast.submitted') });
       }
       fetchJobData();
     };
@@ -310,7 +312,7 @@ export default function ClientJobDetail() {
     const withdraw = async () => {
       const { error } = await supabase.from('jobs').update({ status: 'draft' }).eq('id', job.id);
       if (!error) {
-        toast({ title: 'Zurückgezogen — die Stelle ist wieder ein Entwurf.' });
+        toast({ title: tj('toast.withdrawn') });
         fetchJobData();
       }
     };
@@ -332,13 +334,13 @@ export default function ClientJobDetail() {
         .eq('id', job.id);
       setDecidingIntake(false);
       if (error) {
-        toast({ title: 'Freigabe fehlgeschlagen', variant: 'destructive' });
+        toast({ title: tj('toast.approveError'), variant: 'destructive' });
         return;
       }
       if (jobCreatorId && jobCreatorId !== user?.id) {
         await notifyCreatorOfDecision(jobCreatorId, job.id, job.title, 'approved');
       }
-      toast({ title: 'Freigegeben — die Stelle geht jetzt an Matchunt zur Prüfung.' });
+      toast({ title: tj('toast.approved') });
       fetchJobData();
     };
 
@@ -351,7 +353,7 @@ export default function ClientJobDetail() {
         .eq('id', job.id);
       setDecidingIntake(false);
       if (error) {
-        toast({ title: 'Zurückgeben fehlgeschlagen', variant: 'destructive' });
+        toast({ title: tj('toast.returnError'), variant: 'destructive' });
         return;
       }
       if (jobCreatorId && jobCreatorId !== user?.id) {
@@ -359,7 +361,7 @@ export default function ClientJobDetail() {
       }
       setShowReturnDialog(false);
       setReturnNoteDraft('');
-      toast({ title: 'Zurückgegeben — der Fachbereich wurde benachrichtigt.' });
+      toast({ title: tj('toast.returned') });
       fetchJobData();
     };
 
@@ -370,8 +372,8 @@ export default function ClientJobDetail() {
     const descriptor: string | null = raw.reveal_envelope?.descriptor ?? null;
     const ortZeile = [
       job.location,
-      [job.remote_type ? ({ remote: 'Remote', hybrid: 'Hybrid', onsite: 'Vor Ort' } as Record<string, string>)[job.remote_type] : null,
-        job.onsite_days_required ? `${job.onsite_days_required} Tage vor Ort` : null].filter(Boolean).join(', '),
+      [job.remote_type ? t(`jobdetail.remote.${job.remote_type}`, { defaultValue: job.remote_type }) : null,
+        job.onsite_days_required ? t('jobdetail.stelle.onsite_days', { count: job.onsite_days_required }) : null].filter(Boolean).join(', '),
     ].filter(Boolean).join(' · ');
     // Honorar nur für Owner/Admin/Finance (wie im Live-Cockpit).
     const darfHonorar = !orgLoading && (!myOrg || ['owner', 'admin', 'finance'].includes(myOrgRole ?? ''));
@@ -379,14 +381,16 @@ export default function ClientJobDetail() {
     // 02.11.2026 trotzdem 'core' -- auch die zeigen hier nichts.
     const paketKey: string | undefined = job.employment_type === 'freelance' ? undefined : raw.intake_payload?.commercial?.package_key;
     const paketName = paketKey ? ({ core: 'Core', continuity_90: 'Continuity 90', continuity_180: 'Continuity 180' } as Record<string, string>)[paketKey] ?? paketKey : null;
-    const paket = paketName ? `Paket ${paketName}${darfHonorar && job.fee_percentage ? ` ${job.fee_percentage} %` : ''}` : null;
+    const paket = paketName
+      ? darfHonorar && job.fee_percentage ? tj('draft.packageFee', { name: paketName, pct: job.fee_percentage }) : tj('draft.package', { name: paketName })
+      : null;
 
     return (
       <DashboardLayout>
         <div className="mx-auto max-w-4xl space-y-4">
           <Link to="/dashboard/jobs" className="inline-flex items-center text-sm text-muted-foreground transition-colors hover:text-foreground">
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Zurück zur Übersicht
+            {t('jobdetail.back')}
           </Link>
 
           {phase === 'returned' && (
@@ -394,10 +398,10 @@ export default function ClientJobDetail() {
               <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold">
-                  {reviewRejectionReason ? 'Aus der Prüfung zurückgegeben' : 'Vom Team zurückgegeben'}
+                  {reviewRejectionReason ? tj('draft.returnedReview') : tj('draft.returnedTeam')}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Grund: {reviewRejectionReason || clientReturnNote}
+                  {tj('draft.reason', { reason: reviewRejectionReason || clientReturnNote })}
                 </p>
               </div>
             </div>
@@ -412,13 +416,13 @@ export default function ClientJobDetail() {
                   <Clock className="h-3 w-3" /> {verlauf.kurz}
                 </Badge>
               ) : (
-                <Badge variant="secondary" className="text-xs">Entwurf</Badge>
+                <Badge variant="secondary" className="text-xs">{tj('draft.badge')}</Badge>
               )}
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
               {phase === 'review' || phase === 'client_approval'
-                ? [eingereichtAm ? `Eingereicht am ${eingereichtAm}` : 'Eingereicht', ortZeile, paket].filter(Boolean).join(' · ')
-                : `zuletzt bearbeitet vor ${Math.max(0, Math.floor((Date.now() - new Date((raw.updated_at as string) || job.created_at).getTime()) / 86_400_000))} Tagen${job.location ? ` · ${job.location}` : ''}${job.remote_type ? ` · ${job.remote_type === 'remote' ? 'Remote' : job.remote_type === 'onsite' ? 'Vor Ort' : 'Hybrid'}` : ''}`}
+                ? [eingereichtAm ? tj('draft.submittedOn', { date: eingereichtAm }) : tj('draft.submitted'), ortZeile, paket].filter(Boolean).join(' · ')
+                : `${tj('draft.lastEdited', { count: Math.max(0, Math.floor((Date.now() - new Date((raw.updated_at as string) || job.created_at).getTime()) / 86_400_000)) })}${job.location ? ` · ${job.location}` : ''}${job.remote_type ? ` · ${t(`jobdetail.remote.${job.remote_type === 'remote' || job.remote_type === 'onsite' ? job.remote_type : 'hybrid'}`)}` : ''}`}
             </p>
 
             {verlauf && <VerlaufLeiste verlauf={verlauf} className="mt-4" />}
@@ -428,7 +432,7 @@ export default function ClientJobDetail() {
             {phase === 'review' ? (
               <div className="mt-4 flex items-start gap-2 rounded-lg bg-muted/40 p-3 text-sm leading-6">
                 <Clock className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
-                <p>Wir prüfen Ihre Angaben und schreiben daraus die anonyme Anzeige für Headhunter. Fehlt etwas, geben wir Ihnen die Stelle mit einem Hinweis zurück. Sobald sie live ist, bekommen Sie Bescheid.</p>
+                <p>{tj('draft.reviewInfo')}</p>
               </div>
             ) : (
             <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-4">
@@ -437,19 +441,19 @@ export default function ClientJobDetail() {
                   <>
                     <Button variant="hero" size="sm" className="gap-1.5" onClick={approveIntake} disabled={decidingIntake}>
                       {decidingIntake ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-                      Freigeben & an Matchunt senden
+                      {tj('draft.approveSend')}
                     </Button>
                     <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowReturnDialog(true)} disabled={decidingIntake}>
-                      <XCircle className="h-4 w-4" /> Mit Kommentar zurückgeben
+                      <XCircle className="h-4 w-4" /> {tj('draft.returnWithComment')}
                     </Button>
                   </>
                 ) : (
                   <>
                     <span className="text-sm text-muted-foreground">
-                      Admin/HR Ihres Teams wurden benachrichtigt und geben die Aufnahme frei.
+                      {tj('draft.approversNotified')}
                     </span>
                     <Button variant="outline" size="sm" className="gap-1.5" onClick={withdraw}>
-                      <XCircle className="h-4 w-4" /> Zurückziehen
+                      <XCircle className="h-4 w-4" /> {tj('draft.withdraw')}
                     </Button>
                   </>
                 )
@@ -459,7 +463,7 @@ export default function ClientJobDetail() {
                       das Profil ausgearbeitet ist. Vorher kam "Senior Hunter" mit
                       Briefing-Reife 0 durch (24.09.2026). */}
                   <Button variant="hero" size="sm" className="gap-1.5" onClick={openIntake}>
-                    <Sparkles className="h-4 w-4" /> Aufnahme fortsetzen und einreichen
+                    <Sparkles className="h-4 w-4" /> {tj('draft.continueIntake')}
                   </Button>
                 </>
               )}
@@ -486,9 +490,9 @@ export default function ClientJobDetail() {
 
           {phase === 'review' && (
             <p className="text-sm text-muted-foreground">
-              Etwas stimmt nicht oder die Stelle hat sich erledigt?{' '}
+              {tj('draft.supportHint')}{' '}
               <a className="text-primary hover:underline" href={`mailto:support@matchunt.ai?subject=${encodeURIComponent(`Stelle in Prüfung: ${job.title}`)}`}>
-                E-Mail an Matchunt
+                {tj('draft.supportLink')}
               </a>
             </p>
           )}
@@ -497,24 +501,24 @@ export default function ClientJobDetail() {
           <Dialog open={showReturnDialog} onOpenChange={setShowReturnDialog}>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>An den Fachbereich zurückgeben</DialogTitle>
+                <DialogTitle>{tj('returnDialog.title')}</DialogTitle>
                 <DialogDescription>
-                  Die Aufnahme geht als Entwurf zurück. Ihr Kommentar wird dem Ersteller angezeigt.
+                  {tj('returnDialog.description')}
                 </DialogDescription>
               </DialogHeader>
               <Textarea
                 value={returnNoteDraft}
                 onChange={(e) => setReturnNoteDraft(e.target.value)}
-                placeholder="Was soll angepasst werden? (Pflichtfeld)"
+                placeholder={tj('returnDialog.placeholder')}
                 rows={4}
               />
               <DialogFooter>
                 <Button variant="outline" onClick={() => setShowReturnDialog(false)}>
-                  Abbrechen
+                  {tj('returnDialog.cancel')}
                 </Button>
                 <Button onClick={returnIntake} disabled={!returnNoteDraft.trim() || decidingIntake}>
                   {decidingIntake && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Zurückgeben
+                  {tj('returnDialog.submit')}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -565,8 +569,7 @@ export default function ClientJobDetail() {
       : diagnose;
 
   // Schlanker Verlauf aus vorhandenen Daten (echte Event-Tabelle: späteres Thema)
-  const fmtVerlaufDatum = (iso: string) =>
-    new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+  const fmtVerlaufDatum = (iso: string) => fmtDayMonth(iso);
   const verlaufEvents: VerlaufEvent[] = [];
   if (job.approved_at) {
     verlaufEvents.push({ when: job.approved_at, text: t('jobdetail.verlauf.published') });
@@ -601,7 +604,7 @@ export default function ClientJobDetail() {
   const dayRate = job as unknown as { day_rate_min?: number | null; day_rate_max?: number | null };
   const dayRateLabel = dayRate.day_rate_min || dayRate.day_rate_max
     ? [dayRate.day_rate_min, dayRate.day_rate_max].filter((v): v is number => !!v)
-        .map((v) => v.toLocaleString('de-DE')).filter((v, i, a) => a.indexOf(v) === i).join('–')
+        .map((v) => fmtNumber(v)).filter((v, i, a) => a.indexOf(v) === i).join('–')
     : null;
   const salaryLabel =
     job.salary_min && job.salary_max
@@ -623,9 +626,9 @@ export default function ClientJobDetail() {
       ? null
       : job.paused_at
         ? job.pause_until
-          ? `Pausiert bis ${new Date(job.pause_until).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}${job.pause_reason ? ` · ${job.pause_reason}` : ''}`
+          ? `${tj('live.pausedUntil', { date: fmtDayMonth(job.pause_until) })}${job.pause_reason ? ` · ${job.pause_reason}` : ''}`
           : t('jobdetail.meta.paused_since', {
-              date: new Date(job.paused_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }),
+              date: fmtDayMonth(job.paused_at),
             })
         : liveDays === 0
           ? t('jobdetail.meta.live_today')

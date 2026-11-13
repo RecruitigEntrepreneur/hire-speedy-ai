@@ -4,12 +4,13 @@ import { Loader2, Search } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { eurCents, useClientInvoices, type ClientInvoice } from '@/lib/billingApi';
+import { useClientInvoices, type ClientInvoice } from '@/lib/billingApi';
 import { InvoiceHeader, InvoiceRow } from '@/components/rechnungen/InvoiceParts';
-import { dateDe, isCorrection, kpiSubs } from '@/components/rechnungen/invoiceView';
+import { dateDe, eurC as eurCents, isCorrection, kpiSubs } from '@/components/rechnungen/invoiceView';
 import { InvoiceWindow } from '@/components/rechnungen/InvoiceWindow';
 import { InvoiceExport } from '@/components/rechnungen/InvoiceExport';
 import { BillingSettingsForm } from '@/components/rechnungen/BillingSettingsForm';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Kunden-Bereich „Rechnungen“ (Etappe 3, 25.10.2026; Umbau 11.11.2026, K9–K12): eigener
@@ -32,6 +33,7 @@ function Kpi({ label, value, sub, tone }: { label: string; value: string; sub?: 
 
 
 export default function ClientRechnungen() {
+  const { t } = useTranslation('clientInvoices');
   const [params, setParams] = useSearchParams();
   const q = useClientInvoices();
   const [search, setSearch] = useState('');
@@ -67,52 +69,52 @@ export default function ClientRechnungen() {
     : <div className="space-y-1.5"><InvoiceHeader />{rows.map((i) => <InvoiceRow key={i.id} invoice={i} onOpen={() => setWinId(i.id)} />)}</div>;
 
   const TABS: { key: Tab; label: string }[] = [
-    { key: 'op', label: `Offene Posten (${open.length})` },
-    { key: 'alle', label: `Alle Belege (${invoices.length})` },
-    { key: 'zahl', label: `Zahlungen (${(d?.payments.length ?? 0) + reported.length})` },
-    { key: 'exp', label: 'Export' },
-    { key: 'daten', label: 'Rechnungsdaten' },
+    { key: 'op', label: t('page.tabs.op', { count: open.length }) },
+    { key: 'alle', label: t('page.tabs.alle', { count: invoices.length }) },
+    { key: 'zahl', label: t('page.tabs.zahl', { count: (d?.payments.length ?? 0) + reported.length }) },
+    { key: 'exp', label: t('page.tabs.exp') },
+    { key: 'daten', label: t('page.tabs.daten') },
   ];
 
   return (
     <DashboardLayout>
       <div className="mx-auto max-w-4xl space-y-5">
         <div>
-          <h1 className="text-2xl font-bold">Rechnungen</h1>
-          <p className="text-sm text-muted-foreground">Alle Belege von Matchunt{s?.name ? ` an ${s.name}` : ''}, für Buchhaltung und Steuerberater.</p>
+          <h1 className="text-2xl font-bold">{t('page.title')}</h1>
+          <p className="text-sm text-muted-foreground">{s?.name ? t('page.subtitleTo', { name: s.name }) : t('page.subtitle')}</p>
         </div>
 
         {q.isLoading ? (
           <div className="flex justify-center py-12"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
         ) : q.error ? (
-          <p className="text-sm text-destructive">{q.error instanceof Error ? q.error.message : 'Die Rechnungen konnten nicht geladen werden.'}</p>
+          <p className="text-sm text-destructive">{q.error instanceof Error ? q.error.message : t('page.loadError')}</p>
         ) : !d?.canSee ? (
-          <p className="rounded-xl border bg-muted/30 px-4 py-6 text-sm text-muted-foreground">Rechnungen sehen Inhaber, Admins, HR und die Buchhaltung. Wenden Sie sich an Ihren Admin.</p>
+          <p className="rounded-xl border bg-muted/30 px-4 py-6 text-sm text-muted-foreground">{t('page.noAccess')}</p>
         ) : (
           <>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-              <Kpi label="Offen" value={eurCents(d.totals.openCents)} sub={subs?.open} />
-              <Kpi label="Überfällig" value={eurCents(d.totals.overdueCents)} tone={d.totals.overdueCents ? 'bad' : undefined} sub={subs?.overdue} />
-              <Kpi label={`Bezahlt ${new Date().getFullYear()}`} value={eurCents(d.totals.paidYearCents)} sub={subs?.paid} />
+              <Kpi label={t('page.open')} value={eurCents(d.totals.openCents)} sub={subs?.open} />
+              <Kpi label={t('page.overdue')} value={eurCents(d.totals.overdueCents)} tone={d.totals.overdueCents ? 'bad' : undefined} sub={subs?.overdue} />
+              <Kpi label={t('page.paidYear', { year: new Date().getFullYear() })} value={eurCents(d.totals.paidYearCents)} sub={subs?.paid} />
             </div>
 
             {missingAddress && (
               <div className="rounded-xl border border-amber-500/30 bg-amber-500/[0.07] px-4 py-3 text-sm">
-                Ihre Rechnungsanschrift ist unvollständig. Ohne Straße, PLZ und Ort kann Matchunt keine Rechnung freigeben.{' '}
+                {t('page.missingAddress')}{' '}
                 {d.canManage
-                  ? <button type="button" className="font-medium underline underline-offset-2" onClick={() => setTab('daten')}>Rechnungsdaten ergänzen</button>
-                  : 'Bitten Sie Ihren Admin oder die Buchhaltung, sie zu ergänzen.'}
+                  ? <button type="button" className="font-medium underline underline-offset-2" onClick={() => setTab('daten')}>{t('page.completeData')}</button>
+                  : t('page.askAdmin')}
               </div>
             )}
 
             <div className="flex flex-wrap items-center gap-1.5">
-              {TABS.map((t) => <Button key={t.key} size="sm" variant={tab === t.key ? 'default' : 'outline'} className="h-8" onClick={() => setTab(t.key)}>{t.label}</Button>)}
+              {TABS.map((x) => <Button key={x.key} size="sm" variant={tab === x.key ? 'default' : 'outline'} className="h-8" onClick={() => setTab(x.key)}>{x.label}</Button>)}
             </div>
 
             {tab === 'op' && (
               <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">Was noch zu zahlen ist, nach Fälligkeit.</p>
-                {list(open, 'Nichts offen. Alle Rechnungen sind bezahlt.')}
+                <p className="text-sm text-muted-foreground">{t('page.openIntro')}</p>
+                {list(open, t('page.nothingOpen'))}
               </div>
             )}
 
@@ -120,18 +122,18 @@ export default function ClientRechnungen() {
               <div className="space-y-3">
                 <div className="flex flex-wrap items-center gap-1.5">
                   {years.length > 0 && years.map((y) => <Button key={y} size="sm" variant={year === y ? 'secondary' : 'outline'} className="h-7 text-xs" onClick={() => setYear(year === y ? '' : y)}>{y}</Button>)}
-                  <Button size="sm" variant={year ? 'outline' : 'secondary'} className="h-7 text-xs" onClick={() => setYear('')}>alle Jahre</Button>
+                  <Button size="sm" variant={year ? 'outline' : 'secondary'} className="h-7 text-xs" onClick={() => setYear('')}>{t('page.allYears')}</Button>
                   <div className="relative ml-auto w-full sm:w-56">
                     <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                    <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Nummer, Name, Bestellnummer" className="h-8 pl-8 text-sm" aria-label="Suchen" />
+                    <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('page.searchPlaceholder')} className="h-8 pl-8 text-sm" aria-label={t('page.search')} />
                   </div>
                 </div>
-                {list(filtered(invoices.filter((i) => !isCorrection(i))), search ? 'Nichts gefunden.' : 'Noch keine Rechnungen. Rechnungen entstehen mit einer Einstellung.')}
+                {list(filtered(invoices.filter((i) => !isCorrection(i))), search ? t('page.nothingFound') : t('page.noInvoices'))}
                 <div className="rounded-xl border p-4">
-                  <p className="text-sm font-medium">Korrekturen ({invoices.filter(isCorrection).length})</p>
+                  <p className="text-sm font-medium">{t('page.corrections', { count: invoices.filter(isCorrection).length })}</p>
                   {invoices.some(isCorrection)
-                    ? <div className="mt-2">{list(filtered(invoices.filter(isCorrection)), 'Nichts gefunden.')}</div>
-                    : <p className="text-sm text-muted-foreground">Erscheinen hier mit Bezug zur Rechnung, z. B. eine Korrektur. Sie storniert die alte Rechnung sichtbar.</p>}
+                    ? <div className="mt-2">{list(filtered(invoices.filter(isCorrection)), t('page.nothingFound'))}</div>
+                    : <p className="text-sm text-muted-foreground">{t('page.correctionsHint')}</p>}
                 </div>
               </div>
             )}
@@ -139,22 +141,22 @@ export default function ClientRechnungen() {
             {tab === 'zahl' && (
               <div className="space-y-2">
                 {reported.length === 0 && d.payments.length === 0 ? (
-                  <p className="rounded-xl border bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground">Noch keine Zahlung gebucht. Gemeldete Überweisungen stehen hier, bis Matchunt den Eingang bucht.</p>
+                  <p className="rounded-xl border bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground">{t('page.noPayments')}</p>
                 ) : (
                   <div className="divide-y rounded-xl border text-sm">
                     {reported.map((i) => (
                       <button key={`r-${i.id}`} type="button" onClick={() => setWinId(i.id)} className="flex w-full justify-between gap-3 px-4 py-2.5 text-left hover:bg-muted/40">
-                        <span>{dateDe(i.reportedPaidOn)} · {i.number} · <span className="text-muted-foreground">von Ihnen gemeldet, Matchunt prüft</span></span>
+                        <span>{dateDe(i.reportedPaidOn)} · {i.number} · <span className="text-muted-foreground">{t('page.reportedByYou')}</span></span>
                         <span className="tabular-nums">{eurCents(i.restCents || i.totalCents)}</span>
                       </button>
                     ))}
                     {d.payments.map((p) => (
                       <button key={`p-${p.key}`} type="button" onClick={() => setWinId(p.invoiceId)} className="flex w-full justify-between gap-3 px-4 py-2.5 text-left hover:bg-muted/40">
-                        <span>{dateDe(p.date)} · {p.number}{p.partial ? ' · Teilzahlung' : ''}</span>
+                        <span>{dateDe(p.date)} · {p.number}{p.partial ? t('page.partial') : ''}</span>
                         <span className="tabular-nums">{eurCents(p.amountCents)}</span>
                       </button>
                     ))}
-                    <div className="flex justify-between gap-3 px-4 py-2.5 font-medium"><span>Bezahlt {new Date().getFullYear()}</span><span className="tabular-nums">{eurCents(d.totals.paidYearCents)}</span></div>
+                    <div className="flex justify-between gap-3 px-4 py-2.5 font-medium"><span>{t('page.paidYearRow', { year: new Date().getFullYear() })}</span><span className="tabular-nums">{eurCents(d.totals.paidYearCents)}</span></div>
                   </div>
                 )}
               </div>

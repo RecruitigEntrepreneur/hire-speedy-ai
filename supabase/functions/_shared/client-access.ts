@@ -3,6 +3,8 @@ import { getPublicAppUrl } from './app-url.ts';
 import { esc, layout, sendIntakeMail } from './intake-mail.ts';
 import { issueLoginLink, LOGIN_LINK_DAYS } from './recruiter-login-link.ts';
 import { CLIENT_LINK_KEY } from './client-code.ts';
+import type { Lang } from './i18n.ts';
+import { clientAccessMailTexts } from './intake-i18n.ts';
 
 /**
  * Zugang des Kunden nach der Gegenzeichnung (Entscheidung 25.09.2026).
@@ -27,29 +29,28 @@ export interface AccessMailArgs {
   email: string;
   /** Beidseitig unterzeichnet; false nur bei Aufträgen ohne Unterschriftslauf. */
   signed: boolean;
+  /** Sprache des Kunden (Entwurf, sonst Link, sonst Profil). Ohne Angabe Deutsch wie bisher. */
+  lang?: Lang | null;
 }
 
 export function clientAccessMail(a: AccessMailArgs, appUrl: string, link: string | null) {
   const auftrag = a.mandateNumber ? ` ${esc(a.mandateNumber)}` : '';
+  const text = clientAccessMailTexts(a.lang, { days: LOGIN_LINK_DAYS });
   const html = layout({
-    preheader: 'Ihr Zugang ist bereit. Ein Klick, dann sind Sie in Ihrem Dashboard.',
-    heading: 'Ihre Position ist auf Matchunt',
-    body: `<p style="margin:0 0 16px 0;">Guten Tag${a.name ? ' ' + esc(a.name) : ''},</p>
-      <p style="margin:0 0 16px 0;">${a.signed
-        ? `Ihr Auftrag${auftrag} ist beidseitig unterzeichnet.`
-        : `wir haben Ihren Auftrag${auftrag} angenommen.`}
-        Ihre Position <strong>${esc(a.title)}</strong> liegt jetzt in Ihrem Matchunt-Bereich.
-        Wir prüfen sie noch einmal und geben sie dann für unsere Recruiter frei.</p>
+    lang: a.lang,
+    preheader: text.preheader,
+    heading: text.heading,
+    body: `<p style="margin:0 0 16px 0;">${text.hello}${a.name ? ' ' + esc(a.name) : ''},</p>
+      <p style="margin:0 0 16px 0;">${a.signed ? text.signed(auftrag) : text.accepted(auftrag)}
+        ${text.placed(`<strong>${esc(a.title)}</strong>`)}</p>
       <p style="margin:0 0 16px 0;padding:10px 12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;">
-        Ihr Zugang: <strong>${esc(a.email)}</strong></p>`,
-    cta: { label: 'Jetzt loslegen', url: `${appUrl}/anmelden${link ? `#${link}` : ''}` },
-    after: (link
-        ? `<p>Der Link ist persönlich und ${LOGIN_LINK_DAYS} Tage gültig. Beim Öffnen senden wir Ihnen einen Anmeldecode an diese Adresse.</p>`
-        : '<p>Auf der Seite geben Sie Ihre Adresse ein, wir senden Ihnen einen Anmeldecode.</p>')
-      + '<p>Bei Fragen antworten Sie einfach auf diese Mail.</p><p>Viele Grüße<br>Ihr Matchunt-Team</p>',
-    footnote: `<a href="${esc(appUrl)}/impressum">Impressum</a> · <a href="${esc(appUrl)}/datenschutz">Datenschutz</a>`,
+        ${text.accessLabel} <strong>${esc(a.email)}</strong></p>`,
+    cta: { label: text.cta, url: `${appUrl}/anmelden${link ? `#${link}` : ''}` },
+    after: `<p>${link ? text.withLink : text.withoutLink}</p>`
+      + `<p>${text.questions}</p><p>${text.regards}</p>`,
+    footnote: `<a href="${esc(appUrl)}/impressum">${text.imprint}</a> · <a href="${esc(appUrl)}/datenschutz">${text.privacy}</a>`,
   });
-  return { subject: 'Ihre Position ist auf Matchunt – jetzt loslegen', html };
+  return { subject: text.subject, html };
 }
 
 /** Konto zu einer Adresse, mit allen Rollen. Headhunter und Kunde teilen sich keine Adresse. */

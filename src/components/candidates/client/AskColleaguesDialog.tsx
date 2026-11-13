@@ -7,8 +7,10 @@ import { InviteMemberDialog } from '@/components/organization/InviteMemberDialog
 import type { TeamMember } from '@/hooks/useTeamData';
 import { useOrganizationInvites } from '@/hooks/useOrganizationInvites';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
+import { intlLocale } from '@/i18n/languages';
 
-const ROLLE: Record<string, string> = { owner: 'Inhaber', admin: 'Admin', hr: 'HR', hiring_manager: 'Fachbereich', viewer: 'Nur lesen', finance: 'Finanzen' };
+const ROLLEN = ['owner', 'admin', 'hr', 'hiring_manager', 'viewer', 'finance'];
 // Inhaber, Admin und HR sehen alle Stellen; Fachbereich und Nur lesen brauchen Zugriff auf diese Stelle.
 const SIEHT_ALLE = ['owner', 'admin', 'hr'];
 
@@ -16,9 +18,9 @@ function fristen() {
   const d = (n: number) => { const x = new Date(); x.setDate(x.getDate() + n); return x; };
   const freitag = (() => { const x = new Date(); x.setDate(x.getDate() + ((5 - x.getDay() + 7) % 7 || 7)); return x; })();
   return [
-    { key: 'morgen', label: 'Morgen', date: d(1) },
-    { key: 'freitag', label: 'Freitag', date: freitag },
-    { key: 'woche', label: 'In einer Woche', date: d(7) },
+    { key: 'morgen', date: d(1) },
+    { key: 'freitag', date: freitag },
+    { key: 'woche', date: d(7) },
   ];
 }
 
@@ -37,6 +39,7 @@ export function AskColleaguesDialog({ open, onOpenChange, members, currentUserId
   jobTitle: string;
   onSend: (args: { content: string; mentionedIds: string[]; grant: TeamMember[] }) => Promise<boolean>;
 }) {
+  const { t, i18n } = useTranslation('clientCandidates');
   const [auswahl, setAuswahl] = useState<string[]>([]);
   const [nachricht, setNachricht] = useState('');
   const [frist, setFrist] = useState('freitag');
@@ -52,7 +55,12 @@ export function AskColleaguesDialog({ open, onOpenChange, members, currentUserId
     const gewaehlt = kollegen.filter((m) => auswahl.includes(m.user_id));
     if (!gewaehlt.length) return;
     const bis = optionen.find((o) => o.key === frist)?.date;
-    const content = `${gewaehlt.map((m) => `@${m.full_name}`).join(' ')} Bitte um Ihre Meinung zu diesem Kandidaten${bis ? ` bis ${bis.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}` : ''}.${nachricht.trim() ? ` ${nachricht.trim()}` : ''}`;
+    // Entwurf in der Sprache des Kunden; die Nachricht schreibt er selbst.
+    const mentions = gewaehlt.map((m) => `@${m.full_name}`).join(' ');
+    const bitte = bis
+      ? t('ask.contentUntil', { mentions, date: bis.toLocaleDateString(intlLocale(i18n.language), { weekday: 'long', day: 'numeric', month: 'long' }) })
+      : t('ask.content', { mentions });
+    const content = `${bitte}${nachricht.trim() ? ` ${nachricht.trim()}` : ''}`;
     const grant = gewaehlt.filter((m) => !SIEHT_ALLE.includes(m.role) && !m.assigned_jobs.some((j) => j.id === jobId));
     setBusy(true);
     const ok = await onSend({ content, mentionedIds: gewaehlt.map((m) => m.user_id), grant });
@@ -69,52 +77,52 @@ export function AskColleaguesDialog({ open, onOpenChange, members, currentUserId
     <Dialog open={open && !inviteOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Kollegen um ihre Meinung bitten</DialogTitle>
-          <DialogDescription>{jobTitle} · Ihre Kollegen sehen den Kandidaten so anonym wie Sie.</DialogDescription>
+          <DialogTitle>{t('ask.title')}</DialogTitle>
+          <DialogDescription>{jobTitle} · {t('ask.description')}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div>
-            <p className="mb-2 text-sm font-medium">Wen?</p>
-            {kollegen.length === 0 && <p className="mb-2 text-sm text-muted-foreground">Noch keine Kollegen im Team.</p>}
+            <p className="mb-2 text-sm font-medium">{t('ask.who')}</p>
+            {kollegen.length === 0 && <p className="mb-2 text-sm text-muted-foreground">{t('ask.noColleagues')}</p>}
             <div className="flex flex-wrap gap-2">
               {kollegen.map((m) => {
                 const an = auswahl.includes(m.user_id);
                 return (
                   <button key={m.user_id} type="button" onClick={() => setAuswahl((a) => (an ? a.filter((x) => x !== m.user_id) : [...a, m.user_id]))}
                     className={cn('rounded-full border px-3 py-1 text-sm', an ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-muted/50')}>
-                    {m.full_name} <span className="text-xs text-muted-foreground">· {ROLLE[m.role] ?? m.role}</span>
+                    {m.full_name} <span className="text-xs text-muted-foreground">· {ROLLEN.includes(m.role) ? t(`ask.roles.${m.role}`) : m.role}</span>
                   </button>
                 );
               })}
               {organizationId && (
                 <button type="button" onClick={() => setInviteOpen(true)} className="inline-flex items-center gap-1 rounded-full border border-dashed border-border px-3 py-1 text-sm text-muted-foreground hover:bg-muted/50">
-                  <UserPlus className="h-3.5 w-3.5" />Kollegen einladen
+                  <UserPlus className="h-3.5 w-3.5" />{t('ask.invite')}
                 </button>
               )}
             </div>
             {offen.length > 0 && (
               <p className="mt-2 text-xs text-muted-foreground">
-                Eingeladen, noch nicht angenommen: {offen.map((i) => i.email).join(', ')}. Nach der Annahme können Sie {offen.length === 1 ? 'diese Person' : 'sie'} hier auswählen.
+                {t('ask.pending', { count: offen.length, emails: offen.map((i) => i.email).join(', ') })}
               </p>
             )}
           </div>
           <div>
-            <p className="mb-2 text-sm font-medium">Nachricht <span className="font-normal text-muted-foreground">(optional)</span></p>
-            <Textarea rows={3} value={nachricht} onChange={(e) => setNachricht(e.target.value)} placeholder="z. B. Passt er fachlich ins Team?" />
+            <p className="mb-2 text-sm font-medium">{t('ask.message')} <span className="font-normal text-muted-foreground">{t('ask.optional')}</span></p>
+            <Textarea rows={3} value={nachricht} onChange={(e) => setNachricht(e.target.value)} placeholder={t('ask.messagePlaceholder')} />
           </div>
           <div>
-            <p className="mb-2 text-sm font-medium">Bitte bis</p>
+            <p className="mb-2 text-sm font-medium">{t('ask.until')}</p>
             <div className="flex flex-wrap gap-2">
               {optionen.map((o) => (
                 <button key={o.key} type="button" onClick={() => setFrist(o.key)}
-                  className={cn('rounded-md border px-3 py-1 text-sm', frist === o.key ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-muted/50')}>{o.label}</button>
+                  className={cn('rounded-md border px-3 py-1 text-sm', frist === o.key ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-muted/50')}>{t(`ask.deadline.${o.key}`)}</button>
               ))}
             </div>
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Abbrechen</Button>
-          <Button onClick={() => void senden()} disabled={busy || auswahl.length === 0}>{busy && <Loader2 className="h-4 w-4 animate-spin" />}Anfragen</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t('ask.cancel')}</Button>
+          <Button onClick={() => void senden()} disabled={busy || auswahl.length === 0}>{busy && <Loader2 className="h-4 w-4 animate-spin" />}{t('ask.send')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

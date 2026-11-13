@@ -4,6 +4,10 @@
  * Zeigt relevante Kontext-Informationen ohne den Firmennamen preiszugeben.
  * Beispiel-Output: "[FinTech | 200–500 MA | Series B | React/Node | Hybrid München]"
  */
+import i18n from '@/i18n';
+
+// Anzeige-Texte beim Aufruf gelesen (Namespace jobBriefing, anon.*).
+const ta = (key: string, options?: Record<string, unknown>): string => i18n.t(`jobBriefing:${key}`, options) as string;
 
 interface AnonymousCompanyParams {
   industry: string | null;
@@ -35,7 +39,7 @@ export function formatAnonymousCompany(params: AnonymousCompanyParams): string {
   if (industry) {
     parts.push(industry);
   } else {
-    parts.push('Unternehmen');
+    parts.push(ta('anon.company'));
   }
 
   // Unternehmensgröße
@@ -78,7 +82,7 @@ export function formatAnonymousCompany(params: AnonymousCompanyParams): string {
  * standen sie doppelt.
  */
 export function formatAnonymousCompanyShort(params: Pick<AnonymousCompanyParams, 'industry' | 'companySize'>): string {
-  const parts = [params.industry || 'Unternehmen'];
+  const parts = [params.industry || ta('anon.company')];
   if (params.companySize) parts.push(formatCompanySize(params.companySize));
   return parts.join(' · ');
 }
@@ -88,9 +92,9 @@ export function formatAnonymousCompanyShort(params: Pick<AnonymousCompanyParams,
  */
 export function formatSimpleAnonymousCompany(industry: string | null): string {
   if (!industry) {
-    return '[Unternehmen]';
+    return ta('anon.companyBracket');
   }
-  return `[${industry}] Unternehmen`;
+  return ta('anon.industryCompany', { industry });
 }
 
 /**
@@ -98,25 +102,21 @@ export function formatSimpleAnonymousCompany(industry: string | null): string {
  */
 function formatCompanySize(size: string): string {
   const sizeMap: Record<string, string> = {
-    '1-50': '1–50 MA',
-    '51-200': '51–200 MA',
-    '201-500': '200–500 MA',
-    '501-1000': '500–1000 MA',
-    '1000+': '1000+ MA',
+    '1-50': '1–50',
+    '51-200': '51–200',
+    '201-500': '200–500',
+    '501-1000': '500–1000',
+    '1000+': '1000+',
   };
-  return sizeMap[size] || size;
+  return sizeMap[size] ? ta('anon.employeesShort', { n: sizeMap[size] }) : size;
 }
 
 /**
  * Formatiert Remote-Type in deutsche Bezeichnung
  */
 export function formatWorkModel(remoteType: string): string {
-  const modelMap: Record<string, string> = {
-    'remote': 'Remote',
-    'hybrid': 'Hybrid',
-    'onsite': 'Vor Ort',
-  };
-  return modelMap[remoteType.toLowerCase()] || remoteType;
+  const key = remoteType.toLowerCase();
+  return ['remote', 'hybrid', 'onsite'].includes(key) ? ta(`anon.${key}`) : remoteType;
 }
 
 /**
@@ -132,12 +132,8 @@ function extractCity(location: string): string {
  * Formatiert Urgency in deutsche Bezeichnung
  */
 function formatUrgency(urgency: string): string {
-  const urgencyMap: Record<string, string> = {
-    'urgent': 'Dringend',
-    'hot': 'Hiring ASAP',
-    'asap': 'Hiring ASAP',
-  };
-  return urgencyMap[urgency.toLowerCase()] || urgency;
+  const key = urgency.toLowerCase();
+  return key === 'urgent' ? ta('anon.urgent') : key === 'hot' || key === 'asap' ? ta('anon.asap') : urgency;
 }
 
 /**

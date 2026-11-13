@@ -1,5 +1,12 @@
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Euro, Languages, CalendarClock, Building2, Award } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
+import { intlLocale } from '@/i18n/languages';
+
+// Texte werden beim Aufruf gelesen (Namespace recruiterJobDetail, facts.*), nicht beim Laden des Moduls.
+const tr = (key: string, options?: Record<string, unknown>) => i18n.t(`recruiterJobDetail:facts.${key}`, options) as string;
+const zahlenRegion = () => intlLocale(i18n.language);
 
 /**
  * Die Eckdaten in EINER Zeile.
@@ -43,14 +50,14 @@ const LEVEL: Record<string, string> = {
   principal: 'Principal',
 };
 
-const k = (n: number) => `${(n / 1000).toLocaleString('de-DE', { maximumFractionDigits: 1 })}k`;
+const k = (n: number) => `${(n / 1000).toLocaleString(zahlenRegion(), { maximumFractionDigits: 1 })}k`;
 
 /**
  * Sprachen und Zertifikate liegen als jsonb vor und haben historisch zwei
  * Formen: eine schlichte Liste von Texten und die normalisierte Form
  * `[{ code, minLevel }]` aus der Aufnahme. Beide muessen lesbar werden.
  */
-const SPRACHE: Record<string, string> = { de: 'Deutsch', en: 'Englisch', fr: 'Französisch', es: 'Spanisch', it: 'Italienisch' };
+const SPRACHE = ['de', 'en', 'fr', 'es', 'it'];
 
 function alsListe(wert: unknown): string[] {
   if (!Array.isArray(wert)) return [];
@@ -59,7 +66,8 @@ function alsListe(wert: unknown): string[] {
       if (typeof e === 'string') return e.trim();
       if (e && typeof e === 'object') {
         const o = e as Record<string, unknown>;
-        const name = SPRACHE[String(o.code ?? '').toLowerCase()] ?? String(o.name ?? o.code ?? '');
+        const code = String(o.code ?? '').toLowerCase();
+        const name = SPRACHE.includes(code) ? tr(`language.${code}`) : String(o.name ?? o.code ?? '');
         const stufe = o.minLevel ?? o.level ?? '';
         return [name, stufe].filter(Boolean).join(' ').trim();
       }
@@ -70,24 +78,24 @@ function alsListe(wert: unknown): string[] {
 
 function geld(min: number | null | undefined, max: number | null | undefined, suffix = '') {
   if (min && max) return `${k(min)} – ${k(max)} €${suffix}`;
-  if (max) return `bis ${k(max)} €${suffix}`;
-  if (min) return `ab ${k(min)} €${suffix}`;
+  if (max) return tr('upTo', { amount: `${k(max)} €${suffix}` });
+  if (min) return tr('from', { amount: `${k(min)} €${suffix}` });
   return null;
 }
 
 function vorOrt(f: JobFacts): string | null {
   /* Der Kunde hat ausdruecklich gesagt, dass der Kandidat entscheidet. Das
      ist etwas anderes als "kein Praesenztag" und stand vorher nirgends. */
-  if (f.remoteDaysFlexible) return 'frei wählbar';
+  if (f.remoteDaysFlexible) return tr('freeChoice');
   if (f.onsiteDaysRequired != null) {
     /* Null Tage vor Ort heisst vollstaendig remote -- NICHT "frei waehlbar".
        Genau diese Verwechslung stand hier: der Chip "frei waehlbar" legte
        fuenf Homeoffice-Tage ab, daraus wurde 0, und die Leiste schrieb
        "frei waehlbar" darueber. Eine Vollremote-Stelle las sich damit wie
        eine Wahlmoeglichkeit und umgekehrt. */
-    return f.onsiteDaysRequired === 0 ? 'vollständig remote' : `${f.onsiteDaysRequired} Tage / Woche`;
+    return f.onsiteDaysRequired === 0 ? tr('fullyRemote') : tr('daysPerWeek', { days: f.onsiteDaysRequired });
   }
-  if (f.onsiteRequired === true) return 'Präsenz erforderlich';
+  if (f.onsiteRequired === true) return tr('onsiteRequired');
   if (f.remotePolicy) return f.remotePolicy;
   if (f.remoteType === 'remote') return 'remote';
   return null;
@@ -97,7 +105,7 @@ function frist(iso: string | null | undefined): string | null {
   if (!iso) return null;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleDateString('de-DE', { day: 'numeric', month: 'long' });
+  return d.toLocaleDateString(zahlenRegion(), { day: 'numeric', month: 'long' });
 }
 
 export type FactEntry = { icon: typeof Euro; label: string; wert: string };
@@ -106,50 +114,51 @@ export type FactEntry = { icon: typeof Euro; label: string; wert: string };
 export function factEntries(facts: JobFacts): { eintraege: FactEntry[]; zertifikate: string[] } {
   const eintraege: FactEntry[] = [];
 
-  const rate = (value: number) => value.toLocaleString('de-DE');
+  const rate = (value: number) => value.toLocaleString(zahlenRegion());
   // Die Obergrenze zählt, nicht der Korridor: bis wohin der Kandidat gehen darf (Etappe 1, 04.11.2026)
-  const tagessatz = facts.dayRateMax != null ? `bis ${rate(facts.dayRateMax)} € / Tag`
-    : facts.dayRateMin != null ? `ab ${rate(facts.dayRateMin)} € / Tag` : null;
+  const tagessatz = facts.dayRateMax != null ? tr('dayRateUpTo', { amount: rate(facts.dayRateMax) })
+    : facts.dayRateMin != null ? tr('dayRateFrom', { amount: rate(facts.dayRateMin) }) : null;
   const gehalt = geld(facts.salaryMin, facts.salaryMax);
 
-  if (tagessatz) eintraege.push({ icon: Euro, label: 'Tagessatz Kandidat', wert: tagessatz });
+  if (tagessatz) eintraege.push({ icon: Euro, label: tr('label.dayRate'), wert: tagessatz });
   /* "Gehalt" liess offen, was darin steckt -- der Katalog fragt woertlich nach
      dem FIXGEHALT ("In was fuer eine Range befindet sich das Fixgehalt?"), und
      die Monatsgehaelter sind eine eigene Frage. Beide Antworten liegen vor;
      sie nur richtig zu beschriften spart die Rueckfrage. */
-  else if (gehalt) eintraege.push({ icon: Euro, label: 'Fixgehalt', wert: gehalt });
+  else if (gehalt) eintraege.push({ icon: Euro, label: tr('label.fixedSalary'), wert: gehalt });
 
   if (!tagessatz && facts.salaryMonths) {
     eintraege.push({
       icon: Euro,
-      label: 'Monatsgehälter',
-      wert: facts.salaryMonths.toLocaleString('de-DE'),
+      label: tr('label.salaryMonths'),
+      wert: facts.salaryMonths.toLocaleString(zahlenRegion()),
     });
   }
 
   const ort = vorOrt(facts);
-  if (ort) eintraege.push({ icon: MapPin, label: 'Vor Ort', wert: ort });
+  if (ort) eintraege.push({ icon: MapPin, label: tr('label.onsite'), wert: ort });
 
   if (facts.experienceLevel) {
-    eintraege.push({ icon: Award, label: 'Level', wert: LEVEL[facts.experienceLevel] ?? facts.experienceLevel });
+    eintraege.push({ icon: Award, label: tr('label.level'), wert: LEVEL[facts.experienceLevel] ?? facts.experienceLevel });
   }
 
   const sprachen = alsListe(facts.requiredLanguages);
   if (sprachen.length) {
-    eintraege.push({ icon: Languages, label: 'Sprachen', wert: sprachen.join(', ') });
+    eintraege.push({ icon: Languages, label: tr('label.languages'), wert: sprachen.join(', ') });
   }
 
   if (facts.companySizeBand) {
-    eintraege.push({ icon: Building2, label: 'Größe', wert: facts.companySizeBand });
+    eintraege.push({ icon: Building2, label: tr('label.size'), wert: facts.companySizeBand });
   }
 
   const bis = frist(facts.deadline);
-  if (bis) eintraege.push({ icon: CalendarClock, label: 'Besetzt bis', wert: bis });
+  if (bis) eintraege.push({ icon: CalendarClock, label: tr('label.deadline'), wert: bis });
 
   return { eintraege, zertifikate: alsListe(facts.requiredCertifications) };
 }
 
 export function JobFactsBar({ facts }: { facts: JobFacts }) {
+  useTranslation('recruiterJobDetail'); // lädt die Texte für factEntries und zeichnet bei Sprachwechsel neu
   const { eintraege, zertifikate } = factEntries(facts);
   if (eintraege.length === 0 && zertifikate.length === 0) return null;
 

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Check, CheckCircle2, Circle, Clock } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -17,9 +18,7 @@ import {
 const browserStorage = () => { try { return window.localStorage; } catch { return null; } };
 
 /** Was für die Rechnung an Firmendaten fehlt -- dieselbe Regel wie firmendatenVollstaendig. */
-const PFLICHT: [keyof Awaited<ReturnType<typeof ladeFirmendaten>>['firma'], string][] = [
-  ['legal_name', 'Firmierung'], ['street', 'Straße'], ['postal_code', 'PLZ'], ['city', 'Ort'],
-];
+const PFLICHT: (keyof Awaited<ReturnType<typeof ladeFirmendaten>>['firma'])[] = ['legal_name', 'street', 'postal_code', 'city'];
 
 const ICON: Record<ClientStep['state'], JSX.Element> = {
   done: <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-success/15 text-success"><Check className="h-3 w-3" /></span>,
@@ -33,6 +32,7 @@ const ICON: Record<ClientStep['state'], JSX.Element> = {
  * nächsten Schritt. Wenn alles erledigt ist, eine schmale Zeile zum Ausblenden.
  */
 export function ClientStartChecklist({ onTour }: { onTour: () => void }) {
+  const { t } = useTranslation('clientDashboard');
   const { user } = useAuth();
   const navigate = useNavigate();
   const [hidden, setHidden] = useState(false);
@@ -52,14 +52,17 @@ export function ClientStartChecklist({ onTour }: { onTour: () => void }) {
       return {
         framework: currentFramework((rv.data ?? []) as StartFramework[]),
         jobs: (jobs.data ?? []) as StartJob[],
-        missingCompany: PFLICHT.filter(([key]) => !firma.firma[key]).map(([, label]) => label),
+        missingKeys: PFLICHT.filter((key) => !firma.firma[key]),
       };
     },
   });
 
   // Auf den Kalender-Stand warten, sonst springt die Zählung kurz nach dem Laden.
   if (!user || !data || calendar.isLoading) return null;
-  const steps = clientStartSteps({ ...data, calendar: calendar.state, tourDone: clientTourSeen(user, browserStorage()) });
+  const steps = clientStartSteps({
+    framework: data.framework, jobs: data.jobs,
+    missingCompany: data.missingKeys.map((key) => t(`start.field.${key}`)),
+    calendar: calendar.state, tourDone: clientTourSeen(user, browserStorage()) });
   const done = clientStartDone(steps);
 
   const act = (id: ClientStepId) => {
@@ -79,8 +82,8 @@ export function ClientStartChecklist({ onTour }: { onTour: () => void }) {
     };
     return (
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/30 px-4 py-2.5 text-sm">
-        <span className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-success" />Alles eingerichtet</span>
-        <button type="button" onClick={hide} className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground">Ausblenden</button>
+        <span className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-success" />{t('start.allSet')}</span>
+        <button type="button" onClick={hide} className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground">{t('start.hide')}</button>
       </div>
     );
   }
@@ -89,10 +92,10 @@ export function ClientStartChecklist({ onTour }: { onTour: () => void }) {
     <Card className="border-border/30 shadow-sm">
       <CardContent className="space-y-3 p-5">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-base font-semibold">Ihr Start bei Matchunt</h2>
-          <span className="text-sm text-muted-foreground">{done} von {steps.length}</span>
+          <h2 className="text-base font-semibold">{t('start.title')}</h2>
+          <span className="text-sm text-muted-foreground">{t('start.count', { done, total: steps.length })}</span>
         </div>
-        <Progress value={Math.round((done / steps.length) * 100)} className="h-1.5" aria-label={`${done} von ${steps.length} erledigt`} />
+        <Progress value={Math.round((done / steps.length) * 100)} className="h-1.5" aria-label={t('start.countDone', { done, total: steps.length })} />
         <ul className="divide-y divide-border/40">
           {steps.map((s) => (
             <li key={s.id} className="flex items-start gap-3 py-2.5">

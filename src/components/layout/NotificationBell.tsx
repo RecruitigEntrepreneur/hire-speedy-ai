@@ -13,10 +13,13 @@ import { cn } from "@/lib/utils";
 import { Honorar } from '@/components/recruiter/Honorar';
 import { Link } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
+import { useTranslation } from "react-i18next";
+import { fmtDate } from "@/lib/localeFormat";
 
 export function NotificationBell() {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useRealtimeNotifications();
   const { role } = useAuth();
+  const { t } = useTranslation("notifications");
 
   const getNotificationLink = (notification: {
     related_type?: string | null;
@@ -88,11 +91,11 @@ export function NotificationBell() {
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return "Gerade eben";
-    if (diffMins < 60) return `vor ${diffMins} Min.`;
-    if (diffHours < 24) return `vor ${diffHours} Std.`;
-    if (diffDays < 7) return `vor ${diffDays} Tagen`;
-    return date.toLocaleDateString("de-DE");
+    if (diffMins < 1) return t("justNow");
+    if (diffMins < 60) return t("minutesAgo", { count: diffMins });
+    if (diffHours < 24) return t("hoursAgo", { count: diffHours });
+    if (diffDays < 7) return t("daysAgo", { count: diffDays });
+    return fmtDate(date);
   };
 
   return (
@@ -109,7 +112,7 @@ export function NotificationBell() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80">
         <div className="flex items-center justify-between px-4 py-2 border-b">
-          <span className="font-semibold">Benachrichtigungen</span>
+          <span className="font-semibold">{t("title")}</span>
           {unreadCount > 0 && (
             <Button
               variant="ghost"
@@ -118,14 +121,14 @@ export function NotificationBell() {
               onClick={() => markAllAsRead()}
             >
               <CheckCheck className="h-3 w-3 mr-1" />
-              Alle gelesen
+              {t("markAllRead")}
             </Button>
           )}
         </div>
         <ScrollArea className="h-[300px]">
           {notifications.length === 0 ? (
             <div className="p-4 text-center text-muted-foreground text-sm">
-              Keine Benachrichtigungen
+              {t("empty")}
             </div>
           ) : (
             notifications.slice(0, 10).map((notification) => {
@@ -179,7 +182,7 @@ export function NotificationBell() {
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild className="text-center justify-center text-sm text-muted-foreground">
               <Link to={role === "recruiter" ? "/recruiter/notifications" : "/dashboard/notifications"}>
-                Alle anzeigen
+                {t("showAll")}
               </Link>
             </DropdownMenuItem>
           </>

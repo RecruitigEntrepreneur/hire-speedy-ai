@@ -1,5 +1,6 @@
 import { useSearchParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useVerdienste } from '@/lib/abrechnungApi';
@@ -19,6 +20,7 @@ const REITER: Reiter[] = ['uebersicht', 'gutschriften', 'abrechnungsdaten'];
  */
 export default function RecruiterEarnings() {
   const [params, setParams] = useSearchParams();
+  const { t } = useTranslation('recruiterEarnings');
   const reiter: Reiter = REITER.includes(params.get('reiter') as Reiter) ? params.get('reiter') as Reiter : 'uebersicht';
   const besetzung = params.get('besetzung');
   const q = useVerdienste();
@@ -34,19 +36,19 @@ export default function RecruiterEarnings() {
     <DashboardLayout>
       <div className="max-w-4xl space-y-5">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Verdienste</h1>
-          <p className="text-sm text-muted-foreground">Was du bekommst, wann und wofür.</p>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('page.title')}</h1>
+          <p className="text-sm text-muted-foreground">{t('page.subtitle')}</p>
         </div>
         <KonditionenHinweis />
         <Tabs value={reiter} onValueChange={(v) => setParam('reiter', v === 'uebersicht' ? null : v)}>
           <TabsList>
-            <TabsTrigger value="uebersicht">Übersicht</TabsTrigger>
-            <TabsTrigger value="gutschriften">Gutschriften{count > 0 ? ` (${count})` : ''}</TabsTrigger>
-            <TabsTrigger value="abrechnungsdaten">Abrechnungsdaten</TabsTrigger>
+            <TabsTrigger value="uebersicht">{t('page.tabOverview')}</TabsTrigger>
+            <TabsTrigger value="gutschriften">{count > 0 ? t('page.tabCreditNotesCount', { count }) : t('page.tabCreditNotes')}</TabsTrigger>
+            <TabsTrigger value="abrechnungsdaten">{t('page.tabBilling')}</TabsTrigger>
           </TabsList>
           <TabsContent value="uebersicht" className="mt-4">
             {q.isLoading ? <div className="flex h-40 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-              : q.isError ? <p className="py-6 text-sm text-muted-foreground">{q.error instanceof Error ? q.error.message : 'Deine Verdienste konnten nicht geladen werden.'}</p>
+              : q.isError ? <p className="py-6 text-sm text-muted-foreground">{q.error instanceof Error ? q.error.message : t('api.overview')}</p>
                 : q.data ? <VerdiensteUebersicht data={q.data} onOpen={(id) => setParam('besetzung', id)} onAbrechnungsdaten={() => setParam('reiter', 'abrechnungsdaten')} /> : null}
           </TabsContent>
           <TabsContent value="gutschriften" className="mt-4"><GutschriftenReiter /></TabsContent>

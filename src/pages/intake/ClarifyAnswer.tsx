@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import i18n, { currentLanguage } from '@/i18n';
+import { PageLanguageMenu } from '@/components/intake/guest/IntakeShell';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,22 +22,9 @@ import { Check, Loader2, MessageCircleQuestion } from 'lucide-react';
  * in dieser Datei.
  */
 
-const BESCHRIFTUNG: Record<string, string> = {
-  company_legal_name: 'Vollständiger Firmenname',
-  company_street: 'Straße und Hausnummer',
-  company_postal_code: 'Postleitzahl',
-  company_city: 'Ort',
-  company_country: 'Land',
-  company_vat_id: 'Umsatzsteuer-Identifikationsnummer',
-  company_registration_number: 'Handelsregisternummer',
-  company_website: 'Website',
-  company_industry: 'Branche',
-  company_size: 'Unternehmensgröße',
-  contact_name: 'Ihr Name',
-  contact_phone: 'Telefon',
-  contact_role: 'Ihre Funktion',
-  billing_email: 'E-Mail für Rechnungen',
-};
+// Die Beschriftungen der Felder stehen in den Sprachdateien (clientFunnel: clarify.fields.*).
+// Fehlertexte außerhalb des Renderns: die Sprachdatei ist geladen, sobald die Seite steht.
+const tx = (key: string) => i18n.t(`clientFunnel:clarify.${key}`);
 
 interface Geladen {
   clarification: { id: string; question: string; scope_fields: string[]; status: string };
@@ -44,6 +34,7 @@ interface Geladen {
 
 export default function ClarifyAnswer() {
   const { token } = useParams<{ token: string }>();
+  const { t } = useTranslation('clientFunnel');
   const [data, setData] = useState<Geladen | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
   const [felder, setFelder] = useState<Record<string, string>>({});
@@ -53,9 +44,9 @@ export default function ClarifyAnswer() {
 
   const ruf = useCallback(async (payload: Record<string, unknown>) => {
     const { data: res, error } = await supabase.functions.invoke('intake-clarify', {
-      body: { token, ...payload },
+      body: { token, ...payload, lang: currentLanguage() },
     });
-    if (error) throw new Error('Die Rückfrage konnte nicht geladen werden.');
+    if (error) throw new Error(tx('loadError'));
     if (res && typeof res === 'object' && 'reason' in res) throw new Error((res as any).message);
     return res;
   }, [token]);
@@ -71,7 +62,7 @@ export default function ClarifyAnswer() {
           Object.entries(g.fields).map(([k, v]) => [k, v ?? '']),
         ));
       })
-      .catch((e) => aktiv && setFehler(e instanceof Error ? e.message : 'Unbekannter Fehler.'));
+      .catch((e) => aktiv && setFehler(e instanceof Error ? e.message : tx('unknownError')));
     return () => { aktiv = false; };
   }, [ruf]);
 
@@ -81,14 +72,15 @@ export default function ClarifyAnswer() {
       await ruf({ action: 'answer', answer: antwort, fields: felder });
       setFertig(true);
     } catch (e) {
-      setFehler(e instanceof Error ? e.message : 'Die Antwort konnte nicht gespeichert werden.');
+      setFehler(e instanceof Error ? e.message : tx('saveError'));
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-muted/30 px-4 py-10">
+    <div className="relative min-h-screen bg-muted/30 px-4 py-10">
+      <PageLanguageMenu />
       <div className="mx-auto max-w-2xl space-y-6">
         {fehler && !data && (
           <Alert variant="destructive">
@@ -98,7 +90,7 @@ export default function ClarifyAnswer() {
 
         {!data && !fehler && (
           <div className="flex items-center justify-center py-20 text-muted-foreground">
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Wird geladen …
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t('common.loading')}
           </div>
         )}
 
@@ -106,7 +98,7 @@ export default function ClarifyAnswer() {
           <Alert>
             <Check className="h-4 w-4" />
             <AlertDescription>
-              Vielen Dank. Ihre Antwort ist bei uns eingegangen — wir melden uns.
+              {t('clarify.thanks')}
             </AlertDescription>
           </Alert>
         )}
@@ -115,10 +107,10 @@ export default function ClarifyAnswer() {
           <>
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">
-                {data.position.company ?? 'Ihre Anfrage'}
+                {data.position.company ?? t('clarify.yourRequest')}
                 {data.position.title && <> · {data.position.title}</>}
               </p>
-              <h1 className="text-xl font-semibold">Eine kurze Rückfrage</h1>
+              <h1 className="text-xl font-semibold">{t('clarify.title')}</h1>
             </div>
 
             <Card>
@@ -130,11 +122,11 @@ export default function ClarifyAnswer() {
 
                 {data.clarification.scope_fields.length > 0 && (
                   <div className="space-y-3">
-                    <p className="text-sm font-medium">Angaben, die Sie hier ändern können</p>
+                    <p className="text-sm font-medium">{t('clarify.editable')}</p>
                     {data.clarification.scope_fields.map((f) => (
                       <div key={f}>
                         <Label htmlFor={f} className="text-xs text-muted-foreground">
-                          {BESCHRIFTUNG[f] ?? f}
+                          {t(`clarify.fields.${f}`, { defaultValue: f })}
                         </Label>
                         <Input
                           id={f}
@@ -149,7 +141,7 @@ export default function ClarifyAnswer() {
 
                 <div>
                   <Label htmlFor="antwort" className="text-xs text-muted-foreground">
-                    Ihre Antwort
+                    {t('clarify.answerLabel')}
                   </Label>
                   <Textarea
                     id="antwort"
@@ -157,7 +149,7 @@ export default function ClarifyAnswer() {
                     onChange={(e) => setAntwort(e.target.value)}
                     rows={5}
                     className="mt-1"
-                    placeholder="Ihre Antwort auf die Rückfrage"
+                    placeholder={t('clarify.answerPlaceholder')}
                   />
                 </div>
 
@@ -168,8 +160,8 @@ export default function ClarifyAnswer() {
                 )}
 
                 <Button onClick={senden} disabled={busy || !antwort.trim()} className="w-full">
-                  {busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Wird gesendet …</>
-                        : 'Antwort senden'}
+                  {busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t('common.sending')}</>
+                        : t('clarify.send')}
                 </Button>
               </CardContent>
             </Card>

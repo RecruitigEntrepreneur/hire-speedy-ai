@@ -1,0 +1,43 @@
+// Fehlermeldungen und Hinweise aus Hooks und Hilfsmodulen (Toasts). Deutsch ist die Quelle, wortgleich zu vorher.
+const de = {
+  matchCalc: 'Fehler bei der Berechnung',
+  fitCredit: 'AI-Kredit-Limit erreicht. Bitte kontaktieren Sie den Support.',
+  fitRate: 'Zu viele Anfragen. Bitte warten Sie einen Moment.',
+  fitCreated: 'Fit-Analyse erstellt',
+  fitCreatedText: 'Die intelligente Fit-Analyse wurde erfolgreich generiert.',
+  fitUnknown: 'Unbekannter Fehler bei der Generierung',
+  fitFailed: 'Fehler bei der Analyse',
+  generic: 'Ein Fehler ist aufgetreten',
+  activities: 'Fehler beim Laden der Aktivitäten',
+  notSignedIn: 'Nicht angemeldet',
+  saveFailed: 'Speichern fehlgeschlagen',
+  feedbackSaved: 'Feedback gespeichert',
+  feedbackFailed: 'Fehler beim Speichern des Feedbacks',
+  sendFailed: 'Senden fehlgeschlagen.',
+  notDeployed: 'Senden nicht möglich: Die Function „{{fn}}“ ist noch nicht deployt.',
+  docxInvalid: 'Die Datei ist keine gültige Word-Datei.',
+  docxBroken: 'Die Word-Datei ist beschädigt.',
+  docxEmpty: 'In der Word-Datei steht kein Text.',
+  docxBrowser: 'Ihr Browser kann Word-Dateien nicht öffnen. Bitte als PDF oder Text.',
+  score: {
+    excellent: 'Ausgezeichnet',
+    veryGood: 'Sehr gut',
+    good: 'Gut',
+    satisfactory: 'Befriedigend',
+    sufficient: 'Ausreichend',
+    low: 'Gering',
+  },
+  multiplier: {
+    none: 'Keine Einschränkungen',
+    light: 'Leichte Einschränkungen',
+    clear: 'Deutliche Einschränkungen',
+    severe: 'Schwere Einschränkungen',
+  },
+  coverage: {
+    complete: 'Vollständig',
+    sufficient: 'Ausreichend',
+    partial: 'Teilweise',
+    insufficient: 'Unzureichend',
+  },
+};
+export default de;

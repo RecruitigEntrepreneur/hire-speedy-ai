@@ -1,3 +1,4 @@
+import i18n from '@/i18n';
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -87,10 +88,10 @@ export function useInterviewFeedback(interviewId?: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['interview-feedback'] });
       queryClient.invalidateQueries({ queryKey: ['my-interview-feedback'] });
-      toast.success('Feedback gespeichert');
+      toast.success(i18n.t('errors:feedbackSaved'));
     },
     onError: (error) => {
-      toast.error('Fehler beim Speichern des Feedbacks');
+      toast.error(i18n.t('errors:feedbackFailed'));
       console.error(error);
     },
   });

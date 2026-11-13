@@ -24,6 +24,8 @@ import { generateToken, hashToken } from '../_shared/tokens.ts';
 import { getPublicAppUrl } from '../_shared/app-url.ts';
 import { sendInterviewMail } from '../_shared/interview-mailer.ts';
 import { kandidatEinladung, lebenslaufAnfrage } from '../_shared/termin-mails.ts';
+import { candidateLanguage } from '../_shared/recipient-language.ts';
+import { viaMatchunt } from '../_shared/mail-i18n.ts';
 
 const FROM_EMAIL = () => Deno.env.get('INTERVIEW_FROM_EMAIL') ?? 'termine@matchunt.ai';
 const GUELTIG_TAGE = 30;
@@ -60,7 +62,9 @@ async function kontextKandidat(db: any, userId: string, candidateId: unknown) {
   muss(kand, 'not_allowed', 'Dieser Kandidat gehört nicht zu dir.');
   const { data: prof } = await db.from('profiles').select('full_name, email').eq('user_id', userId).maybeSingle();
   const name = String(prof?.full_name ?? '').trim() || 'Dein Headhunter';
-  return { kand, name, vorname: name.split(/\s+/)[0], email: (prof?.email ?? null) as string | null };
+  // Mails an den Kandidaten in der Sprache seines Headhunters (Mehrsprachigkeit, 13.11.2026)
+  const lang = await candidateLanguage(db, userId);
+  return { kand, name, vorname: name.split(/\s+/)[0], email: (prof?.email ?? null) as string | null, lang };
 }
 
 async function neueZeile(db: any, userId: string, candidateId: string, arten: string[], weg: 'mail' | 'selbst') {
@@ -74,9 +78,9 @@ async function neueZeile(db: any, userId: string, candidateId: string, arten: st
 }
 
 async function mailen(db: any, k: Awaited<ReturnType<typeof kontext>>, zeile: { id: string; token: string }, text: string, erinnerung: boolean) {
-  const mail = kandidatEinladung({ hhName: k.name, text, url: `${getPublicAppUrl()}/t/einladung/${zeile.token}`, erinnerung });
+  const mail = kandidatEinladung({ hhName: k.name, text, url: `${getPublicAppUrl()}/t/einladung/${zeile.token}`, erinnerung, lang: k.lang });
   const r = await sendInterviewMail({
-    fromEmail: FROM_EMAIL(), fromName: `${k.name} über Matchunt`, to: k.kand.email, replyTo: k.email ?? undefined,
+    fromEmail: FROM_EMAIL(), fromName: viaMatchunt(k.name, k.lang), to: k.kand.email, replyTo: k.email ?? undefined,
     subject: mail.subject, html: mail.html, text: mail.text,
   });
   if (!r.sent) {
@@ -141,9 +145,9 @@ async function neuerAnfrageLink(db: any, id: string) {
 }
 
 async function anfrageMailen(k: Awaited<ReturnType<typeof kontextKandidat>>, token: string, text: string, erinnerung: boolean) {
-  const mail = lebenslaufAnfrage({ hhName: k.name, text, url: `${getPublicAppUrl()}/t/lebenslauf/${token}`, erinnerung });
+  const mail = lebenslaufAnfrage({ hhName: k.name, text, url: `${getPublicAppUrl()}/t/lebenslauf/${token}`, erinnerung, lang: k.lang });
   const r = await sendInterviewMail({
-    fromEmail: FROM_EMAIL(), fromName: `${k.name} über Matchunt`, to: k.kand.email, replyTo: k.email ?? undefined,
+    fromEmail: FROM_EMAIL(), fromName: viaMatchunt(k.name, k.lang), to: k.kand.email, replyTo: k.email ?? undefined,
     subject: mail.subject, html: mail.html, text: mail.text,
   });
   if (!r.sent) {

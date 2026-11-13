@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -48,6 +49,7 @@ export function CandidateFilters({
   onFilterChange,
   tags,
 }: CandidateFiltersProps) {
+  const { t } = useTranslation('candidates');
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const updateFilter = <K extends keyof FilterState>(key: K, value: FilterState[K]) => {
@@ -91,7 +93,7 @@ export function CandidateFilters({
         <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Suche nach Name, E-Mail oder Skills..."
+            placeholder={t('filters.searchPlaceholder')}
             value={filters.search}
             onChange={(e) => updateFilter('search', e.target.value)}
             className="pl-9"
@@ -109,17 +111,17 @@ export function CandidateFilters({
         >
           <SelectTrigger className="w-[180px]">
             <ArrowUpDown className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="Sortieren" />
+            <SelectValue placeholder={t('filters.sort')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="created_at-desc">Neueste zuerst</SelectItem>
-            <SelectItem value="created_at-asc">Älteste zuerst</SelectItem>
-            <SelectItem value="full_name-asc">Name A-Z</SelectItem>
-            <SelectItem value="full_name-desc">Name Z-A</SelectItem>
-            <SelectItem value="experience_years-desc">Erfahrung ↓</SelectItem>
-            <SelectItem value="experience_years-asc">Erfahrung ↑</SelectItem>
-            <SelectItem value="expected_salary-desc">Gehalt ↓</SelectItem>
-            <SelectItem value="expected_salary-asc">Gehalt ↑</SelectItem>
+            <SelectItem value="created_at-desc">{t('filters.newestFirst')}</SelectItem>
+            <SelectItem value="created_at-asc">{t('filters.oldestFirst')}</SelectItem>
+            <SelectItem value="full_name-asc">{t('filters.nameAsc')}</SelectItem>
+            <SelectItem value="full_name-desc">{t('filters.nameDesc')}</SelectItem>
+            <SelectItem value="experience_years-desc">{t('filters.experienceDesc')}</SelectItem>
+            <SelectItem value="experience_years-asc">{t('filters.experienceAsc')}</SelectItem>
+            <SelectItem value="expected_salary-desc">{t('filters.salaryDesc')}</SelectItem>
+            <SelectItem value="expected_salary-asc">{t('filters.salaryAsc')}</SelectItem>
           </SelectContent>
         </Select>
 
@@ -128,7 +130,7 @@ export function CandidateFilters({
           <PopoverTrigger asChild>
             <Button variant="outline" className="gap-2">
               <SlidersHorizontal className="h-4 w-4" />
-              Filter
+              {t('filters.filter')}
               {hasActiveFilters && (
                 <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 text-xs flex items-center justify-center">
                   !
@@ -138,12 +140,12 @@ export function CandidateFilters({
           </PopoverTrigger>
           <PopoverContent className="w-80" align="end">
             <div className="space-y-4">
-              <h4 className="font-medium">Erweiterte Filter</h4>
+              <h4 className="font-medium">{t('filters.advanced')}</h4>
 
               {/* Experience Range */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">
-                  Erfahrung: {filters.experienceMin} - {filters.experienceMax} Jahre
+                  {t('filters.experienceRange', { min: filters.experienceMin, max: filters.experienceMax })}
                 </label>
                 <Slider
                   value={[filters.experienceMin, filters.experienceMax]}
@@ -160,7 +162,7 @@ export function CandidateFilters({
               {/* Salary Range */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">
-                  Gehalt: {(filters.salaryMin / 1000).toFixed(0)}k - {(filters.salaryMax / 1000).toFixed(0)}k €
+                  {t('filters.salaryRange', { min: (filters.salaryMin / 1000).toFixed(0), max: (filters.salaryMax / 1000).toFixed(0) })}
                 </label>
                 <Slider
                   value={[filters.salaryMin, filters.salaryMax]}
@@ -176,20 +178,20 @@ export function CandidateFilters({
 
               {/* Availability */}
               <div className="space-y-2">
-                <label className="text-sm font-medium">Verfügbarkeit</label>
+                <label className="text-sm font-medium">{t('filters.availability')}</label>
                 <Select
                   value={filters.availability}
                   onValueChange={(v) => updateFilter('availability', v)}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Alle" />
+                    <SelectValue placeholder={t('filters.all')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">Alle</SelectItem>
-                    <SelectItem value="immediate">Sofort</SelectItem>
-                    <SelectItem value="30days">Innerhalb 30 Tage</SelectItem>
-                    <SelectItem value="90days">Innerhalb 90 Tage</SelectItem>
-                    <SelectItem value="later">Später</SelectItem>
+                    <SelectItem value="all">{t('filters.all')}</SelectItem>
+                    <SelectItem value="immediate">{t('filters.immediate')}</SelectItem>
+                    <SelectItem value="30days">{t('filters.within30')}</SelectItem>
+                    <SelectItem value="90days">{t('filters.within90')}</SelectItem>
+                    <SelectItem value="later">{t('filters.later')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -223,7 +225,7 @@ export function CandidateFilters({
               {hasActiveFilters && (
                 <Button variant="ghost" size="sm" onClick={clearFilters} className="w-full">
                   <X className="h-4 w-4 mr-2" />
-                  Filter zurücksetzen
+                  {t('filters.reset')}
                 </Button>
               )}
             </div>
@@ -234,16 +236,16 @@ export function CandidateFilters({
       {/* Active Filter Badges */}
       {hasActiveFilters && (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-muted-foreground">Aktive Filter:</span>
+          <span className="text-sm text-muted-foreground">{t('filters.active')}</span>
           {filters.search && (
             <Badge variant="secondary" className="gap-1">
-              Suche: {filters.search}
+              {t('filters.searchBadge', { term: filters.search })}
               <X className="h-3 w-3 cursor-pointer" onClick={() => updateFilter('search', '')} />
             </Badge>
           )}
           {(filters.experienceMin > 0 || filters.experienceMax < 30) && (
             <Badge variant="secondary" className="gap-1">
-              {filters.experienceMin}-{filters.experienceMax} Jahre
+              {t('filters.yearsBadge', { min: filters.experienceMin, max: filters.experienceMax })}
               <X
                 className="h-3 w-3 cursor-pointer"
                 onClick={() => {
@@ -268,12 +270,12 @@ export function CandidateFilters({
           {filters.availability !== 'all' && (
             <Badge variant="secondary" className="gap-1">
               {filters.availability === 'immediate'
-                ? 'Sofort'
+                ? t('filters.immediate')
                 : filters.availability === '30days'
-                ? '30 Tage'
+                ? t('filters.days30')
                 : filters.availability === '90days'
-                ? '90 Tage'
-                : 'Später'}
+                ? t('filters.days90')
+                : t('filters.later')}
               <X className="h-3 w-3 cursor-pointer" onClick={() => updateFilter('availability', 'all')} />
             </Badge>
           )}

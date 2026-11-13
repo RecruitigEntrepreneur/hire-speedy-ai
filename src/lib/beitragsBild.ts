@@ -1,4 +1,5 @@
 import qrcode from 'qrcode-generator';
+import i18n from '@/i18n';
 
 /**
  * Das Bild zum LinkedIn-Beitrag (21.10.2026): aus einer festen Vorlage gesetzt,
@@ -8,14 +9,16 @@ import qrcode from 'qrcode-generator';
 export type Vorlage = 'klar' | 'dunkel' | 'akzent';
 export type Format = 'quadrat' | 'quer';
 
-export const VORLAGEN: { id: Vorlage; label: string }[] = [
-  { id: 'klar', label: 'Klar' },
-  { id: 'dunkel', label: 'Dunkel' },
-  { id: 'akzent', label: 'Akzent' },
-];
-export const FORMATE: { id: Format; label: string; w: number; h: number }[] = [
-  { id: 'quadrat', label: 'Quadrat', w: 1080, h: 1080 },
-  { id: 'quer', label: 'Quer', w: 1200, h: 627 },
+// Namen für die Auswahl: bei jedem Zugriff in der Sprache der Oberfläche (recruiterJobDetail, post.template.* / post.format.*).
+// Die Texte im Bild selbst gehen an Dritte (LinkedIn) und bleiben deutsch.
+const etikett = (key: string) => i18n.t(`recruiterJobDetail:post.${key}`) as string;
+export const VORLAGEN: { id: Vorlage; readonly label: string }[] = (['klar', 'dunkel', 'akzent'] as Vorlage[]).map(id => ({
+  id,
+  get label() { return etikett(`template.${id}`); },
+}));
+export const FORMATE: { id: Format; readonly label: string; w: number; h: number }[] = [
+  { id: 'quadrat', get label() { return etikett('format.quadrat'); }, w: 1080, h: 1080 },
+  { id: 'quer', get label() { return etikett('format.quer'); }, w: 1200, h: 627 },
 ];
 
 export interface BildDaten {
@@ -172,5 +175,5 @@ export async function beitragsBildPng(d: BildDaten, vorlage: Vorlage, format: Fo
   }
   const canvas = document.createElement('canvas');
   zeichneBeitragsBild(canvas, d, vorlage, format);
-  return new Promise((resolve, reject) => canvas.toBlob(b => (b ? resolve(b) : reject(new Error('Bild konnte nicht erzeugt werden'))), 'image/png'));
+  return new Promise((resolve, reject) => canvas.toBlob(b => (b ? resolve(b) : reject(new Error(etikett('imageFailed')))), 'image/png'));
 }

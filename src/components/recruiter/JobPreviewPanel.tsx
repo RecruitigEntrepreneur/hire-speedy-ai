@@ -3,6 +3,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Check, ExternalLink, FileText, Lock, Rocket, Search, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { intlLocale } from '@/i18n/languages';
 import { formatAnonymousCompanyShort, formatWorkModel } from '@/lib/anonymousCompanyFormat';
 import { FirmenLogo } from '@/components/company/FirmenLogo';
 import { cn } from '@/lib/utils';
@@ -51,23 +53,21 @@ interface JobPreviewPanelProps {
   onClose: () => void;
 }
 
-const formatSalaryShort = (min: number | null, max: number | null) => {
+type T = (key: string, options?: Record<string, unknown>) => string;
+
+const formatSalaryShort = (min: number | null, max: number | null, t: T) => {
   const k = (n: number) => Math.round(n / 1000);
   if (min && max) return `€${k(min)}–${k(max)}k`;
-  if (min) return `ab €${k(min)}k`;
-  if (max) return `bis €${k(max)}k`;
-  return 'k. A.';
+  if (min) return t('card.salaryFrom', { amount: `€${k(min)}k` });
+  if (max) return t('card.salaryUpTo', { amount: `€${k(max)}k` });
+  return t('preview.notSpecified');
 };
 
-const EMPLOYMENT_LABELS: Record<string, string> = {
-  'full-time': 'Vollzeit',
-  full_time: 'Vollzeit',
-  'part-time': 'Teilzeit',
-  part_time: 'Teilzeit',
-  contract: 'Projektvertrag',
-  freelance: 'Freelance',
-  temporary: 'Befristet',
-  internship: 'Praktikum',
+// Anzeige der Vertragsart: Schlüssel unter preview.employment.<key>
+const EMPLOYMENT_KEYS = ['full_time', 'part_time', 'contract', 'freelance', 'temporary', 'internship'];
+const employmentLabel = (value: string, t: T) => {
+  const key = (value || '').replace('-', '_');
+  return EMPLOYMENT_KEYS.includes(key) ? t(`preview.employment.${key}`) : value;
 };
 
 const LEVEL_LABELS: Record<string, string> = {
@@ -115,14 +115,16 @@ export function JobPreviewPanel({
   onClose,
 }: JobPreviewPanelProps) {
   const [descExpanded, setDescExpanded] = useState(false);
+  const { t, i18n } = useTranslation('recruiterJobs');
+  const locale = intlLocale(i18n.language);
   const urgent = job.hiring_urgency === 'urgent';
   const tagVerdienst = verdienstJeTag(job);
   // Verdienst nach Paket und Fassung (H3/H6, Umbau 11.11.2026); ohne Konditionen wie bisher
   const { earning: plan } = useJobEarning(tagVerdienst ? null : job.id, job.salary_min, job.salary_max);
   const pauseText = pausedUntil
-    ? `Pausiert bis ${new Date(pausedUntil).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}`
+    ? t('card.pausedUntil', { date: new Date(pausedUntil).toLocaleDateString(locale, { day: '2-digit', month: '2-digit' }) })
     : null;
-  const level = [LEVEL_LABELS[job.experience_level] || job.experience_level, EMPLOYMENT_LABELS[job.employment_type] || job.employment_type]
+  const level = [LEVEL_LABELS[job.experience_level] || job.experience_level, employmentLabel(job.employment_type, t)]
     .filter(Boolean).join(' · ');
   const ort = [job.location, job.remote_type ? formatWorkModel(job.remote_type) : null].filter(Boolean).join(' · ');
 
@@ -135,24 +137,24 @@ export function JobPreviewPanel({
 
           <div className="min-w-0 flex-1">
             <Link to={`/recruiter/jobs/${job.id}`} className="text-base font-semibold leading-snug transition-colors hover:text-primary">
-              {plan?.research && <span className="mr-1.5 inline-block rounded border border-border px-1.5 align-middle text-[11px] font-normal text-muted-foreground">Nachbesetzung</span>}
+              {plan?.research && <span className="mr-1.5 inline-block rounded border border-border px-1.5 align-middle text-[11px] font-normal text-muted-foreground">{t('card.research')}</span>}
               {job.title}
             </Link>
             <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground">
               <span>{isRevealed ? revealedCompanyName : formatAnonymousCompanyShort({ industry: job.industry, companySize: job.company_size_band })}</span>
-              {urgent && <><span aria-hidden="true">·</span><span className="font-medium text-destructive">Dringend</span></>}
-              {isActive && <><span aria-hidden="true">·</span><span className="inline-flex items-center gap-1 font-medium text-emerald-500"><Check className="h-3.5 w-3.5" />Du suchst</span></>}
+              {urgent && <><span aria-hidden="true">·</span><span className="font-medium text-destructive">{t('card.urgent')}</span></>}
+              {isActive && <><span aria-hidden="true">·</span><span className="inline-flex items-center gap-1 font-medium text-emerald-500"><Check className="h-3.5 w-3.5" />{t('card.searching')}</span></>}
               {!isActive && pauseText && <><span aria-hidden="true">·</span><span className="text-amber-600">{pauseText}</span></>}
             </p>
           </div>
 
           <div className="flex shrink-0 items-center gap-0.5">
             <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" asChild>
-              <Link to={`/recruiter/jobs/${job.id}`} aria-label="Mandatsbriefing öffnen">
+              <Link to={`/recruiter/jobs/${job.id}`} aria-label={t('preview.openBriefing')}>
                 <ExternalLink className="h-3.5 w-3.5" />
               </Link>
             </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={onClose} aria-label="Vorschau schließen">
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={onClose} aria-label={t('preview.close')}>
               <X className="h-4 w-4" />
             </Button>
           </div>
@@ -164,14 +166,14 @@ export function JobPreviewPanel({
           <Button variant="outline" size="sm" className="h-8 text-xs" asChild>
             <Link to={`/recruiter/jobs/${job.id}?teilen=1`}>
               <FileText className="mr-1 h-3.5 w-3.5" />
-              Anzeige &amp; Ansprache
+              {t('preview.adAndOutreach')}
             </Link>
           </Button>
           {isActive ? (
             <Button size="sm" className="h-8 text-xs" asChild>
               <Link to={`/recruiter/jobs/${job.id}`}>
                 <Rocket className="mr-1 h-3.5 w-3.5" />
-                Kandidat vorschlagen
+                {t('preview.proposeCandidate')}
               </Link>
             </Button>
           ) : pauseText ? (
@@ -182,7 +184,7 @@ export function JobPreviewPanel({
           ) : (
             <Button size="sm" className="h-8 text-xs" onClick={onToggleActive}>
               <Search className="mr-1 h-3.5 w-3.5" />
-              Ich suche
+              {t('card.iSearch')}
             </Button>
           )}
         </div>
@@ -193,33 +195,33 @@ export function JobPreviewPanel({
         <div>
           {tagVerdienst ? (
             <>
-              <Fakt label="Dein Verdienst"><span className="text-emerald-500"><Honorar>{`${tagVerdienst} je Einsatztag`}</Honorar></span></Fakt>
-              <Fakt label="Tagessatz Kandidat">{spezialistenGrenze(job) ?? 'k. A.'}</Fakt>
+              <Fakt label={t('preview.yourEarning')}><span className="text-emerald-500"><Honorar>{t('preview.earningPerDay', { amount: tagVerdienst })}</Honorar></span></Fakt>
+              <Fakt label={t('preview.candidateDayRate')}>{spezialistenGrenze(job) ?? t('preview.notSpecified')}</Fakt>
             </>
           ) : (
             <>
-              <Fakt label="Dein Verdienst">
+              <Fakt label={t('preview.yourEarning')}>
                 {plan ? (
                   <>
-                    <span className="text-emerald-500"><Honorar>{plan.research ? euroKurz(plan.totalCents) : `${euroKurz(plan.totalCents)} (${plan.pct.toLocaleString('de-DE')} %)`}</Honorar></span>
+                    <span className="text-emerald-500"><Honorar>{plan.research ? euroKurz(plan.totalCents) : `${euroKurz(plan.totalCents)} (${plan.pct.toLocaleString(locale)} %)`}</Honorar></span>
                     <span className="block text-xs font-normal"><Honorar>{plan.line}</Honorar></span>
                   </>
                 ) : (
                   <span className="text-emerald-500">
-                    <Honorar>{earning ? `€${earning.toLocaleString('de-DE')} (${job.recruiter_fee_percentage} %)` : `${job.recruiter_fee_percentage} % vom Jahresgehalt`}</Honorar>
+                    <Honorar>{earning ? `€${earning.toLocaleString(locale)} (${job.recruiter_fee_percentage} %)` : t('preview.percentOfSalary', { pct: job.recruiter_fee_percentage })}</Honorar>
                   </span>
                 )}
               </Fakt>
-              {plan?.research && <p className="border-b border-border py-2.5 text-xs text-muted-foreground">{plan.research.note} Nachbesetzung {runningSince(plan.research.since, new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }))}.{plan.research.own ? ' Deine frühere Besetzung.' : ''}</p>}
-              <Fakt label="Gehalt">{formatSalaryShort(job.salary_min, job.salary_max)}</Fakt>
+              {plan?.research && <p className="border-b border-border py-2.5 text-xs text-muted-foreground">{plan.research.note} {t('preview.researchSince', { since: runningSince(plan.research.since, new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }), i18n.language) })}{plan.research.own ? ` ${t('preview.ownPlacement')}` : ''}</p>}
+              <Fakt label={t('preview.salary')}>{formatSalaryShort(job.salary_min, job.salary_max, t)}</Fakt>
             </>
           )}
-          {level && <Fakt label="Level">{level}</Fakt>}
-          {ort && <Fakt label="Ort">{ort}</Fakt>}
+          {level && <Fakt label={t('preview.level')}>{level}</Fakt>}
+          {ort && <Fakt label={t('preview.location')}>{ort}</Fakt>}
         </div>
 
         {((job.skills && job.skills.length > 0) || (job.tech_environment && job.tech_environment.length > 0)) && (
-          <Abschnitt title="Skills und Tech-Stack">
+          <Abschnitt title={t('preview.skills')}>
             <div className="flex flex-wrap gap-1.5">
               {job.skills?.map((skill) => (
                 <Badge key={skill} variant="outline" className="text-xs font-normal">{skill}</Badge>
@@ -232,27 +234,27 @@ export function JobPreviewPanel({
         )}
 
         {job.description && (
-          <Abschnitt title="Stellenbeschreibung">
+          <Abschnitt title={t('preview.description')}>
             <p className={cn('whitespace-pre-line text-sm leading-6 text-muted-foreground', !descExpanded && 'line-clamp-[8]')}>
               {job.description}
             </p>
             <button onClick={() => setDescExpanded(!descExpanded)} className="mt-1.5 text-xs text-primary hover:underline">
-              {descExpanded ? 'Weniger anzeigen' : 'Mehr anzeigen'}
+              {descExpanded ? t('preview.showLess') : t('preview.showMore')}
             </button>
           </Abschnitt>
         )}
 
         {(job.industry || job.company_size_band || job.funding_stage) && (
-          <Abschnitt title="Unternehmen">
-            {job.industry && <Fakt label="Branche">{job.industry}</Fakt>}
-            {job.company_size_band && <Fakt label="Größe">{job.company_size_band}</Fakt>}
-            {job.funding_stage && <Fakt label="Phase"><span className="capitalize">{job.funding_stage}</span></Fakt>}
+          <Abschnitt title={t('preview.company')}>
+            {job.industry && <Fakt label={t('preview.industry')}>{job.industry}</Fakt>}
+            {job.company_size_band && <Fakt label={t('preview.size')}>{job.company_size_band}</Fakt>}
+            {job.funding_stage && <Fakt label={t('preview.phase')}><span className="capitalize">{job.funding_stage}</span></Fakt>}
           </Abschnitt>
         )}
 
         <Button variant="outline" size="sm" className="h-8 w-full text-xs text-muted-foreground" asChild>
           <Link to={`/recruiter/jobs/${job.id}`}>
-            Mandatsbriefing öffnen
+            {t('preview.openBriefing')}
             <ExternalLink className="ml-1.5 h-3 w-3" />
           </Link>
         </Button>

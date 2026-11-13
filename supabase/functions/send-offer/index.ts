@@ -2,6 +2,9 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getPublicAppUrl } from "../_shared/app-url.ts";
 import { mailFrom } from "../_shared/intake-mail.ts";
+import { intlLocale, tr } from "../_shared/i18n.ts";
+import { candidateLanguage } from "../_shared/recipient-language.ts";
+import { withLang } from "../_shared/mail-i18n.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -56,40 +59,47 @@ serve(async (req) => {
       throw new Error('Not authorized to send this offer');
     }
 
+    // Mehrsprachigkeit (13.11.2026): Mail in der Sprache des Kandidaten (= die seines Headhunters);
+    // ohne Sprache Deutsch, wortgleich wie bisher.
+    const lang = await candidateLanguage(supabase, offer.recruiter_id);
+    const t = (de: string, en: string, sv: string, nb: string, vars?: Record<string, string>) => tr(lang, { de, en, sv, nb }, vars);
+    const loc = intlLocale(lang);
+
     // Generate candidate link
     // Kanonische Domain statt einer aus der Supabase-URL gebauten (die führte ins Leere).
-    const candidateLink = `${getPublicAppUrl()}/offer/view/${offer.access_token}`;
+    const candidateLink = withLang(`${getPublicAppUrl()}/offer/view/${offer.access_token}`, lang);
 
     // Format expiry date
-    const expiresAt = new Date(offer.expires_at).toLocaleDateString('de-DE', {
+    const expiresAt = new Date(offer.expires_at).toLocaleDateString(loc, {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric'
     });
+    const subject = t('Jobangebot: {p}', 'Job offer: {p}', 'Jobberbjudande: {p}', 'Jobbtilbud: {p}', { p: offer.position_title });
 
     // Send email via Resend
     if (resendApiKey) {
       const emailBody = `
-Sehr geehrte(r) ${offer.candidates.full_name},
+${t('Sehr geehrte(r) {n},', 'Dear {n},', 'Hej {n},', 'Hei {n},', { n: offer.candidates.full_name })}
 
-wir freuen uns, Ihnen ein Angebot für die Position "${offer.position_title}" unterbreiten zu können!
+${t('wir freuen uns, Ihnen ein Angebot für die Position "{p}" unterbreiten zu können!', 'We are pleased to offer you the position "{p}"!', 'Vi är glada att kunna erbjuda dig tjänsten "{p}"!', 'Vi er glade for å kunne tilby deg stillingen "{p}"!', { p: offer.position_title })}
 
-📋 Angebotsdetails:
-• Position: ${offer.position_title}
-• Jahresgehalt: ${offer.salary_offered.toLocaleString('de-DE')} ${offer.salary_currency}
-${offer.bonus_amount ? `• Bonus: ${offer.bonus_amount.toLocaleString('de-DE')} ${offer.salary_currency}` : ''}
-• Vertragsart: ${offer.contract_type === 'permanent' ? 'Unbefristet' : offer.contract_type}
-• Startdatum: ${offer.start_date ? new Date(offer.start_date).toLocaleDateString('de-DE') : 'Nach Vereinbarung'}
+📋 ${t('Angebotsdetails:', 'Offer details:', 'Detaljer om erbjudandet:', 'Detaljer om tilbudet:')}
+• ${t('Position', 'Position', 'Tjänst', 'Stilling')}: ${offer.position_title}
+• ${t('Jahresgehalt', 'Annual salary', 'Årslön', 'Årslønn')}: ${offer.salary_offered.toLocaleString(loc)} ${offer.salary_currency}
+${offer.bonus_amount ? `• Bonus: ${offer.bonus_amount.toLocaleString(loc)} ${offer.salary_currency}` : ''}
+• ${t('Vertragsart', 'Contract type', 'Anställningsform', 'Avtaletype')}: ${offer.contract_type === 'permanent' ? t('Unbefristet', 'Permanent', 'Tillsvidare', 'Fast') : offer.contract_type}
+• ${t('Startdatum', 'Start date', 'Startdatum', 'Startdato')}: ${offer.start_date ? new Date(offer.start_date).toLocaleDateString(loc) : t('Nach Vereinbarung', 'By arrangement', 'Enligt överenskommelse', 'Etter avtale')}
 ${offer.remote_policy ? `• Remote: ${offer.remote_policy}` : ''}
 
-${custom_message ? `Nachricht: ${custom_message}\n` : ''}
+${custom_message ? `${t('Nachricht', 'Message', 'Meddelande', 'Melding')}: ${custom_message}\n` : ''}
 
-Bitte prüfen Sie das vollständige Angebot unter folgendem Link:
+${t('Bitte prüfen Sie das vollständige Angebot unter folgendem Link:', 'Please review the full offer at the following link:', 'Se hela erbjudandet via länken nedan:', 'Se hele tilbudet via lenken nedenfor:')}
 ${candidateLink}
 
-⏰ Das Angebot ist gültig bis: ${expiresAt}
+⏰ ${t('Das Angebot ist gültig bis: {d}', 'The offer is valid until: {d}', 'Erbjudandet gäller till: {d}', 'Tilbudet gjelder til: {d}', { d: expiresAt })}
 
-Mit freundlichen Grüßen
+${t('Mit freundlichen Grüßen', 'Kind regards', 'Vänliga hälsningar', 'Med vennlig hilsen')}
       `.trim();
 
       const emailResponse = await fetch('https://api.resend.com/emails', {
@@ -101,7 +111,7 @@ Mit freundlichen Grüßen
         body: JSON.stringify({
           from: mailFrom(),
           to: offer.candidates.email,
-          subject: `Jobangebot: ${offer.position_title}`,
+          subject,
           text: emailBody
         })
       });
@@ -118,7 +128,7 @@ Mit freundlichen Grüßen
         submission_id: offer.submission_id,
         channel: 'email',
         message_type: 'offer',
-        subject: `Jobangebot: ${offer.position_title}`,
+        subject,
         body: emailBody,
         status: emailResponse.ok ? 'sent' : 'failed',
         sent_at: new Date().toISOString()
