@@ -2,8 +2,11 @@
 
 ## Mehrsprachigkeit (13.11.2026)
 - [x] Aktuelles lokales main 6b072956 geprüft; Vorschau build OK; alle 69 angeforderten Function-Dateien vorhanden; Journal endet bei 0056_buchhaltung_umbau.
-- [ ] Vor Ausführung angehalten: supabase/migrations/20261112120000_mehrsprachigkeit.sql:75–79 definiert recruiter_public_link_open ohne das im Auftrag verlangte SECURITY DEFINER; Korrektur oder Klärung durch den Nutzer/Codex erforderlich.
-- [ ] Ausschließlich die beauftragte Migration ausführen, danach alle 69 Functions deployen und Publish anfordern; bis zur Klärung nichts ausgeführt, Code und Secrets unverändert.
+- [x] Nutzer klärt: recruiter_public_link_open bewusst ohne SECURITY DEFINER; SQL unverändert ausführen, EXECUTE ausschließlich service_role.
+- [x] Ausschließlich 20261112120000_mehrsprachigkeit.sql bytegleich als 0057_mehrsprachigkeit angewendet; vier language-Spalten, source_key, RLS und service_role-Rechte live geprüft; recruiter_public_link_open ohne SECURITY DEFINER, search_path=public, EXECUTE nur service_role.
+- [x] Alle 69 angeforderten Functions erfolgreich mit unveränderten Einstellungen deployt; keine manuellen Code- oder Secret-Änderungen, Schema-Typen automatisch regeneriert; build OK.
+- [x] Sicherheitsprüfung: sieben bekannte kritische Befunde, 13 Warnungen und ein Hinweis.
+- [ ] Publish wartet auf Nutzerentscheidung zu den sieben kritischen Bestandsbefunden.
 
 ## Auftrag 47 (12.11.2026) — Kundenaufnahme in Etappen
 - [x] Arbeitskopie und GitHub main identisch: cce25e4, enthält 324c371 (EtappenAnsicht, CaptureStep, AbteilungsTreppe, ClientIntake u. a.).
