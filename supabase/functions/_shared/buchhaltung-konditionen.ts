@@ -14,6 +14,7 @@ import { DATE, nowIso, requireAdminUser, rowsIn } from './buchhaltung-kern.ts';
 import { addDays } from './konditionen.ts';
 import { dateDe } from './buchhaltung-rechnen.ts';
 import { esc, layout } from './intake-mail.ts';
+import { dateKeyIn, tx } from './notify-i18n.ts';
 
 const NAMES: Record<PackageKey, string> = { core: 'Core', continuity_90: 'C90', continuity_180: 'C180' };
 export const ANNOUNCE_WEEKS = 8;
@@ -117,8 +118,12 @@ export async function announceConditions(ctx: PlacementCtx, user: User) {
   const failed: string[] = [];
   for (const id of ids) {
     if (done.has(id)) continue;
-    await notify(ctx, id, 'conditions_announced', `Neue Konditionen ab ${dateDe(s.activeFrom)}`,
-      `Mehr für Nachbesetzungen, Auszahlung in zwei Teilen. Was du vorher aktiviert hast, bleibt, wie es ist. Ohne Zustimmung gilt die bisherige Fassung bis ${dateDe(addDays(s.forcedFrom!, -1))}. Sieh es dir in der Übersicht an.`,
+    // Glocke in der Sprache des Headhunters; die Mail (Ankündigung in Textform, § 18 Abs. 2) bleibt deutsch
+    await notify(ctx, id, 'conditions_announced', (l) => tx(l, `Neue Konditionen ab ${dateDe(s.activeFrom)}`, `New conditions from ${dateKeyIn(s.activeFrom, l)}`, `Nya villkor från ${dateKeyIn(s.activeFrom, l)}`, `Nye vilkår fra ${dateKeyIn(s.activeFrom, l)}`),
+      (l) => tx(l, `Mehr für Nachbesetzungen, Auszahlung in zwei Teilen. Was du vorher aktiviert hast, bleibt, wie es ist. Ohne Zustimmung gilt die bisherige Fassung bis ${dateDe(addDays(s.forcedFrom!, -1))}. Sieh es dir in der Übersicht an.`,
+        `More for replacements, payout in two parts. What you activated before stays as it is. Without your consent, the previous version applies until ${dateKeyIn(addDays(s.forcedFrom!, -1), l)}. Take a look in the overview.`,
+        `Mer för ersättningar, utbetalning i två delar. Det du aktiverat tidigare förblir som det är. Utan ditt samtycke gäller den tidigare versionen till ${dateKeyIn(addDays(s.forcedFrom!, -1), l)}. Titta i översikten.`,
+        `Mer for erstatninger, utbetaling i to deler. Det du har aktivert tidligere, forblir som det er. Uten samtykke gjelder den tidligere versjonen til ${dateKeyIn(addDays(s.forcedFrom!, -1), l)}. Se i oversikten.`),
       'conditions', id);
     sent += 1;
     // Ankündigung in Textform (§ 18 Abs. 2): Mail an jeden Headhunter, dient als Nachweis

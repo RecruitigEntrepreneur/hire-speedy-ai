@@ -16,6 +16,7 @@ import { esc, layout } from './intake-mail.ts';
 import { CUSTOMER_TYPES, DATE, EMAIL, OPEN_STATUSES, UUID, nowIso, openCentsOf, requireAdminUser, rowsIn, text } from './buchhaltung-kern.ts';
 import { addDays } from './konditionen.ts';
 import { dateDe, dateDeShort, dayDiff, workdaysUntil } from './buchhaltung-rechnen.ts';
+import { dateKeyIn, m, tx } from './notify-i18n.ts';
 
 export const FEEDBACK_WORKDAYS = 5;
 export const POSITION_DAYS = 7;
@@ -267,7 +268,9 @@ export async function cooperationAction(ctx: PlacementCtx, user: User, body: any
     const r = await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to, replyTo: 'info@bluewater-bridge.de', subject, html, text: mailText }, { template: 'cooperation_hint', meta: { owner_id: ownerId, deadline } });
     must(r.sent, `Die Mail ging nicht raus${r.error ? `: ${r.error}` : ''}.`, 'upstream_error');
     await addEvent(ctx, { owner_id: ownerId, stage: 3, kind: 'hint', note: `An ${to} · ${subject}\n\n${mailText}`.slice(0, 2000), deadline, created_by: user.id });
-    await notify(ctx, ownerId, 'cooperation_hint', subject, 'Wir haben Ihnen einen Hinweis mit Frist geschickt. Details in Ihrer Mail.', 'cooperation', ownerId);
+    // Die Mail schreibt Matchunt selbst (Freitext, deutsch); die Glocke folgt der Sprache des Kunden
+    await notify(ctx, ownerId, 'cooperation_hint', (l) => tx(l, subject, `Your roles at Matchunt: please by ${dateKeyIn(deadline, l)}`, `Dina tjänster hos Matchunt: senast ${dateKeyIn(deadline, l)}`, `Stillingene dine hos Matchunt: innen ${dateKeyIn(deadline, l)}`),
+      (l) => tx(l, 'Wir haben Ihnen einen Hinweis mit Frist geschickt. Details in Ihrer Mail.', 'We have sent you a notice with a deadline. Details in your email.', 'Vi har skickat dig ett meddelande med en tidsfrist. Detaljer i ditt mejl.', 'Vi har sendt deg en melding med frist. Detaljer i e-posten din.'), 'cooperation', ownerId);
     return { ok: true, sentTo: to };
   }
   if (action === 'pause') {
@@ -277,8 +280,12 @@ export async function cooperationAction(ctx: PlacementCtx, user: User, body: any
       const { error } = await ctx.db.from('jobs').update({ status: 'paused', paused_at: at, cooperation_paused_at: at }).eq('id', j.id);
       dbFail(error, 'Die Stelle');
       if (j.research_for_placement_id) await ctx.db.from('placements').update({ research_state: 'paused' }).eq('id', j.research_for_placement_id).eq('research_state', 'running');
-      for (const r of await recruitersOf(ctx, j.id)) await notify(ctx, r, 'job_paused', `Stelle ruht: ${j.title}`, 'Matchunt hat die Suche angehalten, bis der Kunde offene Rückmeldungen gegeben hat. Du musst gerade nicht weitersuchen.', 'job', j.id);
-      await notify(ctx, j.client_id, 'job_paused', `Ihre Stelle ${j.title} ruht`, 'Wir haben die Suche angehalten, bis Sie die offenen Rückmeldungen gegeben haben. Danach geht es sofort weiter.', 'job', j.id);
+      for (const r of await recruitersOf(ctx, j.id)) {
+        await notify(ctx, r, 'job_paused', (l) => tx(l, m`Stelle ruht: ${j.title}`, m`Role paused: ${j.title}`, m`Tjänsten vilar: ${j.title}`, m`Stillingen står på pause: ${j.title}`),
+          (l) => tx(l, 'Matchunt hat die Suche angehalten, bis der Kunde offene Rückmeldungen gegeben hat. Du musst gerade nicht weitersuchen.', 'Matchunt has paused the search until the client has given the open feedback. You don’t need to keep searching for now.', 'Matchunt har pausat sökningen tills kunden har gett den återkoppling som saknas. Du behöver inte söka vidare just nu.', 'Matchunt har satt søket på pause til kunden har gitt tilbakemeldingene som mangler. Du trenger ikke søke videre nå.'), 'job', j.id);
+      }
+      await notify(ctx, j.client_id, 'job_paused', (l) => tx(l, m`Ihre Stelle ${j.title} ruht`, m`Your role ${j.title} is paused`, m`Din tjänst ${j.title} vilar`, m`Stillingen din ${j.title} står på pause`),
+        (l) => tx(l, 'Wir haben die Suche angehalten, bis Sie die offenen Rückmeldungen gegeben haben. Danach geht es sofort weiter.', 'We have paused the search until you have given the open feedback. Then it continues right away.', 'Vi har pausat sökningen tills du har gett den återkoppling som saknas. Sedan fortsätter den direkt.', 'Vi har satt søket på pause til du har gitt tilbakemeldingene som mangler. Deretter fortsetter det med en gang.'), 'job', j.id);
       await addEvent(ctx, { owner_id: ownerId, stage: 4, kind: 'pause', job_id: j.id, note, created_by: user.id });
     }
     return { ok: true, paused: chosen.length };
@@ -290,8 +297,12 @@ export async function cooperationAction(ctx: PlacementCtx, user: User, body: any
       const { error } = await ctx.db.from('jobs').update({ status: 'published', paused_at: null, cooperation_paused_at: null }).eq('id', j.id);
       dbFail(error, 'Die Stelle');
       if (j.research_for_placement_id) await ctx.db.from('placements').update({ research_state: 'running' }).eq('id', j.research_for_placement_id).eq('research_state', 'paused');
-      for (const r of await recruitersOf(ctx, j.id)) await notify(ctx, r, 'job_resumed', `Stelle läuft wieder: ${j.title}`, 'Der Kunde ist wieder dabei. Du kannst weitersuchen.', 'job', j.id);
-      await notify(ctx, j.client_id, 'job_resumed', `Ihre Stelle ${j.title} läuft wieder`, 'Danke für Ihre Rückmeldungen. Die Headhunter suchen weiter.', 'job', j.id);
+      for (const r of await recruitersOf(ctx, j.id)) {
+        await notify(ctx, r, 'job_resumed', (l) => tx(l, m`Stelle läuft wieder: ${j.title}`, m`Role active again: ${j.title}`, m`Tjänsten är aktiv igen: ${j.title}`, m`Stillingen er aktiv igjen: ${j.title}`),
+          (l) => tx(l, 'Der Kunde ist wieder dabei. Du kannst weitersuchen.', 'The client is back on board. You can keep searching.', 'Kunden är med igen. Du kan söka vidare.', 'Kunden er med igjen. Du kan søke videre.'), 'job', j.id);
+      }
+      await notify(ctx, j.client_id, 'job_resumed', (l) => tx(l, m`Ihre Stelle ${j.title} läuft wieder`, m`Your role ${j.title} is active again`, m`Din tjänst ${j.title} är aktiv igen`, m`Stillingen din ${j.title} er aktiv igjen`),
+        (l) => tx(l, 'Danke für Ihre Rückmeldungen. Die Headhunter suchen weiter.', 'Thank you for your feedback. The headhunters are searching again.', 'Tack för din återkoppling. Headhuntrarna söker vidare.', 'Takk for tilbakemeldingene. Headhunterne søker videre.'), 'job', j.id);
       await addEvent(ctx, { owner_id: ownerId, stage: null, kind: 'resume', job_id: j.id, note, created_by: user.id });
     }
     return { ok: true, resumed: chosen.length };
@@ -308,9 +319,13 @@ export async function cooperationAction(ctx: PlacementCtx, user: User, body: any
       } else {
         const { error } = await ctx.db.from('jobs').update({ status: 'closed', closed_reason: 'matchunt_ended', closed_at: at, closed_note: note, cooperation_paused_at: null }).eq('id', j.id);
         dbFail(error, 'Die Stelle');
-        for (const r of await recruitersOf(ctx, j.id)) await notify(ctx, r, 'job_closed', `Stelle beendet: ${j.title}`, 'Matchunt hat die Bearbeitung beendet. Deine Einreichungen dafür sind abgeschlossen.', 'job', j.id);
+        for (const r of await recruitersOf(ctx, j.id)) {
+          await notify(ctx, r, 'job_closed', (l) => tx(l, m`Stelle beendet: ${j.title}`, m`Role ended: ${j.title}`, m`Tjänsten avslutad: ${j.title}`, m`Stillingen avsluttet: ${j.title}`),
+            (l) => tx(l, 'Matchunt hat die Bearbeitung beendet. Deine Einreichungen dafür sind abgeschlossen.', 'Matchunt has ended work on this role. Your submissions for it are closed.', 'Matchunt har avslutat arbetet med tjänsten. Dina kandidater för den är avslutade.', 'Matchunt har avsluttet arbeidet med stillingen. Kandidatene dine til den er avsluttet.'), 'job', j.id);
+        }
       }
-      await notify(ctx, j.client_id, 'job_closed', `Bearbeitung beendet: ${j.title}`, 'Matchunt hat die Bearbeitung dieser Stelle beendet. Bei Fragen melden Sie sich gern.', 'job', j.id);
+      await notify(ctx, j.client_id, 'job_closed', (l) => tx(l, m`Bearbeitung beendet: ${j.title}`, m`Work ended: ${j.title}`, m`Arbetet avslutat: ${j.title}`, m`Arbeidet avsluttet: ${j.title}`),
+        (l) => tx(l, 'Matchunt hat die Bearbeitung dieser Stelle beendet. Bei Fragen melden Sie sich gern.', 'Matchunt has ended work on this role. If you have any questions, just get in touch.', 'Matchunt har avslutat arbetet med den här tjänsten. Hör gärna av dig om du har frågor.', 'Matchunt har avsluttet arbeidet med denne stillingen. Ta gjerne kontakt hvis du har spørsmål.'), 'job', j.id);
       await addEvent(ctx, { owner_id: ownerId, stage: 5, kind: 'end', job_id: j.id, note, created_by: user.id });
     }
     return { ok: true, ended: chosen.length };

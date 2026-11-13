@@ -1,6 +1,7 @@
 import { CheckCircle2, AlertCircle, Clock } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { de } from "date-fns/locale";
+import { useTranslation } from "react-i18next";
+import { dfLocale } from "@/lib/localeFormat";
 
 interface SyncStatusProps {
   lastSyncedAt: string | null;
@@ -9,11 +10,12 @@ interface SyncStatusProps {
 }
 
 export function SyncStatus({ lastSyncedAt, errorMessage, isLoading }: SyncStatusProps) {
+  const { t } = useTranslation('clientSettings');
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Clock className="h-4 w-4 animate-pulse" />
-        <span>Synchronisierung läuft...</span>
+        <span>{t('integrations.syncRunning')}</span>
       </div>
     );
   }
@@ -22,7 +24,7 @@ export function SyncStatus({ lastSyncedAt, errorMessage, isLoading }: SyncStatus
     return (
       <div className="flex items-center gap-2 text-sm text-destructive">
         <AlertCircle className="h-4 w-4" />
-        <span>Synchronisierung fehlgeschlagen</span>
+        <span>{t('integrations.syncFailed')}</span>
       </div>
     );
   }
@@ -31,7 +33,7 @@ export function SyncStatus({ lastSyncedAt, errorMessage, isLoading }: SyncStatus
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Clock className="h-4 w-4" />
-        <span>Noch nicht synchronisiert</span>
+        <span>{t('integrations.notSynced')}</span>
       </div>
     );
   }
@@ -40,8 +42,7 @@ export function SyncStatus({ lastSyncedAt, errorMessage, isLoading }: SyncStatus
     <div className="flex items-center gap-2 text-sm text-muted-foreground">
       <CheckCircle2 className="h-4 w-4 text-green-500" />
       <span>
-        Zuletzt synchronisiert{" "}
-        {formatDistanceToNow(new Date(lastSyncedAt), { addSuffix: true, locale: de })}
+        {t('integrations.lastSynced', { when: formatDistanceToNow(new Date(lastSyncedAt), { addSuffix: true, locale: dfLocale() }) })}
       </span>
     </div>
   );

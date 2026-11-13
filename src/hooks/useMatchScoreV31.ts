@@ -1,3 +1,4 @@
+import i18n from '@/i18n';
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -140,7 +141,7 @@ export function useMatchScoreV31() {
       setResults(response.results);
       return response.results;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Fehler bei der Berechnung';
+      const errorMessage = err instanceof Error ? err.message : i18n.t('errors:matchCalc');
       setError(errorMessage);
       console.error('V3.1 Match calculation error:', err);
       return [];
@@ -218,20 +219,20 @@ export function useMatchScoreV31() {
   };
 
   const getScoreLabel = (score: number): string => {
-    if (score >= 90) return 'Ausgezeichnet';
-    if (score >= 85) return 'Sehr gut';
-    if (score >= 75) return 'Gut';
-    if (score >= 65) return 'Befriedigend';
-    if (score >= 50) return 'Ausreichend';
-    return 'Gering';
+    if (score >= 90) return i18n.t('errors:score.excellent');
+    if (score >= 85) return i18n.t('errors:score.veryGood');
+    if (score >= 75) return i18n.t('errors:score.good');
+    if (score >= 65) return i18n.t('errors:score.satisfactory');
+    if (score >= 50) return i18n.t('errors:score.sufficient');
+    return i18n.t('errors:score.low');
   };
 
   const getCoverageLabel = (coverage: number): string => {
     const percent = Math.round(coverage * 100);
-    if (percent >= 85) return 'Vollständig';
-    if (percent >= 70) return 'Ausreichend';
-    if (percent >= 50) return 'Teilweise';
-    return 'Unzureichend';
+    if (percent >= 85) return i18n.t('errors:coverage.complete');
+    if (percent >= 70) return i18n.t('errors:coverage.sufficient');
+    if (percent >= 50) return i18n.t('errors:coverage.partial');
+    return i18n.t('errors:coverage.insufficient');
   };
 
   const getCoverageColor = (coverage: number): string => {
@@ -242,10 +243,10 @@ export function useMatchScoreV31() {
   };
 
   const getMultiplierLabel = (multiplier: number): string => {
-    if (multiplier >= 0.95) return 'Keine Einschränkungen';
-    if (multiplier >= 0.7) return 'Leichte Einschränkungen';
-    if (multiplier >= 0.4) return 'Deutliche Einschränkungen';
-    return 'Schwere Einschränkungen';
+    if (multiplier >= 0.95) return i18n.t('errors:multiplier.none');
+    if (multiplier >= 0.7) return i18n.t('errors:multiplier.light');
+    if (multiplier >= 0.4) return i18n.t('errors:multiplier.clear');
+    return i18n.t('errors:multiplier.severe');
   };
 
   const getMultiplierColor = (multiplier: number): string => {

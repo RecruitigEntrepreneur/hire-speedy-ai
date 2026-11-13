@@ -8,7 +8,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Building2, MapPin, Calendar, RefreshCw, ChevronDown, ChevronUp } from 'lucide-react';
 import { format } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { useTranslation } from 'react-i18next';
+import { dateFnsLocale } from '@/lib/candidateDateLocale';
 import { cn } from '@/lib/utils';
 
 interface CandidateExperienceTimelineProps {
@@ -39,6 +40,7 @@ interface Experience {
 }
 
 export function CandidateExperienceTimeline({ candidateId, onReparse, isReparsing, anonymized = false, empty, submissionId }: CandidateExperienceTimelineProps) {
+  const { t, i18n } = useTranslation('candidateDetail');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   const toggleExpanded = (id: string) => {
@@ -76,7 +78,7 @@ export function CandidateExperienceTimeline({ candidateId, onReparse, isReparsin
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '?';
     try {
-      return format(new Date(dateStr), 'MMM yyyy', { locale: de });
+      return format(new Date(dateStr), 'MMM yyyy', { locale: dateFnsLocale(i18n.language) });
     } catch (e) {
       return dateStr;
     }
@@ -103,9 +105,9 @@ export function CandidateExperienceTimeline({ candidateId, onReparse, isReparsin
       <div className="text-center py-6 text-muted-foreground space-y-3">
         <Building2 className="h-10 w-10 mx-auto opacity-40" />
         <div className="space-y-1">
-          <p className="text-sm font-medium">{empty?.title ?? 'Keine Berufserfahrung hinterlegt'}</p>
+          <p className="text-sm font-medium">{empty?.title ?? t('experience.emptyTitle')}</p>
           <p className="text-xs">
-            {empty?.text ?? 'Die Karriere-Stationen wurden nicht aus dem CV extrahiert'}
+            {empty?.text ?? t('experience.emptyText')}
           </p>
         </div>
         {empty?.action}
@@ -118,7 +120,7 @@ export function CandidateExperienceTimeline({ candidateId, onReparse, isReparsin
             className="mt-2"
           >
             <RefreshCw className={cn("h-3.5 w-3.5 mr-1.5", isReparsing && "animate-spin")} />
-            {isReparsing ? 'Parsing...' : 'CV erneut parsen'}
+            {isReparsing ? t('experience.parsing') : t('experience.reparse')}
           </Button>
         )}
       </div>
@@ -146,7 +148,7 @@ export function CandidateExperienceTimeline({ candidateId, onReparse, isReparsin
                   <h4 className="font-semibold">{exp.job_title}</h4>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Building2 className="h-3.5 w-3.5" />
-                    <span>{anonymized ? 'Unternehmen' : exp.company_name}</span>
+                    <span>{anonymized ? t('experience.company') : exp.company_name}</span>
                   </div>
                   {exp.location && !anonymized && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -160,11 +162,11 @@ export function CandidateExperienceTimeline({ candidateId, onReparse, isReparsin
                   <div className="flex items-center gap-1 text-sm text-muted-foreground">
                     <Calendar className="h-3.5 w-3.5" />
                     <span>
-                      {formatDate(exp.start_date)} – {exp.is_current ? 'Heute' : formatDate(exp.end_date)}
+                      {formatDate(exp.start_date)} – {exp.is_current ? t('experience.today') : formatDate(exp.end_date)}
                     </span>
                   </div>
                   {exp.is_current && (
-                    <Badge variant="default" className="text-xs">Aktuell</Badge>
+                    <Badge variant="default" className="text-xs">{t('common.current')}</Badge>
                   )}
                 </div>
               </div>
@@ -208,9 +210,9 @@ export function CandidateExperienceTimeline({ candidateId, onReparse, isReparsin
                               onClick={() => toggleExpanded(exp.id)}
                             >
                               {expandedIds.has(exp.id) ? (
-                                <>Weniger <ChevronUp className="h-3 w-3 ml-1" /></>
+                                <>{t('common.less')} <ChevronUp className="h-3 w-3 ml-1" /></>
                               ) : (
-                                <>{items.length - 3} weitere <ChevronDown className="h-3 w-3 ml-1" /></>
+                                <>{t('experience.more', { count: items.length - 3 })} <ChevronDown className="h-3 w-3 ml-1" /></>
                               )}
                             </Button>
                           )}
@@ -233,9 +235,9 @@ export function CandidateExperienceTimeline({ candidateId, onReparse, isReparsin
                               onClick={() => toggleExpanded(exp.id)}
                             >
                               {expandedIds.has(exp.id) ? (
-                                <>Weniger <ChevronUp className="h-3 w-3 ml-1" /></>
+                                <>{t('common.less')} <ChevronUp className="h-3 w-3 ml-1" /></>
                               ) : (
-                                <>Mehr anzeigen <ChevronDown className="h-3 w-3 ml-1" /></>
+                                <>{t('common.showMore')} <ChevronDown className="h-3 w-3 ml-1" /></>
                               )}
                             </Button>
                           )}

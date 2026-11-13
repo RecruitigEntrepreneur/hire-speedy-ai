@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import { Zap, Users, Bell, TrendingUp, Loader2 } from 'lucide-react';
 
 interface JobBoostDialogProps {
@@ -19,28 +20,29 @@ interface JobBoostDialogProps {
   onBoosted?: () => void;
 }
 
+// title, description und action tragen Schlüssel des Namespace recruiterJobEdit
 const boostOptions = [
   {
     id: 'notify',
     icon: Bell,
-    title: 'Recruiter benachrichtigen',
-    description: 'Push-Benachrichtigung an alle aktiven Recruiter senden',
-    action: 'Kostenlos',
+    title: 'boost.notify.title',
+    description: 'boost.notify.description',
+    action: 'boost.free',
   },
   {
     id: 'priority',
     icon: TrendingUp,
-    title: 'Priorität erhöhen',
-    description: 'Job erscheint oben in der Recruiter-Liste für 7 Tage',
-    action: 'Kommt bald',
+    title: 'boost.priority.title',
+    description: 'boost.priority.description',
+    action: 'boost.soon',
     disabled: true,
   },
   {
     id: 'expand',
     icon: Users,
-    title: 'Reichweite erweitern',
-    description: 'Job wird an mehr Recruiter aus verwandten Branchen gezeigt',
-    action: 'Kommt bald',
+    title: 'boost.expand.title',
+    description: 'boost.expand.description',
+    action: 'boost.soon',
     disabled: true,
   },
 ];
@@ -55,8 +57,9 @@ export function JobBoostDialog({
   // Keine der Boost-Optionen ist heute hinterlegt — es gibt keine Edge Function,
   // die Recruiter benachrichtigt. Bis dahin sagt der Dialog das auch. Vorher
   // meldete er nach einer Sekunde Kunstpause "Recruiter wurden benachrichtigt!".
+  const { t } = useTranslation('recruiterJobEdit');
   const handleBoost = async (_optionId: string) => {
-    toast.info('Diese Funktion kommt bald!');
+    toast.info(t('boost.comingSoon'));
   };
 
   return (
@@ -65,10 +68,10 @@ export function JobBoostDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Zap className="h-5 w-5 text-amber-500" />
-            Job boosten
+            {t('boost.title')}
           </DialogTitle>
           <DialogDescription>
-            Mehr Aufmerksamkeit für "{jobTitle}"
+            {t('boost.description', { title: jobTitle })}
           </DialogDescription>
         </DialogHeader>
 
@@ -89,16 +92,16 @@ export function JobBoostDialog({
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium">{option.title}</span>
+                  <span className="font-medium">{t(option.title)}</span>
                   <Badge 
                     variant={option.disabled ? 'secondary' : 'outline'} 
                     className={option.disabled ? '' : 'text-emerald-600 border-emerald-300'}
                   >
-                    {option.action}
+                    {t(option.action)}
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                  {option.description}
+                  {t(option.description)}
                 </p>
               </div>
             </button>
@@ -107,7 +110,7 @@ export function JobBoostDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Schließen
+            {t('boost.close')}
           </Button>
         </DialogFooter>
       </DialogContent>

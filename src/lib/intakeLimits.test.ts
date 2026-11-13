@@ -24,6 +24,7 @@ const ALLE: Record<string, LimitRule[]> = {
   recruiterCode: LIMITS.recruiterCode('a@b.de', '1.2.3.4'),
   recruiterVerify: LIMITS.recruiterVerify('a@b.de', '1.2.3.4'),
   recruiterEnrich: LIMITS.recruiterEnrich('draft-1', '1.2.3.4'),
+  recruiterLink: LIMITS.recruiterLink('1.2.3.4', 'linkedin-se'),
   clientCode: LIMITS.clientCode('a@b.de', '1.2.3.4'),
   clientVerify: LIMITS.clientVerify('a@b.de', '1.2.3.4'),
   terminSeite: LIMITS.terminSeite('1.2.3.4'),

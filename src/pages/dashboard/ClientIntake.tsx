@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import { Trans, useTranslation } from 'react-i18next';
+import { intlLocale } from '@/i18n/languages';
 import ClientDashboard from './ClientDashboard';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -33,6 +35,8 @@ import {
 type Step = 'capture' | 'submit' | 'done';
 
 export default function ClientIntake() {
+  const { t, i18n } = useTranslation(['intake', 'intakeCatalog']);
+  const locale = intlLocale(i18n.language);
   const { jobId: jobIdParam } = useParams<{ jobId?: string }>();
   const location = useLocation();
   const navigate = useNavigate();
@@ -76,20 +80,20 @@ export default function ClientIntake() {
   const isContracting = capture?.type === 'freelance';
   const contractingDirekt = contractingUnterRahmen(framework) || (!isOwner && !frameworkLoading);
   const submitLabel = needsInternalApproval
-    ? 'Freigabe'
+    ? t('clientIntake.stepApproval')
     : isContracting
-      ? contractingDirekt ? 'Einreichen' : 'Anfragen'
-      : hasFramework ? 'Einreichen' : 'Paket & Anfragen';
-  const steps = [{ key: 'capture', label: 'Position' }, { key: 'submit', label: submitLabel }];
+      ? contractingDirekt ? t('clientIntake.stepSubmit') : t('clientIntake.stepRequest')
+      : hasFramework ? t('clientIntake.stepSubmit') : t('clientIntake.stepPackageRequest');
+  const steps = [{ key: 'capture', label: t('clientIntake.stepPosition') }, { key: 'submit', label: submitLabel }];
 
   const rows = useMemo(() => {
     const b = capture?.built;
     if (!b || !capture) return [];
     const isFreelance = capture.type === 'freelance';
-    const money = (min: number | null | undefined, max: number | null | undefined, suffix: string) => {
+    const money = (min: number | null | undefined, max: number | null | undefined, key: 'clientIntake.moneyAllIn' | 'clientIntake.moneyPerYear') => {
       if (min == null && max == null) return '—';
-      if (min != null && max != null) return `${min.toLocaleString('de-DE')}–${max.toLocaleString('de-DE')} ${suffix}`;
-      return `${(min ?? max)!.toLocaleString('de-DE')} ${suffix}`;
+      if (min != null && max != null) return t(key, { amount: `${min.toLocaleString(locale)}–${max.toLocaleString(locale)}` });
+      return t(key, { amount: (min ?? max)!.toLocaleString(locale) });
     };
     const known = capture.dyn.catalog?.known ?? {};
     const beantwortet = Object.values(known).filter((k: any) => k?.from === 'answer').length;
@@ -102,24 +106,28 @@ export default function ClientIntake() {
     const kann = eingestuft ? alle.filter((k) => flex[k] !== 'fix') : b.nice_to_haves;
     return [
       ...(intake.firmaFest?.name
-        ? [{ label: 'Firma', value: `${intake.firmaFest.name}${intake.firmaFest.inPruefung ? ' · in Prüfung' : ''}` }]
+        ? [{
+            label: t('clientIntake.rowCompany'),
+            value: intake.firmaFest.inPruefung ? t('clientIntake.companyInReview', { name: intake.firmaFest.name }) : intake.firmaFest.name,
+          }]
         : []),
-      { label: 'Position', value: b.title || '—' },
-      { label: 'Standort', value: [b.location, remoteLabel(b.remote_type)].filter(Boolean).join(' · ') || '—' },
-      { label: 'Erfahrung', value: levelLabel(b.experience_level) },
+      { label: t('clientIntake.rowPosition'), value: b.title || '—' },
+      { label: t('shared.location'), value: [b.location, remoteLabel(b.remote_type)].filter(Boolean).join(' · ') || '—' },
+      { label: t('shared.experience'), value: levelLabel(b.experience_level) },
       {
         // Wie auf /start: das Budget des Kunden, alles inklusive -- kein Satz des Spezialisten.
-        label: isFreelance ? 'Budget je Tag' : 'Gehaltsband',
+        label: isFreelance ? t('clientIntake.rowBudgetPerDay') : t('clientIntake.rowSalaryBand'),
         value: isFreelance
-          ? money(capture.freelance.dayRateMin, capture.freelance.dayRateMax, '€, alles inklusive')
-          : money(b.salary_min, b.salary_max, '€ p. a.'),
+          ? money(capture.freelance.dayRateMin, capture.freelance.dayRateMax, 'clientIntake.moneyAllIn')
+          : money(b.salary_min, b.salary_max, 'clientIntake.moneyPerYear'),
       },
-      { label: 'Muss', value: muss.length ? muss.join(' · ') : '—' },
-      { label: 'Kann', value: kann.length ? kann.join(' · ') : '—' },
-      { label: 'Briefing', value: beantwortet ? `${beantwortet} Angaben beantwortet` : 'noch nicht beantwortet' },
-      { label: 'Vertragsart', value: isFreelance ? 'Contracting' : 'Festanstellung' },
+      { label: t('clientIntake.rowMust'), value: muss.length ? muss.join(' · ') : '—' },
+      { label: t('clientIntake.rowNice'), value: kann.length ? kann.join(' · ') : '—' },
+      { label: t('clientIntake.rowBriefing'), value: beantwortet ? t('clientIntake.briefingAnswered', { count: beantwortet }) : t('clientIntake.briefingNone') },
+      { label: t('clientIntake.rowContractType'), value: isFreelance ? t('shared.contracting') : t('shared.permanent') },
     ];
-  }, [capture, intake.firmaFest?.name, intake.firmaFest?.inPruefung]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [capture, intake.firmaFest?.name, intake.firmaFest?.inPruefung, t, locale]);
 
   const openQuestions = useMemo(() => {
     if (!capture?.built) return 0;
@@ -146,10 +154,10 @@ export default function ClientIntake() {
   const later = async () => {
     const ok = await saveDraft();
     if (ok) {
-      toast.success('Entwurf gespeichert — auf dem Dashboard unter „Weitermachen“.');
+      toast.success(t('clientIntake.draftSaved'));
       navigate(zurueck);
     } else {
-      toast.error('Speichern fehlgeschlagen. Bitte noch nicht schließen.');
+      toast.error(t('clientIntake.saveFailedDontClose'));
     }
   };
 
@@ -166,17 +174,16 @@ export default function ClientIntake() {
     // Contracting laeuft erst ab Fassung 2 ohne Unterschrift unter dem Rahmenvertrag.
     const unterRv = framework && (!isContracting || contractingUnterRahmen(framework));
     const text = internal
-      ? 'Ihre Personalabteilung wurde benachrichtigt und gibt die Position frei.'
+      ? t('clientIntake.doneInternal')
       : unterRv
         ? choice?.upgraded && pkg?.public_name
-          ? `${pkg.public_name} für diese Position · sonst gilt Rahmenvertrag ${framework.agreement_number}.`
-          : `Läuft unter Rahmenvertrag ${framework.agreement_number}, keine Unterschrift nötig.`
-        : 'Wir prüfen Ihre Anfrage und melden uns.';
+          ? t('clientIntake.doneUpgrade', { name: pkg.public_name, number: framework.agreement_number })
+          : t('clientIntake.doneFramework', { number: framework.agreement_number })
+        : t('clientIntake.doneReview');
     setDone({
-      titel: internal ? 'Ihre Stelle ist zur Freigabe an Ihr Team geschickt' : 'Ihre Stelle wurde eingereicht',
-      text: internal
-        ? `${text} Den Stand sehen Sie jederzeit unter „Meine Jobs“.`
-        : `${text} Matchunt prüft die Stelle, meist in unter 24 Stunden. Den Stand sehen Sie jederzeit unter „Meine Jobs“.`,
+      titel: internal ? t('clientIntake.doneTitleInternal') : t('clientIntake.doneTitle'),
+      // Ganze Sätze hintereinander, keine Bruchstücke.
+      text: `${text} ${internal ? t('clientIntake.doneTrackInternal') : t('clientIntake.doneTrack')}`,
       vorschau: nurVorschau,
     });
     setStep('done');
@@ -204,28 +211,28 @@ export default function ClientIntake() {
     <div className="grid gap-3 sm:grid-cols-2">
       <button
         type="button"
-        onClick={() => toast.info('Personio ist in dieser Vorschau noch nicht angeschlossen.')}
+        onClick={() => toast.info(t('clientIntake.personioToast'))}
         className="flex w-full items-start gap-3 rounded-xl border border-dashed p-4 text-left text-muted-foreground transition-colors hover:bg-muted/40"
       >
         <Building2 className="mt-0.5 h-5 w-5 shrink-0" />
         <span>
           <span className="flex items-center gap-2 font-medium text-foreground">
-            Aus Personio <span className="rounded-full border px-2 py-0.5 text-[10px]">Vorschau</span>
+            {t('clientIntake.personioTitle')} <span className="rounded-full border px-2 py-0.5 text-[10px]">{t('clientIntake.previewBadge')}</span>
           </span>
-          <span className="mt-0.5 block text-sm">Veröffentlichte Stellen von Ihrer Karriereseite übernehmen.</span>
+          <span className="mt-0.5 block text-sm">{t('clientIntake.personioText')}</span>
         </span>
       </button>
       <button
         type="button"
-        onClick={() => toast.info('Stellen per Mail sind in dieser Vorschau noch nicht angeschlossen.')}
+        onClick={() => toast.info(t('clientIntake.mailToast'))}
         className="flex w-full items-start gap-3 rounded-xl border border-dashed p-4 text-left text-muted-foreground transition-colors hover:bg-muted/40"
       >
         <Mail className="mt-0.5 h-5 w-5 shrink-0" />
         <span>
           <span className="flex items-center gap-2 font-medium text-foreground">
-            Per Mail weiterleiten <span className="rounded-full border px-2 py-0.5 text-[10px]">Vorschau</span>
+            {t('clientIntake.mailTitle')} <span className="rounded-full border px-2 py-0.5 text-[10px]">{t('clientIntake.previewBadge')}</span>
           </span>
-          <span className="mt-0.5 block text-sm">An Ihre eigene Matchunt-Adresse, erscheint dann als Entwurf.</span>
+          <span className="mt-0.5 block text-sm">{t('clientIntake.mailText')}</span>
         </span>
       </button>
     </div>
@@ -239,11 +246,11 @@ export default function ClientIntake() {
     if (step !== 'done') {
       const ok = await saveDraft();
       if (!ok) {
-        toast.error('Speichern fehlgeschlagen. Bitte noch nicht schließen.');
+        toast.error(t('clientIntake.saveFailedDontClose'));
         return;
       }
-      if (intake.jobId && intake.status === 'draft') toast.success('Entwurf gespeichert — auf dem Dashboard unter „Weitermachen“.');
-      else if (intake.jobId) toast.success('Änderungen gespeichert.');
+      if (intake.jobId && intake.status === 'draft') toast.success(t('clientIntake.draftSaved'));
+      else if (intake.jobId) toast.success(t('clientIntake.changesSaved'));
     }
     navigate(zurueck);
   };
@@ -270,10 +277,10 @@ export default function ClientIntake() {
             step === 'done' && 'sr-only',
           )}>
             <DialogTitle className="truncate text-base font-semibold">
-              {title || 'Neue Position aufnehmen'}
+              {title || t('clientIntake.dialogTitle')}
             </DialogTitle>
             <DialogDescription className="sr-only">
-              Position aufnehmen, Briefing beantworten und bei Matchunt einreichen.
+              {t('clientIntake.dialogDescription')}
             </DialogDescription>
             {step !== 'done' && (
             <ol className="ml-auto flex items-center gap-1.5 text-xs">
@@ -302,6 +309,7 @@ export default function ClientIntake() {
           </div>
 
           <div className={cn('flex-1 overflow-y-auto', step === 'done' ? 'p-6' : 'px-4 py-5 md:px-6')}>
+            {/* Nur lokal (npm run dev) sichtbar, deshalb nicht übersetzt. */}
             {import.meta.env.DEV && step !== 'done' && (
               <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-amber-500/50 px-3 py-2 text-xs">
                 <span className="font-medium text-amber-600">Test-Vorschau (nur lokal):</span>
@@ -333,8 +341,7 @@ export default function ClientIntake() {
              schieben -- sonst traf der naechste Klick daneben (Durchklick 04.11.2026). */
           <div className="fixed left-1/2 top-3 z-50 flex w-[min(42rem,calc(100vw-2rem))] -translate-x-1/2 flex-wrap items-center gap-2 rounded-lg border border-amber-500/30 bg-background px-3 py-2 text-sm shadow-lg">
             <span>
-              Sie haben bereits einen Entwurf „{title}“ vom{' '}
-              {new Date(intake.doppelt.updated_at).toLocaleDateString('de-DE')}.
+              {t('clientIntake.duplicate', { title, date: new Date(intake.doppelt.updated_at).toLocaleDateString(locale) })}
             </span>
             <div className="ml-auto flex gap-2">
               <Button
@@ -346,10 +353,10 @@ export default function ClientIntake() {
                   if (id) window.location.assign(`/dashboard/aufnahme/${id}`);
                 }}
               >
-                Dort weitermachen
+                {t('clientIntake.continueThere')}
               </Button>
               <Button size="sm" variant="ghost" className="h-7 px-2.5 text-xs" onClick={intake.verwerfeDoppelt}>
-                Trotzdem neu
+                {t('clientIntake.newAnyway')}
               </Button>
             </div>
           </div>
@@ -363,7 +370,7 @@ export default function ClientIntake() {
 
             {!capture && (
               <div className="flex items-center gap-2 py-16 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" /> Entwurf wird geladen …
+                <Loader2 className="h-4 w-4 animate-spin" /> {t('clientIntake.draftLoading')}
               </div>
             )}
 
@@ -386,8 +393,8 @@ export default function ClientIntake() {
                 parsePdf={parsePdf}
                 onNext={goSubmit}
                 onResumeLater={later}
-                nextLabel={hasFramework || needsInternalApproval || isContracting ? 'Weiter zum Einreichen' : 'Weiter zum Paket'}
-                entrySub={`Ohne Anzeige etwa ${minutenOhneAnzeige('full-time')} Minuten, mit Anzeige weniger. Alles wird fortlaufend gespeichert.`}
+                nextLabel={hasFramework || needsInternalApproval || isContracting ? t('clientIntake.nextToSubmit') : t('clientIntake.nextToPackage')}
+                entrySub={t('clientIntake.entrySub', { minutes: minutenOhneAnzeige('full-time') })}
                 entryExtras={entryExtras}
                 autoBuildText={seed.seedText ?? null}
                 autoBuildFile={seed.seedFile ?? null}
@@ -396,7 +403,7 @@ export default function ClientIntake() {
             firmen={intake.firmen}
             firmaId={intake.firmaId}
             onFirma={intake.waehleFirma}
-            speicherStand={saving ? 'Speichert …' : saveError ? <span className="text-destructive">{saveError}</span> : lastSavedAt ? '✓ Gespeichert' : null}
+            speicherStand={saving ? t('clientIntake.saving') : saveError ? <span className="text-destructive">{saveError}</span> : lastSavedAt ? t('clientIntake.saved') : null}
               />
             )}
 
@@ -425,7 +432,7 @@ export default function ClientIntake() {
             {step === 'done' && done && (
               <Abschluss
                 done={done}
-                jobTitel={title || 'Die Position'}
+                jobTitel={title || t('clientIntake.thePosition')}
                 onJobs={() => navigate('/dashboard/jobs?tab=review')}
                 onWeitere={() => window.location.assign('/dashboard/aufnahme')}
                 onDashboard={() => navigate('/dashboard')}
@@ -439,7 +446,7 @@ export default function ClientIntake() {
       <DelegateDialog
         open={delegateOpen}
         onOpenChange={setDelegateOpen}
-        title={title || 'Position'}
+        title={title || t('clientIntake.positionFallback')}
         onBeforeSend={saveDraft}
         jobId={intake.jobId}
       />
@@ -458,6 +465,7 @@ function Abschluss({
   onWeitere: () => void;
   onDashboard: () => void;
 }) {
+  const { t } = useTranslation(['intake', 'intakeCatalog']);
   return (
     <div>
       <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/15">
@@ -471,13 +479,13 @@ function Abschluss({
       )}
       <div className="mt-5 flex flex-wrap gap-2">
         <Button className="gap-1.5" onClick={onJobs}>
-          Zu meinen Jobs <ArrowRight className="h-4 w-4" />
+          {t('clientIntake.toMyJobs')} <ArrowRight className="h-4 w-4" />
         </Button>
         <Button variant="outline" className="gap-1.5" onClick={onWeitere}>
-          <Plus className="h-4 w-4" /> Weitere Stelle einreichen
+          <Plus className="h-4 w-4" /> {t('clientIntake.submitAnother')}
         </Button>
         <Button variant="ghost" className="px-3" onClick={onDashboard}>
-          Zum Dashboard
+          {t('clientIntake.toDashboard')}
         </Button>
       </div>
     </div>
@@ -495,6 +503,7 @@ function DelegateDialog({
   onBeforeSend: () => Promise<boolean>;
   jobId: string | null;
 }) {
+  const { t } = useTranslation(['intake', 'intakeCatalog']);
   const { user } = useAuth();
   const { organizations } = useOrganization();
   const { members } = useOrganizationMembers(organizations?.[0]?.id);
@@ -507,9 +516,11 @@ function DelegateDialog({
     const ok = await onBeforeSend();
     if (!ok || !jobId) {
       setBusy(null);
-      toast.error('Bitte zuerst einen Jobtitel angeben, dann weitergeben.');
+      toast.error(t('clientIntake.delegateNeedTitle'));
       return;
     }
+    // Titel und Text der Benachrichtigung werden gespeichert und vom Kollegen gelesen,
+    // dessen Sprache hier nicht bekannt ist: sie bleiben deutsch.
     const { error } = await supabase.from('notifications').insert({
       user_id: m.user_id,
       type: 'intake_delegated',
@@ -520,10 +531,10 @@ function DelegateDialog({
     } as any);
     setBusy(null);
     if (error) {
-      toast.error('Weitergeben fehlgeschlagen.');
+      toast.error(t('clientIntake.delegateFailed'));
       return;
     }
-    toast.success(`An ${m.profiles?.full_name || m.profiles?.email || 'Kollegen'} weitergegeben.`);
+    toast.success(t('clientIntake.delegated', { name: m.profiles?.full_name || m.profiles?.email || t('clientIntake.colleague') }));
     onOpenChange(false);
   };
 
@@ -531,13 +542,13 @@ function DelegateDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>An Kollegen weitergeben</DialogTitle>
-          <DialogDescription>Der Entwurf wird gespeichert, die Person bekommt eine Benachrichtigung.</DialogDescription>
+          <DialogTitle>{t('clientIntake.delegateTitle')}</DialogTitle>
+          <DialogDescription>{t('clientIntake.delegateDescription')}</DialogDescription>
         </DialogHeader>
         <div className="space-y-2">
           {active.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Noch niemand in Ihrem Team. <Link to="/dashboard/team" className="underline">Kollegen einladen</Link>
+              <Trans t={t} i18nKey="clientIntake.noTeam" components={{ invite: <Link to="/dashboard/team" className="underline" /> }} />
             </p>
           ) : (
             active.map((m: any) => (
@@ -549,11 +560,11 @@ function DelegateDialog({
                 className="flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm hover:bg-muted/40"
               >
                 <span>{m.profiles?.full_name || m.profiles?.email || m.user_id}</span>
-                <span className="text-xs text-muted-foreground">{busy === m.user_id ? 'wird übergeben …' : m.role}</span>
+                <span className="text-xs text-muted-foreground">{busy === m.user_id ? t('clientIntake.delegating') : m.role}</span>
               </button>
             ))
           )}
-          <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Nachricht (optional), z. B. „Bitte Gehalt und Start ergänzen“" rows={2} className="text-sm" />
+          <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder={t('clientIntake.notePlaceholder')} rows={2} className="text-sm" />
         </div>
       </DialogContent>
     </Dialog>

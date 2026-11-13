@@ -7,6 +7,8 @@ import {
 } from '../_shared/domain.ts';
 import { serviceClient, resolveDraft, touchDraft, logEvent, publicDraft } from '../_shared/intake-core.ts';
 import { sendIntakeMail, layout, esc } from '../_shared/intake-mail.ts';
+import { callLanguage, customerMailLanguage, rememberDraftLanguage, withIntakeLang } from '../_shared/intake-language.ts';
+import { verifyCodeMailTexts } from '../_shared/intake-i18n.ts';
 
 /**
  * intake-verify-email — Nachweis der Geschaefts-E-Mail. Ohne Login.
@@ -25,7 +27,7 @@ import { sendIntakeMail, layout, esc } from '../_shared/intake-mail.ts';
 const CODE_TTL_MINUTES = 15;
 const MAX_ATTEMPTS = 5;
 
-serve(async (req) => {
+serve(withIntakeLang(async (req) => {
   const pre = preflight(req);
   if (pre) return pre;
 
@@ -42,6 +44,9 @@ serve(async (req) => {
     if (!found.ok) return fail(found.reason!, found.message!);
     const draft = found.draft!;
     const tokenId = found.token?.id ?? null;
+    // Der Kunde hat im Menü eine Sprache gewählt: am Entwurf merken.
+    const lang = callLanguage(body);
+    await rememberDraftLanguage(supabase, draft, lang);
 
     if (['pending_admin', 'accepted', 'rejected'].includes(draft.review_state)) {
       return fail('conflict', 'Dieser Vorgang ist abgeschlossen.');
@@ -126,21 +131,24 @@ serve(async (req) => {
         return fail('internal_error', 'Der Code konnte nicht erzeugt werden.');
       }
 
+      // In der Sprache des Entwurfs, sonst des Links, sonst des Aufrufs.
+      const mailLang = await customerMailLanguage(supabase, draft, lang);
+      const text = verifyCodeMailTexts(mailLang, { code, minutes: CODE_TTL_MINUTES });
       const html = layout({
-        preheader: `Ihr Bestätigungscode: ${code}`,
-        heading: 'Ihr Bestätigungscode',
+        lang: mailLang,
+        preheader: text.preheader,
+        heading: text.heading,
         body: `
-          <p style="margin:0 0 16px 0;">Guten Tag${draft.contact_name ? ' ' + esc(draft.contact_name) : ''},</p>
-          <p style="margin:0 0 20px 0;">bitte bestätigen Sie Ihre geschäftliche E-Mail-Adresse mit diesem Code:</p>
+          <p style="margin:0 0 16px 0;">${text.hello}${draft.contact_name ? ' ' + esc(draft.contact_name) : ''},</p>
+          <p style="margin:0 0 20px 0;">${text.intro}</p>
           <div style="font-size:34px;font-weight:700;letter-spacing:10px;padding:18px 0;color:#111827;">${esc(code)}</div>
-          <p style="margin:12px 0 0 0;">Der Code ist ${CODE_TTL_MINUTES} Minuten gültig.</p>`,
-        footnote:
-          'Wenn Sie keine Stellenaufnahme bei Matchunt begonnen haben, können Sie diese Nachricht ignorieren. Der Code allein gibt niemandem Zugriff.',
+          <p style="margin:12px 0 0 0;">${text.validity}</p>`,
+        footnote: text.footnote,
       });
 
       const mail = await sendIntakeMail(supabase, {
         to: email,
-        subject: `${code} ist Ihr Matchunt-Bestätigungscode`,
+        subject: text.subject,
         html,
         template: 'intake_verify_code',
         meta: { draft_id: draft.id, link_id: draft.link_id },
@@ -310,4 +318,4 @@ serve(async (req) => {
     console.error('[intake-verify-email]', e);
     return fail('internal_error', 'Unerwarteter Fehler.');
   }
-});
+}));

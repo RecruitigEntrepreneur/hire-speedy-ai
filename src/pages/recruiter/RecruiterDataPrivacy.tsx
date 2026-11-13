@@ -4,8 +4,10 @@ import { DataDeletionRequest } from "@/components/gdpr/DataDeletionRequest";
 import { ConsentManagement } from "@/components/gdpr/ConsentManagement";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Shield } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 export default function RecruiterDataPrivacy() {
+  const { t } = useTranslation('recruiterInbox');
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -14,18 +16,18 @@ export default function RecruiterDataPrivacy() {
             <Shield className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Datenschutz</h1>
+            <h1 className="text-2xl font-bold">{t('privacy.title')}</h1>
             <p className="text-muted-foreground">
-              Verwalten Sie Ihre persönlichen Daten und Einwilligungen
+              {t('privacy.subtitle')}
             </p>
           </div>
         </div>
 
         <Tabs defaultValue="consents" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="consents">Einwilligungen</TabsTrigger>
-            <TabsTrigger value="export">Datenexport</TabsTrigger>
-            <TabsTrigger value="delete">Konto löschen</TabsTrigger>
+            <TabsTrigger value="consents">{t('privacy.consents')}</TabsTrigger>
+            <TabsTrigger value="export">{t('privacy.export')}</TabsTrigger>
+            <TabsTrigger value="delete">{t('privacy.delete')}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="consents" className="space-y-4">

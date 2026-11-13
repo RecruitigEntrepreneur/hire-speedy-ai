@@ -8,6 +8,7 @@ import {
   type Interval, type InterviewHoursRules, type ScheduleParticipant,
 } from './interview-availability.ts';
 import { berlinDateKey } from './interview-time.ts';
+import { intlLocale, tr, type Lang } from './i18n.ts';
 import { anonymFunde, ersetzeFunde, kundenBegriffe, regionAus } from './linkedin-anonym.ts';
 
 /** Vorschlag für Headhunter: Mo–Fr vormittags und nachmittags, 4 Std Vorlauf, 10 Min Puffer. */
@@ -93,29 +94,31 @@ const txt = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export function pruefeBuchung(b: BuchungsEingabe, e: TerminEinstellungen, opt: { nameAusAkte?: boolean } = {}): Pruefung {
+export function pruefeBuchung(b: BuchungsEingabe, e: TerminEinstellungen, opt: { nameAusAkte?: boolean; lang?: Lang | null } = {}): Pruefung {
+  // Meldungen an den Kandidaten; ohne Sprache Deutsch (Function termin-seite gibt sie heute nicht mit).
+  const lang = opt.lang ?? null;
   // Bot-Falle: ein für Menschen unsichtbares Feld bleibt leer.
-  if (txt(b.website, 200)) return { ok: false, feld: 'website', meldung: 'Die Buchung konnte nicht abgeschickt werden.', bot: true };
+  if (txt(b.website, 200)) return { ok: false, feld: 'website', meldung: tr(lang, { de: 'Die Buchung konnte nicht abgeschickt werden.', en: 'The booking could not be sent.', sv: 'Bokningen kunde inte skickas.', nb: 'Bookingen kunne ikke sendes.' }), bot: true };
   const start = txt(b.start, 40);
-  if (!start || Number.isNaN(Date.parse(start))) return { ok: false, feld: 'start', meldung: 'Bitte wähle eine Zeit.' };
+  if (!start || Number.isNaN(Date.parse(start))) return { ok: false, feld: 'start', meldung: tr(lang, { de: 'Bitte wähle eine Zeit.', en: 'Please choose a time.', sv: 'Välj en tid.', nb: 'Velg et tidspunkt.' }) };
   const mode = (b.mode === 'phone' || b.mode === 'teams') ? b.mode : e.arten[0];
-  if (!e.arten.includes(mode)) return { ok: false, feld: 'mode', meldung: 'Diese Gesprächsart bietet der Headhunter nicht an.' };
+  if (!e.arten.includes(mode)) return { ok: false, feld: 'mode', meldung: tr(lang, { de: 'Diese Gesprächsart bietet der Headhunter nicht an.', en: 'The headhunter does not offer this type of call.', sv: 'Headhuntern erbjuder inte den här samtalsformen.', nb: 'Headhunteren tilbyr ikke denne samtaleformen.' }) };
   const first_name = txt(b.first_name, 80);
   const last_name = txt(b.last_name, 80);
-  if (!first_name) return { ok: false, feld: 'first_name', meldung: 'Bitte gib deinen Vornamen an.' };
-  if (!last_name && !opt.nameAusAkte) return { ok: false, feld: 'last_name', meldung: 'Bitte gib deinen Nachnamen an.' };
+  if (!first_name) return { ok: false, feld: 'first_name', meldung: tr(lang, { de: 'Bitte gib deinen Vornamen an.', en: 'Please enter your first name.', sv: 'Ange ditt förnamn.', nb: 'Oppgi fornavnet ditt.' }) };
+  if (!last_name && !opt.nameAusAkte) return { ok: false, feld: 'last_name', meldung: tr(lang, { de: 'Bitte gib deinen Nachnamen an.', en: 'Please enter your last name.', sv: 'Ange ditt efternamn.', nb: 'Oppgi etternavnet ditt.' }) };
   const email = txt(b.email, 200).toLowerCase();
-  if (!EMAIL.test(email)) return { ok: false, feld: 'email', meldung: 'Bitte prüf deine E-Mail-Adresse.' };
+  if (!EMAIL.test(email)) return { ok: false, feld: 'email', meldung: tr(lang, { de: 'Bitte prüf deine E-Mail-Adresse.', en: 'Please check your email address.', sv: 'Kontrollera din e-postadress.', nb: 'Sjekk e-postadressen din.' }) };
   const phone = txt(b.phone, 40) || null;
-  if (mode === 'phone' && (!phone || (phone.match(/\d/g) ?? []).length < 6)) return { ok: false, feld: 'phone', meldung: 'Für ein Telefonat brauchen wir deine Nummer.' };
-  if (phone && (phone.match(/\d/g) ?? []).length < 6) return { ok: false, feld: 'phone', meldung: 'Bitte prüf deine Telefonnummer.' };
+  if (mode === 'phone' && (!phone || (phone.match(/\d/g) ?? []).length < 6)) return { ok: false, feld: 'phone', meldung: tr(lang, { de: 'Für ein Telefonat brauchen wir deine Nummer.', en: 'For a phone call we need your number.', sv: 'För ett telefonsamtal behöver vi ditt nummer.', nb: 'For en telefonsamtale trenger vi nummeret ditt.' }) };
+  if (phone && (phone.match(/\d/g) ?? []).length < 6) return { ok: false, feld: 'phone', meldung: tr(lang, { de: 'Bitte prüf deine Telefonnummer.', en: 'Please check your phone number.', sv: 'Kontrollera ditt telefonnummer.', nb: 'Sjekk telefonnummeret ditt.' }) };
   let linkedin_url = txt(b.linkedin_url, 300) || null;
   if (linkedin_url) {
     linkedin_url = linkedin_url.replace(/^https?:\/\//i, '').replace(/^www\./i, '');
-    if (!/^([a-z]{2}\.)?linkedin\.com\/in\/[^\s/]+/i.test(linkedin_url)) return { ok: false, feld: 'linkedin_url', meldung: 'Bitte gib dein LinkedIn-Profil als linkedin.com/in/… an.' };
+    if (!/^([a-z]{2}\.)?linkedin\.com\/in\/[^\s/]+/i.test(linkedin_url)) return { ok: false, feld: 'linkedin_url', meldung: tr(lang, { de: 'Bitte gib dein LinkedIn-Profil als linkedin.com/in/… an.', en: 'Please enter your LinkedIn profile as linkedin.com/in/…', sv: 'Ange din LinkedIn-profil som linkedin.com/in/…', nb: 'Oppgi LinkedIn-profilen din som linkedin.com/in/…' }) };
     linkedin_url = `https://www.${linkedin_url.replace(/^[a-z]{2}\./i, '')}`;
   }
-  if (b.consent !== true) return { ok: false, feld: 'consent', meldung: 'Bitte stimm der Verarbeitung deiner Angaben zu.' };
+  if (b.consent !== true) return { ok: false, feld: 'consent', meldung: tr(lang, { de: 'Bitte stimm der Verarbeitung deiner Angaben zu.', en: 'Please agree to the processing of your details.', sv: 'Godkänn behandlingen av dina uppgifter.', nb: 'Godta behandlingen av opplysningene dine.' }) };
   const upload = txt(b.upload_id, 40);
   return {
     ok: true,
@@ -133,27 +136,32 @@ const liste = (v: unknown): string[] => (Array.isArray(v) ? v : typeof v === 'st
   .flatMap(x => (typeof x === 'string' ? x.split(/\s·\s|\n/) : []))
   .map(x => x.trim().replace(/[.;:,]+$/, ''))
   .filter(Boolean);
-const tausend = (n: number) => n.toLocaleString('de-DE');
+const tausend = (n: number, lang?: Lang | null) => n.toLocaleString(intlLocale(lang));
 const LEVEL: Record<string, string> = { junior: 'Junior', mid: 'Mid-Level', 'mid-level': 'Mid-Level', senior: 'Senior', lead: 'Lead', principal: 'Principal', executive: 'Executive' };
 
-export function steckbrief(job: Record<string, unknown>, gehaltZeigen: boolean): Steckbrief {
-  const region = regionAus(job.location, job.remote_type);
+export function steckbrief(job: Record<string, unknown>, gehaltZeigen: boolean, lang?: Lang | null): Steckbrief {
+  // Ohne Sprache Deutsch; mit Sprache des Headhunters stehen Region und Fakten in seiner Sprache.
+  const region = regionAus(job.location, job.remote_type, lang);
   const min = Number(job.salary_min) || null;
   const max = Number(job.salary_max) || null;
   const monate = Number(job.salary_months) || null;
   const freelance = job.employment_type === 'freelance';
-  const spanne = min && max && min !== max ? `${tausend(min)} – ${tausend(max)} €` : (min || max) ? `${tausend((min ?? max)!)} €` : null;
+  const spanne = min && max && min !== max ? `${tausend(min, lang)} – ${tausend(max, lang)} €` : (min || max) ? `${tausend((min ?? max)!, lang)} €` : null;
   const gehalt = gehaltZeigen && !freelance && spanne ? `${spanne}${monate && monate !== 12 ? ` × ${monate}` : ''}` : null;
   const tage = Number(job.onsite_days_required);
   const fakten = [
-    job.remote_type === 'remote' || tage === 0 ? 'Remote' : tage > 0 ? `${tage} ${tage === 1 ? 'Tag' : 'Tage'} vor Ort` : job.remote_type === 'hybrid' ? 'Hybrid' : null,
-    job.employment_type === 'full-time' ? 'Vollzeit' : job.employment_type === 'part-time' ? 'Teilzeit' : freelance ? 'Projekt' : null,
+    job.remote_type === 'remote' || tage === 0 ? tr(lang, { de: 'Remote', sv: 'Distans', nb: 'Fjernarbeid' })
+      : tage > 0 ? tr(lang, tage === 1 ? { de: '{n} Tag vor Ort', en: '{n} day on site', sv: '{n} dag på plats', nb: '{n} dag på stedet' } : { de: '{n} Tage vor Ort', en: '{n} days on site', sv: '{n} dagar på plats', nb: '{n} dager på stedet' }, { n: tage })
+      : job.remote_type === 'hybrid' ? 'Hybrid' : null,
+    job.employment_type === 'full-time' ? tr(lang, { de: 'Vollzeit', en: 'Full-time', sv: 'Heltid', nb: 'Heltid' })
+      : job.employment_type === 'part-time' ? tr(lang, { de: 'Teilzeit', en: 'Part-time', sv: 'Deltid', nb: 'Deltid' })
+      : freelance ? tr(lang, { de: 'Projekt', en: 'Project', sv: 'Projekt', nb: 'Prosjekt' }) : null,
     typeof job.experience_level === 'string' ? LEVEL[job.experience_level.toLowerCase()] ?? null : null,
     typeof job.contract_limitation === 'string' && job.contract_limitation.trim() ? job.contract_limitation.trim().replace(/^./, c => c.toLowerCase()) : null,
   ].filter((x): x is string => !!x);
   const vorteileRoh = liste(job.position_advantages);
   const benefits = liste(job.benefits).filter(b => !vorteileRoh.some(v => v.toLowerCase().includes(b.toLowerCase())));
-  const ctx = { firma: job.company_name as string | null, redList: job.red_list, domains: [job.company_website as string | null], region, mitarbeitende: Number(job.company_headcount) || null };
+  const ctx = { firma: job.company_name as string | null, redList: job.red_list, domains: [job.company_website as string | null], region, mitarbeitende: Number(job.company_headcount) || null, lang };
   const sauber = (t: string) => { const f = anonymFunde(t, ctx); return f.length ? ersetzeFunde(t, f) : t; };
   return {
     titel: sauber(String(job.title ?? '')),
@@ -180,9 +188,16 @@ export function passtZurStelle(jobId: string, slugTeil: string): boolean {
 
 export const initialen = (name: string) => name.trim().split(/\s+/).slice(0, 2).map(t => t[0]?.toUpperCase() ?? '').join('') || '·';
 
-/** „Do 22.10., 9:30“ in deutscher Zeit. */
-export function terminText(iso: string, mitDatum = true): string {
+/** „Do 22.10., 9:30“ in deutscher Zeit. Mit Sprache in deren Form („Thu 22 Oct, 09:30“). */
+export function terminText(iso: string, mitDatum = true, lang?: Lang | null): string {
   const d = new Date(iso);
+  if (lang && lang !== 'de' && lang !== 'de-AT' && lang !== 'de-CH') {
+    const loc = intlLocale(lang);
+    const zeitL = new Intl.DateTimeFormat(loc, { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(d);
+    if (!mitDatum) return zeitL;
+    const tagL = new Intl.DateTimeFormat(loc, { timeZone: 'Europe/Berlin', weekday: 'short', day: 'numeric', month: 'short' }).format(d);
+    return `${tagL}, ${zeitL}`;
+  }
   const tag = new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', weekday: 'short' }).format(d).replace('.', '');
   const datum = new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit' }).format(d);
   const zeit = new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', hour: 'numeric', minute: '2-digit' }).format(d);

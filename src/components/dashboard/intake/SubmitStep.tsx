@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
+import { intlLocale } from '@/i18n/languages';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import { ArrowLeft, ChevronDown, ChevronUp, Loader2, Plus, Send, ShieldCheck, Users } from 'lucide-react';
-import { CONSENT_TEXT } from '@/components/intake/guest/consentText';
 import { ContractingKarte } from '@/components/intake/guest/SummaryStep';
 import { CONTRACTING_ZUSTIMMUNG } from '../../../../supabase/functions/_shared/contracting-konditionen';
 import { contractingUnterRahmen, type ClientFramework, type CommercialChoice, type PublicPackage } from '@/hooks/useClientIntake';
@@ -50,12 +51,28 @@ interface Props {
   sperre?: string | null;
 }
 
-const eur = (n: number) => `${Math.round(n).toLocaleString('de-DE')} €`;
 
 export function SubmitStep({
   rows, framework, frameworkLoading, frameworkReadable, packages, isFreelance, contracting = null, needsInternalApproval,
   exampleSalary, openQuestions, signerName, onBack, onDelegate, onSubmit, sperre = null,
 }: Props) {
+  // clientFunnel wird nur gelesen: die drei Sätze der Zustimmung stehen dort (summary.consent1…3),
+  // deutsch zeichengleich mit consentText.ts.
+  const { t, i18n } = useTranslation(['intake', 'intakeCatalog', 'clientFunnel']);
+  const locale = intlLocale(i18n.language);
+  const eur = (n: number) => `${Math.round(n).toLocaleString(locale)} €`;
+  const pct = (n: number) => n.toLocaleString(locale);
+  const datum = (iso: string) => new Date(iso).toLocaleDateString(locale);
+  const consentLines = [t('clientFunnel:summary.consent1'), t('clientFunnel:summary.consent2'), t('clientFunnel:summary.consent3')];
+  const signerLine = (
+    <span className="block text-xs text-muted-foreground">
+      <Trans t={t} i18nKey="submit.signerLine" values={{ name: signerName }} components={{ agb: <Link to="/agb" className="underline" /> }} />
+    </span>
+  );
+  const ausRahmenvertrag = (f: ClientFramework) =>
+    f.agreed_at
+      ? t('submit.fromFrameworkDate', { number: f.agreement_number, date: datum(f.agreed_at) })
+      : t('submit.fromFramework', { number: f.agreement_number });
   const [busy, setBusy] = useState(false);
   const [upOpen, setUpOpen] = useState(false);
   const [chosen, setChosen] = useState<string | null>(null);
@@ -98,8 +115,12 @@ export function SubmitStep({
       )}
       {openQuestions > 0 && (
         <p className="mt-3 text-xs text-muted-foreground">
-          {openQuestions} Angaben sind noch offen. Sie können trotzdem einreichen, Lücken lassen sich später ergänzen.{' '}
-          <button type="button" onClick={onBack} className="underline underline-offset-2">Zurück zur Position</button>
+          <Trans
+            t={t}
+            i18nKey="submit.openItems"
+            count={openQuestions}
+            components={{ back: <button type="button" onClick={onBack} className="underline underline-offset-2" /> }}
+          />
         </p>
       )}
     </div>
@@ -110,17 +131,16 @@ export function SubmitStep({
     return (
       <div className="mx-auto max-w-2xl space-y-5">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Zur Freigabe an Ihre Personalabteilung</h2>
+          <h2 className="text-2xl font-bold tracking-tight">{t('submit.approvalTitle')}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            In Ihrem Unternehmen gibt HR neue Positionen frei, bevor sie an Matchunt gehen.{' '}
-            {contracting ? 'Die Konditionen bestätigt HR beim Freigeben.' : 'Konditionen und Aufstocken entscheidet HR beim Freigeben.'}
+            {contracting ? t('submit.approvalLeadContracting') : t('submit.approvalLead')}
           </p>
         </div>
         {summary}
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={onBack} className="gap-1.5"><ArrowLeft className="h-4 w-4" /> Zurück</Button>
+          <Button variant="outline" onClick={onBack} className="gap-1.5"><ArrowLeft className="h-4 w-4" /> {t('shared.back')}</Button>
           <Button onClick={() => run(null)} disabled={busy || !!sperre} className="gap-2">
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Zur Freigabe senden
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} {t('submit.sendForApproval')}
           </Button>
         </div>
       </div>
@@ -132,7 +152,7 @@ export function SubmitStep({
     if (frameworkLoading && frameworkReadable) {
       return (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" /> Konditionen werden geladen …
+          <Loader2 className="h-4 w-4 animate-spin" /> {t('submit.termsLoading')}
         </div>
       );
     }
@@ -141,52 +161,50 @@ export function SubmitStep({
     const ohneEinsicht = !framework && !frameworkReadable;
     const direkt = unterRv || ohneEinsicht;
     const schluss = unterRv
-      ? 'Keine Unterschrift nötig. Matchunt prüft die Position und gibt sie frei.'
+      ? t('submit.closeNoSignature')
       : ohneEinsicht
-        ? 'Matchunt prüft die Position und den Rahmenvertrag Ihres Unternehmens und gibt sie frei.'
+        ? t('submit.closeNoInsight')
         : framework
-          ? `Ihr Rahmenvertrag ${framework.agreement_number} regelt bisher nur Festanstellung und gilt dafür unverändert weiter. `
-            + 'Für Contracting unterschreiben Sie einmal die aktuelle Fassung, Matchunt meldet sich dazu; erst danach starten wir die Suche.'
-          : 'Mit dem Absenden kommt noch kein Vertrag zustande. Matchunt meldet sich mit dem Rahmenvertrag zur Unterschrift; '
-            + 'erst danach starten wir die Suche.';
+          ? t('submit.closeOldFramework', { number: framework.agreement_number })
+          : t('submit.closeNoFramework');
     return (
       <div className="mx-auto max-w-2xl space-y-5">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">{direkt ? 'Prüfen und einreichen' : 'Prüfen und anfragen'}</h2>
+          <h2 className="text-2xl font-bold tracking-tight">{direkt ? t('submit.titleSubmit') : t('submit.titleRequest')}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            So bekommen die Headhunter die Position, ohne Ihren Firmennamen.
+            {t('submit.lead')}
           </p>
         </div>
         {summary}
         <ContractingKarte budget={contracting} />
         {unterRv && framework && (
           <p className="-mt-2 text-xs text-muted-foreground">
-            aus Rahmenvertrag {framework.agreement_number}
-            {framework.agreed_at ? ` · vereinbart am ${new Date(framework.agreed_at).toLocaleDateString('de-DE')}` : ''}
+            {ausRahmenvertrag(framework)}
           </p>
         )}
         {!direkt && (
           <label className="flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-sm">
             <Checkbox checked={consent} onCheckedChange={(v) => setConsent(v === true)} className="mt-0.5" />
             <span className="space-y-1">
+              {/* Wortlaut aus _shared/contracting-konditionen.ts (derselbe wie im Nachweis), vorerst nur deutsch. */}
               <span className="block">{CONTRACTING_ZUSTIMMUNG}</span>
-              <span className="block text-xs text-muted-foreground">Ihr Name: {signerName} · <Link to="/agb" className="underline">AGB</Link></span>
+              {signerLine}
             </span>
           </label>
         )}
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" onClick={onBack} className="gap-1.5"><ArrowLeft className="h-4 w-4" /> Zurück</Button>
+          <Button variant="outline" onClick={onBack} className="gap-1.5"><ArrowLeft className="h-4 w-4" /> {t('shared.back')}</Button>
           <Button
             onClick={() => run({ package_key: null, upgraded: false })}
             disabled={busy || !!sperre || (!direkt && !consent)}
             className="gap-2"
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            {direkt ? 'Position einreichen' : 'Beauftragung anfragen'}
+            {direkt ? t('submit.submitPosition') : t('submit.requestOrder')}
           </Button>
           {direkt && (
             <Button variant="ghost" onClick={onDelegate} className="gap-1.5 text-muted-foreground">
-              <Users className="h-4 w-4" /> An Kollegen weitergeben
+              <Users className="h-4 w-4" /> {t('submit.delegate')}
             </Button>
           )}
         </div>
@@ -201,9 +219,9 @@ export function SubmitStep({
     return (
       <div className="mx-auto max-w-2xl space-y-5">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Prüfen und einreichen</h2>
+          <h2 className="text-2xl font-bold tracking-tight">{t('submit.titleSubmit')}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            So bekommen die Headhunter die Position, ohne Ihren Firmennamen.
+            {t('submit.lead')}
           </p>
         </div>
         {summary}
@@ -212,20 +230,19 @@ export function SubmitStep({
           <div className="flex items-start gap-2.5">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
             <div className="min-w-0 text-sm">
-              <p className="font-medium">Ihre Konditionen</p>
+              <p className="font-medium">{t('submit.yourTerms')}</p>
               {framework ? (
                 <>
                   <p className="mt-0.5">
-                    {framework.name} · {framework.fee_percent.toLocaleString('de-DE')} % des Bruttojahreszielgehalts · nur bei Einstellung
+                    {t('submit.termsLine', { name: framework.name, percent: pct(framework.fee_percent) })}
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    aus Rahmenvertrag {framework.agreement_number}
-                    {framework.agreed_at ? ` · vereinbart am ${new Date(framework.agreed_at).toLocaleDateString('de-DE')}` : ''}
+                    {ausRahmenvertrag(framework)}
                   </p>
                 </>
               ) : (
                 <p className="mt-0.5 text-muted-foreground">
-                  Es gelten die Konditionen aus dem Rahmenvertrag Ihres Unternehmens.
+                  {t('submit.termsFromCompany')}
                 </p>
               )}
             </div>
@@ -239,20 +256,25 @@ export function SubmitStep({
                 className="flex w-full items-center gap-1.5 text-left text-sm font-medium text-primary"
               >
                 {upOpen ? <ChevronUp className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                Diese Position zusätzlich absichern
-                <span className="font-normal text-muted-foreground">· erneuter Suchlauf, falls die Person früh geht</span>
+                {t('submit.upgradeToggle')}
+                <span className="font-normal text-muted-foreground">{t('submit.upgradeToggleHint')}</span>
                 {!upOpen && <ChevronDown className="ml-auto h-4 w-4 text-muted-foreground" />}
               </button>
 
               {upOpen && (
                 <div className="mt-3 space-y-2">
                   {[
-                    { key: basePkg!, label: `Wie im Rahmenvertrag · ${framework!.name}`, pct: framework!.fee_percent, hint: framework!.continuity_days ? `erneuter Suchlauf ${framework!.continuity_days} Tage` : 'ohne erneuten Suchlauf' },
+                    {
+                      key: basePkg!, label: t('submit.optionBase', { name: framework!.name }), pct: framework!.fee_percent,
+                      hint: framework!.continuity_days ? t('submit.hintBaseDays', { days: framework!.continuity_days }) : t('submit.hintBaseNone'),
+                    },
                     ...upgrades.map((p) => ({
                       key: p.package_key,
                       label: p.public_name,
                       pct: p.client_fee_pct,
-                      hint: `erneuter Suchlauf, wenn die Person in den ersten ${p.continuity_days} Tagen geht${p.claim_notice_days ? ` · Meldung binnen ${p.claim_notice_days} Tagen` : ''}`,
+                      hint: p.claim_notice_days
+                        ? t('submit.hintUpgradeNotice', { days: p.continuity_days, notice: p.claim_notice_days })
+                        : t('submit.hintUpgrade', { days: p.continuity_days }),
                     })),
                   ].map((o) => {
                     const on = selectedKey === o.key;
@@ -268,7 +290,7 @@ export function SubmitStep({
                       >
                         <span className={cn('mt-1 h-3 w-3 rounded-full border', on && 'border-primary bg-primary')} />
                         <span className="min-w-0">
-                          <span className="block text-sm font-medium">{o.label} · {o.pct.toLocaleString('de-DE')} %</span>
+                          <span className="block text-sm font-medium">{t('submit.optionLabel', { label: o.label, percent: pct(o.pct) })}</span>
                           <span className="block text-xs text-muted-foreground">{o.hint}</span>
                         </span>
                         {exampleSalary ? (
@@ -278,20 +300,18 @@ export function SubmitStep({
                     );
                   })}
                   <p className="text-xs text-muted-foreground">
-                    {exampleSalary ? `Beispiel bei ${eur(exampleSalary)} Zielgehalt, ` : ''}fällig nur bei Einstellung. Ihr
-                    Rahmenvertrag bleibt unverändert.
+                    {exampleSalary ? t('submit.dueNoteExample', { amount: eur(exampleSalary) }) : t('submit.dueNote')}
                   </p>
                   {isUpgrade && selectedPkg && (
                     <label className="flex cursor-pointer items-start gap-2 rounded-lg bg-muted/50 p-3 text-sm">
                       <Checkbox checked={upgradeConfirmed} onCheckedChange={(v) => setUpgradeConfirmed(v === true)} className="mt-0.5" />
                       <span>
-                        Ich vereinbare für diese Position {selectedPkg.public_name} ({selectedPkg.client_fee_pct.toLocaleString('de-DE')} %)
-                        abweichend vom Rahmenvertrag.
+                        {t('submit.upgradeConfirm', { name: selectedPkg.public_name, percent: pct(selectedPkg.client_fee_pct) })}
                       </span>
                     </label>
                   )}
                   <p className="text-[11px] text-amber-600">
-                    Vorschau: Aufstocken braucht noch die Vertragsanpassung (§ 8 Abs. 10) und den Konditionen-Snapshot je Position.
+                    {t('submit.upgradePreview')}
                   </p>
                 </div>
               )}
@@ -300,21 +320,21 @@ export function SubmitStep({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" onClick={onBack} className="gap-1.5"><ArrowLeft className="h-4 w-4" /> Zurück</Button>
+          <Button variant="outline" onClick={onBack} className="gap-1.5"><ArrowLeft className="h-4 w-4" /> {t('shared.back')}</Button>
           <Button
             onClick={() => run({ package_key: selectedKey ?? 'core', upgraded: isUpgrade })}
             disabled={busy || !!sperre || (isUpgrade && !upgradeConfirmed)}
             className="gap-2"
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            {isUpgrade && selectedPkg ? `Mit ${selectedPkg.public_name} einreichen` : 'Position einreichen'}
+            {isUpgrade && selectedPkg ? t('submit.submitWith', { name: selectedPkg.public_name }) : t('submit.submitPosition')}
           </Button>
           <Button variant="ghost" onClick={onDelegate} className="gap-1.5 text-muted-foreground">
-            <Users className="h-4 w-4" /> An Kollegen weitergeben
+            <Users className="h-4 w-4" /> {t('submit.delegate')}
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          Keine Unterschrift nötig. Matchunt prüft die Position und gibt sie frei.
+          {t('submit.closeNoSignature')}
         </p>
       </div>
     );
@@ -324,17 +344,16 @@ export function SubmitStep({
   if (frameworkLoading) {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" /> Konditionen werden geladen …
+        <Loader2 className="h-4 w-4 animate-spin" /> {t('submit.termsLoading')}
       </div>
     );
   }
   return (
     <div className="mx-auto max-w-3xl space-y-5">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Wie möchten Sie zusammenarbeiten?</h2>
+        <h2 className="text-2xl font-bold tracking-tight">{t('submit.packagesTitle')}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Alle drei Pakete sind reine Erfolgshonorare. Kein Retainer, keine Fixkosten. Das Paket gilt danach für
-          alle Positionen, einzelne Positionen können Sie später aufstocken.
+          {t('submit.packagesLead')}
         </p>
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
@@ -348,8 +367,8 @@ export function SubmitStep({
               className={cn('rounded-xl border p-4 text-left transition-colors', on ? 'border-primary ring-1 ring-primary' : 'hover:bg-muted/40')}
             >
               <p className="font-medium">{p.public_name}</p>
-              <p className="mt-1 text-2xl font-bold">{p.client_fee_pct.toLocaleString('de-DE')} %</p>
-              <p className="text-xs text-muted-foreground">des Bruttojahreszielgehalts</p>
+              <p className="mt-1 text-2xl font-bold">{t('submit.percent', { percent: pct(p.client_fee_pct) })}</p>
+              <p className="text-xs text-muted-foreground">{t('submit.ofTargetSalary')}</p>
               {p.summary && <p className="mt-2 text-xs text-muted-foreground">{p.summary}</p>}
             </button>
           );
@@ -359,24 +378,23 @@ export function SubmitStep({
       <label className="flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-sm">
         <Checkbox checked={consent} onCheckedChange={(v) => setConsent(v === true)} className="mt-0.5" />
         <span className="space-y-1">
-          {CONSENT_TEXT.map((t) => <span key={t} className="block">{t}</span>)}
-          <span className="block text-xs text-muted-foreground">Ihr Name: {signerName} · <Link to="/agb" className="underline">AGB</Link></span>
+          {consentLines.map((line) => <span key={line} className="block">{line}</span>)}
+          {signerLine}
         </span>
       </label>
       <Alert>
         <AlertDescription className="text-xs">
-          Vorschau: Für Kunden ohne Rahmenvertrag folgt danach der Rahmenvertrag zur Unterschrift (DocuSign). Im
-          Dashboard ist dieser Schritt noch nicht angeschlossen.
+          {t('submit.noFrameworkPreview')}
         </AlertDescription>
       </Alert>
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" onClick={onBack} className="gap-1.5"><ArrowLeft className="h-4 w-4" /> Zurück</Button>
+        <Button variant="outline" onClick={onBack} className="gap-1.5"><ArrowLeft className="h-4 w-4" /> {t('shared.back')}</Button>
         <Button
           onClick={() => run({ package_key: chosen!, upgraded: false })}
           disabled={busy || !!sperre || !chosen || !consent}
           className="gap-2"
         >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Beauftragung anfragen
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} {t('submit.requestOrder')}
         </Button>
       </div>
     </div>

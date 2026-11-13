@@ -3,6 +3,8 @@
 // generierten Supabase-Typ, deshalb die Casts.
 
 import { supabase } from '@/integrations/supabase/client';
+import i18n from '@/i18n';
+import { fmtDate } from '@/lib/localeFormat';
 import {
   DEFAULT_RULES, mergeRules, type LigaAwardBadge, type LigaAwardKind, type LigaEventKind, type LigaRules,
 } from '../../supabase/functions/_shared/liga';
@@ -332,7 +334,8 @@ export function ligaTips(me: LigaMe, today = new Date()): LigaTip[] {
   const tips: LigaTip[] = [];
   for (const h of me.pending_holds) {
     if (h.until > me.season.ends_on) continue;
-    tips.push({ text: `Deine Einstellung${h.label ? ` als ${h.label}` : ''} ist ab ${dmy(h.until)} über die Garantiezeit.`, points: r.placement_holds });
+    const date = fmtDate(`${h.until.slice(0, 10)}T12:00:00Z`);
+    tips.push({ text: h.label ? i18n.t('recruiterLiga:tips.holdAs', { label: h.label, date }) : i18n.t('recruiterLiga:tips.hold', { date }), points: r.placement_holds });
   }
   const hasBonus = me.events.some((e) => e.kind === 'accuracy_bonus');
   if (!hasBonus) {
@@ -340,9 +343,9 @@ export function ligaTips(me: LigaMe, today = new Date()): LigaTip[] {
     const quote = me.me.quote ?? 0;
     if (subs < r.accuracy_min && quote >= r.accuracy_quote) {
       const missing = r.accuracy_min - subs;
-      tips.push({ text: `Noch ${missing} ${missing === 1 ? 'Einreichung' : 'Einreichungen'} bis zum Treffsicherheits-Bonus, wenn deine Quote bei ${Math.round(r.accuracy_quote * 100)} % oder mehr bleibt.`, points: r.accuracy_bonus });
+      tips.push({ text: i18n.t('recruiterLiga:tips.missing', { count: missing, quote: Math.round(r.accuracy_quote * 100) }), points: r.accuracy_bonus });
     } else if (subs >= r.accuracy_min && quote < r.accuracy_quote) {
-      tips.push({ text: `Der Treffsicherheits-Bonus kommt ab ${Math.round(r.accuracy_quote * 100)} % Interview-Quote; du liegst bei ${Math.round(quote * 100)} %.`, points: r.accuracy_bonus });
+      tips.push({ text: i18n.t('recruiterLiga:tips.quote', { quote: Math.round(r.accuracy_quote * 100), mine: Math.round(quote * 100) }), points: r.accuracy_bonus });
     }
   }
   void today;

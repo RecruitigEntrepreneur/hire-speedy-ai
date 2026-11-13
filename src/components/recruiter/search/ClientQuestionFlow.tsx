@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { answerClientQuestion, errorText, uploadDeclarationProof, type ClientAnswer } from '@/lib/jobSearch';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 type Step = 'ask' | 'proof_client' | 'proof_direct' | 'done';
 
@@ -34,7 +35,8 @@ export function ClientQuestionFlow({
   const [contract, setContract] = useState<File | null>(null);
   const [assignment, setAssignment] = useState<File | null>(null);
   const [answer, setAnswer] = useState<ClientAnswer | null>(null);
-  const company = companyName || 'das Unternehmen';
+  const { t } = useTranslation('recruiterSearch');
+  const company = companyName || t('q.theCompany');
 
   const finish = async (a: ClientAnswer) => {
     if (!user) return;
@@ -79,16 +81,16 @@ export function ClientQuestionFlow({
       {step === 'ask' && (
         <>
           <div>
-            <p className="font-medium">Kennst du {company} schon?</p>
+            <p className="font-medium">{t('q.know', { company })}</p>
             <p className="text-xs text-muted-foreground">
-              Kunde heißt: Du hast mit {company} einen unterschriebenen Vertrag (Rahmen- oder Einzelvertrag) von vor heute.
+              {t('q.clientMeans', { company })}
             </p>
           </div>
           <div className="flex flex-col gap-2">
             {([
-              { a: 'no', title: 'Nein, kenne ich nicht', hint: 'weiter zu deinen passenden Kandidaten' },
-              { a: 'client', title: 'Ja, ist mein Kunde – diese Stelle läuft über Matchunt', hint: 'Vertrag als Beleg, 5 Werktage Zeit · Suche läuft normal' },
-              { a: 'direct_position', title: 'Ja, und genau diese Stelle habe ich schon direkt', hint: 'Vertrag + Beauftragung · Matchunt fragt den Kunden · Suche ruht bis dahin' },
+              { a: 'no', title: t('q.no'), hint: t('q.noHint') },
+              { a: 'client', title: t('q.client'), hint: t('q.clientHint') },
+              { a: 'direct_position', title: t('q.direct'), hint: t('q.directHint') },
             ] as const).map((o) => (
               <button
                 key={o.a}
@@ -110,38 +112,38 @@ export function ClientQuestionFlow({
 
       {step === 'proof_client' && (
         <>
-          <p className="font-medium">Beleg, dass {company} dein Kunde ist</p>
-          {fileBox('Unterschriebener Vertrag mit ' + company, 'Rahmen- oder Einzelvertrag, unterschrieben vor deinem ersten „Ich suche“', contract, setContract)}
+          <p className="font-medium">{t('q.proofClientTitle', { company })}</p>
+          {fileBox(t('q.signedContract', { company }), t('q.signedContractHint'), contract, setContract)}
           <p className="text-xs text-muted-foreground">
-            Beträge und Konditionen darfst du schwärzen. Nur Matchunt sieht den Beleg, der Kunde erfährt nichts. Deine Suche läuft normal weiter.
+            {t('q.proofClientNote')}
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <Button disabled={busy} onClick={() => finish('client')}>
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-              {contract ? 'Einreichen' : 'Melden, Beleg folgt'}
+              {contract ? t('q.submit') : t('q.reportProofLater')}
             </Button>
-            <span className="text-xs text-muted-foreground">Frist für den Beleg: 5 Werktage</span>
+            <span className="text-xs text-muted-foreground">{t('q.proofDeadline')}</span>
           </div>
           <button type="button" className="text-xs text-muted-foreground underline-offset-2 hover:underline" onClick={() => setStep('ask')}>
-            Zurück
+            {t('q.back')}
           </button>
         </>
       )}
 
       {step === 'proof_direct' && (
         <>
-          <p className="font-medium">Belege: Kunde und Stelle</p>
-          {fileBox('Unterschriebener Vertrag mit ' + company, 'Rahmen- oder Einzelvertrag, vor deinem ersten „Ich suche“', contract, setContract)}
-          {fileBox('Beauftragung für „' + jobTitle + '“', 'z. B. unterschriebener Suchauftrag oder Auftrags-E-Mail des Kunden, vor deinem „Ich suche“', assignment, setAssignment)}
+          <p className="font-medium">{t('q.proofDirectTitle')}</p>
+          {fileBox(t('q.signedContract', { company }), t('q.signedContractHintShort'), contract, setContract)}
+          {fileBox(t('q.assignment', { title: jobTitle }), t('q.assignmentHint'), assignment, setAssignment)}
           <p className="text-xs text-muted-foreground">
-            Wir fragen {company}, ob das stimmt. Bis dahin ruht deine Suche: keine neuen Einreichungen.
+            {t('q.proofDirectNote', { company })}
           </p>
           <Button disabled={busy || !contract || !assignment} onClick={() => finish('direct_position')}>
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-            Einreichen
+            {t('q.submit')}
           </Button>
           <button type="button" className="text-xs text-muted-foreground underline-offset-2 hover:underline" onClick={() => setStep('ask')}>
-            Zurück
+            {t('q.back')}
           </button>
         </>
       )}
@@ -151,15 +153,15 @@ export function ClientQuestionFlow({
           <div className="flex items-start gap-2.5 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
             <div>
-              <p className="font-medium">Danke. Matchunt prüft deine Angabe.</p>
+              <p className="font-medium">{t('q.thanks')}</p>
               <p className="text-xs text-muted-foreground">
                 {answer === 'direct_position'
-                  ? `Bei der Suche steht „Bestandskunde · in Prüfung“. Wir fragen ${company} und melden uns in der Glocke.`
-                  : 'Bei der Suche steht „Bestandskunde · in Prüfung“. Das Ergebnis kommt in die Glocke.'}
+                  ? t('q.doneDirect', { company })
+                  : t('q.doneClient')}
               </p>
             </div>
           </div>
-          <Button onClick={() => answer && onDone(answer)}>Weiter</Button>
+          <Button onClick={() => answer && onDone(answer)}>{t('q.next')}</Button>
         </div>
       )}
 
@@ -167,7 +169,7 @@ export function ClientQuestionFlow({
       {step !== 'done' && (
         <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <ShieldCheck className="h-3 w-3" aria-hidden="true" />
-          Mit Firmen, die du über Matchunt kennenlernst, arbeitest du nur über Matchunt (Kundenschutz).
+          {t('q.protection')}
         </p>
       )}
     </div>

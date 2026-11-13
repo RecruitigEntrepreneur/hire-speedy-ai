@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Briefcase, Clock, Info, UserCheck } from 'lucide-react';
 
@@ -41,46 +42,28 @@ interface Props {
   onBack?: () => void;
 }
 
+/** Die Texte der drei Karten stehen in den Sprachdateien (clientFunnel: kind.*). */
 const KARTEN: {
   kind: ContractKind | 'anue';
   icon: typeof Briefcase;
-  titel: string;
-  zeile: string;
-  hinweis: string;
+  text: 'permanent' | 'contracting' | 'temp';
 }[] = [
-  {
-    kind: 'full-time',
-    icon: UserCheck,
-    titel: 'Festanstellung',
-    zeile: 'Die Person wird bei Ihnen angestellt',
-    hinweis: 'Unbefristet oder befristet — wir vermitteln, Sie stellen ein.',
-  },
-  {
-    kind: 'freelance',
-    icon: Clock,
-    titel: 'Contracting',
-    zeile: 'Freiberuflich auf Zeit, mit Tagessatz',
-    hinweis: 'Für einen befristeten Bedarf, ohne feste Anstellung.',
-  },
-  {
-    kind: 'anue',
-    icon: Briefcase,
-    titel: 'Arbeitnehmerüberlassung',
-    zeile: 'Zeitarbeit über einen Verleiher',
-    hinweis: 'Die Person ist beim Verleiher angestellt.',
-  },
+  { kind: 'full-time', icon: UserCheck, text: 'permanent' },
+  { kind: 'freelance', icon: Clock, text: 'contracting' },
+  { kind: 'anue', icon: Briefcase, text: 'temp' },
 ];
 
 export function ContractKindStep({ onChoose, onDecline, onBack }: Props) {
+  const { t } = useTranslation('clientFunnel');
   return (
     <div className="mx-auto max-w-3xl">
-      <h2 className="text-2xl font-bold tracking-tight">Um welche Art von Besetzung geht es?</h2>
+      <h2 className="text-2xl font-bold tracking-tight">{t('kind.title')}</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Danach richtet sich, wonach wir Sie fragen — und was in der Vereinbarung steht.
+        {t('kind.lead')}
       </p>
 
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
-        {KARTEN.map(({ kind, icon: Icon, titel, zeile, hinweis }) => (
+        {KARTEN.map(({ kind, icon: Icon, text }) => (
           <button
             key={kind}
             type="button"
@@ -92,16 +75,16 @@ export function ContractKindStep({ onChoose, onDecline, onBack }: Props) {
             className="rounded-xl border bg-card p-4 text-left transition-colors hover:border-foreground/30 hover:bg-accent/40"
           >
             <Icon className="mb-2 h-5 w-5 text-muted-foreground" />
-            <p className="text-sm font-semibold">{titel}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">{zeile}</p>
-            <p className="mt-2 text-xs text-muted-foreground/80">{hinweis}</p>
+            <p className="text-sm font-semibold">{t(`kind.${text}Title`)}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{t(`kind.${text}Line`)}</p>
+            <p className="mt-2 text-xs text-muted-foreground/80">{t(`kind.${text}Hint`)}</p>
           </button>
         ))}
       </div>
 
       {onBack && (
         <Button variant="ghost" size="sm" className="mt-4 gap-1.5 text-muted-foreground" onClick={onBack}>
-          <ArrowLeft className="h-3.5 w-3.5" /> Zurück
+          <ArrowLeft className="h-3.5 w-3.5" /> {t('common.back')}
         </Button>
       )}
     </div>
@@ -126,31 +109,28 @@ export function ContractKindDeclined({
   onContracting: () => void;
   onBack: () => void;
 }) {
+  const { t } = useTranslation('clientFunnel');
   return (
     <div className="mx-auto max-w-2xl">
       <div className="rounded-xl border bg-card p-5">
         <p className="mb-2 flex items-center gap-2 text-sm font-semibold">
           <Info className="h-4 w-4 text-muted-foreground" />
-          Arbeitnehmerüberlassung bieten wir nicht an
+          {t('kind.declinedTitle')}
         </p>
         <p className="text-sm leading-relaxed text-muted-foreground">
-          Bei der Überlassung bleibt die Fachkraft beim Verleiher angestellt und arbeitet nur
-          bei Ihnen. Das ist nach dem Arbeitnehmerüberlassungsgesetz erlaubnispflichtig und
-          nicht unser Geschäft. Wir vermitteln Ihnen Kandidatinnen und Kandidaten, mit denen
-          Sie selbst einen Vertrag schließen.
+          {t('kind.declinedText')}
         </p>
         <div className="mt-4 rounded-lg border border-border/60 bg-accent/30 p-3">
-          <p className="text-sm font-medium">Brauchen Sie jemanden nur auf Zeit?</p>
+          <p className="text-sm font-medium">{t('kind.temporaryTitle')}</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Dann ist Contracting meist der passende Weg: freiberuflich, mit Tagessatz und
-            fester Laufzeit — ohne dass Sie jemanden fest anstellen.
+            {t('kind.temporaryText')}
           </p>
           <Button size="sm" className="mt-3" onClick={onContracting}>
-            Contracting ansehen
+            {t('kind.viewContracting')}
           </Button>
         </div>
         <Button variant="ghost" size="sm" className="mt-3 gap-1.5 text-muted-foreground" onClick={onBack}>
-          <ArrowLeft className="h-3.5 w-3.5" /> Zurück zur Auswahl
+          <ArrowLeft className="h-3.5 w-3.5" /> {t('kind.backToChoice')}
         </Button>
       </div>
     </div>

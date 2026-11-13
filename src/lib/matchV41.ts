@@ -6,6 +6,8 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import i18n from '@/i18n';
+const tl = (key: string, options?: Record<string, unknown>): string => i18n.t(`candidateLogic:${key}`, options) as string;
 
 export type MatchTier = 'sehr_passend' | 'passend' | 'pruefen' | 'ausgeschlossen';
 export type ReqStatus = 'met' | 'partial' | 'not_met' | 'unknown';
@@ -71,9 +73,9 @@ export async function fetchMatchV41(candidateId: string, opts: { force?: boolean
   if (error) {
     const res = (error as { context?: unknown }).context;
     if (res instanceof Response) {
-      if (res.status === 404) throw new MatchV41Unavailable('match-v41 ist nicht deployt.');
+      if (res.status === 404) throw new MatchV41Unavailable(tl('match.notDeployed'));
       const detail = await res.clone().json().catch(() => null);
-      throw new Error(typeof detail?.message === 'string' ? detail.message : 'Matching gerade nicht erreichbar.');
+      throw new Error(typeof detail?.message === 'string' ? detail.message : tl('match.unavailable'));
     }
     throw new MatchV41Unavailable(error.message);
   }

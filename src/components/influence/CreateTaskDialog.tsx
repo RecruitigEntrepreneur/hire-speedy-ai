@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { useRecruiterTasks, type CreateTaskInput } from '@/hooks/useRecruiterTasks';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -33,20 +34,16 @@ interface CreateTaskDialogProps {
   jobTitle?: string;
 }
 
+// Beschriftung: taskDetail:create.types.<value> bzw. create.priorities.<value>
 const TASK_TYPES = [
-  { value: 'call', label: 'Anruf', icon: Phone },
-  { value: 'email', label: 'E-Mail', icon: Mail },
-  { value: 'follow_up', label: 'Follow-up', icon: UserPlus },
-  { value: 'meeting', label: 'Meeting', icon: CalendarDays },
-  { value: 'other', label: 'Sonstiges', icon: MoreHorizontal },
+  { value: 'call', icon: Phone },
+  { value: 'email', icon: Mail },
+  { value: 'follow_up', icon: UserPlus },
+  { value: 'meeting', icon: CalendarDays },
+  { value: 'other', icon: MoreHorizontal },
 ];
 
-const PRIORITIES = [
-  { value: 'low', label: 'Niedrig' },
-  { value: 'normal', label: 'Normal' },
-  { value: 'high', label: 'Hoch' },
-  { value: 'urgent', label: 'Dringend' },
-];
+const PRIORITIES = [{ value: 'low' }, { value: 'normal' }, { value: 'high' }, { value: 'urgent' }];
 
 export function CreateTaskDialog({
   open,
@@ -56,6 +53,7 @@ export function CreateTaskDialog({
   jobId,
   jobTitle,
 }: CreateTaskDialogProps) {
+  const { t } = useTranslation('taskDetail');
   const { createTask } = useRecruiterTasks();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -126,13 +124,13 @@ export function CreateTaskDialog({
 
       const result = await createTask(input);
       if (result) {
-        toast.success('Aufgabe erstellt');
+        toast.success(t('create.created'));
         onOpenChange(false);
       } else {
-        toast.error('Fehler beim Erstellen der Aufgabe');
+        toast.error(t('create.error'));
       }
     } catch {
-      toast.error('Fehler beim Erstellen der Aufgabe');
+      toast.error(t('create.error'));
     } finally {
       setLoading(false);
     }
@@ -144,19 +142,19 @@ export function CreateTaskDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <MessageSquare className="h-5 w-5 text-primary" />
-            Neue Aufgabe erstellen
+            {t('create.title')}
           </DialogTitle>
           <DialogDescription>
-            Erstelle eine manuelle Aufgabe für dein Task-Board.
+            {t('create.description')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           {/* Title */}
           <div className="space-y-2">
-            <Label>Titel *</Label>
+            <Label>{t('create.fieldTitle')}</Label>
             <Input
-              placeholder='z.B. "Rückruf wegen Gehaltswunsch"'
+              placeholder={t('create.titlePlaceholder')}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               autoFocus
@@ -165,9 +163,9 @@ export function CreateTaskDialog({
 
           {/* Description */}
           <div className="space-y-2">
-            <Label>Beschreibung</Label>
+            <Label>{t('create.fieldDescription')}</Label>
             <Textarea
-              placeholder="Optionale Details zur Aufgabe..."
+              placeholder={t('create.descriptionPlaceholder')}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
@@ -177,7 +175,7 @@ export function CreateTaskDialog({
           {/* Type + Priority */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Typ</Label>
+              <Label>{t('create.type')}</Label>
               <Select value={taskType} onValueChange={setTaskType}>
                 <SelectTrigger>
                   <SelectValue />
@@ -187,7 +185,7 @@ export function CreateTaskDialog({
                     <SelectItem key={type.value} value={type.value}>
                       <div className="flex items-center gap-2">
                         <type.icon className="h-4 w-4" />
-                        {type.label}
+                        {t(`create.types.${type.value}`)}
                       </div>
                     </SelectItem>
                   ))}
@@ -195,7 +193,7 @@ export function CreateTaskDialog({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Priorität</Label>
+              <Label>{t('create.priority')}</Label>
               <Select value={priority} onValueChange={setPriority}>
                 <SelectTrigger>
                   <SelectValue />
@@ -203,7 +201,7 @@ export function CreateTaskDialog({
                 <SelectContent>
                   {PRIORITIES.map((p) => (
                     <SelectItem key={p.value} value={p.value}>
-                      {p.label}
+                      {t(`create.priorities.${p.value}`)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -214,16 +212,16 @@ export function CreateTaskDialog({
           {/* Candidate + Job */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Kandidat</Label>
+              <Label>{t('create.candidate')}</Label>
               {candidateName ? (
                 <Input value={candidateName} disabled />
               ) : (
                 <Select value={selectedCandidateId} onValueChange={setSelectedCandidateId}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Optional..." />
+                    <SelectValue placeholder={t('create.optional')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Keiner</SelectItem>
+                    <SelectItem value="none">{t('create.none')}</SelectItem>
                     {candidates.map((c) => (
                       <SelectItem key={c.id} value={c.id}>
                         {c.full_name}
@@ -234,16 +232,16 @@ export function CreateTaskDialog({
               )}
             </div>
             <div className="space-y-2">
-              <Label>Job</Label>
+              <Label>{t('create.job')}</Label>
               {jobTitle ? (
                 <Input value={jobTitle} disabled />
               ) : (
                 <Select value={selectedJobId} onValueChange={setSelectedJobId}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Optional..." />
+                    <SelectValue placeholder={t('create.optional')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">Keiner</SelectItem>
+                    <SelectItem value="none">{t('create.none')}</SelectItem>
                     {jobs.map((j) => (
                       <SelectItem key={j.id} value={j.id}>
                         {j.title} · {j.company_name}
@@ -257,7 +255,7 @@ export function CreateTaskDialog({
 
           {/* Due date */}
           <div className="space-y-2">
-            <Label>Fällig am</Label>
+            <Label>{t('create.due')}</Label>
             <Input
               type="datetime-local"
               value={dueAt}
@@ -268,10 +266,10 @@ export function CreateTaskDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Abbrechen
+            {t('create.cancel')}
           </Button>
           <Button onClick={handleSubmit} disabled={!title.trim() || loading}>
-            {loading ? 'Erstelle...' : 'Aufgabe anlegen'}
+            {loading ? t('create.creating') : t('create.submit')}
           </Button>
         </DialogFooter>
       </DialogContent>

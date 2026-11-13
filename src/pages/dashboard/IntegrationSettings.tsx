@@ -8,6 +8,8 @@ import { useAuth } from "@/lib/auth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertCircle, Settings2, History, Shield, Calendar, CheckCircle2 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useTranslation } from "react-i18next";
+import { fmtDate, fmtTime } from "@/lib/localeFormat";
 
 interface Integration {
   id: string;
@@ -30,6 +32,7 @@ interface SyncLog {
 }
 
 export default function IntegrationSettings() {
+  const { t } = useTranslation('clientSettings');
   const { user } = useAuth();
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [syncLogs, setSyncLogs] = useState<SyncLog[]>([]);
@@ -114,9 +117,9 @@ export default function IntegrationSettings() {
       <DashboardLayout>
         <Alert>
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Keine Organisation</AlertTitle>
+          <AlertTitle>{t('integrations.noOrg')}</AlertTitle>
           <AlertDescription>
-            Sie müssen einer Organisation beitreten, um Integrationen zu verwalten.
+            {t('integrations.noOrgLead')}
           </AlertDescription>
         </Alert>
       </DashboardLayout>
@@ -127,9 +130,9 @@ export default function IntegrationSettings() {
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Integrationen</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t('integrations.title')}</h1>
           <p className="text-muted-foreground">
-            Verbinden Sie Ihre ATS-Systeme und verwalten Sie die Synchronisierung
+            {t('integrations.subtitle')}
           </p>
         </div>
 
@@ -137,19 +140,19 @@ export default function IntegrationSettings() {
           <TabsList>
             <TabsTrigger value="calendar" className="gap-2">
               <Calendar className="h-4 w-4" />
-              Kalender
+              {t('integrations.tabCalendar')}
             </TabsTrigger>
             <TabsTrigger value="integrations" className="gap-2">
               <Settings2 className="h-4 w-4" />
-              ATS-Systeme
+              {t('integrations.tabAts')}
             </TabsTrigger>
             <TabsTrigger value="history" className="gap-2">
               <History className="h-4 w-4" />
-              Sync-Historie
+              {t('integrations.tabHistory')}
             </TabsTrigger>
             <TabsTrigger value="security" className="gap-2">
               <Shield className="h-4 w-4" />
-              Sicherheit
+              {t('integrations.tabSecurity')}
             </TabsTrigger>
           </TabsList>
 
@@ -158,10 +161,10 @@ export default function IntegrationSettings() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Calendar className="h-5 w-5" />
-                  Interview-Termine per E-Mail
+                  {t('integrations.mailTitle')}
                 </CardTitle>
                 <CardDescription>
-                  Interview-Termine werden automatisch per E-Mail mit Kalender-Anhang versendet
+                  {t('integrations.mailLead')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -170,34 +173,33 @@ export default function IntegrationSettings() {
                     <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5" />
                     <div>
                       <h4 className="font-medium text-green-800 dark:text-green-300">
-                        E-Mail-basiertes Terminmanagement aktiv
+                        {t('integrations.mailActive')}
                       </h4>
                       <p className="text-sm text-green-700 dark:text-green-400 mt-1">
-                        Kandidaten erhalten automatisch Interview-Einladungen per E-Mail und können 
-                        direkt zusagen, absagen oder Alternativtermine vorschlagen.
+                        {t('integrations.mailActiveLead')}
                       </p>
                     </div>
                   </div>
                 </div>
 
                 <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                  <h5 className="text-sm font-medium">So funktioniert es:</h5>
+                  <h5 className="text-sm font-medium">{t('integrations.howTitle')}</h5>
                   <ul className="text-sm text-muted-foreground space-y-1">
                     <li className="flex items-center gap-2">
                       <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
-                      Kandidaten erhalten gebrandete E-Mail-Einladungen
+                      {t('integrations.how1')}
                     </li>
                     <li className="flex items-center gap-2">
                       <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
-                      Terminbestätigungen enthalten iCal-Dateien (.ics)
+                      {t('integrations.how2')}
                     </li>
                     <li className="flex items-center gap-2">
                       <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
-                      Alle Beteiligten erhalten automatische Benachrichtigungen
+                      {t('integrations.how3')}
                     </li>
                     <li className="flex items-center gap-2">
                       <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
-                      Erinnerungen werden automatisch versendet
+                      {t('integrations.how4')}
                     </li>
                   </ul>
                 </div>
@@ -216,15 +218,15 @@ export default function IntegrationSettings() {
           <TabsContent value="history">
             <Card>
               <CardHeader>
-                <CardTitle>Synchronisierungs-Historie</CardTitle>
+                <CardTitle>{t('integrations.historyTitle')}</CardTitle>
                 <CardDescription>
-                  Übersicht der letzten Synchronisierungsvorgänge
+                  {t('integrations.historyLead')}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {syncLogs.length === 0 ? (
                   <p className="text-muted-foreground text-center py-8">
-                    Noch keine Synchronisierungen durchgeführt
+                    {t('integrations.historyEmpty')}
                   </p>
                 ) : (
                   <div className="space-y-2">
@@ -236,7 +238,7 @@ export default function IntegrationSettings() {
                         <div>
                           <p className="font-medium text-sm">{log.sync_type}</p>
                           <p className="text-xs text-muted-foreground">
-                            {log.started_at && new Date(log.started_at).toLocaleString('de-DE')}
+                            {log.started_at && `${fmtDate(log.started_at)}, ${fmtTime(log.started_at)}`}
                           </p>
                         </div>
                         <div className="text-right">
@@ -244,12 +246,12 @@ export default function IntegrationSettings() {
                             log.status === 'completed' ? 'text-green-600' : 
                             log.status === 'failed' ? 'text-destructive' : 'text-muted-foreground'
                           }`}>
-                            {log.status === 'completed' ? 'Erfolgreich' : 
-                             log.status === 'failed' ? 'Fehlgeschlagen' : log.status}
+                            {log.status === 'completed' ? t('integrations.success') :
+                             log.status === 'failed' ? t('integrations.failed') : log.status}
                           </span>
                           {log.records_processed !== null && (
                             <p className="text-xs text-muted-foreground">
-                              {log.records_processed} Datensätze
+                              {t('integrations.records', { count: log.records_processed })}
                             </p>
                           )}
                         </div>
@@ -264,28 +266,28 @@ export default function IntegrationSettings() {
           <TabsContent value="security">
             <Card>
               <CardHeader>
-                <CardTitle>Sicherheitseinstellungen</CardTitle>
+                <CardTitle>{t('integrations.securityTitle')}</CardTitle>
                 <CardDescription>
-                  Verwalten Sie Zugriffsberechtigungen und Datenschutz
+                  {t('integrations.securityLead')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="rounded-lg border p-4">
-                  <h4 className="font-medium mb-2">Datenverschlüsselung</h4>
+                  <h4 className="font-medium mb-2">{t('integrations.encryption')}</h4>
                   <p className="text-sm text-muted-foreground">
-                    Alle API-Keys und Zugangsdaten werden verschlüsselt gespeichert.
+                    {t('integrations.encryptionLead')}
                   </p>
                 </div>
                 <div className="rounded-lg border p-4">
-                  <h4 className="font-medium mb-2">Zugriffsprotokoll</h4>
+                  <h4 className="font-medium mb-2">{t('integrations.accessLog')}</h4>
                   <p className="text-sm text-muted-foreground">
-                    Alle Zugriffe auf Integrationen werden protokolliert und sind für Administratoren einsehbar.
+                    {t('integrations.accessLogLead')}
                   </p>
                 </div>
                 <div className="rounded-lg border p-4">
-                  <h4 className="font-medium mb-2">DSGVO-Konformität</h4>
+                  <h4 className="font-medium mb-2">{t('integrations.gdpr')}</h4>
                   <p className="text-sm text-muted-foreground">
-                    Synchronisierte Daten werden gemäß DSGVO verarbeitet und auf Anfrage gelöscht.
+                    {t('integrations.gdprLead')}
                   </p>
                 </div>
               </CardContent>

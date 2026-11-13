@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AlertTriangle, Gavel, Loader2, Mail, Plus, UserPlus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,18 +32,19 @@ interface Props {
 
 /** „Ihr Name für die Einladung“, wenn im Konto nur die Firma steht. */
 function OwnNameField({ onSave }: { onSave: (name: string) => Promise<void> }) {
+  const { t } = useTranslation('clientInterviews');
   const [value, setValue] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const save = async () => {
     const name = value.replace(/\s+/g, ' ').trim();
-    if (!name.includes(' ')) return setError('Bitte Vor- und Nachnamen angeben.');
+    if (!name.includes(' ')) return setError(t('people.fullName'));
     setBusy(true);
     setError(null);
     try {
       await onSave(name);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Der Name konnte nicht gespeichert werden.');
+      setError(e instanceof Error ? e.message : t('people.nameFailed'));
     } finally {
       setBusy(false);
     }
@@ -56,22 +58,22 @@ function OwnNameField({ onSave }: { onSave: (name: string) => Promise<void> }) {
           void save();
         }}
       >
-        <Label htmlFor="own-name" className="text-sm font-normal text-muted-foreground">Ihr Name für die Einladung</Label>
+        <Label htmlFor="own-name" className="text-sm font-normal text-muted-foreground">{t('people.ownName')}</Label>
         <Input
           id="own-name"
           value={value}
           onChange={(e) => { setValue(e.target.value); setError(null); }}
-          placeholder="Vor- und Nachname"
+          placeholder={t('people.fullNamePh')}
           className="h-8 w-48"
           maxLength={80}
         />
         <Button type="submit" size="sm" variant="outline" className="h-8 gap-1.5" disabled={busy}>
           {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-          Speichern
+          {t('common.save')}
         </Button>
       </form>
       <p className={cn('text-xs', error ? 'text-destructive' : 'text-muted-foreground')}>
-        {error ?? 'Steht in der Einladung als Gesprächspartner und wird in Ihrem Profil gespeichert.'}
+        {error ?? t('people.ownNameHint')}
       </p>
     </div>
   );
@@ -89,14 +91,15 @@ function OutlookMark({ className }: { className?: string }) {
 }
 
 function RequiredToggle({ value, onChange, disabled }: { value: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
+  const { t } = useTranslation('clientInterviews');
   return (
-    <div className="inline-flex shrink-0 rounded-full border p-0.5 text-[11px]" role="group" aria-label="Teilnahme">
+    <div className="inline-flex shrink-0 rounded-full border p-0.5 text-[11px]" role="group" aria-label={t('people.participation')}>
       {[
-        { v: true, label: 'Pflicht' },
-        { v: false, label: 'optional' },
+        { v: true, label: t('people.required') },
+        { v: false, label: t('people.optional') },
       ].map((o) => (
         <button
-          key={o.label}
+          key={String(o.v)}
           type="button"
           disabled={disabled}
           aria-pressed={value === o.v}
@@ -122,6 +125,7 @@ function ExternalPersonForm({ existing, onAdd, open, setOpen, initial }: {
   setOpen: (o: boolean) => void;
   initial: string;
 }) {
+  const { t } = useTranslation('clientInterviews');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   useEffect(() => {
@@ -134,11 +138,11 @@ function ExternalPersonForm({ existing, onAdd, open, setOpen, initial }: {
 
   const duplicate = existing.some((a) => sameAttendee(a, { email }));
   const error = !name.trim()
-    ? 'Bitte einen Namen eingeben.'
+    ? t('people.nameNeeded')
     : !isValidEmail(email)
-      ? 'Bitte eine gültige E-Mail-Adresse eingeben.'
+      ? t('people.emailInvalid')
       : duplicate
-        ? 'Diese Person ist schon dabei.'
+        ? t('people.duplicate')
         : null;
 
   const submit = () => {
@@ -156,7 +160,7 @@ function ExternalPersonForm({ existing, onAdd, open, setOpen, initial }: {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5">
-          <Mail className="h-3.5 w-3.5" /> Person per E-Mail
+          <Mail className="h-3.5 w-3.5" /> {t('people.byEmail')}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-72 space-y-2.5" align="start">
@@ -168,20 +172,20 @@ function ExternalPersonForm({ existing, onAdd, open, setOpen, initial }: {
           }}
         >
           <div className="space-y-1">
-            <Label htmlFor="ext-name" className="text-xs">Name</Label>
+            <Label htmlFor="ext-name" className="text-xs">{t('people.name')}</Label>
             <Input id="ext-name" value={name} onChange={(e) => setName(e.target.value)} className="h-8" autoFocus />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="ext-email" className="text-xs">E-Mail</Label>
+            <Label htmlFor="ext-email" className="text-xs">{t('people.email')}</Label>
             <Input id="ext-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-8" />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="ext-title" className="text-xs">Rolle (optional)</Label>
-            <Input id="ext-title" value={title} onChange={(e) => setTitle(e.target.value)} className="h-8" placeholder="z. B. Teamleitung" />
+            <Label htmlFor="ext-title" className="text-xs">{t('people.role')}</Label>
+            <Input id="ext-title" value={title} onChange={(e) => setTitle(e.target.value)} className="h-8" placeholder={t('people.rolePh')} />
           </div>
           {touched && error && <p className="text-xs text-destructive">{error}</p>}
           <div className="flex justify-end">
-            <Button type="submit" size="sm" className="h-8">Hinzufügen</Button>
+            <Button type="submit" size="sm" className="h-8">{t('custom.add')}</Button>
           </div>
         </form>
       </PopoverContent>
@@ -190,6 +194,7 @@ function ExternalPersonForm({ existing, onAdd, open, setOpen, initial }: {
 }
 
 export function ParticipantsSection({ submissionId, jobTitle, invite, me, team, attendees, onChange, people, calendarConnected, needsName, onSaveName }: Props) {
+  const { t } = useTranslation('clientInterviews');
   const [teamOpen, setTeamOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -198,11 +203,11 @@ export function ParticipantsSection({ submissionId, jobTitle, invite, me, team, 
 
   const startInvite = () => { setSeed(search); setTeamOpen(false); setInviteOpen(true); };
   const startExternal = () => { setSeed(search); setTeamOpen(false); setExternalOpen(true); };
-  const adminHint = invite.adminNames.length ? `Ins Team einladen können nur Admins: ${invite.adminNames.join(', ')}.` : 'Ins Team einladen können nur Admins.';
+  const adminHint = invite.adminNames.length ? t('people.adminsOnlyNamed', { names: invite.adminNames.join(', ') }) : t('people.adminsOnly');
 
   const isMe = (a: AttendeeDraft) => sameAttendee(a, { userId: me.userId, email: me.email });
   const available = team.filter(
-    (t) => t.userId !== me.userId && !attendees.some((a) => sameAttendee(a, { userId: t.userId, email: t.email })),
+    (p) => p.userId !== me.userId && !attendees.some((a) => sameAttendee(a, { userId: p.userId, email: p.email })),
   );
 
   const update = (key: string, patch: Partial<AttendeeDraft>) =>
@@ -222,14 +227,14 @@ export function ParticipantsSection({ submissionId, jobTitle, invite, me, team, 
                 {mine && needsName ? (
                   <div className="space-y-1">
                     <p className="text-sm">
-                      <span className="font-medium">Sie</span>
+                      <span className="font-medium">{t('request.you')}</span>
                       {a.title && <span className="text-muted-foreground"> · {a.title}</span>}
                     </p>
                     <OwnNameField onSave={onSaveName} />
                   </div>
                 ) : (
                   <p className="truncate text-sm">
-                    {mine && <span className="font-medium">Sie · </span>}
+                    {mine && <span className="font-medium">{t('request.you')} · </span>}
                     <span className={cn(!mine && 'font-medium')}>{a.name.trim()}</span>
                     {a.title && <span className="text-muted-foreground">{mine ? ', ' : ' · '}{a.title.trim()}</span>}
                   </p>
@@ -240,29 +245,29 @@ export function ParticipantsSection({ submissionId, jobTitle, invite, me, team, 
                 type="button"
                 aria-pressed={!!a.decisionMaker}
                 onClick={() => update(key, { decisionMaker: !a.decisionMaker })}
-                title="Entscheidet über die Einstellung"
+                title={t('people.decidesHint')}
                 className={cn(
                   'inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] transition-colors',
                   a.decisionMaker ? 'border-foreground bg-foreground text-background' : 'text-muted-foreground hover:text-foreground',
                 )}
               >
-                <Gavel className="h-3 w-3" /> Entscheider
+                <Gavel className="h-3 w-3" /> {t('people.decider')}
               </button>
               <RequiredToggle value={mine ? true : a.required} disabled={mine} onChange={(v) => update(key, { required: v })} />
               <span className="flex min-w-[9.5rem] shrink-0 items-center justify-end gap-1 text-xs">
                 {a.invited ? (
-                  <span className="rounded-full bg-warning/15 px-2 py-0.5 text-warning">eingeladen</span>
+                  <span className="rounded-full bg-warning/15 px-2 py-0.5 text-warning">{t('people.invited')}</span>
                 ) : person?.visible ? (
                   <span className="inline-flex items-center gap-1 text-success">
-                    <OutlookMark className="h-3.5 w-3.5" /> sichtbar
+                    <OutlookMark className="h-3.5 w-3.5" /> {t('people.visible')}
                   </span>
                 ) : a.kind === 'external' ? (
                   <span className="inline-flex items-center gap-1 text-foreground">
-                    <AlertTriangle className="h-3.5 w-3.5 text-warning" /> Kalender nicht sichtbar
+                    <AlertTriangle className="h-3.5 w-3.5 text-warning" /> {t('people.calendarHidden')}
                   </span>
                 ) : calendarConnected && person ? (
-                  <span className="inline-flex items-center gap-1 text-foreground" title="Matchunt konnte die Termine gerade nicht aus Outlook lesen.">
-                    <AlertTriangle className="h-3.5 w-3.5 text-warning" /> {mine ? 'Outlook nicht lesbar' : 'Kalender nicht lesbar'}
+                  <span className="inline-flex items-center gap-1 text-foreground" title={t('people.unreadableHint')}>
+                    <AlertTriangle className="h-3.5 w-3.5 text-warning" /> {mine ? t('people.outlookUnreadable') : t('people.calendarUnreadable')}
                   </span>
                 ) : null}
               </span>
@@ -273,7 +278,7 @@ export function ParticipantsSection({ submissionId, jobTitle, invite, me, team, 
                   type="button"
                   onClick={() => remove(key)}
                   className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                  aria-label={`${a.name} entfernen`}
+                  aria-label={t('grid.removeAria', { slot: a.name })}
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -287,51 +292,51 @@ export function ParticipantsSection({ submissionId, jobTitle, invite, me, team, 
         <Popover open={teamOpen} onOpenChange={(o) => { setTeamOpen(o); if (o) setSearch(''); }} modal>
           <PopoverTrigger asChild>
             <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5">
-              <UserPlus className="h-3.5 w-3.5" /> Kollege aus Ihrem Team
+              <UserPlus className="h-3.5 w-3.5" /> {t('people.fromTeam')}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-72 p-0" align="start">
             <Command>
-              <CommandInput placeholder="Name oder E-Mail suchen …" value={search} onValueChange={setSearch} />
+              <CommandInput placeholder={t('people.searchPh')} value={search} onValueChange={setSearch} />
               <CommandList>
                 <CommandEmpty className="space-y-1 p-2 text-sm">
                   <p className="px-1 pb-1 text-muted-foreground">
-                    {search.trim() ? `${search.trim()} ist noch nicht in Ihrem Team.` : 'Noch keine Kollegen in Ihrem Team.'}
+                    {search.trim() ? t('people.notInTeam', { name: search.trim() }) : t('people.noTeam')}
                   </p>
                   {invite.allowed ? (
                     <button type="button" onClick={startInvite} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left font-medium hover:bg-accent">
-                      <UserPlus className="h-3.5 w-3.5" /> {search.trim() ? `${search.trim()} ins Team einladen` : 'Kollegen ins Team einladen'}
+                      <UserPlus className="h-3.5 w-3.5" /> {search.trim() ? t('people.inviteNamed', { name: search.trim() }) : t('people.invite')}
                     </button>
                   ) : (
                     <p className="px-1 text-xs text-muted-foreground">{adminHint}</p>
                   )}
                   <button type="button" onClick={startExternal} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-muted-foreground hover:bg-accent hover:text-foreground">
-                    <Mail className="h-3.5 w-3.5" /> Nur zu diesem Interview einladen (ohne Matchunt-Zugang)
+                    <Mail className="h-3.5 w-3.5" /> {t('people.onlyInterview')}
                   </button>
                 </CommandEmpty>
                 <CommandGroup>
-                  {available.map((t) => (
+                  {available.map((p) => (
                     <CommandItem
-                      key={t.userId}
-                      value={`${t.name} ${t.email} ${t.userId}`}
+                      key={p.userId}
+                      value={`${p.name} ${p.email} ${p.userId}`}
                       onSelect={() => {
                         onChange([
                           ...attendees,
-                          { userId: t.userId, email: t.email, name: t.name, title: t.title, required: true, kind: 'client_user' },
+                          { userId: p.userId, email: p.email, name: p.name, title: p.title, required: true, kind: 'client_user' },
                         ]);
                         setTeamOpen(false);
                       }}
                     >
                       <Plus className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="min-w-0 flex-1 truncate">{t.name}</span>
-                      {t.title && <span className="ml-2 truncate text-xs text-muted-foreground">{t.title}</span>}
+                      <span className="min-w-0 flex-1 truncate">{p.name}</span>
+                      {p.title && <span className="ml-2 truncate text-xs text-muted-foreground">{p.title}</span>}
                     </CommandItem>
                   ))}
                 </CommandGroup>
                 {invite.allowed && available.length > 0 && (
                   <CommandGroup>
                     <CommandItem value={`__invite__ ${search}`} onSelect={startInvite}>
-                      <UserPlus className="mr-2 h-3.5 w-3.5 text-muted-foreground" /> Neue Person ins Team einladen
+                      <UserPlus className="mr-2 h-3.5 w-3.5 text-muted-foreground" /> {t('people.inviteNew')}
                     </CommandItem>
                   </CommandGroup>
                 )}
@@ -356,7 +361,7 @@ export function ParticipantsSection({ submissionId, jobTitle, invite, me, team, 
 
       {calendarConnected && (
         <p className="text-xs text-muted-foreground">
-          Kollegen aus Ihrer Firma müssen nichts verbinden. Matchunt liest ihr frei/belegt über Ihren Outlook-Zugang.
+          {t('people.colleaguesNote')}
         </p>
       )}
     </div>

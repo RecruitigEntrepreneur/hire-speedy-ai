@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import i18n from '@/i18n';
 
 export interface AIAssessment {
   id: string;
@@ -81,8 +82,8 @@ export function useAIAssessment(candidateId?: string) {
 
       if (data?.success) {
         toast({
-          title: 'AI-Analyse abgeschlossen',
-          description: 'Die Interview-Notizen wurden erfolgreich analysiert.',
+          title: i18n.t('candidateDetail:hooks.aiDone'),
+          description: i18n.t('candidateDetail:hooks.aiDoneText'),
         });
         
         // Refetch to get the saved assessment
@@ -95,8 +96,8 @@ export function useAIAssessment(candidateId?: string) {
     } catch (error) {
       console.error('Error processing interview notes:', error);
       toast({
-        title: 'Fehler bei der AI-Analyse',
-        description: error instanceof Error ? error.message : 'Ein unbekannter Fehler ist aufgetreten',
+        title: i18n.t('candidateDetail:hooks.aiError'),
+        description: error instanceof Error ? error.message : i18n.t('candidateDetail:hooks.unknownError'),
         variant: 'destructive',
       });
       return null;

@@ -7,6 +7,7 @@ import {
   serviceClient, resolveDraft, touchDraft, logEvent, publicDraft, contractState, publicLink,
   publicPackages, inDays, DRAFT_DAYS, TOKEN_DAYS,
 } from '../_shared/intake-core.ts';
+import { callLanguage, rememberDraftLanguage, rowLanguage, withIntakeLang } from '../_shared/intake-language.ts';
 
 /**
  * intake-draft — Laden und Autosave der Aufnahme. Ohne Login, per Entwurfs-Token.
@@ -39,7 +40,7 @@ const TEXT_FIELDS = [
  *  reale Briefing um ein Vielfaches. */
 const MAX_PAYLOAD_BYTES = 512 * 1024;
 
-serve(async (req) => {
+serve(withIntakeLang(async (req) => {
   const pre = preflight(req);
   if (pre) return pre;
 
@@ -67,6 +68,9 @@ serve(async (req) => {
       const { data } = await supabase.from('intake_links').select('*').eq('id', draft.link_id).maybeSingle();
       link = data ?? null;
     }
+    // Sprache am Entwurf: was der Kunde im Menü gewählt hat (jeder Aufruf trägt
+    // sie mit), sonst einmalig die des Links. Schreibt nur bei einer Änderung.
+    await rememberDraftLanguage(supabase, draft, callLanguage(body) ?? (rowLanguage(draft) ? null : rowLanguage(link)));
     let ownerName: string | null = null;
     if (link?.owner_user_id) {
       const { data } = await supabase.from('profiles').select('full_name').eq('user_id', link.owner_user_id).maybeSingle();
@@ -258,4 +262,4 @@ serve(async (req) => {
     console.error('[intake-draft]', e);
     return fail('internal_error', 'Unerwarteter Fehler.');
   }
-});
+}));

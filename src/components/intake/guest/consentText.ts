@@ -12,6 +12,15 @@
  */
 export const CONSENT_TEXT_VERSION = '2026-09-v1';
 
+/**
+ * Mehrsprachigkeit (11/2026): Der Gast-Funnel zeigt die drei Sätze über
+ * `clientFunnel:summary.consent1…3` in der Sprache des Kunden; der deutsche
+ * Wortlaut dort ist zeichengleich mit dem hier. Diese Konstante bleibt die
+ * deutsche Fassung (Dashboard-Aufnahme, SubmitStep). Gespeichert wird weiterhin
+ * nur die Version, nie der Text. Ändert sich ein Satz, hier UND in den
+ * Sprachdateien ändern und die Version hochzählen.
+ */
+
 export const CONSENT_TEXT = [
   'Ich bin berechtigt, für das genannte Unternehmen eine Beauftragung anzufragen.',
   'Ich habe die dargestellten Konditionen und die Allgemeinen Geschäftsbedingungen zur Kenntnis genommen und stimme ihnen zu.',

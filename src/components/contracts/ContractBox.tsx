@@ -9,6 +9,8 @@ import { cn } from '@/lib/utils';
 import { contractApi, contractDataPdf, dateDe, download, euro, linkLine, timeDe } from '@/lib/contractApi';
 import { ContractDialog } from './ContractDialog';
 import { ContractReportDialog } from './ContractReportDialog';
+import i18n from '@/i18n';
+import { useTranslation } from 'react-i18next';
 
 export type ContractOpen = 'contract' | 'digital' | 'melden' | 'werte' | 'verschickt' | 'abgesprungen' | 'unterschreiben' | 'unterzeichner' | null;
 
@@ -34,6 +36,8 @@ const RETURN_CHECKS_MS = [0, 21_000, 60_000, 120_000];
  * verbindlichen Unterschrift, jeweils mit genau den passenden Schritten.
  */
 export function ContractBox({ submissionId, openRequest = null, onOpenHandled, returnEvent = null, onReturnHandled, onSignedBack, onNotYet }: Props) {
+  const { t: tt } = useTranslation('contracts');
+  const t = (key: string, options?: Record<string, unknown>) => tt(`client.box.${key}`, options);
   const queryClient = useQueryClient();
   const q = useQuery({ queryKey: ['contract', submissionId], queryFn: () => contractApi.context(submissionId), staleTime: 15_000 });
   const [showSend, setShowSend] = useState<null | 'digital' | 'self' | 'any'>(null);
@@ -60,7 +64,7 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
       const { url } = await contractApi.signUrl(submissionId);
       window.location.assign(url);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Die Unterschrift lässt sich gerade nicht starten.');
+      toast.error(e instanceof Error ? e.message : i18n.t('contracts:client.box.signStartFailed'));
       setBusy(false);
     }
   };
@@ -117,7 +121,7 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
   if (!ctx) return null;
   const c = ctx.contract;
   const first = ctx.candidateName.split(' ')[0];
-  const hh = ctx.recruiterName ?? 'Ihr Headhunter';
+  const hh = ctx.recruiterName ?? tt('client.yourRecruiter');
   const hhFirst = hh.split(' ')[0];
 
   const run = async (work: () => Promise<unknown>, done: string) => {
@@ -128,18 +132,18 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
       setDropReason(null);
       refetchAll();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Das hat nicht geklappt.');
+      toast.error(e instanceof Error ? e.message : tt('common.failed'));
     } finally {
       setBusy(false);
     }
   };
   const openPdf = async () => {
     try { const { url } = await contractApi.document(submissionId); window.open(url, '_blank', 'noopener'); }
-    catch (e) { toast.error(e instanceof Error ? e.message : 'Das PDF ist gerade nicht abrufbar.'); }
+    catch (e) { toast.error(e instanceof Error ? e.message : t('pdfUnavailable')); }
   };
   const dataPdf = async () => download(await contractDataPdf(ctx), `Vertragsdaten_${ctx.candidateName.replace(/\s+/g, '_')}.pdf`);
   const values = (v: { salary: number | null; variable: number | null; startDate: string | null }) =>
-    [v.salary ? `${euro(v.salary)}${v.variable ? ` + ${euro(v.variable)}` : ''}` : null, v.startDate ? `Start ${dateDe(v.startDate)}` : null].filter(Boolean).join(' · ');
+    [v.salary ? (v.variable ? tt('client.valuesVariable', { salary: euro(v.salary), variable: euro(v.variable) }) : euro(v.salary)) : null, v.startDate ? tt('client.valuesStart', { date: dateDe(v.startDate) }) : null].filter(Boolean).join(' · ');
 
   const status = c?.status ?? 'preparing';
   const notSent = status === 'preparing' && !c?.sentAt;
@@ -147,27 +151,27 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
 
   const dropRow = dropReason !== null ? (
     <div className="mt-2 flex flex-wrap items-center gap-2">
-      <Input value={dropReason} onChange={(e) => setDropReason(e.target.value)} placeholder={`Warum ist ${first} abgesprungen?`} className="h-8 min-w-[16rem] flex-1" aria-label="Grund" />
-      <Button size="sm" variant="destructive" disabled={busy || !dropReason.trim()} onClick={() => run(() => contractApi.drop(submissionId, dropReason.trim()), `Gespeichert. ${hhFirst} ist informiert.`)}>Abgesprungen melden</Button>
-      <Button size="sm" variant="ghost" onClick={() => setDropReason(null)}>Abbrechen</Button>
+      <Input value={dropReason} onChange={(e) => setDropReason(e.target.value)} placeholder={t('dropPlaceholder', { first })} className="h-8 min-w-[16rem] flex-1" aria-label={t('dropReason')} />
+      <Button size="sm" variant="destructive" disabled={busy || !dropReason.trim()} onClick={() => run(() => contractApi.drop(submissionId, dropReason.trim()), t('dropSaved', { hh: hhFirst }))}>{t('reportDrop')}</Button>
+      <Button size="sm" variant="ghost" onClick={() => setDropReason(null)}>{tt('common.cancel')}</Button>
     </div>
   ) : null;
-  const dropButton = <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={() => setDropReason('')}>{first} ist abgesprungen</Button>;
+  const dropButton = <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={() => setDropReason('')}>{t('hasDropped', { first })}</Button>;
 
   const sig = ctx.signing ?? null;
   const embedded = sig?.mode === 'embedded' || c?.signingMode === 'embedded';
-  const signerLabel = sig?.youSign ? 'Sie' : (c?.companySignerName ?? 'Die Firma');
+  const signerLabel = sig?.youSign ? tt('client.you') : (c?.companySignerName ?? tt('client.theCompany'));
   const changeSigner = async () => {
     if (!signer) return;
     setBusy(true);
     try {
       const r = await contractApi.changeSigner(submissionId, signer.self ? { signerSelf: true } : { signerName: signer.name.trim(), signerEmail: signer.email.trim() });
       refetchAll();
-      if (r.signUrl) { toast.success('Neu angelegt. Sie werden zur Unterschrift weitergeleitet …'); window.location.assign(r.signUrl); return; }
-      toast.success(`Neu angelegt. ${signer.name.trim()} bekommt jetzt eine Mail mit Link.`);
+      if (r.signUrl) { toast.success(t('signerNew')); window.location.assign(r.signUrl); return; }
+      toast.success(t('signerNewLink', { name: signer.name.trim() }));
       setSigner(null);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Das hat nicht geklappt.');
+      toast.error(e instanceof Error ? e.message : tt('common.failed'));
     } finally {
       setBusy(false);
     }
@@ -177,19 +181,19 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
       <div className="inline-flex rounded-md border border-border/60 bg-muted/30 p-0.5">
         {[true, false].map((v) => (
           <button key={String(v)} type="button" onClick={() => setSigner({ ...signer, self: v })}
-            className={cn('rounded px-3 py-1 text-xs', signer.self === v ? 'bg-background font-medium shadow-sm' : 'text-muted-foreground')}>{v ? 'Ich selbst' : 'Jemand anderes'}</button>
+            className={cn('rounded px-3 py-1 text-xs', signer.self === v ? 'bg-background font-medium shadow-sm' : 'text-muted-foreground')}>{v ? t('me') : t('someoneElse')}</button>
         ))}
       </div>
       {!signer.self && (
         <div className="flex flex-wrap gap-2">
-          <Input value={signer.name} onChange={(e) => setSigner({ ...signer, name: e.target.value })} placeholder="Name" className="h-8 min-w-[10rem] flex-1" aria-label="Name" />
-          <Input value={signer.email} onChange={(e) => setSigner({ ...signer, email: e.target.value })} placeholder="Mail" className="h-8 min-w-[12rem] flex-1" aria-label="Mail" />
+          <Input value={signer.name} onChange={(e) => setSigner({ ...signer, name: e.target.value })} placeholder={t('name')} className="h-8 min-w-[10rem] flex-1" aria-label={t('name')} />
+          <Input value={signer.email} onChange={(e) => setSigner({ ...signer, email: e.target.value })} placeholder={t('mail')} className="h-8 min-w-[12rem] flex-1" aria-label={t('mail')} />
         </div>
       )}
-      <p className="text-xs text-muted-foreground">{signer.self ? 'Sie unterschreiben gleich danach hier in Matchunt.' : 'Bekommt eine Mail von Matchunt mit persönlichem Link.'} Der Vertrag bleibt derselbe, der alte Umschlag wird zurückgezogen.</p>
+      <p className="text-xs text-muted-foreground">{signer.self ? t('signerSelfHint') : t('signerOtherHint')}{t('sameContract')}</p>
       <div className="flex gap-2">
-        <Button size="sm" disabled={busy || (!signer.self && (!signer.name.trim() || !/\S+@\S+\.\S+/.test(signer.email)))} onClick={changeSigner}>{signer.self ? 'Ändern und jetzt unterschreiben' : 'Ändern und Link senden'}</Button>
-        <Button size="sm" variant="ghost" onClick={() => setSigner(null)}>Abbrechen</Button>
+        <Button size="sm" disabled={busy || (!signer.self && (!signer.name.trim() || !/\S+@\S+\.\S+/.test(signer.email)))} onClick={changeSigner}>{signer.self ? t('changeSign') : t('changeLink')}</Button>
+        <Button size="sm" variant="ghost" onClick={() => setSigner(null)}>{tt('common.cancel')}</Button>
       </div>
     </div>
   ) : null;
@@ -210,17 +214,17 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
       tone === 'muted' && 'border-border bg-muted/30')}>
 
       {back?.state === 'signed' && status === 'company_signed' && (
-        <p className="mb-2 rounded-md border border-emerald-500/30 bg-emerald-500/[0.06] px-2.5 py-1.5 text-emerald-800 dark:text-emerald-300">Unterschrieben{back.at ? `, ${timeDe(back.at)}` : ''}. {first} bekommt jetzt eine Mail mit Link.</p>
+        <p className="mb-2 rounded-md border border-emerald-500/30 bg-emerald-500/[0.06] px-2.5 py-1.5 text-emerald-800 dark:text-emerald-300">{back.at ? t('signedBackAt', { when: timeDe(back.at), first }) : t('signedBack', { first })}</p>
       )}
 
       {notSent && c?.way !== 'digital' && (
         <>
-          <p className="font-medium">{first} hat zugesagt{ctx.offer ? `: ${values({ salary: ctx.offer.salary, variable: ctx.offer.variable, startDate: ctx.offer.startDate })}` : ''}</p>
-          <p className="mt-0.5 text-muted-foreground">Schicken Sie {first} jetzt den Arbeitsvertrag. Sobald er unterschrieben ist, melden Sie es hier.</p>
+          <p className="font-medium">{ctx.offer ? t('acceptedValues', { first, values: values({ salary: ctx.offer.salary, variable: ctx.offer.variable, startDate: ctx.offer.startDate }) }) : t('accepted', { first })}</p>
+          <p className="mt-0.5 text-muted-foreground">{t('sendNow', { first })}</p>
           {dropRow ?? (
             <div className="mt-2 flex flex-wrap gap-2">
-              <Button size="sm" onClick={() => setShowSend('any')}>Vertrag schicken</Button>
-              <Button size="sm" variant="outline" onClick={() => setShowReport('report')}>Unterschrieben melden</Button>
+              <Button size="sm" onClick={() => setShowSend('any')}>{t('sendContract')}</Button>
+              <Button size="sm" variant="outline" onClick={() => setShowReport('report')}>{t('reportSigned')}</Button>
               {dropButton}
             </div>
           )}
@@ -229,38 +233,38 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
 
       {notSent && c?.way === 'digital' && (
         <>
-          <p className="font-medium">Digitaler Vertrag zurückgezogen</p>
-          <p className="mt-0.5 text-muted-foreground">Laden Sie den Vertrag neu hoch oder schicken Sie ihn selbst.</p>
+          <p className="font-medium">{t('digitalWithdrawn')}</p>
+          <p className="mt-0.5 text-muted-foreground">{t('uploadAgain')}</p>
           <div className="mt-2 flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => setShowSend('digital')}>Neu senden</Button>
-            <Button size="sm" variant="outline" onClick={() => setShowSend('self')}>Selbst verschicken</Button>
+            <Button size="sm" onClick={() => setShowSend('digital')}>{t('resend')}</Button>
+            <Button size="sm" variant="outline" onClick={() => setShowSend('self')}>{t('sendSelf')}</Button>
           </div>
         </>
       )}
 
       {status === 'sent_self' && (
         <>
-          <p className="font-medium">Vertrag am {dateDe(c!.sentAt)} an {first} verschickt <span className="font-normal text-muted-foreground">(Ihre Angabe)</span></p>
+          <p className="font-medium">{t('sentSelf', { date: dateDe(c!.sentAt), first })} <span className="font-normal text-muted-foreground">{t('yourInfo')}</span></p>
           {c!.candidateStatus === 'missing' ? (
             <div className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/[0.06] px-3 py-2">
-              <p className="font-medium">{first} hat den Vertrag noch nicht <span className="font-normal text-muted-foreground">(gemeldet am {dateDe(c!.candidateStatusAt)})</span></p>
-              <p className="mt-0.5 text-muted-foreground">Bitte prüfen und erneut schicken. {first} bekommt von uns Bescheid, sobald der Vertrag wieder unterwegs ist.</p>
+              <p className="font-medium">{t('notArrived', { first })} <span className="font-normal text-muted-foreground">{t('reportedOn', { date: dateDe(c!.candidateStatusAt) })}</span></p>
+              <p className="mt-0.5 text-muted-foreground">{t('checkResend', { first })}</p>
               <div className="mt-2 flex flex-wrap gap-2">
-                <Button size="sm" onClick={() => setShowSend('self')}>Erneut verschickt am …</Button>
-                <Button size="sm" variant="outline" onClick={() => setShowSend('digital')}>Doch über Matchunt</Button>
+                <Button size="sm" onClick={() => setShowSend('self')}>{t('resentOn')}</Button>
+                <Button size="sm" variant="outline" onClick={() => setShowSend('digital')}>{t('viaMatchunt')}</Button>
               </div>
             </div>
           ) : (
             <p className="mt-0.5 text-muted-foreground">
-              {c!.candidateStatus === 'arrived' ? `${first} hat bestätigt: angekommen (${dateDe(c!.candidateStatusAt)}). ` : c!.candidateInformedAt ? `${first} hat eine Mail von uns und meldet uns, sobald der Vertrag da ist. ` : ''}
-              {hhFirst} weiß Bescheid und hakt bei {first} nach.
+              {c!.candidateStatus === 'arrived' ? t('arrived', { first, date: dateDe(c!.candidateStatusAt) }) : c!.candidateInformedAt ? t('informed', { first }) : ''}
+              {t('hhFollows', { hh: hhFirst, first })}
             </p>
           )}
           {dropRow ?? (
             <div className="mt-2 flex flex-wrap gap-2">
-              <Button size="sm" onClick={() => setShowReport('report')}>Unterschrift melden</Button>
-              {onNotYet && <Button size="sm" variant="outline" onClick={onNotYet}>Noch nicht unterschrieben</Button>}
-              <Button size="sm" variant="outline" className="gap-1" onClick={dataPdf}><FileDown className="h-3.5 w-3.5" />Vertragsdaten (PDF)</Button>
+              <Button size="sm" onClick={() => setShowReport('report')}>{t('reportSignature')}</Button>
+              {onNotYet && <Button size="sm" variant="outline" onClick={onNotYet}>{t('notYet')}</Button>}
+              <Button size="sm" variant="outline" className="gap-1" onClick={dataPdf}><FileDown className="h-3.5 w-3.5" />{t('dataPdf')}</Button>
               {dropButton}
             </div>
           )}
@@ -269,49 +273,49 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
 
       {(status === 'sent_digital' || status === 'company_signed') && embedded && (
         <>
-          <p className="font-medium">Stand der Unterschriften</p>
-          {back?.state === 'checking' && <p className="mt-1 flex items-center gap-2 text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" />Wir holen die Bestätigung bei DocuSign …</p>}
-          {back?.state === 'late' && <p className="mt-1 text-amber-700 dark:text-amber-400">DocuSign hat Ihre Unterschrift noch nicht gemeldet. Das kann ein paar Minuten dauern; „Stand aktualisieren“ fragt erneut.</p>}
-          {back?.state === 'left' && !c!.companySignedAt && <p className="mt-1 text-amber-700 dark:text-amber-400">Sie haben DocuSign ohne Unterschrift verlassen.</p>}
+          <p className="font-medium">{t('signState')}</p>
+          {back?.state === 'checking' && <p className="mt-1 flex items-center gap-2 text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" />{t('checking')}</p>}
+          {back?.state === 'late' && <p className="mt-1 text-amber-700 dark:text-amber-400">{t('late')}</p>}
+          {back?.state === 'left' && !c!.companySignedAt && <p className="mt-1 text-amber-700 dark:text-amber-400">{t('left')}</p>}
           <ul className="mt-1 space-y-1">
-            {step(true, 'Vertrag hochgeladen', timeDe(c!.sentAt))}
+            {step(true, t('uploaded'), timeDe(c!.sentAt))}
             {c!.companySignedAt
-              ? step(true, sig?.youSign ? 'Sie haben in Matchunt unterschrieben' : `${signerLabel} hat ${sig?.companyViaApp ? 'in Matchunt ' : ''}unterschrieben`, timeDe(c!.companySignedAt))
-              : step(false, sig?.youSign ? 'Ihre Unterschrift' : `${signerLabel} unterschreibt zuerst`, sig?.companyViaApp ? 'in Matchunt' : linkLine(sig?.company, sig?.companyEmail))}
+              ? step(true, sig?.youSign ? t('youSignedApp') : t(sig?.companyViaApp ? 'signerSignedApp' : 'signerSigned', { signer: signerLabel }), timeDe(c!.companySignedAt))
+              : step(false, sig?.youSign ? t('yourSignature') : t('signerFirst', { signer: signerLabel }), sig?.companyViaApp ? t('inMatchunt') : linkLine(sig?.company, sig?.companyEmail))}
             {c!.companySignedAt
-              ? step(false, `${first} unterschreibt`, linkLine(sig?.candidate, sig?.candidateEmail))
-              : step(false, `Danach ${first}`, 'bekommt dann einen Link per Mail')}
+              ? step(false, t('candidateSigns', { first }), linkLine(sig?.candidate, sig?.candidateEmail))
+              : step(false, t('thenCandidate', { first }), t('getsLink'))}
           </ul>
           {signerRow ?? dropRow ?? (
             <div className="mt-2 flex flex-wrap gap-2">
-              {status === 'sent_digital' && sig?.youSign && back?.state !== 'checking' && <Button size="sm" disabled={busy} onClick={signNow}>{back?.state === 'left' ? 'Weiter unterschreiben' : 'Jetzt unterschreiben'}</Button>}
-              {status === 'sent_digital' && !sig?.companyViaApp && <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => contractApi.resendLink(submissionId), `Neuer Link an ${c!.companySignerName ?? 'den Unterzeichner'} ist unterwegs; der alte gilt nicht mehr.`)}>Link erneut senden</Button>}
-              {status === 'company_signed' && <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => contractApi.resendLink(submissionId), `Neuer Link an ${first} ist unterwegs; der alte gilt nicht mehr.`)}>Link an {first} erneut senden</Button>}
-              {status === 'sent_digital' && <Button size="sm" variant="ghost" onClick={() => setSigner({ self: !sig?.youSign, name: '', email: '' })}>Unterzeichner ändern</Button>}
-              <Button size="sm" variant="ghost" disabled={busy} onClick={() => run(() => contractApi.refresh(submissionId), 'Stand aktualisiert.')}>Stand aktualisieren</Button>
-              <Button size="sm" variant="ghost" disabled={busy} onClick={() => run(() => contractApi.voidDigital(submissionId, true), 'Zurückgezogen. Schicken Sie den Vertrag selbst.')}>Doch selbst verschicken</Button>
+              {status === 'sent_digital' && sig?.youSign && back?.state !== 'checking' && <Button size="sm" disabled={busy} onClick={signNow}>{back?.state === 'left' ? t('continueSign') : t('signNow')}</Button>}
+              {status === 'sent_digital' && !sig?.companyViaApp && <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => contractApi.resendLink(submissionId), t('linkResentSigner', { name: c!.companySignerName ?? tt('client.theSigner') }))}>{t('resendLink')}</Button>}
+              {status === 'company_signed' && <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => contractApi.resendLink(submissionId), t('linkResentSigner', { name: first }))}>{t('resendLinkTo', { first })}</Button>}
+              {status === 'sent_digital' && <Button size="sm" variant="ghost" onClick={() => setSigner({ self: !sig?.youSign, name: '', email: '' })}>{t('changeSigner')}</Button>}
+              <Button size="sm" variant="ghost" disabled={busy} onClick={() => run(() => contractApi.refresh(submissionId), t('refreshed'))}>{t('refresh')}</Button>
+              <Button size="sm" variant="ghost" disabled={busy} onClick={() => run(() => contractApi.voidDigital(submissionId, true), t('voidSelf'))}>{t('sendSelfAfterAll')}</Button>
               {dropButton}
             </div>
           )}
-          {ctx.digitalDemo && <p className="mt-2 text-xs text-muted-foreground">Testbetrieb: Unterschriften sind noch nicht rechtsverbindlich.</p>}
+          {ctx.digitalDemo && <p className="mt-2 text-xs text-muted-foreground">{t('demo')}</p>}
         </>
       )}
 
       {(status === 'sent_digital' || status === 'company_signed') && !embedded && (
         <>
-          <p className="font-medium">Stand der Unterschriften</p>
+          <p className="font-medium">{t('signState')}</p>
           <ul className="mt-1 space-y-1">
-            {step(true, 'Versendet über DocuSign', timeDe(c!.sentAt))}
-            {step(!!c!.companySignedAt, c!.companySignedAt ? `${c!.companySignerName ?? 'Die Firma'} hat unterschrieben` : `${c!.companySignerName ?? 'Die Firma'} unterschreibt zuerst`, timeDe(c!.companySignedAt))}
-            {step(false, c!.companySignedAt ? `${first}: noch nicht unterschrieben. ${hhFirst} stößt ${first} an.` : `Danach unterschreibt ${first}`)}
+            {step(true, t('sentDocuSign'), timeDe(c!.sentAt))}
+            {step(!!c!.companySignedAt, t(c!.companySignedAt ? 'signerSigned' : 'signerFirst', { signer: c!.companySignerName ?? tt('client.theCompany') }), timeDe(c!.companySignedAt))}
+            {step(false, c!.companySignedAt ? t('notSignedNudge', { first, hh: hhFirst }) : t('thenSigns', { first }))}
           </ul>
-          {!c!.companySignedAt && <p className="mt-1 text-xs text-muted-foreground">Keine DocuSign-Mail angekommen? „Unterzeichner ändern“ stellt auf die Unterschrift über Matchunt um, ohne neues Hochladen.</p>}
+          {!c!.companySignedAt && <p className="mt-1 text-xs text-muted-foreground">{t('noMail')}</p>}
           {signerRow ?? dropRow ?? (
             <div className="mt-2 flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => contractApi.refresh(submissionId), 'Stand aktualisiert.')}>Stand aktualisieren</Button>
-              {status === 'sent_digital' && <Button size="sm" variant="outline" onClick={() => setSigner({ self: true, name: '', email: '' })}>Unterzeichner ändern</Button>}
-              <Button size="sm" variant="ghost" disabled={busy} onClick={() => run(() => contractApi.voidDigital(submissionId, false), 'Zurückgezogen. Sie können den Vertrag neu senden.')}>Zurückziehen und neu senden</Button>
-              <Button size="sm" variant="ghost" disabled={busy} onClick={() => run(() => contractApi.voidDigital(submissionId, true), 'Zurückgezogen. Schicken Sie den Vertrag selbst.')}>Doch selbst verschicken</Button>
+              <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => contractApi.refresh(submissionId), t('refreshed'))}>{t('refresh')}</Button>
+              {status === 'sent_digital' && <Button size="sm" variant="outline" onClick={() => setSigner({ self: true, name: '', email: '' })}>{t('changeSigner')}</Button>}
+              <Button size="sm" variant="ghost" disabled={busy} onClick={() => run(() => contractApi.voidDigital(submissionId, false), t('voidResend'))}>{t('withdrawResend')}</Button>
+              <Button size="sm" variant="ghost" disabled={busy} onClick={() => run(() => contractApi.voidDigital(submissionId, true), t('voidSelf'))}>{t('sendSelfAfterAll')}</Button>
               {dropButton}
             </div>
           )}
@@ -320,43 +324,43 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
 
       {status === 'reported' && (
         <>
-          <p className="font-medium">{c!.reportedRole === 'candidate' ? `${first} meldet selbst: am ${dateDe(c!.signedOn)} unterschrieben` : `${c!.reportedRole === 'admin' ? 'Matchunt' : (ctx.reporterName ?? hh)} meldet: ${first} hat am ${dateDe(c!.signedOn)} unterschrieben`}</p>
-          <p className="mt-0.5 text-muted-foreground">{values(c!)}{c!.reportNote ? ` · „${c!.reportNote}“` : ''}. Stimmt das?</p>
+          <p className="font-medium">{c!.reportedRole === 'candidate' ? t('candidateReports', { first, date: dateDe(c!.signedOn) }) : t('someoneReports', { who: c!.reportedRole === 'admin' ? 'Matchunt' : (ctx.reporterName ?? hh), first, date: dateDe(c!.signedOn) })}</p>
+          <p className="mt-0.5 text-muted-foreground">{c!.reportNote ? t('isItRightNote', { values: values(c!), note: c!.reportNote }) : t('isItRight', { values: values(c!) })}</p>
           <div className="mt-2 flex flex-wrap gap-2">
-            <Button size="sm" disabled={busy} onClick={() => run(() => contractApi.confirm(submissionId, 'yes'), 'Bestätigt. Die Einstellung ist verbindlich.')}>Ja, stimmt</Button>
-            <Button size="sm" variant="outline" onClick={() => setShowReport('values')}>Stimmt, aber andere Werte</Button>
-            <Button size="sm" variant="ghost" disabled={busy} onClick={() => run(() => contractApi.confirm(submissionId, 'not_yet'), `${hhFirst} ist informiert.`)}>Noch nicht unterschrieben</Button>
+            <Button size="sm" disabled={busy} onClick={() => run(() => contractApi.confirm(submissionId, 'yes'), t('confirmed'))}>{t('yesRight')}</Button>
+            <Button size="sm" variant="outline" onClick={() => setShowReport('values')}>{t('otherValues')}</Button>
+            <Button size="sm" variant="ghost" disabled={busy} onClick={() => run(() => contractApi.confirm(submissionId, 'not_yet'), t('hhInformed', { hh: hhFirst }))}>{t('notYet')}</Button>
           </div>
         </>
       )}
 
       {status === 'signed' && (
         <>
-          <p className="font-medium">Unterschrift gemeldet: am {dateDe(c!.signedOn)} · {values(c!)}</p>
-          <p className="mt-0.5 text-muted-foreground">Bis {timeDe(c!.undoUntil)} können Sie die Meldung zurücknehmen. Danach ist die Einstellung verbindlich. {c!.candidateCheck === 'ok' ? `${first} hat es bestätigt.` : `${first} bekommt eine Mail zum Bestätigen, ${hhFirst} fragt parallel nach.`}</p>
-          <div className="mt-2"><Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => contractApi.undo(submissionId), 'Zurückgenommen.')}>Rückgängig machen</Button></div>
+          <p className="font-medium">{t('reportedSignature', { date: dateDe(c!.signedOn), values: values(c!) })}</p>
+          <p className="mt-0.5 text-muted-foreground">{t('undoUntil', { when: timeDe(c!.undoUntil) })}{c!.candidateCheck === 'ok' ? t('candidateConfirmed', { first }) : t('candidateGetsMail', { first, hh: hhFirst })}</p>
+          <div className="mt-2"><Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => contractApi.undo(submissionId), t('undone'))}>{t('undo')}</Button></div>
         </>
       )}
 
       {status === 'final' && (
         <>
-          <p className="font-medium">Arbeitsvertrag unterschrieben am {dateDe(c!.signedOn)}</p>
+          <p className="font-medium">{t('finalTitle', { date: dateDe(c!.signedOn) })}</p>
           <p className="mt-0.5 text-muted-foreground">
-            {values(c!)}{c!.way === 'digital' ? ' · über DocuSign' : ''}
-            {c!.candidateCheck === 'ok' ? ` · von ${first} bestätigt` : c!.recruiterCheck === 'ok' ? ` · ${hhFirst} hat es bei ${first} bestätigt` : ''}
+            {values(c!)}{c!.way === 'digital' ? t('viaDocuSign') : ''}
+            {c!.candidateCheck === 'ok' ? t('confirmedByCandidate', { first }) : c!.recruiterCheck === 'ok' ? t('confirmedByHh', { hh: hhFirst, first }) : ''}
           </p>
-          {c!.hasSignedDocument && <div className="mt-2"><Button size="sm" variant="outline" className="gap-1" onClick={openPdf}><FileDown className="h-3.5 w-3.5" />Vertrag (PDF)</Button></div>}
+          {c!.hasSignedDocument && <div className="mt-2"><Button size="sm" variant="outline" className="gap-1" onClick={openPdf}><FileDown className="h-3.5 w-3.5" />{t('contractPdf')}</Button></div>}
         </>
       )}
 
       {status === 'declined' && (
         <>
-          <p className="font-medium">Der Vertrag wurde in DocuSign abgelehnt</p>
-          <p className="mt-0.5 text-muted-foreground">{c!.declineReason ? `„${c!.declineReason}“` : 'Ohne Grund.'} {hhFirst} ist informiert.</p>
+          <p className="font-medium">{t('declinedTitle')}</p>
+          <p className="mt-0.5 text-muted-foreground">{c!.declineReason ? tt('client.quote', { text: c!.declineReason }) : t('noReason')} {t('hhInformed', { hh: hhFirst })}</p>
           {dropRow ?? (
             <div className="mt-2 flex flex-wrap gap-2">
-              <Button size="sm" onClick={() => setShowSend('digital')}>Vertrag anpassen und neu senden</Button>
-              <Button size="sm" variant="outline" onClick={() => setShowSend('self')}>Selbst verschicken</Button>
+              <Button size="sm" onClick={() => setShowSend('digital')}>{t('adjustResend')}</Button>
+              <Button size="sm" variant="outline" onClick={() => setShowSend('self')}>{t('sendSelf')}</Button>
               {dropButton}
             </div>
           )}
@@ -365,9 +369,9 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
 
       {status === 'dropped' && (
         <>
-          <p className="font-medium">{first} ist abgesprungen</p>
-          <p className="mt-0.5 text-muted-foreground">{c!.dropReason ? `„${c!.dropReason}“` : ''}</p>
-          <div className="mt-2"><Button size="sm" variant="ghost" asChild><Link to="/dashboard/candidates">Andere Bewerber ansehen</Link></Button></div>
+          <p className="font-medium">{t('dropped', { first })}</p>
+          <p className="mt-0.5 text-muted-foreground">{c!.dropReason ? tt('client.quote', { text: c!.dropReason }) : ''}</p>
+          <div className="mt-2"><Button size="sm" variant="ghost" asChild><Link to="/dashboard/candidates">{t('otherApplicants')}</Link></Button></div>
         </>
       )}
 

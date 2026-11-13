@@ -1,8 +1,13 @@
 import { briefingText, getRecruiterCriteria } from './recruiterBriefing';
 import type { WorkspaceJob } from '@/components/recruiter/RecruiterJobWorkspace';
 import { setzePlatzhalter, type Ansprache, type Anzeige } from '../../supabase/functions/_shared/recruiter-anzeige.ts';
-import { ZAHLUNG_KANDIDAT } from './recruiterContracting';
+import { zahlungKandidat } from './recruiterContracting';
 import { kiInhalt } from './kiInhalt';
+import { candidateLanguage, fmtNumber, tFor } from './localeFormat';
+
+// Anzeige und Ansprache gehen an Kandidaten: in der Sprache des Headhunters (sein Markt),
+// beim Aufruf gelesen (Namespace jobPosting). Inhalte des Kunden bleiben, wie sie sind.
+const tp = (key: string, options?: Record<string, unknown>): string => tFor(candidateLanguage(), 'jobPosting')(key, options) as string;
 
 /**
  * Die Stellenanzeige — die Fassung, die der Headhunter dem Kandidaten zeigt.
@@ -61,15 +66,17 @@ type Formatted = {
   ansprache?: Ansprache | null;
 };
 
-const EMPLOYMENT: Record<string, string> = {
-  'full-time': 'Vollzeit', 'part-time': 'Teilzeit', freelance: 'Freiberuflich', contract: 'Befristet',
+const EMPLOYMENT_KEY: Record<string, string> = {
+  'full-time': 'fullTime', 'part-time': 'partTime', freelance: 'freelance', contract: 'contract',
 };
+const employment = (v: string) => (EMPLOYMENT_KEY[v] ? tp(`employment.${EMPLOYMENT_KEY[v]}`) : v);
 const LEVEL: Record<string, string> = {
   junior: 'Junior', mid: 'Mid-Level', senior: 'Senior', lead: 'Lead', principal: 'Principal',
 };
-const REMOTE: Record<string, string> = { remote: 'Remote', hybrid: 'Hybrid', onsite: 'Vor Ort' };
+const REMOTE_KEYS = new Set(['remote', 'hybrid', 'onsite']);
+const remote = (v: string) => (REMOTE_KEYS.has(v) ? tp(`remote.${v}`) : v);
 
-const money = (value: number) => new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 }).format(value);
+const money = (value: number) => fmtNumber(value, candidateLanguage(), { maximumFractionDigits: 0 });
 
 const schluessel = (value: string) => value.trim().toLocaleLowerCase('de-DE').replace(/\s+/g, ' ');
 
@@ -126,18 +133,18 @@ const spanne = (a: unknown, b: unknown) => [a, b].filter(v => typeof v === 'numb
 export function verguetung(job: WorkspaceJob): string | null {
   if (job.employment_type === 'freelance') {
     const s = spanne(job.day_rate_min, job.day_rate_max);
-    return s ? `${s} € pro Tag` : null;
+    return s ? tp('money.perDay', { amount: s }) : null;
   }
   const s = spanne(job.salary_min, job.salary_max);
-  return s ? `${s} €` : null;
+  return s ? tp('money.eur', { amount: s }) : null;
 }
 
 function arbeitsort(job: WorkspaceJob): string | null {
   if (job.onsite_days_required != null) {
-    return job.onsite_days_required === 0 ? 'Vollständig remote' : `${job.onsite_days_required} Tage vor Ort`;
+    return job.onsite_days_required === 0 ? tp('posting.fullyRemote') : tp('posting.onsiteDays', { count: job.onsite_days_required });
   }
-  if (job.remote_days_flexible) return 'Homeoffice frei wählbar';
-  const modell = job.remote_type ? REMOTE[job.remote_type] ?? job.remote_type : null;
+  if (job.remote_days_flexible) return tp('posting.homeofficeFree');
+  const modell = job.remote_type ? remote(job.remote_type) : null;
   return [modell, job.location].filter(Boolean).join(', ') || null;
 }
 
@@ -146,21 +153,21 @@ function eckdatenVon(job: WorkspaceJob): Eckdatum[] {
   const geld = verguetung(job);
   const liste: (Eckdatum | null)[] = freelance
     ? [
-        geld ? { label: 'Tagessatz', wert: `${geld}, zzgl. USt` } : null,
-        job.utilization_days_per_week ? { label: 'Umfang', wert: `${briefingText(job.utilization_days_per_week)} Tage / Woche` } : null,
+        geld ? { label: tp('posting.label.dayRate'), wert: tp('posting.plusVat', { amount: geld }) } : null,
+        job.utilization_days_per_week ? { label: tp('posting.label.scope'), wert: tp('posting.daysPerWeek', { n: briefingText(job.utilization_days_per_week) }) } : null,
         job.contract_duration_months
-          ? { label: 'Laufzeit', wert: `${briefingText(job.contract_duration_months)} Monate${job.extension_possible ? ', Verlängerung möglich' : ''}` }
+          ? { label: tp('posting.label.duration'), wert: tp(job.extension_possible ? 'posting.monthsExtension' : 'posting.months', { n: briefingText(job.contract_duration_months) }) }
           : null,
       ]
     : [
-        geld ? { label: 'Gehalt', wert: geld } : null,
-        job.salary_months ? { label: 'Monatsgehälter', wert: briefingText(job.salary_months) } : null,
-        job.bonus_structure ? { label: 'Bonus', wert: briefingText(job.bonus_structure) } : null,
+        geld ? { label: tp('posting.label.salary'), wert: geld } : null,
+        job.salary_months ? { label: tp('posting.label.salaries'), wert: briefingText(job.salary_months) } : null,
+        job.bonus_structure ? { label: tp('posting.label.bonus'), wert: briefingText(job.bonus_structure) } : null,
       ];
   liste.push(
-    arbeitsort(job) ? { label: 'Arbeitsort', wert: arbeitsort(job)! } : null,
-    job.experience_level ? { label: 'Level', wert: LEVEL[job.experience_level] ?? job.experience_level } : null,
-    !freelance && job.core_hours ? { label: 'Kernzeit', wert: briefingText(job.core_hours) } : null,
+    arbeitsort(job) ? { label: tp('posting.label.location'), wert: arbeitsort(job)! } : null,
+    job.experience_level ? { label: tp('posting.label.level'), wert: LEVEL[job.experience_level] ?? job.experience_level } : null,
+    !freelance && job.core_hours ? { label: tp('posting.label.coreHours'), wert: briefingText(job.core_hours) } : null,
   );
   return liste.filter((e): e is Eckdatum => Boolean(e && e.wert));
 }
@@ -178,8 +185,8 @@ export function buildJobPosting(job: WorkspaceJob, kontakt?: Kontakt | null): Po
   const subtitle = [
     job.industry,
     job.location,
-    job.remote_type ? REMOTE[job.remote_type] ?? job.remote_type : null,
-    job.employment_type ? EMPLOYMENT[job.employment_type] ?? job.employment_type : null,
+    job.remote_type ? remote(job.remote_type) : null,
+    job.employment_type ? employment(job.employment_type) : null,
     briefingText(job.contract_limitation),
   ].filter(Boolean).join(' · ');
 
@@ -213,7 +220,7 @@ export function buildJobPosting(job: WorkspaceJob, kontakt?: Kontakt | null): Po
     // Enthalten statt gleich: „Steuerberaterexamen von Vorteil“ nennt das Zertifikat schon (21.10.2026).
     const genannt = [...zwingend, ...vorteil].map(schluessel);
     const offen = list(job.required_certifications).filter(z => !genannt.some(g => g.includes(schluessel(z))));
-    return offen.length ? `Zertifikate: ${offen.join(' · ')}` : null;
+    return offen.length ? tp('posting.certificates', { list: offen.join(' · ') }) : null;
   })();
 
   // Vorteile als einzelne Punkte, Benefits nur, wenn sie dort nicht schon stehen;
@@ -229,60 +236,60 @@ export function buildJobPosting(job: WorkspaceJob, kontakt?: Kontakt | null): Po
   const angebotKi = angebotKunde.length ? [] : kiListe(anzeige.angebot);
   // Contracting: was für jeden Einsatz über Matchunt gilt.
   const angebotSystem = freelance
-    ? ['Vertrag als selbstständige Subunternehmerin / selbstständiger Subunternehmer mit Matchunt', ZAHLUNG_KANDIDAT]
+    ? [tp('posting.selfEmployed'), zahlungKandidat(candidateLanguage())]
     : [];
 
   const teamKunde = [
-    job.team_size != null && Number(job.team_size) > 0 ? `Team aus ${briefingText(job.team_size)} Personen` : null,
-    briefingText(job.reports_to) ? `${freelance ? 'Fachliche Führung' : 'Berichtet an'}: ${briefingText(job.reports_to)}` : null,
+    job.team_size != null && Number(job.team_size) > 0 ? tp('posting.teamOf', { n: briefingText(job.team_size) }) : null,
+    briefingText(job.reports_to) ? tp(freelance ? 'posting.professionalLead' : 'posting.reportsTo', { name: briefingText(job.reports_to) }) : null,
   ];
 
   // Der Ablauf erscheint erst mit der neuen Anzeige: vorher gab es ihn nicht,
   // und ohne Angaben des Kunden wäre er reine Floskel.
   const neueAnzeige = Boolean(formatted?.anzeige);
   const ablaufKi = kiListe(anzeige.ablauf);
-  const vertragstage = briefingText(job.contract_creation_days) ? `Vom Ja bis zum Vertrag: ca. ${briefingText(job.contract_creation_days)} Tage` : null;
+  const vertragstage = briefingText(job.contract_creation_days) ? tp('posting.contractDays', { n: briefingText(job.contract_creation_days) }) : null;
   const ablauf = neueAnzeige
-    ? ['Kurzes Gespräch mit mir', ...(ablaufKi.length ? ablaufKi : ['Vorstellung beim Kunden', 'Kennenlernen mit dem Kunden']), vertragstage]
+    ? [tp('posting.stepCall'), ...(ablaufKi.length ? ablaufKi : [tp('posting.stepIntro'), tp('posting.stepMeet')]), vertragstage]
     : [vertragstage];
 
   const blocks = [
-    block('ueber', 'Worum es geht',
-      [briefingText(job.task_focus) ? `Schwerpunkt: ${briefingText(job.task_focus)}` : null],
+    block('ueber', tp('posting.block.about'),
+      [briefingText(job.task_focus) ? tp('posting.focus', { text: briefingText(job.task_focus) }) : null],
       einleitung || undefined,
       { herkunft: [einleitung ? 'ki' : null, job.task_focus ? 'kunde' : null].filter(Boolean) as Herkunft[] }),
 
-    block('unternehmen', 'Das Unternehmen', firmaKunde, firmaText || undefined,
+    block('unternehmen', tp('posting.block.company'), firmaKunde, firmaText || undefined,
       { herkunft: [firmaText ? 'ki' : null, firmaKunde.length ? 'kunde' : null].filter(Boolean) as Herkunft[] }),
 
-    block('aufgaben', 'Deine Aufgaben', aufgaben, undefined, {
-      nachsatz: alltag ? `Arbeitsalltag: ${alltag}` : undefined,
+    block('aufgaben', tp('posting.block.tasks'), aufgaben, undefined, {
+      nachsatz: alltag ? `${tp('posting.dailyLabel')}: ${alltag}` : undefined,
       herkunft: [aufgabenKunde.length || alltagKunde ? 'kunde' : null, (!aufgabenKunde.length && aufgaben.length) || (!alltagKunde && alltag) ? 'ki' : null].filter(Boolean) as Herkunft[],
     }),
 
-    block('profil', 'Das bringst du mit', [zertifikate], briefingText(formatted?.ideal_candidate) || undefined, {
-      gruppen: [{ titel: 'Zwingend', bullets: zwingend }, { titel: 'Von Vorteil', bullets: vorteil }],
+    block('profil', tp('posting.block.profile'), [zertifikate], briefingText(formatted?.ideal_candidate) || undefined, {
+      gruppen: [{ titel: tp('posting.block.required'), bullets: zwingend }, { titel: tp('posting.block.plus'), bullets: vorteil }],
       herkunft: [zwingendKunde.length || vorteilKunde.length ? 'kunde' : null, (!zwingendKunde.length && zwingend.length) || (!vorteilKunde.length && vorteil.length) || formatted?.ideal_candidate ? 'ki' : null].filter(Boolean) as Herkunft[],
     }),
 
-    block('angebot', freelance ? 'Das Projekt bietet' : 'Das bieten wir', [...angebotKunde, ...angebotKi, ...angebotSystem], undefined, {
-      nachsatz: karriereBeleg ? `Ein Beispiel: ${karriereBeleg}` : undefined,
+    block('angebot', tp(freelance ? 'posting.block.offerProject' : 'posting.block.offerUs'), [...angebotKunde, ...angebotKi, ...angebotSystem], undefined, {
+      nachsatz: karriereBeleg ? `${tp('posting.exampleLabel')}: ${karriereBeleg}` : undefined,
       herkunft: [angebotKunde.length ? 'kunde' : null, angebotKi.length ? 'ki' : null, angebotSystem.length ? 'system' : null].filter(Boolean) as Herkunft[],
     }),
 
-    block('team', 'Team & Zusammenarbeit', teamKunde, ki(anzeige.team) || undefined, {
+    block('team', tp('posting.block.team'), teamKunde, ki(anzeige.team) || undefined, {
       herkunft: [teamKunde.some(Boolean) ? 'kunde' : null, anzeige.team ? 'ki' : null].filter(Boolean) as Herkunft[],
     }),
 
-    block('ablauf', 'So läuft es ab', ablauf, undefined, {
+    block('ablauf', tp('posting.block.process'), ablauf, undefined, {
       herkunft: [neueAnzeige ? 'system' : null, ablaufKi.length ? 'ki' : null, vertragstage ? 'kunde' : null].filter(Boolean) as Herkunft[],
     }),
   ].filter((item): item is PostingBlock => item !== null);
 
   return {
-    title: job.title ?? 'Position',
+    title: job.title ?? tp('posting.position'),
     subtitle,
-    facts: eckdaten.map(e => (e.label === 'Tagessatz' ? verguetung(job)! : e.wert)),
+    facts: eckdaten.map(e => (e.label === tp('posting.label.dayRate') ? verguetung(job)! : e.wert)),
     eckdaten,
     blocks,
     ...(kontakt ? { kontakt } : {}),
@@ -330,9 +337,12 @@ export function postingAsText(posting: Posting): string {
     zeilen.push('');
   }
   const kontakt = kontaktZeile(posting.kontakt);
-  if (kontakt) zeilen.push('DEINE ANSPRECHPERSON', kontakt, '');
+  if (kontakt) zeilen.push(tp('posting.contact').toUpperCase(), kontakt, '');
   return zeilen.join('\n').trim();
 }
+
+/** Trennzeile vor der Anzeige in der E-Mail („— Die ausführliche Beschreibung —“). */
+export const anspracheTrenner = () => tp('ansprache.divider');
 
 export type AnspracheTexte = {
   linkedin: string;
@@ -350,21 +360,21 @@ export function buildAnsprache(job: WorkspaceJob, posting: Posting, vorname?: st
   const s = formatted?.ansprache ?? {};
   const geld = verguetung(job);
   const setze = (t: string) => setzePlatzhalter(t, { vorname, verguetung: geld });
-  const titel = job.title ?? 'eine Position';
+  const titel = job.title ?? tp('ansprache.aPosition');
   const branche = briefingText(job.industry);
-  const ort = [briefingText(job.location), job.remote_type ? REMOTE[job.remote_type] ?? job.remote_type : null].filter(Boolean).join(', ');
+  const ort = [briefingText(job.location), job.remote_type ? remote(job.remote_type) : null].filter(Boolean).join(', ');
 
   const linkedin = setze(briefingText(s.linkedin) || [
-    `Hallo {VORNAME}, ich suche für ${branche ? `ein Unternehmen aus der Branche ${branche}` : 'einen Kunden'} Verstärkung als ${titel}${ort ? ` (${ort})` : ''}.`,
-    geld ? `Vergütung: {VERGUETUNG}.` : null,
-    'Passt das gerade zu dir? Ich erzähle dir gern mehr.',
+    tp(branche ? 'ansprache.linkedinIndustry' : 'ansprache.linkedinClient', { industry: branche, title: titel, place: ort ? ` (${ort})` : '' }),
+    geld ? tp('ansprache.pay') : null,
+    tp('ansprache.fit'),
   ].filter(Boolean).join(' '));
 
-  const gruss = ['Viele Grüße', posting.kontakt?.name, [posting.kontakt?.phone, posting.kontakt?.email].filter(Boolean).join(' · ')].filter(Boolean).join('\n');
+  const gruss = [tp('ansprache.regards'), posting.kontakt?.name, [posting.kontakt?.phone, posting.kontakt?.email].filter(Boolean).join(' · ')].filter(Boolean).join('\n');
   const emailKern = setze(briefingText(s.email_text) || [
-    'Hallo {VORNAME},',
-    `ich betreue eine Stelle als ${titel}${branche ? ` in der Branche ${branche}` : ''} und denke dabei an dich.`,
-    'Die ausführliche Beschreibung findest du unten. Hast du diese Woche 15 Minuten für ein kurzes Gespräch?',
+    tp('ansprache.mailHello'),
+    tp(branche ? 'ansprache.mailIntroIndustry' : 'ansprache.mailIntro', { title: titel, industry: branche }),
+    tp('ansprache.mailMore'),
   ].join('\n'));
 
   const argumente = texte(s.telefon?.argumente).length
@@ -372,20 +382,20 @@ export function buildAnsprache(job: WorkspaceJob, posting: Posting, vorname?: st
     : [...list(job.unique_selling_points), ...texte(formatted?.highlights)].slice(0, 3);
   const fragen = texte(s.telefon?.fragen).length
     ? texte(s.telefon?.fragen)
-    : getRecruiterCriteria(job).required.slice(0, 3).map(k => `Bringst du ${k} mit?`);
+    : getRecruiterCriteria(job).required.slice(0, 3).map(k => tp('ansprache.question', { item: k }));
 
   return {
     linkedin,
     email: {
       betreff: setze(briefingText(s.email_betreff) || titel),
-      text: [emailKern, '', gruss, '', '— Die ausführliche Beschreibung —', '', postingAsText(posting)].join('\n'),
+      text: [emailKern, '', gruss, '', anspracheTrenner(), '', postingAsText(posting)].join('\n'),
     },
     telefon: {
-      einstieg: setze(briefingText(s.telefon?.einstieg) || `Ich rufe wegen einer Stelle als ${titel} an – hast du zwei Minuten?`),
+      einstieg: setze(briefingText(s.telefon?.einstieg) || tp('ansprache.phoneOpening', { title: titel })),
       argumente: argumente.map(setze),
       fragen: fragen.map(setze),
-      konditionen: geld ? (job.employment_type === 'freelance' ? `${geld}, zzgl. USt` : geld) : null,
-      naechster: 'Profil anonym beim Kunden vorstellen',
+      konditionen: geld ? (job.employment_type === 'freelance' ? tp('posting.plusVat', { amount: geld }) : geld) : null,
+      naechster: tp('ansprache.nextStep'),
     },
   };
 }
@@ -397,8 +407,9 @@ export function buildAnsprache(job: WorkspaceJob, posting: Posting, vorname?: st
 export function mitAufhaenger(text: string, aufhaenger: string | null | undefined): string {
   const a = (aufhaenger ?? '').trim();
   if (!a) return text;
-  const satz = `dein Hintergrund (${a}) passt.`;
-  const gruss = text.match(/^(Hallo[^,\n]*,)(\s*)/);
+  const satz = tp('ansprache.hook', { hook: a });
+  // Anrede der Ansprache: „Hallo …,“ bzw. „Hej …!“ in der Sprache des Headhunters.
+  const gruss = text.match(new RegExp(`^(${tp('ansprache.greeting')}[^,!\\n]*[,!])(\\s*)`));
   if (!gruss) return `${satz.charAt(0).toUpperCase()}${satz.slice(1)} ${text}`;
   const ohneFloskel = text.slice(gruss[0].length).replace(/^(spannendes|interessantes|tolles|starkes|beeindruckendes) Profil!?\s*/i, '');
   // Nach dem eingefügten Satz beginnt ein neuer: groß („ich bin …“ -> „Ich bin …“).

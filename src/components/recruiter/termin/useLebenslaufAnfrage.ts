@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
 import { supabase } from '@/integrations/supabase/client';
 import { TASKS_CHANGED } from '@/hooks/useUnifiedTaskInbox';
 
@@ -14,9 +16,11 @@ export interface LebenslaufAnfrage {
 }
 
 // Tabelle aus Migration 20261105100000, im generierten Supabase-Typ noch nicht enthalten.
-const tabelle = (t: string) => (supabase as unknown as { from: (t: string) => any }).from(t); // eslint-disable-line @typescript-eslint/no-explicit-any
+const tabelle = (name: string) => (supabase as unknown as { from: (t: string) => any }).from(name); // eslint-disable-line @typescript-eslint/no-explicit-any
 
 export function useLebenslaufAnfrage(candidateId: string) {
+  // Lädt die Texte für vorTagenKurz (Namespace recruiterTermin), bevor die Karte sie braucht.
+  useTranslation('recruiterTermin');
   const qc = useQueryClient();
   const key = ['lebenslauf-anfrage', candidateId];
   const query = useQuery({
@@ -42,5 +46,5 @@ export function useLebenslaufAnfrage(candidateId: string) {
 /** „vor 2 Tagen“, „heute“, „gestern“ */
 export function vorTagenKurz(iso: string): string {
   const tage = Math.floor((Date.now() - Date.parse(iso)) / 86_400_000);
-  return tage <= 0 ? 'heute' : tage === 1 ? 'gestern' : `vor ${tage} Tagen`;
+  return tage <= 0 ? i18n.t('recruiterTermin:ago.today') : tage === 1 ? i18n.t('recruiterTermin:ago.yesterday') : i18n.t('recruiterTermin:ago.days', { count: tage });
 }

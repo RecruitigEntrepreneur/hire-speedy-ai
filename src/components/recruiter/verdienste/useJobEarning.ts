@@ -1,4 +1,7 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
+import { intlLocale } from '@/i18n/languages';
 import { useJobTerms } from '@/lib/abrechnungApi';
 import { jobEarning, type JobEarning, type JobTerms } from '../../../../supabase/functions/_shared/abrechnung-view';
 
@@ -9,8 +12,10 @@ import { jobEarning, type JobEarning, type JobTerms } from '../../../../supabase
  */
 export function useJobEarning(jobId: string | null | undefined, salaryMin: number | null | undefined, salaryMax: number | null | undefined): { earning: JobEarning | null; terms: JobTerms | null } {
   const { data } = useJobTerms(jobId);
-  return useMemo(() => ({ earning: jobEarning(data ?? null, salaryMin, salaryMax), terms: data ?? null }), [data, salaryMin, salaryMax]);
+  const { i18n } = useTranslation();
+  const lang = i18n.language;
+  return useMemo(() => ({ earning: jobEarning(data ?? null, salaryMin, salaryMax, lang), terms: data ?? null }), [data, salaryMin, salaryMax, lang]);
 }
 
 /** „€24.750“ wie bisher auf Karten und in der Vorschau. */
-export const euroKurz = (cents: number) => `€${Math.round(cents / 100).toLocaleString('de-DE')}`;
+export const euroKurz = (cents: number) => `€${Math.round(cents / 100).toLocaleString(intlLocale(i18n.language))}`;

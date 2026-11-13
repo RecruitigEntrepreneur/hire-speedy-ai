@@ -1,0 +1,55 @@
+import type de from './de';
+import type { Messages } from '../../types';
+
+const en: Messages<typeof de> = {
+  notifications: {
+    title: 'Notifications',
+    unread_one: '{{count}} unread message',
+    unread_other: '{{count}} unread messages',
+    allRead: 'All messages read',
+    markAll: 'Mark all as read',
+    markedAll: 'All marked as read',
+    all: 'All',
+    unreadTab: 'Unread',
+    emptyTitle: 'No notifications',
+    emptyUnread: 'All messages have been read',
+    emptyAll: 'You have not received any notifications yet',
+    optInNote: 'Only the candidate can accept, by clicking in the invitation.',
+  },
+  time: {
+    justNow: 'Just now',
+    minutes: '{{count}} min ago',
+    hours: '{{count}} h ago',
+    yesterday: 'Yesterday',
+  },
+  messages: {
+    title: 'Messages',
+    unread_one: '{{count}} unread message',
+    unread_other: '{{count}} unread messages',
+    subtitle: 'Communication with clients',
+    unknown: 'Unknown',
+    client: 'Client',
+    clientOf: 'Client · {{company}}',
+    sent: 'Sent',
+    scrubbed: 'The candidate’s name or employer was removed because they have not consented yet.',
+    error: 'Error',
+    sendFailed: 'The message could not be sent.',
+    search: 'Search...',
+    none: 'No conversations',
+    candidate: 'Candidate',
+    questionAbout: 'Question about <link>{{name}}</link> · {{job}}',
+    yourCandidate: 'your candidate',
+    replyNote: 'The reply goes to the client (bell and email). The candidate’s name and employer are removed as long as they have not consented.',
+    write: 'Write a message...',
+    pickTitle: 'Choose a conversation',
+    pickText: 'Click a conversation on the left to show messages',
+  },
+  privacy: {
+    title: 'Privacy',
+    subtitle: 'Manage your personal data and consents',
+    consents: 'Consents',
+    export: 'Data export',
+    delete: 'Delete account',
+  },
+};
+export default en;

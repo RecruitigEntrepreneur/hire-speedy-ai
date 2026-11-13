@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import i18n, { currentLanguage } from '@/i18n';
 import type { InterviewHoursRules } from '@/lib/interviewScheduling';
 import type { AnonymFund } from '../../supabase/functions/_shared/linkedin-anonym';
 import type { Steckbrief } from '../../supabase/functions/_shared/termin-seite';
@@ -14,7 +15,10 @@ export class FunktionsFehler extends Error {
   constructor(message: string, public grund: string | null, public extra: Record<string, unknown>) { super(message); }
 }
 
-async function rufe<T>(name: string, body: Record<string, unknown>, fallback = 'Das hat gerade nicht geklappt. Versuch es gleich noch einmal.'): Promise<T> {
+// Ersatzmeldungen beim Aufruf übersetzt (Namespace interviews); Meldungen der Function kommen, wie sie sind.
+const fx = (key: string) => i18n.t(`interviews:termin.${key}`);
+
+async function rufe<T>(name: string, body: Record<string, unknown>, fallback: string = fx('generic')): Promise<T> {
   const { data, error } = await supabase.functions.invoke(name, { body });
   if (error) {
     const ctx = (error as { context?: unknown }).context;
@@ -65,20 +69,20 @@ export interface AnfrageDaten {
 export type LebenslaufZiel = { slug: string } | { einladung: string } | { anfrage: string };
 
 export const terminSeiteApi = {
-  seite: (slug: string, stelle?: string) => rufe<SeitenDaten>('termin-seite', { action: 'seite', slug, stelle }),
+  seite: (slug: string, stelle?: string) => rufe<SeitenDaten>('termin-seite', { action: 'seite', slug, stelle, lang: currentLanguage() }),
   einladung: (token: string) => rufe<EinladungsDaten>('termin-seite', { action: 'einladung', token }),
   buchenEinladung: (token: string, d: { start: string; mode: Gespraechsart; consent: boolean; email?: string; phone?: string; website?: string; upload_id?: string | null; linkedin_url?: string }) =>
     rufe<{ ok: true; termin: { start: string; ende: string; mode: Gespraechsart; join_url: string | null; headhunter: string } | null }>(
-      'termin-seite', { action: 'buchen', einladung: token, ...d }),
+      'termin-seite', { action: 'buchen', einladung: token, ...d, lang: currentLanguage() }),
   lebenslauf: (ziel: string | LebenslaufZiel, datei: { name: string; typ: string; base64: string | null; text?: string }) =>
     rufe<{ upload_id: string; gelesen: boolean; felder: { first_name: string; last_name: string; email: string; phone: string; linkedin_url: string } }>(
-      'termin-seite', { action: 'lebenslauf', ...(typeof ziel === 'string' ? { slug: ziel } : ziel), name: datei.name, typ: datei.typ, datei: datei.base64, text: datei.text }, 'Der Lebenslauf konnte nicht gelesen werden. Du kannst trotzdem buchen.'),
+      'termin-seite', { action: 'lebenslauf', ...(typeof ziel === 'string' ? { slug: ziel } : ziel), name: datei.name, typ: datei.typ, datei: datei.base64, text: datei.text }, fx('cvRead')),
   anfrage: (token: string) => rufe<AnfrageDaten>('termin-seite', { action: 'anfrage', token }),
   lebenslaufSenden: (ziel: { einladung: string } | { anfrage: string }, d: { upload_id?: string | null; linkedin_url?: string; consent: boolean }) =>
-    rufe<{ ok: true; lebenslauf: boolean; linkedin: boolean }>('termin-seite', { action: 'lebenslauf_senden', ...ziel, ...d }, 'Das hat gerade nicht geklappt. Versuch es gleich noch einmal.'),
+    rufe<{ ok: true; lebenslauf: boolean; linkedin: boolean }>('termin-seite', { action: 'lebenslauf_senden', ...ziel, ...d }, fx('generic')),
   buchen: (slug: string, stelle: string | undefined, d: BuchungsDaten) =>
     rufe<{ ok: true; termin: { start: string; ende: string; mode: Gespraechsart; join_url: string | null; headhunter: string } | null; verwalten_url?: string }>(
-      'termin-seite', { action: 'buchen', slug, stelle, ...d }),
+      'termin-seite', { action: 'buchen', slug, stelle, ...d, lang: currentLanguage() }),
   termin: (token: string) => rufe<TerminAnsicht>('termin-seite', { action: 'termin', token }),
   verschieben: (token: string, start: string) => rufe<{ ok: true; start: string; join_url: string | null }>('termin-seite', { action: 'verschieben', token, start }),
   absagen: (token: string, grund: string) => rufe<{ ok: true }>('termin-seite', { action: 'absagen', token, grund }),
@@ -89,15 +93,15 @@ export const terminSeiteApi = {
 // ---------------------------------------------------------------------------
 export const einladungApi = {
   senden: (d: { candidate_id: string; arten: Gespraechsart[]; weg: 'mail' | 'selbst'; text?: string; lebenslauf?: boolean }) =>
-    rufe<{ ok: true; id: string; token: string }>('termin-einladung', { action: 'senden', ...d }, 'Die Einladung konnte nicht verschickt werden.'),
+    rufe<{ ok: true; id: string; token: string }>('termin-einladung', { action: 'senden', ...d }, fx('inviteSend')),
   link: (candidate_id: string) => rufe<{ ok: true; id: string; token: string }>('termin-einladung', { action: 'link', candidate_id }),
-  erinnern: (candidate_id: string) => rufe<{ ok: true }>('termin-einladung', { action: 'erinnern', candidate_id }, 'Die Erinnerung konnte nicht verschickt werden.'),
+  erinnern: (candidate_id: string) => rufe<{ ok: true }>('termin-einladung', { action: 'erinnern', candidate_id }, fx('reminderSend')),
   zurueckziehen: (candidate_id: string) => rufe<{ ok: true }>('termin-einladung', { action: 'zurueckziehen', candidate_id }),
   /** Lebenslauf anfragen ohne Termin (05.11.2026): eigener Link, per Mail oder zum selbst Verschicken. */
   lebenslaufAnfragen: (d: { candidate_id: string; weg: 'mail' | 'selbst'; text?: string }) =>
-    rufe<{ ok: true; id: string; token: string }>('termin-einladung', { action: 'lebenslauf_anfragen', ...d }, 'Die Anfrage konnte nicht verschickt werden.'),
+    rufe<{ ok: true; id: string; token: string }>('termin-einladung', { action: 'lebenslauf_anfragen', ...d }, fx('requestSend')),
   lebenslaufErinnern: (candidate_id: string) =>
-    rufe<{ ok: true }>('termin-einladung', { action: 'lebenslauf_erinnern', candidate_id }, 'Die Erinnerung konnte nicht verschickt werden.'),
+    rufe<{ ok: true }>('termin-einladung', { action: 'lebenslauf_erinnern', candidate_id }, fx('reminderSend')),
 };
 
 /** Fertiger Link zur Lebenslauf-Anfrage. */
@@ -139,7 +143,7 @@ export async function meineTerminseite(userId: string): Promise<TerminseiteZeile
 
 export async function speichereTerminseite(zeile: TerminseiteZeile): Promise<void> {
   const { error } = await tabelle().upsert({ ...zeile, updated_at: new Date().toISOString() }, { onConflict: 'recruiter_id' });
-  if (error) throw new Error(error.code === '23505' ? 'Diese Adresse ist schon vergeben.' : error.message);
+  if (error) throw new Error(error.code === '23505' ? fx('slugTaken') : error.message);
 }
 
 export async function slugFrei(slug: string): Promise<boolean> {

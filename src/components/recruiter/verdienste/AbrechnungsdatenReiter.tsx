@@ -2,6 +2,9 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
+import { intlLocale } from '@/i18n/languages';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,11 +18,13 @@ import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 import { abrechnungApi } from '@/lib/abrechnungApi';
 import { bicValid, ibanValid } from '../../../../supabase/functions/_shared/recruiter-billing';
-import { TAX_MODE_LABEL, dmy, type BillingView, type TaxMode } from '../../../../supabase/functions/_shared/abrechnung-view';
+import { dmy, taxModeText, type BillingView, type TaxMode } from '../../../../supabase/functions/_shared/abrechnung-view';
 
 const formatIban = (value: string) => value.replace(/\s+/g, '').toUpperCase().replace(/(.{4})/g, '$1 ').trim();
-const dateTime = (iso: string) => new Date(iso).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' });
-const COUNTRIES: [string, string][] = [['DE', 'Deutschland'], ['AT', 'Österreich'], ['CH', 'Schweiz'], ['NL', 'Niederlande'], ['FR', 'Frankreich'], ['IT', 'Italien'], ['ES', 'Spanien'], ['PL', 'Polen'], ['LU', 'Luxemburg'], ['BE', 'Belgien'], ['DK', 'Dänemark'], ['SE', 'Schweden'], ['GB', 'Vereinigtes Königreich']];
+const dateTime = (iso: string) => new Date(iso).toLocaleString(intlLocale(i18n.language), { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' });
+const COUNTRIES = ['DE', 'AT', 'CH', 'NL', 'FR', 'IT', 'ES', 'PL', 'LU', 'BE', 'DK', 'SE', 'GB'];
+/** Ländername in der Sprache der Oberfläche; gespeichert wird weiter das Kürzel. */
+const countryName = (code: string) => { try { return new Intl.DisplayNames([intlLocale(i18n.language)], { type: 'region' }).of(code) ?? code; } catch { return code; } };
 
 function Abschnitt({ titel, aktion, children }: { titel: string; aktion?: ReactNode; children: ReactNode }) {
   return (
@@ -42,73 +47,74 @@ export function AbrechnungsdatenReiter({ openAccount = false }: { openAccount?: 
   const [konto, setKonto] = useState(false);
   const [widerspruch, setWiderspruch] = useState(false);
   const [busy, setBusy] = useState('');
+  const { t } = useTranslation('recruiterEarnings');
   useEffect(() => { if (openAccount && q.data) setKonto(true); }, [openAccount, q.data]);
   const set = (billing: BillingView) => { qc.setQueryData(['abrechnungsdaten', user?.id], { billing }); void qc.invalidateQueries({ queryKey: ['verdienste'] }); };
 
   if (q.isLoading) return <div className="flex h-32 items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
-  if (q.isError) return <p className="py-6 text-sm text-muted-foreground">{q.error instanceof Error ? q.error.message : 'Deine Abrechnungsdaten konnten nicht geladen werden.'}</p>;
+  if (q.isError) return <p className="py-6 text-sm text-muted-foreground">{q.error instanceof Error ? q.error.message : t('api.billing')}</p>;
   const b = q.data!.billing;
-  const address = [b.recipient.street, [b.recipient.postalCode, b.recipient.city].filter(Boolean).join(' '), b.recipient.countryLabel].filter(Boolean).join(', ');
-  const taxIds = [b.tax.vatId && `USt-IdNr. ${b.tax.vatId}`, b.tax.taxNumber && `Steuernummer ${b.tax.taxNumber}`].filter(Boolean).join(' · ');
+  const address = [b.recipient.street, [b.recipient.postalCode, b.recipient.city].filter(Boolean).join(' '), b.recipient.country ? countryName(b.recipient.country) : b.recipient.countryLabel].filter(Boolean).join(', ');
+  const taxIds = [b.tax.vatId && t('billing.vatIdValue', { value: b.tax.vatId }), b.tax.taxNumber && t('billing.taxNumberValue', { value: b.tax.taxNumber })].filter(Boolean).join(' · ');
 
   const cancelPending = async () => {
     setBusy('cancel');
-    try { set((await abrechnungApi.accountCancel()).billing); toast.success('Änderung abgebrochen. Dein bisheriges Konto bleibt.'); }
-    catch (e) { toast.error(e instanceof Error ? e.message : 'Die Änderung konnte nicht abgebrochen werden.'); }
+    try { set((await abrechnungApi.accountCancel()).billing); toast.success(t('billing.changeCancelled')); }
+    catch (e) { toast.error(e instanceof Error ? e.message : t('api.accountCancel')); }
     finally { setBusy(''); }
   };
   const object = async () => {
     setBusy('object');
-    try { set((await abrechnungApi.selfBillingObjection()).billing); toast.success('Widerspruch gespeichert. Matchunt meldet sich dazu.'); }
-    catch (e) { toast.error(e instanceof Error ? e.message : 'Dein Widerspruch konnte nicht gespeichert werden.'); }
+    try { set((await abrechnungApi.selfBillingObjection()).billing); toast.success(t('billing.objectionSaved')); }
+    catch (e) { toast.error(e instanceof Error ? e.message : t('api.selfBillingObjection')); }
     finally { setBusy(''); setWiderspruch(false); }
   };
 
   return (
     <Card>
       <CardContent className="space-y-4 p-5">
-        <Abschnitt titel="Gutschrift geht an" aktion={<Button variant="outline" size="sm" onClick={() => setEdit(true)}>Ändern</Button>}>
-          {b.recipient.legalName ? <p>{b.recipient.legalName}{b.recipient.legalForm ? ` · ${b.recipient.legalForm}` : ''}</p> : <p className="text-warning">Name oder Firma fehlt</p>}
-          {address ? <p>{address}</p> : <p className="text-warning">Anschrift fehlt</p>}
+        <Abschnitt titel={t('billing.goesTo')} aktion={<Button variant="outline" size="sm" onClick={() => setEdit(true)}>{t('change')}</Button>}>
+          {b.recipient.legalName ? <p>{b.recipient.legalName}{b.recipient.legalForm ? ` · ${b.recipient.legalForm}` : ''}</p> : <p className="text-warning">{t('billing.nameMissing')}</p>}
+          {address ? <p>{address}</p> : <p className="text-warning">{t('billing.addressMissing')}</p>}
         </Abschnitt>
 
-        <Abschnitt titel="Steuer" aktion={<Button variant="outline" size="sm" onClick={() => setEdit(true)}>Ändern</Button>}>
-          <p>{b.tax.text}</p>
-          {taxIds ? <p>{taxIds}</p> : <p className="text-warning">USt-IdNr. oder Steuernummer fehlt</p>}
+        <Abschnitt titel={t('billing.tax')} aktion={<Button variant="outline" size="sm" onClick={() => setEdit(true)}>{t('change')}</Button>}>
+          <p>{taxModeText(b.tax.mode, i18n.language)}</p>
+          {taxIds ? <p>{taxIds}</p> : <p className="text-warning">{t('billing.taxIdMissing')}</p>}
         </Abschnitt>
 
-        <Abschnitt titel="Auszahlungskonto" aktion={!b.pending?.confirmedAt && <Button variant="outline" size="sm" onClick={() => setKonto(true)}>{b.account ? 'Konto ändern' : 'Konto einrichten'}</Button>}>
+        <Abschnitt titel={t('billing.account')} aktion={!b.pending?.confirmedAt && <Button variant="outline" size="sm" onClick={() => setKonto(true)}>{b.account ? t('billing.accountChange') : t('billing.accountSetUp')}</Button>}>
           {b.account
-            ? <p>{[b.account.holder, b.account.ibanMasked, b.account.bic].filter(Boolean).join(' · ')}{b.account.confirmedAt ? ` · bestätigt am ${dmy(b.account.confirmedAt.slice(0, 10))}` : b.account.fromProfile ? ' · aus deinem Profil übernommen' : ''}</p>
-            : <p className="text-warning">Noch kein Konto. Ohne Konto können wir nichts überweisen.</p>}
+            ? <p>{[b.account.holder, b.account.ibanMasked, b.account.bic].filter(Boolean).join(' · ')}{b.account.confirmedAt ? t('billing.confirmedOn', { date: dmy(b.account.confirmedAt.slice(0, 10), i18n.language) }) : b.account.fromProfile ? t('billing.fromProfile') : ''}</p>
+            : <p className="text-warning">{t('billing.noAccount')}</p>}
           {b.account && !b.account.confirmedAt && !b.pending && (
             <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/30 p-3 text-foreground">
-              <span>Noch nicht bestätigt. Bestätige dein Konto einmal mit einem Code per Mail, dann überweisen wir dorthin.</span>
-              <Button variant="outline" size="sm" onClick={() => setKonto(true)}>Konto bestätigen</Button>
+              <span>{t('billing.notConfirmed')}</span>
+              <Button variant="outline" size="sm" onClick={() => setKonto(true)}>{t('billing.confirmAccount')}</Button>
             </div>
           )}
           {b.pending && (b.pending.confirmedAt && b.pending.effectiveAt ? (
             <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/30 p-3 text-foreground">
-              <span>Neues Konto {b.pending.holder} · {b.pending.ibanMasked} gilt ab {dateTime(b.pending.effectiveAt)} Uhr. Bis dahin überweisen wir nichts.</span>
-              <Button variant="ghost" size="sm" disabled={busy === 'cancel'} onClick={() => void cancelPending()}>Änderung abbrechen</Button>
+              <span>{t('billing.pendingEffective', { holder: b.pending.holder, iban: b.pending.ibanMasked, date: dateTime(b.pending.effectiveAt) })}</span>
+              <Button variant="ghost" size="sm" disabled={busy === 'cancel'} onClick={() => void cancelPending()}>{t('billing.cancelChange')}</Button>
             </div>
           ) : (
             <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/30 p-3 text-foreground">
-              <span>Neues Konto {b.pending.ibanMasked}: Code noch nicht bestätigt.</span>
+              <span>{t('billing.pendingCode', { iban: b.pending.ibanMasked })}</span>
               <span className="flex gap-1">
-                <Button variant="outline" size="sm" onClick={() => setKonto(true)}>Code eingeben</Button>
-                <Button variant="ghost" size="sm" disabled={busy === 'cancel'} onClick={() => void cancelPending()}>Abbrechen</Button>
+                <Button variant="outline" size="sm" onClick={() => setKonto(true)}>{t('billing.enterCode')}</Button>
+                <Button variant="ghost" size="sm" disabled={busy === 'cancel'} onClick={() => void cancelPending()}>{t('cancel')}</Button>
               </span>
             </div>
           ))}
         </Abschnitt>
 
-        <Abschnitt titel="Gutschriftverfahren">
+        <Abschnitt titel={t('billing.selfBilling')}>
           {b.selfBilling.objectedAt
-            ? <p>Widersprochen am {dmy(b.selfBilling.objectedAt.slice(0, 10))}. Ab jetzt lädst du jeden Monat deine eigene Rechnung hoch; Matchunt meldet sich dazu.</p>
+            ? <p>{t('billing.objectedOn', { date: dmy(b.selfBilling.objectedAt.slice(0, 10), i18n.language) })}</p>
             : b.selfBilling.consented === false
-              ? <p>Nicht zugestimmt: Du stellst uns jeden Monat deine eigene Rechnung.</p>
-              : <p>{b.selfBilling.consented ? 'Zugestimmt mit deinem Vertrag' : 'Wir rechnen per Gutschrift mit dir ab'} · <button type="button" className="underline underline-offset-4 hover:text-foreground" onClick={() => setWiderspruch(true)}>Widersprechen</button></p>}
+              ? <p>{t('billing.notConsented')}</p>
+              : <p>{b.selfBilling.consented ? t('billing.consentedContract') : t('billing.viaCreditNote')} · <button type="button" className="underline underline-offset-4 hover:text-foreground" onClick={() => setWiderspruch(true)}>{t('billing.object')}</button></p>}
         </Abschnitt>
       </CardContent>
 
@@ -117,12 +123,12 @@ export function AbrechnungsdatenReiter({ openAccount = false }: { openAccount?: 
       <AlertDialog open={widerspruch} onOpenChange={setWiderspruch}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Dem Gutschriftverfahren widersprechen?</AlertDialogTitle>
-            <AlertDialogDescription>Dann schreiben wir dir keine Gutschriften mehr. Du lädst jeden Monat deine eigene Rechnung hoch; Matchunt meldet sich dazu.</AlertDialogDescription>
+            <AlertDialogTitle>{t('billing.objectTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('billing.objectText')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction disabled={busy === 'object'} onClick={(e) => { e.preventDefault(); void object(); }}>Widersprechen</AlertDialogAction>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
+            <AlertDialogAction disabled={busy === 'object'} onClick={(e) => { e.preventDefault(); void object(); }}>{t('billing.object')}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -136,6 +142,7 @@ function DatenDialog({ open, billing, onClose, onSaved }: { open: boolean; billi
     legalName: billing.recipient.legalName, legalForm: billing.recipient.legalForm, street: billing.recipient.street, postalCode: billing.recipient.postalCode,
     city: billing.recipient.city, country: billing.recipient.country || 'DE', taxMode: billing.tax.mode as TaxMode, vatId: billing.tax.vatId, taxNumber: billing.tax.taxNumber,
   });
+  const { t } = useTranslation('recruiterEarnings');
   const [f, setF] = useState(init);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -143,54 +150,54 @@ function DatenDialog({ open, billing, onClose, onSaved }: { open: boolean; billi
   const upd = (k: keyof ReturnType<typeof init>, v: string) => { setF((x) => ({ ...x, [k]: v })); setError(''); };
   const save = async () => {
     setBusy(true);
-    try { onSaved((await abrechnungApi.saveBilling(f)).billing); toast.success('Gespeichert. Matchunt ist informiert.'); }
-    catch (e) { setError(e instanceof Error ? e.message : 'Konnte nicht gespeichert werden.'); }
+    try { onSaved((await abrechnungApi.saveBilling(f)).billing); toast.success(t('data.saved')); }
+    catch (e) { setError(e instanceof Error ? e.message : t('data.saveFailed')); }
     finally { setBusy(false); }
   };
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Abrechnungsdaten ändern</DialogTitle>
-          <DialogDescription>Gilt für neue Gutschriften. Bereits gestellte bleiben, wie sie sind.</DialogDescription>
+          <DialogTitle>{t('data.title')}</DialogTitle>
+          <DialogDescription>{t('data.description')}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem]">
-            <Feld id="bp-name" label="Gutschrift geht an"><Input id="bp-name" value={f.legalName} onChange={(e) => upd('legalName', e.target.value)} placeholder="Name oder Firma" /></Feld>
-            <Feld id="bp-form" label="Rechtsform"><Input id="bp-form" value={f.legalForm} onChange={(e) => upd('legalForm', e.target.value)} placeholder="z. B. Einzelunternehmen" /></Feld>
+            <Feld id="bp-name" label={t('billing.goesTo')}><Input id="bp-name" value={f.legalName} onChange={(e) => upd('legalName', e.target.value)} placeholder={t('data.namePlaceholder')} /></Feld>
+            <Feld id="bp-form" label={t('data.legalForm')}><Input id="bp-form" value={f.legalForm} onChange={(e) => upd('legalForm', e.target.value)} placeholder={t('data.legalFormPlaceholder')} /></Feld>
           </div>
-          <Feld id="bp-street" label="Straße und Hausnummer"><Input id="bp-street" value={f.street} onChange={(e) => upd('street', e.target.value)} /></Feld>
+          <Feld id="bp-street" label={t('data.street')}><Input id="bp-street" value={f.street} onChange={(e) => upd('street', e.target.value)} /></Feld>
           <div className="grid gap-3 sm:grid-cols-[7rem_minmax(0,1fr)_10rem]">
-            <Feld id="bp-plz" label="PLZ"><Input id="bp-plz" value={f.postalCode} onChange={(e) => upd('postalCode', e.target.value)} /></Feld>
-            <Feld id="bp-city" label="Ort"><Input id="bp-city" value={f.city} onChange={(e) => upd('city', e.target.value)} /></Feld>
-            <Feld id="bp-country" label="Land">
+            <Feld id="bp-plz" label={t('data.postalCode')}><Input id="bp-plz" value={f.postalCode} onChange={(e) => upd('postalCode', e.target.value)} /></Feld>
+            <Feld id="bp-city" label={t('data.city')}><Input id="bp-city" value={f.city} onChange={(e) => upd('city', e.target.value)} /></Feld>
+            <Feld id="bp-country" label={t('data.country')}>
               <select id="bp-country" className="h-10 w-full rounded-md border border-input bg-background px-2 text-sm" value={f.country} onChange={(e) => upd('country', e.target.value)}>
-                {COUNTRIES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-                {!COUNTRIES.some(([k]) => k === f.country) && <option value={f.country}>{f.country}</option>}
+                {COUNTRIES.map((k) => <option key={k} value={k}>{countryName(k)}</option>)}
+                {!COUNTRIES.includes(f.country) && <option value={f.country}>{f.country}</option>}
               </select>
             </Feld>
           </div>
           <div className="space-y-1.5">
-            <p className="text-sm font-medium">Steuer</p>
+            <p className="text-sm font-medium">{t('billing.tax')}</p>
             <div className="flex flex-wrap gap-1.5">
               {(['standard', 'small_business', 'foreign'] as TaxMode[]).map((m) => (
                 <button key={m} type="button" aria-pressed={f.taxMode === m} onClick={() => upd('taxMode', m)}
-                  className={cn('rounded-full border px-2.5 py-1 text-xs', f.taxMode === m ? 'border-primary bg-primary text-primary-foreground' : 'border-border hover:bg-muted')}>{TAX_MODE_LABEL[m]}</button>
+                  className={cn('rounded-full border px-2.5 py-1 text-xs', f.taxMode === m ? 'border-primary bg-primary text-primary-foreground' : 'border-border hover:bg-muted')}>{t(`data.taxMode.${m}`)}</button>
               ))}
             </div>
             <p className="text-xs text-muted-foreground">
-              {f.taxMode === 'standard' ? '19 % USt auf jede Gutschrift.' : f.taxMode === 'small_business' ? 'Keine USt auf der Gutschrift (§ 19 UStG).' : 'Keine deutsche USt; die Steuer schuldet der Leistungsempfänger (Reverse Charge).'}
+              {f.taxMode === 'standard' ? t('data.taxHint.standard') : f.taxMode === 'small_business' ? t('data.taxHint.small_business') : t('data.taxHint.foreign')}
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Feld id="bp-vat" label="USt-IdNr."><Input id="bp-vat" value={f.vatId} onChange={(e) => upd('vatId', e.target.value.toUpperCase())} placeholder="DE123456789" /></Feld>
-            <Feld id="bp-taxno" label="Steuernummer"><Input id="bp-taxno" value={f.taxNumber} onChange={(e) => upd('taxNumber', e.target.value)} placeholder="143/123/45678" /></Feld>
+            <Feld id="bp-vat" label={t('data.vatId')}><Input id="bp-vat" value={f.vatId} onChange={(e) => upd('vatId', e.target.value.toUpperCase())} placeholder="DE123456789" /></Feld>
+            <Feld id="bp-taxno" label={t('data.taxNumber')}><Input id="bp-taxno" value={f.taxNumber} onChange={(e) => upd('taxNumber', e.target.value)} placeholder="143/123/45678" /></Feld>
           </div>
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
-          <Button disabled={busy} onClick={() => void save()}>{busy ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}Speichern</Button>
+          <Button variant="ghost" onClick={onClose}>{t('cancel')}</Button>
+          <Button disabled={busy} onClick={() => void save()}>{busy ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}{t('save')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -216,6 +223,7 @@ function KontoDialog({ open, billing, onClose, onDone }: { open: boolean; billin
   const [firstSetup, setFirstSetup] = useState(!billing.account?.confirmedAt);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const { t } = useTranslation('recruiterEarnings');
   useEffect(() => {
     if (!open) return;
     setStep(waiting ? 'code' : 'form'); setCode(''); setError(''); setSentTo(billing.loginEmailMasked); setFirstSetup(!billing.account?.confirmedAt);
@@ -224,25 +232,25 @@ function KontoDialog({ open, billing, onClose, onDone }: { open: boolean; billin
 
   const request = async () => {
     const clean = iban.replace(/\s+/g, '').toUpperCase();
-    if (holder.trim().length < 2) { setError('Bitte den Kontoinhaber angeben.'); return; }
-    if (!clean || !ibanValid(clean)) { setError('Die IBAN stimmt nicht. Bitte prüf sie noch einmal.'); return; }
-    if (!bicValid(bic)) { setError('Der BIC stimmt nicht. Er hat 8 oder 11 Zeichen.'); return; }
+    if (holder.trim().length < 2) { setError(t('account.holderMissing')); return; }
+    if (!clean || !ibanValid(clean)) { setError(t('account.iban')); return; }
+    if (!bicValid(bic)) { setError(t('account.bic')); return; }
     setBusy(true); setError('');
     try {
       const r = await abrechnungApi.accountRequest({ holder: holder.trim(), iban: clean, bic: bic.replace(/\s+/g, '').toUpperCase() });
       setSentTo(r.sentTo); setFirstSetup(r.firstSetup); setStep('code'); setCode('');
-      if (!r.sent) toast.error('Die Mail mit dem Code ging gerade nicht raus. Fordere gleich einen neuen Code an.');
-    } catch (e) { setError(e instanceof Error ? e.message : 'Der Code konnte nicht verschickt werden.'); }
+      if (!r.sent) toast.error(t('account.mailFailed'));
+    } catch (e) { setError(e instanceof Error ? e.message : t('api.accountRequest')); }
     finally { setBusy(false); }
   };
   const confirm = async () => {
-    if (code.length !== 6) { setError('Bitte den 6-stelligen Code aus der Mail eingeben.'); return; }
+    if (code.length !== 6) { setError(t('account.codeLength')); return; }
     setBusy(true); setError('');
     try {
       const r = await abrechnungApi.accountConfirm(code);
-      toast.success(r.immediate ? 'Dein Auszahlungskonto ist eingerichtet.' : `Bestätigt. Das neue Konto gilt ab ${dateTime(r.effectiveAt)} Uhr.`);
+      toast.success(r.immediate ? t('account.done') : t('account.effectiveFrom', { date: dateTime(r.effectiveAt) }));
       onDone(r.billing);
-    } catch (e) { setError(e instanceof Error ? e.message : 'Das Konto konnte nicht bestätigt werden.'); setCode(''); }
+    } catch (e) { setError(e instanceof Error ? e.message : t('api.accountConfirm')); setCode(''); }
     finally { setBusy(false); }
   };
 
@@ -250,35 +258,35 @@ function KontoDialog({ open, billing, onClose, onDone }: { open: boolean; billin
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{!billing.account ? 'Auszahlungskonto einrichten' : billing.account.confirmedAt ? 'Auszahlungskonto ändern' : 'Auszahlungskonto bestätigen'}</DialogTitle>
-          <DialogDescription>Zum Schutz bestätigst du das Konto mit einem Code, den wir an deine Login-Mail schicken.</DialogDescription>
+          <DialogTitle>{!billing.account ? t('account.titleSetUp') : billing.account.confirmedAt ? t('account.titleChange') : t('account.titleConfirm')}</DialogTitle>
+          <DialogDescription>{t('account.description')}</DialogDescription>
         </DialogHeader>
         {step === 'form' ? (
           <div className="space-y-3">
             <div className="grid gap-3 sm:grid-cols-2">
-              <Feld id="kt-holder" label="Kontoinhaber"><Input id="kt-holder" value={holder} onChange={(e) => { setHolder(e.target.value); setError(''); }} /></Feld>
-              <Feld id="kt-iban" label={billing.account?.confirmedAt ? 'Neue IBAN' : 'IBAN'}><Input id="kt-iban" value={iban} autoComplete="off" placeholder="DE00 0000 0000 0000 0000 00" onChange={(e) => { setIban(e.target.value.toUpperCase()); setError(''); }} onBlur={() => setIban(formatIban(iban))} /></Feld>
+              <Feld id="kt-holder" label={t('account.holder')}><Input id="kt-holder" value={holder} onChange={(e) => { setHolder(e.target.value); setError(''); }} /></Feld>
+              <Feld id="kt-iban" label={billing.account?.confirmedAt ? t('account.newIban') : 'IBAN'}><Input id="kt-iban" value={iban} autoComplete="off" placeholder="DE00 0000 0000 0000 0000 00" onChange={(e) => { setIban(e.target.value.toUpperCase()); setError(''); }} onBlur={() => setIban(formatIban(iban))} /></Feld>
             </div>
-            <Feld id="kt-bic" label="BIC (optional)"><Input id="kt-bic" value={bic} autoComplete="off" onChange={(e) => { setBic(e.target.value.toUpperCase()); setError(''); }} /></Feld>
+            <Feld id="kt-bic" label={t('account.bicOptional')}><Input id="kt-bic" value={bic} autoComplete="off" onChange={(e) => { setBic(e.target.value.toUpperCase()); setError(''); }} /></Feld>
             {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
             <DialogFooter>
-              <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
-              <Button disabled={busy} onClick={() => void request()}>{busy ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}Code schicken</Button>
+              <Button variant="ghost" onClick={onClose}>{t('cancel')}</Button>
+              <Button disabled={busy} onClick={() => void request()}>{busy ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}{t('account.sendCode')}</Button>
             </DialogFooter>
           </div>
         ) : (
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">Code an {sentTo} geschickt. Er gilt 15 Minuten.</p>
+            <p className="text-sm text-muted-foreground">{t('account.codeSent', { email: sentTo })}</p>
             <InputOTP maxLength={6} value={code} onChange={(v) => { setCode(v.replace(/\D/g, '')); setError(''); }} autoFocus>
               <InputOTPGroup>{[0, 1, 2, 3, 4, 5].map((i) => <InputOTPSlot key={i} index={i} />)}</InputOTPGroup>
             </InputOTP>
             <p className="text-sm text-muted-foreground">
-              {firstSetup ? 'Nach der Bestätigung gilt das Konto sofort.' : 'Das neue Konto gilt nach 48 Stunden. Bis dahin überweisen wir nichts. Dein bisheriges Konto und Matchunt bekommen eine Nachricht.'}
+              {firstSetup ? t('account.immediate') : t('account.delay')}
             </p>
             {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
             <DialogFooter className="gap-2 sm:justify-between">
-              <Button variant="ghost" onClick={() => { setStep('form'); setError(''); }}>Neuen Code anfordern</Button>
-              <Button disabled={busy || code.length !== 6} onClick={() => void confirm()}>{busy ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}Konto bestätigen</Button>
+              <Button variant="ghost" onClick={() => { setStep('form'); setError(''); }}>{t('account.newCode')}</Button>
+              <Button disabled={busy || code.length !== 6} onClick={() => void confirm()}>{busy ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}{t('billing.confirmAccount')}</Button>
             </DialogFooter>
           </div>
         )}

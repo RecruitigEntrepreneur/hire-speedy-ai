@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ChevronDown, ClipboardPaste, Download, Mail, Plug, Upload, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -34,32 +35,33 @@ export function KandidatAnlegenMenu({
   tour?: string;
 }) {
   const navigate = useNavigate();
+  const { t } = useTranslation('candidates');
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button size={size} data-tour={tour}>
           <UserPlus className="mr-1.5 h-3.5 w-3.5" />
-          Kandidaten anlegen
+          {t('menu.button')}
           <ChevronDown className="ml-1.5 h-3.5 w-3.5" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72">
         {/* Der Lebenslauf zuerst: daraus entstehen Akte, Werdegang und die Vorschläge im Interview. */}
-        <Weg Icon={Upload} titel="Lebenslauf hochladen" text="PDF oder Word. Die KI liest aus, du prüfst nur noch." onClick={onLebenslauf} hervor />
-        <Weg Icon={ClipboardPaste} titel="Text oder LinkedIn-Profil einfügen" text="Kopieren, einfügen, die KI liest aus." onClick={onText} />
-        <Weg Icon={UserPlus} titel="Ohne Lebenslauf anlegen" text="Name und E-Mail reichen, den Lebenslauf fragst du an." onClick={onOhneLebenslauf} />
+        <Weg Icon={Upload} titel={t('menu.cvTitle')} text={t('menu.cvText')} onClick={onLebenslauf} hervor />
+        <Weg Icon={ClipboardPaste} titel={t('menu.textTitle')} text={t('menu.textText')} onClick={onText} />
+        <Weg Icon={UserPlus} titel={t('menu.withoutCvTitle')} text={t('menu.withoutCvText')} onClick={onOhneLebenslauf} />
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={onHubspot}>
           <Download className="mr-2 h-4 w-4" />
-          Aus HubSpot importieren
+          {t('menu.hubspot')}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onPerMail}>
           <Mail className="mr-2 h-4 w-4" />
-          Per E-Mail weiterleiten
+          {t('menu.perMail')}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => navigate('/recruiter/integrations')}>
           <Plug className="mr-2 h-4 w-4" />
-          CRM verbinden
+          {t('menu.connectCrm')}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

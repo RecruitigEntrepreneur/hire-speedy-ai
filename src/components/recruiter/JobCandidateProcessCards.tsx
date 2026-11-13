@@ -16,7 +16,8 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow, format, isToday, isTomorrow, isPast } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { useTranslation } from 'react-i18next';
+import { dateFnsLocale } from './search/dateLocale';
 import { useNavigate } from 'react-router-dom';
 import { SubmissionDetailDialog } from '@/components/influence/SubmissionDetailDialog';
 
@@ -27,17 +28,18 @@ const STAGE_ORDER = [
   'interview', 'offer', 'hired',
 ] as const;
 
-const STAGE_CONFIG: Record<string, { label: string; shortLabel: string; className: string; dotColor: string }> = {
-  new:                  { label: 'Neu',                shortLabel: 'Neu',       className: 'bg-muted text-muted-foreground',                      dotColor: 'bg-muted-foreground' },
-  submitted:            { label: 'Eingereicht',        shortLabel: 'Einger.',   className: 'bg-blue-500/10 text-blue-600 border-blue-500/20',     dotColor: 'bg-blue-500' },
-  screening:            { label: 'Screening',          shortLabel: 'Screen.',   className: 'bg-violet-500/10 text-violet-600 border-violet-500/20', dotColor: 'bg-violet-500' },
-  shortlisted:          { label: 'Shortlisted',        shortLabel: 'Short.',    className: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20', dotColor: 'bg-indigo-500' },
-  interview_requested:  { label: 'Interview angefragt', shortLabel: 'Angefr.',  className: 'bg-amber-500/10 text-amber-600 border-amber-500/20',  dotColor: 'bg-amber-500' },
-  candidate_opted_in:   { label: 'Opt-In erteilt',     shortLabel: 'Opt-In',    className: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20',     dotColor: 'bg-cyan-500' },
-  interview:            { label: 'Interview',          shortLabel: 'Interv.',   className: 'bg-amber-500/10 text-amber-600 border-amber-500/20',  dotColor: 'bg-amber-500' },
-  interview_scheduled:  { label: 'Interview geplant',  shortLabel: 'Geplant',   className: 'bg-green-500/10 text-green-600 border-green-500/20',  dotColor: 'bg-green-500' },
-  offer:                { label: 'Angebot',            shortLabel: 'Angebot',   className: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20', dotColor: 'bg-emerald-500' },
-  hired:                { label: 'Eingestellt',        shortLabel: 'Eingest.',  className: 'bg-green-500/10 text-green-700 border-green-500/30',  dotColor: 'bg-green-600' },
+// Texte der Stufen: Namespace recruiterJobs, stages.<key>.label / .short
+const STAGE_CONFIG: Record<string, { key: string; className: string; dotColor: string }> = {
+  new:                  { key: 'new',                 className: 'bg-muted text-muted-foreground',                      dotColor: 'bg-muted-foreground' },
+  submitted:            { key: 'submitted',           className: 'bg-blue-500/10 text-blue-600 border-blue-500/20',     dotColor: 'bg-blue-500' },
+  screening:            { key: 'screening',           className: 'bg-violet-500/10 text-violet-600 border-violet-500/20', dotColor: 'bg-violet-500' },
+  shortlisted:          { key: 'shortlisted',         className: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20', dotColor: 'bg-indigo-500' },
+  interview_requested:  { key: 'interview_requested', className: 'bg-amber-500/10 text-amber-600 border-amber-500/20',  dotColor: 'bg-amber-500' },
+  candidate_opted_in:   { key: 'candidate_opted_in',  className: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20',     dotColor: 'bg-cyan-500' },
+  interview:            { key: 'interview',           className: 'bg-amber-500/10 text-amber-600 border-amber-500/20',  dotColor: 'bg-amber-500' },
+  interview_scheduled:  { key: 'interview_scheduled', className: 'bg-green-500/10 text-green-600 border-green-500/20',  dotColor: 'bg-green-500' },
+  offer:                { key: 'offer',               className: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20', dotColor: 'bg-emerald-500' },
+  hired:                { key: 'hired',               className: 'bg-green-500/10 text-green-700 border-green-500/30',  dotColor: 'bg-green-600' },
 };
 
 function getStageInfo(stage: string | null) {
@@ -52,6 +54,7 @@ function getStageIndex(stage: string | null): number {
 function MiniStagePipeline({ currentStage }: { currentStage: string | null }) {
   const currentIndex = getStageIndex(currentStage);
   const keyStages = ['submitted', 'screening', 'interview', 'offer', 'hired'];
+  const { t } = useTranslation('recruiterJobs');
 
   return (
     <div className="flex items-center gap-0.5">
@@ -77,8 +80,9 @@ function MiniStagePipeline({ currentStage }: { currentStage: string | null }) {
               />
             </TooltipTrigger>
             <TooltipContent side="bottom" className="text-xs">
-              {stageConfig.label}
-              {isActive && ' (aktuell)'}
+              {isActive
+                ? t('list.stageCurrent', { stage: t(`stages.${stageConfig.key}.label`) })
+                : t(`stages.${stageConfig.key}.label`)}
               {isPassed && ' ✓'}
             </TooltipContent>
           </Tooltip>
@@ -109,6 +113,7 @@ interface JobCandidateProcessCardsProps {
 
 export function JobCandidateProcessCards({ submissions, onOpenSubmitForm }: JobCandidateProcessCardsProps) {
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation('recruiterJobs');
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -148,7 +153,7 @@ export function JobCandidateProcessCards({ submissions, onOpenSubmitForm }: JobC
         <div className="flex items-center gap-2">
           <Users className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Meine Kandidaten ({submissions.length})
+            {t('processCards.title', { count: submissions.length })}
           </span>
         </div>
         <Button
@@ -157,7 +162,7 @@ export function JobCandidateProcessCards({ submissions, onOpenSubmitForm }: JobC
           className="h-6 text-xs text-muted-foreground hover:text-foreground"
           onClick={onOpenSubmitForm}
         >
-          + Weiteren einreichen
+          {t('processCards.submitAnother')}
         </Button>
       </div>
 
@@ -180,7 +185,7 @@ export function JobCandidateProcessCards({ submissions, onOpenSubmitForm }: JobC
             const initials = sub.candidates?.full_name
               ?.split(' ').map(n => n[0]).join('').toUpperCase() || '?';
             const timeSince = sub.submitted_at
-              ? formatDistanceToNow(new Date(sub.submitted_at), { locale: de, addSuffix: true })
+              ? formatDistanceToNow(new Date(sub.submitted_at), { locale: dateFnsLocale(i18n.language), addSuffix: true })
               : null;
 
             return (
@@ -206,6 +211,7 @@ export function JobCandidateProcessCards({ submissions, onOpenSubmitForm }: JobC
                     variant="ghost"
                     size="icon"
                     className="h-5 w-5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                    aria-label={t('processCards.openCandidate')}
                     onClick={(e) => {
                       e.stopPropagation();
                       navigate(`/recruiter/candidates/${sub.candidate_id}`);
@@ -227,7 +233,7 @@ export function JobCandidateProcessCards({ submissions, onOpenSubmitForm }: JobC
                     variant="outline"
                     className={cn('shrink-0 text-[9px] px-1.5 py-0 leading-4', stageInfo.className)}
                   >
-                    {stageInfo.shortLabel}
+                    {t(`stages.${stageInfo.key}.short`)}
                   </Badge>
                 </div>
 
@@ -245,7 +251,7 @@ export function JobCandidateProcessCards({ submissions, onOpenSubmitForm }: JobC
                       sub.match_score >= 80 ? 'text-emerald-600' :
                       sub.match_score >= 60 ? 'text-amber-600' : 'text-muted-foreground'
                     )}>
-                      {sub.match_score}% Match
+                      {t('processCards.match', { score: sub.match_score })}
                     </span>
                   )}
                 </div>

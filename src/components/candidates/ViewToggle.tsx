@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { LayoutGrid, List, Table2 } from 'lucide-react';
 
@@ -9,10 +10,11 @@ interface ViewToggleProps {
 }
 
 export function ViewToggle({ view, onViewChange }: ViewToggleProps) {
+  const { t } = useTranslation('candidates');
   const views: { value: ViewMode; icon: typeof LayoutGrid; label: string }[] = [
-    { value: 'cards', icon: LayoutGrid, label: 'Karten' },
-    { value: 'list', icon: List, label: 'Liste' },
-    { value: 'table', icon: Table2, label: 'Tabelle' },
+    { value: 'cards', icon: LayoutGrid, label: t('view.cards') },
+    { value: 'list', icon: List, label: t('view.list') },
+    { value: 'table', icon: Table2, label: t('view.table') },
   ];
 
   return (

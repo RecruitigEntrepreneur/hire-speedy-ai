@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { Trans, useTranslation } from 'react-i18next';
+import { applyLinkLanguage } from '@/i18n';
+import { intlLocale } from '@/i18n/languages';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, CheckCircle2, FileSignature, Mail } from 'lucide-react';
 import { MatchuntWordmark } from '@/components/ui/MatchuntWordmark';
-import { IntakeShell, IntakeFailurePage, type StepDef } from '@/components/intake/guest/IntakeShell';
+import { IntakeShell, IntakeFailurePage, PageLanguageMenu, type StepDef } from '@/components/intake/guest/IntakeShell';
 import { CaptureStep, emptyCapture, captureBriefingText, type CaptureState } from '@/components/intake/guest/CaptureStep';
 import { ContactStep } from '@/components/intake/guest/ContactStep';
 import { VerifyStep } from '@/components/intake/guest/VerifyStep';
@@ -31,18 +34,16 @@ import { toast } from 'sonner';
  * der Seite — was AGB § 9 zusagt und heute nirgends passiert.
  */
 
-const STEPS: StepDef[] = [
-  { key: 'capture', label: 'Position' },
-  { key: 'contact', label: 'Kontakt' },
-  { key: 'verify', label: 'Bestätigen' },
-  { key: 'packages', label: 'Paket' },
-  { key: 'summary', label: 'Anfragen' },
-];
+// Die Beschriftungen stehen in den Sprachdateien (clientFunnel: shell.steps.*).
+const STEP_KEYS = ['capture', 'contact', 'verify', 'packages', 'summary'] as const;
 
-type StepKey = (typeof STEPS)[number]['key'];
+type StepKey = StepDef['key'];
 
 export default function GuestIntake() {
   const { token, draftToken } = useParams<{ token?: string; draftToken?: string }>();
+  // Zuerst die Texte: Die Seite wartet, bis die Sprachdatei geladen ist, erst dann startet die Aufnahme.
+  const { t, i18n } = useTranslation('clientFunnel');
+  const bold = { bold: <strong className="text-foreground" /> };
   const intake = useGuestIntake(token, draftToken);
   const { state, save, sendCode, confirmCode, loadPackages, selectPackage, sendContract, checkSignature, submit, forward,
           askAi, parseText, parseUrl, parsePdf, enrichCompany } = intake;
@@ -68,7 +69,14 @@ export default function GuestIntake() {
   // eine Kondition steht auf der Seite "Anfragen" (Live-Befund 25.09.2026,
   // Kanna Medics: Contracting bekam Festanstellungs-Konditionen angeboten).
   const contracting = (capture?.type ?? draft?.contract_type) === 'freelance';
-  const steps = useMemo(() => (contracting ? STEPS.filter((s) => s.key !== 'packages') : STEPS), [contracting]);
+  const steps = useMemo<StepDef[]>(
+    () => STEP_KEYS.filter((key) => !(contracting && key === 'packages'))
+      .map((key) => ({ key, label: t(`shell.steps.${key}`) })),
+    [contracting, t],
+  );
+  // Sprache des Links (Einladung): greift nur, solange die Person nicht selbst gewählt hat.
+  const linkLanguage = state.link?.language;
+  useEffect(() => { void applyLinkLanguage(linkLanguage); }, [linkLanguage]);
   useEffect(() => {
     if (contracting && step === 'packages') setStep('summary');
   }, [contracting, step]);
@@ -168,31 +176,33 @@ export default function GuestIntake() {
     if (!capture?.built || !draft) return [];
     const b = capture.built;
     const isFreelance = capture.type === 'freelance';
+    const locale = intlLocale(i18n.language);
     const money = (min: number | null, max: number | null, suffix: string) => {
       if (min == null && max == null) return '—';
-      if (min != null && max != null) return `${min.toLocaleString('de-DE')}–${max.toLocaleString('de-DE')} ${suffix}`;
-      return `${(min ?? max)!.toLocaleString('de-DE')} ${suffix}`;
+      if (min != null && max != null) return `${min.toLocaleString(locale)}–${max.toLocaleString(locale)} ${suffix}`;
+      return `${(min ?? max)!.toLocaleString(locale)} ${suffix}`;
     };
     return [
-      { label: 'Position', value: b.title || '—' },
-      { label: 'Unternehmen', value: draft.company_legal_name || draft.company_name || '—' },
-      { label: 'Standort', value: b.location || '—' },
-      { label: 'Arbeitsmodell', value: remoteLabel(b.remote_type) },
-      { label: 'Erfahrung', value: levelLabel(b.experience_level) },
+      { label: t('summary.rowPosition'), value: b.title || '—' },
+      { label: t('summary.rowCompany'), value: draft.company_legal_name || draft.company_name || '—' },
+      { label: t('summary.rowLocation'), value: b.location || '—' },
+      // remoteLabel und levelLabel kommen aus intakeMapping (Fragen-Kern) und sind vorerst deutsch.
+      { label: t('summary.rowWorkModel'), value: remoteLabel(b.remote_type) },
+      { label: t('summary.rowExperience'), value: levelLabel(b.experience_level) },
       {
         // Contracting: das Budget des Kunden, alles inklusive -- nicht der Satz
         // des Spezialisten (Marge ist Innenseite, Entscheidung 25.09.2026).
-        label: isFreelance ? 'Budget je Tag' : 'Gehaltsband',
+        label: isFreelance ? t('summary.rowDayBudget') : t('summary.rowSalaryBand'),
         value: isFreelance
-          ? money(capture.freelance.dayRateMin, capture.freelance.dayRateMax, '€, alles inklusive')
-          : money(b.salary_min, b.salary_max, '€ p. a.'),
+          ? money(capture.freelance.dayRateMin, capture.freelance.dayRateMax, t('summary.valueAllInclusive'))
+          : money(b.salary_min, b.salary_max, t('summary.valuePerYear')),
       },
-      { label: 'Muss-Kriterien', value: b.must_haves.length ? b.must_haves.join(' · ') : '—' },
-      { label: 'Kann-Kriterien', value: b.nice_to_haves.length ? b.nice_to_haves.join(' · ') : '—' },
-      { label: 'Vertragsart', value: isFreelance ? 'Contracting / Freiberuflich' : 'Festanstellung' },
-      { label: 'Ansprechpartner', value: [draft.contact_name, draft.contact_email].filter(Boolean).join(' · ') || '—' },
+      { label: t('summary.rowMustHaves'), value: b.must_haves.length ? b.must_haves.join(' · ') : '—' },
+      { label: t('summary.rowNiceToHaves'), value: b.nice_to_haves.length ? b.nice_to_haves.join(' · ') : '—' },
+      { label: t('summary.rowContractType'), value: isFreelance ? t('summary.valueContracting') : t('summary.valuePermanent') },
+      { label: t('summary.rowContact'), value: [draft.contact_name, draft.contact_email].filter(Boolean).join(' · ') || '—' },
     ];
-  }, [capture, draft]);
+  }, [capture, draft, t, i18n.language]);
 
   /**
    * Was in der Zusammenfassung als "noch offen" steht.
@@ -241,18 +251,18 @@ export default function GuestIntake() {
   if (state.status === 'failed' || !draft) {
     const f = state.failure;
     const title =
-      f?.reason === 'expired' ? 'Dieser Link ist abgelaufen'
-      : f?.reason === 'revoked' ? 'Dieser Link wurde deaktiviert'
-      : f?.reason === 'exhausted' ? 'Dieser Link wurde bereits verwendet'
-      : f?.reason === 'not_deployed' ? 'Noch nicht freigeschaltet'
-      : 'Dieser Link ist nicht gültig';
+      f?.reason === 'expired' ? t('failure.expired')
+      : f?.reason === 'revoked' ? t('failure.revoked')
+      : f?.reason === 'exhausted' ? t('failure.exhausted')
+      : f?.reason === 'not_deployed' ? t('failure.notDeployed')
+      : t('failure.invalid');
     return (
       <IntakeFailurePage
         title={title}
-        message={f?.message ?? 'Bitte wenden Sie sich an Ihren Ansprechpartner bei Matchunt.'}
+        message={f?.message ?? t('failure.fallbackMessage')}
         action={
           <Button asChild variant="outline">
-            <Link to="/">Zur Startseite</Link>
+            <Link to="/">{t('failure.home')}</Link>
           </Button>
         }
       />
@@ -304,11 +314,14 @@ export default function GuestIntake() {
     //     nichts an einen Dritten unterwegs ist.
     if (requiresSignature && !signUrl && !anDrittenVersandt && !bereitsUnterschrieben) {
       return (
-        <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
+        <div className="relative flex min-h-screen items-center justify-center bg-background px-4 py-8">
+          <PageLanguageMenu />
           <div className="w-full max-w-lg space-y-6">
             <MatchuntWordmark size="sm" className="justify-center" />
             <p className="text-center text-sm text-muted-foreground">
-              Ihre Anfrage ist eingegangen{mandate ? <> — Vorgang <strong className="text-foreground">{mandate}</strong></> : null}.
+              {mandate
+                ? <Trans t={t} i18nKey="submitted.receivedNumber" values={{ number: mandate }} components={bold} />
+                : t('submitted.received')}
             </p>
             <SignerChoice
               contactName={draft.contact_name}
@@ -324,14 +337,16 @@ export default function GuestIntake() {
     // (2) Eigenhaendig: der Vertrag im Rahmen, auf unserer Seite.
     if (requiresSignature && signUrl && !signed) {
       return (
-        <div className="min-h-screen bg-background px-4 py-8">
+        <div className="relative min-h-screen bg-background px-4 py-8">
+          <PageLanguageMenu />
           <div className="mx-auto w-full max-w-4xl space-y-4">
             <MatchuntWordmark size="sm" className="justify-center" />
             <div className="text-center">
-              <h1 className="text-xl font-bold tracking-tight">Vertrag unterzeichnen</h1>
+              <h1 className="text-xl font-bold tracking-tight">{t('submitted.signTitle')}</h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Rahmenvertrag und Einzelauftrag in einem Durchgang{mandate ? <>, Vorgang <strong className="text-foreground">{mandate}</strong></> : null}.
-                Sie unterschreiben zuerst, danach zeichnet Matchunt gegen.
+                {mandate
+                  ? <Trans t={t} i18nKey="submitted.signLeadNumber" values={{ number: mandate }} components={bold} />
+                  : t('submitted.signLead')}
               </p>
             </div>
             <SignFrame
@@ -361,11 +376,7 @@ export default function GuestIntake() {
                    Adresse gesetzt ist. */
                 setSignUrl(null);
                 setSignError(
-                  ev === 'decline'
-                    ? 'Sie haben die Unterschrift abgelehnt. Der Vertrag ist nicht zustande '
-                      + 'gekommen. Sie können den Lauf hier erneut starten.'
-                    : 'Der Signaturlink ist abgelaufen — er gilt nur wenige Minuten. '
-                      + 'Ihre Angaben sind gespeichert; unten starten Sie einen neuen Versuch.',
+                  ev === 'decline' ? t('submitted.declinedError') : t('submitted.expiredError'),
                 );
               }}
             />
@@ -375,7 +386,8 @@ export default function GuestIntake() {
     }
 
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="relative flex min-h-screen items-center justify-center bg-background px-4">
+        <PageLanguageMenu />
         <div className="w-full max-w-lg">
           <MatchuntWordmark size="sm" className="mb-8 justify-center" />
           <Card>
@@ -383,11 +395,14 @@ export default function GuestIntake() {
               <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-emerald-600/10">
                 <CheckCircle2 className="h-5 w-5 text-emerald-600" />
               </div>
-              <h1 className="text-xl font-bold tracking-tight">Ihre Anfrage ist bei uns</h1>
+              <h1 className="text-xl font-bold tracking-tight">{t('submitted.title')}</h1>
               <p className="mt-2 text-sm text-muted-foreground">
-                {mandate ? <>Vorgangsnummer <strong className="text-foreground">{mandate}</strong>. </> : null}
-                Wir prüfen Ihre Beauftragungsanfrage für{' '}
-                <strong className="text-foreground">{capture?.built?.title ?? draft.title ?? 'Ihre Position'}</strong>.
+                <Trans
+                  t={t}
+                  i18nKey={mandate ? 'submitted.reviewingNumber' : 'submitted.reviewing'}
+                  values={{ number: mandate ?? '', title: capture?.built?.title ?? draft.title ?? t('submitted.yourPosition') }}
+                  components={bold}
+                />
               </p>
 
               {/* Liegt eine Unterschriftsansicht vor, ist sie der naechste
@@ -395,20 +410,19 @@ export default function GuestIntake() {
                   Fehlt sie (DocuSign nicht erreichbar), sagt die Seite das
                   ehrlich, statt auf etwas zu verweisen, das nicht kommt. */}
               <div className="mt-6 space-y-3 text-left">
-                <Step icon={Mail} title="Bestätigung per E-Mail"
-                  text={`Eine Übersicht Ihrer Anfrage samt Konditionen ist an ${draft.contact_email} unterwegs.`} />
-                <Step icon={FileSignature} title="Unterschrift"
+                <Step icon={Mail} title={t('submitted.mailTitle')}
+                  text={t('submitted.mailText', { email: draft.contact_email })} />
+                <Step icon={FileSignature} title={t('submitted.signatureTitle')}
                   text={bereitsUnterschrieben
-                    ? 'Ihre Unterschrift liegt vor. Matchunt zeichnet gegen — danach starten wir die Suche.'
+                    ? t('submitted.signatureDone')
                     : anDrittenVersandt
-                    ? `Der Vertrag ist an ${anDrittenVersandt} unterwegs. Sobald dort unterschrieben ist, zeichnet Matchunt gegen und wir starten die Suche.`
-                    : 'Sie erhalten den Vertrag zur digitalen Unterschrift. Sie unterschreiben zuerst, danach zeichnet Matchunt gegen — erst dann starten wir die Suche.'} />
+                    ? t('submitted.signatureThird', { email: anDrittenVersandt })
+                    : t('submitted.signaturePending')} />
               </div>
 
               <Alert className="mt-6 text-left">
                 <AlertDescription className="text-xs">
-                  Mit dieser Anfrage ist noch kein Vertrag zustande gekommen und es sind Ihnen keine
-                  Kosten entstanden. Ein Vertrag entsteht erst mit unserer ausdrücklichen Annahme.
+                  {t('submitted.notice')}
                 </AlertDescription>
               </Alert>
             </CardContent>
@@ -439,8 +453,7 @@ export default function GuestIntake() {
       {state.saveError && (
         <Alert variant="destructive" className="mb-4">
           <AlertDescription className="text-sm">
-            {state.saveError} Ihre Eingaben sind noch im Browser und werden beim nächsten Versuch
-            mitgeschickt — bitte schließen Sie das Fenster noch nicht.
+            {state.saveError} {t('flow.saveErrorNote')}
           </AlertDescription>
         </Alert>
       )}
@@ -448,8 +461,7 @@ export default function GuestIntake() {
       {knownCompany && step === 'packages' && (
         <Alert className="mb-4">
           <AlertDescription className="text-sm">
-            Wir kennen {knownCompany.name} bereits. Ihr Ansprechpartner prüft, ob eine bestehende
-            Vereinbarung greift.
+            {t('flow.knownCompany', { name: knownCompany.name })}
           </AlertDescription>
         </Alert>
       )}
@@ -544,7 +556,7 @@ export default function GuestIntake() {
                 mailSent: res.confirmation_sent,
               });
               if (!res.confirmation_sent) {
-                toast.warning('Ihre Anfrage ist eingegangen, die Bestätigungsmail konnte aber nicht zugestellt werden.');
+                toast.warning(t('flow.mailFailedToast'));
               }
             }
             return res;

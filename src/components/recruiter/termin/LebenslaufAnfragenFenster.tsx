@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Check, Copy, Loader2, Send } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
@@ -20,6 +21,7 @@ export function LebenslaufAnfragenFenster({ open, onOpenChange, candidate, onFer
   candidate: { id: string; vorname: string; email: string | null };
   onFertig?: () => void;
 }) {
+  const { t } = useTranslation('recruiterTermin');
   const kontakt = useRecruiterKontakt();
   const hhVorname = (kontakt?.name ?? '').trim().split(/\s+/)[0] || '';
   const [anlass, setAnlass] = useState<LebenslaufAnlass>('nachher');
@@ -40,11 +42,11 @@ export function LebenslaufAnfragenFenster({ open, onOpenChange, candidate, onFer
     setSendet('mail');
     try {
       await einladungApi.lebenslaufAnfragen({ candidate_id: candidate.id, weg: 'mail', text });
-      toast.success(`Anfrage an ${candidate.vorname} ist raus.`);
+      toast.success(t('lebenslauf.sent', { name: candidate.vorname }));
       fertig();
       onOpenChange(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Die Anfrage konnte nicht verschickt werden.');
+      toast.error(e instanceof Error ? e.message : t('lebenslauf.sendFailed'));
     } finally { setSendet(null); }
   };
 
@@ -57,46 +59,46 @@ export function LebenslaufAnfragenFenster({ open, onOpenChange, candidate, onFer
       try {
         await navigator.clipboard.writeText(fertigerText);
         setKopiert(true);
-        toast.success('Text mit persönlichem Link kopiert.');
+        toast.success(t('fenster.copied'));
       } catch {
         setText(fertigerText);
         setBearbeitet(true);
-        toast.info('Automatisches Kopieren ging nicht. Der Text mit Link steht jetzt im Feld.');
+        toast.info(t('fenster.copyFailed'));
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Das hat gerade nicht geklappt.');
+      toast.error(e instanceof Error ? e.message : t('fenster.failed'));
     } finally { setSendet(null); }
   };
 
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent className="sm:max-w-lg">
       <DialogHeader>
-        <DialogTitle>Lebenslauf bei {candidate.vorname} anfragen</DialogTitle>
-        <DialogDescription>{candidate.vorname} bekommt einen persönlichen Link und lädt ihn dort hoch.</DialogDescription>
+        <DialogTitle>{t('lebenslauf.title', { name: candidate.vorname })}</DialogTitle>
+        <DialogDescription>{t('lebenslauf.description', { name: candidate.vorname })}</DialogDescription>
       </DialogHeader>
       <div className="space-y-4">
         <div>
           <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-medium">Dein Text</p>
+            <p className="text-sm font-medium">{t('fenster.yourText')}</p>
             <div className="flex gap-1.5">
               {LEBENSLAUF_ANLAESSE.map(a => <button key={a.key} type="button" onClick={() => { setAnlass(a.key); setBearbeitet(false); }}
                 className={cn('rounded-full border px-2.5 py-0.5 text-xs', anlass === a.key ? 'border-foreground' : 'border-border text-muted-foreground hover:text-foreground')}>{a.label}</button>)}
             </div>
           </div>
           <Textarea rows={9} value={text} onChange={e => { setText(e.target.value); setBearbeitet(true); }} className="text-sm"/>
-          <p className="mt-1 text-xs text-muted-foreground">An der Stelle [Link] steht später der persönliche Link. Er gilt 30 Tage.</p>
+          <p className="mt-1 text-xs text-muted-foreground">{t('fenster.linkHint')}</p>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-4">
           <Button variant="outline" disabled={!!sendet || !text.trim()} onClick={() => void selbst()} className="gap-1.5">
             {sendet === 'selbst' ? <Loader2 className="h-4 w-4 animate-spin"/> : kopiert ? <Check className="h-4 w-4"/> : <Copy className="h-4 w-4"/>}
-            {kopiert ? 'Kopiert' : 'Selbst schicken: Text kopieren'}
+            {kopiert ? t('fenster.copiedShort') : t('fenster.selfSend')}
           </Button>
-          <Button disabled={!!sendet || !text.trim() || !candidate.email} onClick={() => void perMail()} className="gap-1.5" title={candidate.email ? undefined : 'In der Akte steht keine E-Mail.'}>
+          <Button disabled={!!sendet || !text.trim() || !candidate.email} onClick={() => void perMail()} className="gap-1.5" title={candidate.email ? undefined : t('fenster.noEmailTitle')}>
             {sendet === 'mail' ? <Loader2 className="h-4 w-4 animate-spin"/> : <Send className="h-4 w-4"/>}
-            Per Mail senden
+            {t('fenster.byMail')}
           </Button>
         </div>
-        {!candidate.email && <p className="text-xs text-muted-foreground">In der Akte steht keine E-Mail, deshalb geht nur „Selbst schicken“.</p>}
+        {!candidate.email && <p className="text-xs text-muted-foreground">{t('lebenslauf.noEmail')}</p>}
       </div>
     </DialogContent>
   </Dialog>;

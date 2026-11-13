@@ -7,6 +7,7 @@ import { RejectionReasonSelector, REJECTION_CATEGORIES } from './RejectionReason
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useTranslation } from 'react-i18next';
 
 interface Submission {
   id: string;
@@ -32,6 +33,7 @@ interface RejectionDialogProps {
 }
 
 export function RejectionDialog({ open, onOpenChange, submission, onSuccess, notice }: RejectionDialogProps) {
+  const { t } = useTranslation('clientCandidates');
   const [step, setStep] = useState(1);
   const [reasonCategory, setReasonCategory] = useState('');
   const [customFeedback, setCustomFeedback] = useState('');
@@ -60,12 +62,12 @@ export function RejectionDialog({ open, onOpenChange, submission, onSuccess, not
 
       if (error) throw error;
 
-      toast.success('Absage gespeichert. Der Headhunter informiert den Kandidaten.');
+      toast.success(t('rejection.saved'));
       handleClose();
       onSuccess();
     } catch (error: any) {
       console.error('Rejection error:', error);
-      toast.error('Fehler beim Ablehnen: ' + (error.message || 'Unbekannter Fehler'));
+      toast.error(t('rejection.error', { message: error.message || t('rejection.unknownError') }));
     } finally {
       setProcessing(false);
     }
@@ -80,9 +82,9 @@ export function RejectionDialog({ open, onOpenChange, submission, onSuccess, not
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {step === 1 && 'Ablehnungsgrund auswählen'}
-            {step === 2 && 'Feedback hinzufügen'}
-            {step === 3 && 'Ablehnung bestätigen'}
+            {step === 1 && t('rejection.step1')}
+            {step === 2 && t('rejection.step2')}
+            {step === 3 && t('rejection.step3')}
           </DialogTitle>
         </DialogHeader>
 
@@ -93,7 +95,7 @@ export function RejectionDialog({ open, onOpenChange, submission, onSuccess, not
           {step === 1 && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Wählen Sie den Hauptgrund für die Ablehnung von <span className="font-medium">{submission.candidate.full_name}</span>:
+                {t('rejection.chooseReason')} <span className="font-medium">{submission.candidate.full_name}</span>:
               </p>
               <RejectionReasonSelector value={reasonCategory} onChange={setReasonCategory} />
             </div>
@@ -103,10 +105,10 @@ export function RejectionDialog({ open, onOpenChange, submission, onSuccess, not
           {step === 2 && (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Fügen Sie optional zusätzliches Feedback hinzu, das dem Recruiter helfen kann:
+                {t('rejection.feedbackIntro')}
               </p>
               <Textarea
-                placeholder="Zusätzliches Feedback (optional)..."
+                placeholder={t('rejection.feedbackPlaceholder')}
                 value={customFeedback}
                 onChange={(e) => setCustomFeedback(e.target.value)}
                 rows={4}
@@ -114,7 +116,7 @@ export function RejectionDialog({ open, onOpenChange, submission, onSuccess, not
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  Dieses Feedback wird dem Recruiter mitgeteilt, um zukünftige Einreichungen zu verbessern.
+                  {t('rejection.feedbackHint')}
                 </AlertDescription>
               </Alert>
             </div>
@@ -125,20 +127,20 @@ export function RejectionDialog({ open, onOpenChange, submission, onSuccess, not
             <div className="space-y-4">
               <div className="rounded-lg border border-border p-4 space-y-3">
                 <div>
-                  <p className="text-xs text-muted-foreground">Kandidat</p>
+                  <p className="text-xs text-muted-foreground">{t('rejection.candidate')}</p>
                   <p className="font-medium">{submission.candidate.full_name}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Position</p>
-                  <p className="font-medium">{submission.job.title} bei {submission.job.company_name}</p>
+                  <p className="text-xs text-muted-foreground">{t('rejection.position')}</p>
+                  <p className="font-medium">{t('rejection.jobAt', { job: submission.job.title, company: submission.job.company_name })}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Ablehnungsgrund</p>
+                  <p className="text-xs text-muted-foreground">{t('rejection.reason')}</p>
                   <p className="font-medium">{selectedCategory?.label}</p>
                 </div>
                 {customFeedback && (
                   <div>
-                    <p className="text-xs text-muted-foreground">Zusätzliches Feedback</p>
+                    <p className="text-xs text-muted-foreground">{t('rejection.extraFeedback')}</p>
                     <p className="text-sm">{customFeedback}</p>
                   </div>
                 )}
@@ -146,7 +148,7 @@ export function RejectionDialog({ open, onOpenChange, submission, onSuccess, not
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  Der Headhunter wird informiert und übernimmt die Absage an den Kandidaten.
+                  {t('rejection.confirmHint')}
                 </AlertDescription>
               </Alert>
             </div>
@@ -158,23 +160,23 @@ export function RejectionDialog({ open, onOpenChange, submission, onSuccess, not
             {step > 1 && (
               <Button variant="outline" onClick={() => setStep(step - 1)} disabled={processing}>
                 <ChevronLeft className="h-4 w-4 mr-1" />
-                Zurück
+                {t('rejection.back')}
               </Button>
             )}
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleClose} disabled={processing}>
-              Abbrechen
+              {t('rejection.cancel')}
             </Button>
             {step < 3 ? (
               <Button onClick={() => setStep(step + 1)} disabled={!reasonCategory}>
-                Weiter
+                {t('rejection.next')}
                 <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             ) : (
               <Button variant="destructive" onClick={handleSubmit} disabled={processing}>
                 {processing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
-                Ablehnen & Benachrichtigen
+                {t('rejection.submit')}
               </Button>
             )}
           </div>

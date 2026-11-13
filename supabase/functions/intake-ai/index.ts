@@ -128,6 +128,8 @@ serve(async (req) => {
         open_slots: kappen(payload.open_slots, 60),
         known: payload.known ?? {},
         asked_followups: kappen(payload.asked_followups, MAX_ANSWERS),
+        // Sprache der Person: Nachfragen und Vorschlaege kommen in ihr zurueck.
+        lang: typeof body?.lang === 'string' ? body.lang.slice(0, 10) : undefined,
       };
     } else if (op === 'parse_text') {
       const text = String(payload.jobText ?? '').slice(0, MAX_TEXT_CHARS);

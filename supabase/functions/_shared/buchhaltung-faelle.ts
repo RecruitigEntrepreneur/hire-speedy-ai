@@ -14,6 +14,7 @@ import { JOKER_DEFAULT_PCT, JOKER_VALID_DAYS, euro, matchuntOnClaimPct, matchunt
 import { eur } from './invoice-pdf.ts';
 import { UUID, DATE, namesFor, nowIso, requireAdminUser, rowsIn, text } from './buchhaltung-kern.ts';
 import { dateDe, dateDeShort, dayDiff } from './buchhaltung-rechnen.ts';
+import { dateKeyIn, m, tx } from './notify-i18n.ts';
 
 const PKG: Record<string, string> = { core: 'Core', continuity_90: 'Continuity 90', continuity_180: 'Continuity 180' };
 const pctDe = (n: number) => String(Math.round(n * 100) / 100).replace('.', ',');
@@ -285,8 +286,10 @@ export async function decideJokerAction(ctx: PlacementCtx, user: User, body: any
     must(!existing, 'Für diese Besetzung ist schon entschieden.', 'conflict');
     await applyClientSphere(ctx, p, user.id);
     const n = (await namesFor(ctx, [p])).get(p.id)!;
-    await notify(ctx, n.recruiterId, 'claim_rejected', `Entschieden: ${n.firstName}`, 'Der Grund liegt beim Kunden. Du bekommst deinen vollen Anteil.', 'placement', p.id);
-    await notify(ctx, n.clientId, 'claim_rejected', `Ihre Meldung zu ${n.firstName}`, 'Gemeldet, danke. Eine Nachbesetzung ist hier nicht vorgesehen, weil der Grund auf Ihrer Seite liegt.', 'submission', p.submission_id);
+    await notify(ctx, n.recruiterId, 'claim_rejected', (l) => tx(l, m`Entschieden: ${n.firstName}`, m`Decided: ${n.firstName}`, m`Avgjort: ${n.firstName}`, m`Avgjort: ${n.firstName}`),
+      (l) => tx(l, 'Der Grund liegt beim Kunden. Du bekommst deinen vollen Anteil.', 'The reason lies with the client. You get your full share.', 'Skälet ligger hos kunden. Du får hela din andel.', 'Grunnen ligger hos kunden. Du får hele andelen din.'), 'placement', p.id);
+    await notify(ctx, n.clientId, 'claim_rejected', (l) => tx(l, m`Ihre Meldung zu ${n.firstName}`, m`Your report on ${n.firstName}`, m`Din anmälan om ${n.firstName}`, m`Meldingen din om ${n.firstName}`),
+      (l) => tx(l, 'Gemeldet, danke. Eine Nachbesetzung ist hier nicht vorgesehen, weil der Grund auf Ihrer Seite liegt.', 'Reported, thank you. A replacement is not provided for here because the reason lies on your side.', 'Anmält, tack. En ersättning ingår inte här eftersom skälet ligger på er sida.', 'Meldt, takk. En erstatning er ikke aktuell her fordi grunnen ligger hos dere.'), 'submission', p.submission_id);
     return { ok: true, decision: 'client_sphere' };
   }
   must(choice === 'offer' || choice === 'none', 'Bitte wählen: anbieten, nichts anbieten oder Grund liegt beim Kunden.');
@@ -335,8 +338,10 @@ export async function resolveStart(ctx: PlacementCtx, user: User, body: any) {
     const on = typeof body?.startedOn === 'string' && DATE.test(body.startedOn) ? body.startedOn : (p.start_reported_on ?? p.first_working_day);
     must(on && on <= todayKey(ctx.now()), 'Bitte den ersten Arbeitstag angeben (nicht in der Zukunft).');
     await fixStart(ctx, p, 'admin', on, user.id);
-    await notify(ctx, n.recruiterId, 'placement_started', `${n.firstName} hat angefangen`, `Matchunt hat den Antritt am ${dateDe(on)} festgestellt.${note ? ` ${note}` : ''}`, 'placement', p.id);
-    await notify(ctx, n.clientId, 'placement_started', `Antritt von ${n.firstName}`, `Matchunt hat geklärt: angefangen am ${dateDe(on)}.${note ? ` ${note}` : ''}`, 'submission', p.submission_id);
+    await notify(ctx, n.recruiterId, 'placement_started', (l) => tx(l, m`${n.firstName} hat angefangen`, m`${n.firstName} has started`, m`${n.firstName} har börjat`, m`${n.firstName} har begynt`),
+      (l) => `${tx(l, `Matchunt hat den Antritt am ${dateKeyIn(on, l)} festgestellt.`, `Matchunt has established the start on ${dateKeyIn(on, l)}.`, `Matchunt har fastställt starten ${dateKeyIn(on, l)}.`, `Matchunt har fastslått oppstarten ${dateKeyIn(on, l)}.`)}${note ? ` ${note}` : ''}`, 'placement', p.id);
+    await notify(ctx, n.clientId, 'placement_started', (l) => tx(l, m`Antritt von ${n.firstName}`, m`Start of ${n.firstName}`, m`Start för ${n.firstName}`, m`Oppstart for ${n.firstName}`),
+      (l) => `${tx(l, `Matchunt hat geklärt: angefangen am ${dateKeyIn(on, l)}.`, `Matchunt has clarified: started on ${dateKeyIn(on, l)}.`, `Matchunt har utrett: började ${dateKeyIn(on, l)}.`, `Matchunt har avklart: begynte ${dateKeyIn(on, l)}.`)}${note ? ` ${note}` : ''}`, 'submission', p.submission_id);
     return { ok: true, state: 'started', firstWorkingDay: on };
   }
   must(body?.way === 'not_started', 'Bitte wählen: hat angefangen oder hat nicht angefangen.');

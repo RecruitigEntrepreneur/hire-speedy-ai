@@ -13,6 +13,7 @@ import { useCandidateInsights } from './useCandidateInsights';
 import { useClientQuestions } from './useClientQuestions';
 import { submitterName, type Submitter } from './useSubmitter';
 import { QuestionThreadList } from './QuestionThreadList';
+import { useTranslation } from 'react-i18next';
 
 export const initialsOf = (name: string) =>
   name.split(/\s+/).map((w) => w.charAt(0)).slice(0, 2).join('').toUpperCase() || 'HH';
@@ -38,6 +39,7 @@ interface FrageSheetProps {
  */
 export function FrageSheet({ open, onOpenChange, submitter, submissionId, jobId, candidateId, jobTitle, code, role, identityUnlocked, noticeFallback = null }: FrageSheetProps) {
   const { toast } = useToast();
+  const { t } = useTranslation('clientCandidates');
   const name = submitterName(submitter);
   const [text, setText] = useState('');
   const [error, setError] = useState('');
@@ -68,20 +70,20 @@ export function FrageSheet({ open, onOpenChange, submitter, submissionId, jobId,
   const send = async () => {
     const q = text.trim();
     if (!q) {
-      setError('Bitte zuerst eine Frage eingeben.');
+      setError(t('frage.enterFirst'));
       return;
     }
     if (!submitter?.recruiterId) {
-      setError('Der Headhunter zu diesem Kandidaten ist nicht bekannt.');
+      setError(t('frage.unknownHh'));
       return;
     }
     setBusy(true);
     try {
       await thread.ask({ submissionId, text: q });
       setText('');
-      toast({ title: `Gesendet an ${name}`, description: 'Sie sehen die Antwort hier im Profil und in der Glocke.' });
+      toast({ title: t('frage.sentTo', { name }), description: t('frage.sentHint') });
     } catch (e) {
-      toast({ title: 'Die Frage konnte nicht gesendet werden', description: e instanceof Error ? e.message : undefined, variant: 'destructive' });
+      toast({ title: t('frage.sendError'), description: e instanceof Error ? e.message : undefined, variant: 'destructive' });
     } finally {
       setBusy(false);
     }
@@ -107,29 +109,29 @@ export function FrageSheet({ open, onOpenChange, submitter, submissionId, jobId,
               <AvatarFallback className="bg-primary/10 text-xs text-primary">{initialsOf(name)}</AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <SheetTitle className="text-base">Frage an {name}</SheetTitle>
+              <SheetTitle className="text-base">{t('preview.askHh', { name })}</SheetTitle>
               <SheetDescription className="text-xs">
-                Headhunter · {iv?.interview_date ? 'hat den Kandidaten interviewt' : 'hat den Kandidaten eingereicht'}
+                {iv?.interview_date ? t('frage.interviewed') : t('frage.submitted')}
               </SheetDescription>
             </div>
           </div>
         </SheetHeader>
 
         <div className="mt-4 rounded-md bg-muted/50 px-3 py-2 text-xs">
-          zu <span className="font-medium">{code}</span>{role ? ` · ${role}` : ''}
+          {t('frage.about')} <span className="font-medium">{code}</span>{role ? ` · ${role}` : ''}
           <br />
-          <span className="text-muted-foreground">für: {jobTitle}</span>
+          <span className="text-muted-foreground">{t('card.for', { job: jobTitle })}</span>
         </div>
 
         {common.length > 0 && (
           <div className="mt-4">
-            <p className="text-xs text-muted-foreground">Häufige Fragen</p>
+            <p className="text-xs text-muted-foreground">{t('frage.common')}</p>
             <div className="mt-1.5 flex flex-wrap gap-1.5">{common.map((q) => <Chip key={q.text} label={q.label} value={q.text} />)}</div>
           </div>
         )}
         {fromAssessment.length > 0 && (
           <div className="mt-3">
-            <p className="text-xs text-muted-foreground">Aus der Einschätzung</p>
+            <p className="text-xs text-muted-foreground">{t('frage.fromAssessment')}</p>
             <div className="mt-1.5 flex flex-wrap gap-1.5">{fromAssessment.map((q) => <Chip key={q.text} label={q.label} value={q.text} />)}</div>
           </div>
         )}
@@ -137,7 +139,7 @@ export function FrageSheet({ open, onOpenChange, submitter, submissionId, jobId,
         <Textarea
           value={text}
           onChange={(e) => { setText(e.target.value); setError(''); }}
-          placeholder={`Ihre Frage an ${name} …`}
+          placeholder={t('frage.placeholder', { name })}
           className="mt-4 min-h-[90px] text-sm"
           maxLength={1000}
         />
@@ -145,20 +147,20 @@ export function FrageSheet({ open, onOpenChange, submitter, submissionId, jobId,
         {!identityUnlocked && (
           <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
             <Lock className="h-3 w-3 shrink-0" />
-            Name und Arbeitgeber des Kandidaten bleiben bis zur Interview-Zusage geschützt.
+            {t('frage.protected')}
           </p>
         )}
         <Button className="mt-3 w-full" onClick={() => void send()} disabled={busy}>
           {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Senden
+          {t('frage.send')}
         </Button>
         <p className="mt-3 border-t pt-3 text-xs text-muted-foreground">
-          {name} bekommt eine Aufgabe „Kunde fragt“ und eine E-Mail. Die Antwort sehen Sie hier im Profil, unter Nachrichten und in der Glocke.
+          {t('frage.footer', { name })}
         </p>
 
         {(thread.data?.messages.length ?? 0) > 0 && (
           <div className="mt-4">
-            <p className="mb-1.5 text-xs text-muted-foreground">Bisherige Fragen zu diesem Kandidaten</p>
+            <p className="mb-1.5 text-xs text-muted-foreground">{t('frage.previous')}</p>
             <QuestionThreadList messages={thread.data!.messages} name={name} />
           </div>
         )}

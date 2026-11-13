@@ -1,4 +1,6 @@
 import { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { fmtDate } from '@/lib/localeFormat';
 import { FileUp, Loader2, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,29 +16,31 @@ import {
 import { FirmenLogo } from '@/components/company/FirmenLogo';
 import { SettingsBlock } from './SettingsShell';
 
-const fmt = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '');
+const fmt = (iso: string | null | undefined) => (iso ? fmtDate(iso) : '');
 const PROOF_TYPES = ['application/pdf', 'image/png', 'image/jpeg'];
 
 /** Status einer Firma in einer Zeile – das, was der Kunde jetzt wissen muss. */
 function StatusPill({ c }: { c: ClientCompany }) {
+  const { t } = useTranslation('clientSettings');
   if (c.status === 'verified') {
     return (
       <span className="shrink-0 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-600">
-        ✓ Verifiziert{c.decided_at ? ` am ${fmt(c.decided_at)}` : ''}
+        {c.decided_at ? t('companies.verifiedOn', { date: fmt(c.decided_at) }) : t('companies.verified')}
       </span>
     );
   }
   if (c.status === 'rejected') {
-    return <span className="shrink-0 rounded-full bg-destructive/10 px-2 py-0.5 text-xs text-destructive">Nicht verifiziert</span>;
+    return <span className="shrink-0 rounded-full bg-destructive/10 px-2 py-0.5 text-xs text-destructive">{t('companies.notVerified')}</span>;
   }
   if (c.admin_question) {
-    return <span className="shrink-0 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs text-amber-600">Rückfrage</span>;
+    return <span className="shrink-0 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs text-amber-600">{t('companies.question')}</span>;
   }
-  return <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">In Prüfung</span>;
+  return <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{t('companies.inReview')}</span>;
 }
 
 /** Einstellungen › Unternehmen: Firmen des Kontos, für die es Stellen geben darf. */
 export function FirmenBlock() {
+  const { t } = useTranslation('clientSettings');
   const { companies, loading, unavailable, request } = useClientCompanies();
   const [form, setForm] = useState<{ company: ClientCompany | null; role: CompanyRole } | null>(null);
   const main = companies.find((c) => c.role === 'main') ?? null;
@@ -45,24 +49,24 @@ export function FirmenBlock() {
 
   return (
     <SettingsBlock
-      title="Ihre Firmen"
+      title={t('companies.title')}
       aside={companies.length > 0 && (
         <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setForm({ company: null, role: 'subsidiary' })}>
-          <Plus className="h-3.5 w-3.5" />Weitere Firma beantragen
+          <Plus className="h-3.5 w-3.5" />{t('companies.requestMore')}
         </Button>
       )}
     >
       <p className="text-sm text-muted-foreground">
-        Stellen können Sie nur für verifizierte Firmen einreichen. Matchunt prüft jede Firma einmal.
+        {t('companies.lead')}
       </p>
 
       {loading ? (
         <div className="h-16 animate-pulse rounded-lg bg-muted/50" />
       ) : companies.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border p-4 text-sm">
-          <p className="font-medium">Noch keine Firma hinterlegt</p>
-          <p className="mt-0.5 text-muted-foreground">Tragen Sie Ihre Firma ein, Matchunt prüft sie in 1–2 Werktagen. Die Aufnahme können Sie schon vorher ausfüllen.</p>
-          <Button size="sm" className="mt-3" onClick={() => setForm({ company: null, role: 'main' })}>Firma eintragen</Button>
+          <p className="font-medium">{t('companies.none')}</p>
+          <p className="mt-0.5 text-muted-foreground">{t('companies.noneLead')}</p>
+          <Button size="sm" className="mt-3" onClick={() => setForm({ company: null, role: 'main' })}>{t('companies.add')}</Button>
         </div>
       ) : (
         <ul className="divide-y divide-border rounded-lg border border-border">
@@ -79,7 +83,7 @@ export function FirmenBlock() {
                       <p className="text-sm font-medium">{companyLabel(c)}</p>
                       <p className="text-xs text-muted-foreground">
                         {ROLE_LABEL[c.role]}
-                        {c.status !== 'verified' && ` · beantragt am ${fmt(c.requested_at)}`}
+                        {c.status !== 'verified' && t('companies.requestedOn', { date: fmt(c.requested_at) })}
                       </p>
                     </div>
                   </div>
@@ -89,21 +93,21 @@ export function FirmenBlock() {
 
                 {c.admin_question && (
                   <p className="rounded-md bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-700 dark:text-amber-400">
-                    <span className="font-medium">Rückfrage von Matchunt{change ? ' zur Änderung' : ''}:</span> {c.admin_question}
+                    <span className="font-medium">{change ? t('companies.questionChange') : t('companies.questionFrom')}</span> {c.admin_question}
                   </p>
                 )}
                 {c.status === 'rejected' && c.reject_reason && (
                   <p className="rounded-md bg-destructive/10 px-2.5 py-1.5 text-xs text-destructive">
-                    <span className="font-medium">Grund:</span> {c.reject_reason}
+                    <span className="font-medium">{t('companies.reason')}</span> {c.reject_reason}
                   </p>
                 )}
                 {change && !c.admin_question && (
                   <p className="text-xs text-muted-foreground">
-                    Änderung in Prüfung seit {fmt(c.requested_at)} – bis dahin gelten die Daten oben.
+                    {t('companies.changeInReview', { date: fmt(c.requested_at) })}
                   </p>
                 )}
                 {c.status === 'verified' && !change && c.reject_reason && (
-                  <p className="text-xs text-muted-foreground">Letzte Änderung nicht übernommen: {c.reject_reason}</p>
+                  <p className="text-xs text-muted-foreground">{t('companies.lastChangeRejected', { reason: c.reject_reason })}</p>
                 )}
 
                 <div className="flex flex-wrap gap-3 pt-0.5">
@@ -112,10 +116,10 @@ export function FirmenBlock() {
                     className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
                     onClick={() => setForm({ company: c, role: c.role })}
                   >
-                    {c.admin_question ? 'Angaben ergänzen'
-                      : c.status === 'rejected' ? 'Korrigieren und erneut beantragen'
-                      : c.status === 'verified' ? (change ? 'Änderung bearbeiten' : 'Änderung beantragen')
-                      : 'Angaben bearbeiten'}
+                    {c.admin_question ? t('companies.supplement')
+                      : c.status === 'rejected' ? t('companies.correct')
+                      : c.status === 'verified' ? (change ? t('companies.editChange') : t('companies.requestChange'))
+                      : t('companies.edit')}
                   </button>
                 </div>
               </li>
@@ -147,6 +151,7 @@ function FirmaDialog({ company, role: startRole, mainName, onClose, onSubmit }: 
   onClose: () => void;
   onSubmit: (input: CompanyRequest, proof?: File | null) => Promise<string>;
 }) {
+  const { t } = useTranslation('clientSettings');
   const { toast } = useToast();
   // Eine offene Änderung wird weiterbearbeitet, sonst die geltenden Daten.
   const base = company?.pending_change ?? company;
@@ -171,11 +176,11 @@ function FirmaDialog({ company, role: startRole, mainName, onClose, onSubmit }: 
   const complete = v.legal_name && v.street && v.postal_code && v.city;
 
   const title = !company
-    ? (isMain ? 'Firma eintragen' : 'Weitere Firma beantragen')
-    : verified ? 'Änderung beantragen' : 'Angaben zur Firma';
+    ? (isMain ? t('companies.add') : t('companies.requestMore'))
+    : verified ? t('companies.requestChange') : t('companies.dialog.details');
   const description = !company
-    ? (isMain ? 'Die Firma, für die Sie Stellen besetzen.' : 'Zum Beispiel eine Tochterfirma, für die Sie ebenfalls Stellen besetzen.')
-    : verified ? 'Bis Matchunt die Änderung geprüft hat, gelten die bisherigen Daten.' : 'Nach dem Speichern prüft Matchunt die Firma erneut.';
+    ? (isMain ? t('companies.dialog.mainLead') : t('companies.dialog.otherLead'))
+    : verified ? t('companies.dialog.changeLead') : t('companies.dialog.recheckLead');
 
   const impressum = async () => {
     setImpressumBusy(true);
@@ -183,7 +188,7 @@ function FirmaDialog({ company, role: startRole, mainName, onClose, onSubmit }: 
     setImpressumBusy(false);
     const a = (data as { data?: Record<string, string | undefined> } | null)?.data;
     if (error || !a) {
-      toast({ title: 'Impressum konnte nicht gelesen werden', variant: 'destructive' });
+      toast({ title: t('unternehmen.imprintFailed'), variant: 'destructive' });
       return;
     }
     set({
@@ -194,13 +199,13 @@ function FirmaDialog({ company, role: startRole, mainName, onClose, onSubmit }: 
       registration_number: a.registration_number || v.registration_number,
       vat_id: a.vat_id || v.vat_id,
     });
-    toast({ title: 'Aus dem Impressum übernommen. Bitte kurz prüfen.' });
+    toast({ title: t('unternehmen.imprintDone') });
   };
 
   const pickProof = (file: File | undefined) => {
     if (!file) return;
     if (!PROOF_TYPES.includes(file.type) || file.size > 10 * 1024 * 1024) {
-      toast({ title: 'Bitte ein PDF, PNG oder JPG bis 10 MB wählen', variant: 'destructive' });
+      toast({ title: t('companies.dialog.proofType'), variant: 'destructive' });
       return;
     }
     setProof(file);
@@ -224,10 +229,10 @@ function FirmaDialog({ company, role: startRole, mainName, onClose, onSubmit }: 
         website: v.website || null,
         role,
       }, proof);
-      toast({ title: verified ? 'Änderung zur Prüfung gesendet' : 'Zur Prüfung gesendet', description: 'Matchunt meldet sich in 1–2 Werktagen.' });
+      toast({ title: verified ? t('companies.dialog.changeSent') : t('companies.dialog.sent'), description: t('companies.dialog.sentLead') });
       onClose();
     } catch (e) {
-      toast({ title: e instanceof Error ? e.message : 'Das hat nicht geklappt.', variant: 'destructive' });
+      toast({ title: e instanceof Error ? e.message : t('companies.failed'), variant: 'destructive' });
     } finally {
       setBusy(false);
     }
@@ -243,52 +248,52 @@ function FirmaDialog({ company, role: startRole, mainName, onClose, onSubmit }: 
 
         {company?.admin_question && (
           <p className="rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
-            <span className="font-medium">Rückfrage von Matchunt:</span> {company.admin_question}
+            <span className="font-medium">{t('companies.questionFrom')}</span> {company.admin_question}
           </p>
         )}
 
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="cf-name">Name laut Handelsregister</Label>
-            <Input id="cf-name" value={v.legal_name} placeholder="Muster GmbH" onChange={(e) => set({ legal_name: e.target.value })} />
+            <Label htmlFor="cf-name">{t('companies.dialog.legalName')}</Label>
+            <Input id="cf-name" value={v.legal_name} placeholder={t('companies.dialog.legalNamePh')} onChange={(e) => set({ legal_name: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="cf-web">Website</Label>
+            <Label htmlFor="cf-web">{t('companies.dialog.website')}</Label>
             <div className="flex gap-2">
-              <Input id="cf-web" value={v.website} placeholder="muster.de" onChange={(e) => set({ website: e.target.value })} />
+              <Input id="cf-web" value={v.website} placeholder={t('companies.dialog.websitePh')} onChange={(e) => set({ website: e.target.value })} />
               <Button type="button" variant="outline" className="shrink-0" disabled={!v.website.trim() || impressumBusy} onClick={() => void impressum()}>
-                {impressumBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Aus Impressum'}
+                {impressumBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : t('companies.dialog.fromImprint')}
               </Button>
             </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="cf-hrb">Handelsregister</Label>
-              <Input id="cf-hrb" value={v.registration_number} placeholder="HRB 123456 · AG München" onChange={(e) => set({ registration_number: e.target.value })} />
+              <Label htmlFor="cf-hrb">{t('unternehmen.registration')}</Label>
+              <Input id="cf-hrb" value={v.registration_number} placeholder={t('companies.dialog.registrationPh')} onChange={(e) => set({ registration_number: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="cf-vat">USt-IdNr.</Label>
-              <Input id="cf-vat" value={v.vat_id} placeholder="DE123456789" onChange={(e) => set({ vat_id: e.target.value })} />
+              <Label htmlFor="cf-vat">{t('unternehmen.vatId')}</Label>
+              <Input id="cf-vat" value={v.vat_id} placeholder={t('unternehmen.vatIdPh')} onChange={(e) => set({ vat_id: e.target.value })} />
             </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-[minmax(0,2fr)_6rem_minmax(0,1fr)]">
             <div className="space-y-1.5">
-              <Label htmlFor="cf-street">Straße und Nr.</Label>
-              <Input id="cf-street" value={v.street} placeholder="Musterstraße 1" onChange={(e) => set({ street: e.target.value })} />
+              <Label htmlFor="cf-street">{t('unternehmen.street')}</Label>
+              <Input id="cf-street" value={v.street} placeholder={t('unternehmen.streetPh')} onChange={(e) => set({ street: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="cf-zip">PLZ</Label>
-              <Input id="cf-zip" value={v.postal_code} placeholder="80331" onChange={(e) => set({ postal_code: e.target.value })} />
+              <Label htmlFor="cf-zip">{t('unternehmen.postalCode')}</Label>
+              <Input id="cf-zip" value={v.postal_code} placeholder={t('unternehmen.postalCodePh')} onChange={(e) => set({ postal_code: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="cf-city">Ort</Label>
-              <Input id="cf-city" value={v.city} placeholder="München" onChange={(e) => set({ city: e.target.value })} />
+              <Label htmlFor="cf-city">{t('unternehmen.city')}</Label>
+              <Input id="cf-city" value={v.city} placeholder={t('unternehmen.cityPh')} onChange={(e) => set({ city: e.target.value })} />
             </div>
           </div>
 
           {!isMain && (
             <div className="space-y-1.5">
-              <Label>Verbindung{mainName ? ` zu ${mainName}` : ''}</Label>
+              <Label>{mainName ? t('companies.dialog.linkTo', { name: mainName }) : t('companies.dialog.link')}</Label>
               <div className="flex flex-wrap gap-2">
                 {(['subsidiary', 'sister', 'parent'] as CompanyRole[]).map((r) => (
                   <button
@@ -300,7 +305,7 @@ function FirmaDialog({ company, role: startRole, mainName, onClose, onSubmit }: 
                       role === r ? 'border-foreground bg-foreground text-background' : 'border-border hover:bg-muted',
                     )}
                   >
-                    {r === 'sister' ? 'Schwesterfirma (gleiche Gruppe)' : ROLE_LABEL[r]}
+                    {r === 'sister' ? t('companies.dialog.sisterLong') : ROLE_LABEL[r]}
                   </button>
                 ))}
               </div>
@@ -308,12 +313,12 @@ function FirmaDialog({ company, role: startRole, mainName, onClose, onSubmit }: 
           )}
 
           <div className="space-y-1.5">
-            <Label>Beleg <span className="font-normal text-muted-foreground">(optional, beschleunigt die Prüfung)</span></Label>
+            <Label>{t('companies.dialog.proof')} <span className="font-normal text-muted-foreground">{t('companies.dialog.proofHint')}</span></Label>
             <input ref={fileRef} type="file" accept={PROOF_TYPES.join(',')} className="hidden" onChange={(e) => { pickProof(e.target.files?.[0]); e.target.value = ''; }} />
             {proof ? (
               <div className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-sm">
                 <span className="truncate">{proof.name}</span>
-                <button type="button" aria-label="Beleg entfernen" className="text-muted-foreground hover:text-foreground" onClick={() => setProof(null)}><X className="h-4 w-4" /></button>
+                <button type="button" aria-label={t('companies.dialog.proofRemove')} className="text-muted-foreground hover:text-foreground" onClick={() => setProof(null)}><X className="h-4 w-4" /></button>
               </div>
             ) : (
               <button
@@ -322,19 +327,19 @@ function FirmaDialog({ company, role: startRole, mainName, onClose, onSubmit }: 
                 className="flex w-full items-center gap-2 rounded-md border border-dashed border-border px-3 py-2.5 text-left text-sm text-muted-foreground hover:bg-muted/50"
               >
                 <FileUp className="h-4 w-4 shrink-0" />
-                {company?.proof_path ? 'Neuen Beleg hochladen (einer liegt schon vor)' : 'Handelsregisterauszug oder Vollmacht hochladen'}
+                {company?.proof_path ? t('companies.dialog.proofReplace') : t('companies.dialog.proofUpload')}
               </button>
             )}
           </div>
 
-          <p className="text-xs text-muted-foreground">Matchunt gleicht die Angaben mit Impressum und Register ab und meldet sich in 1–2 Werktagen.</p>
+          <p className="text-xs text-muted-foreground">{t('companies.dialog.checkNote')}</p>
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose} disabled={busy}>Abbrechen</Button>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>{t('cancel')}</Button>
           <Button onClick={() => void submit()} disabled={!complete || busy}>
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-            {verified ? 'Änderung beantragen' : company ? 'Erneut zur Prüfung' : 'Beantragen'}
+            {verified ? t('companies.requestChange') : company ? t('companies.dialog.resubmit') : t('companies.dialog.submit')}
           </Button>
         </DialogFooter>
       </DialogContent>

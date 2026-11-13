@@ -1,3 +1,4 @@
+import i18n from '@/i18n';
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
@@ -37,7 +38,7 @@ export function useCandidateActivityLog(candidateId?: string) {
       if (fetchError) throw fetchError;
       setActivities((data || []) as CandidateActivity[]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Fehler beim Laden der Aktivitäten');
+      setError(err instanceof Error ? err.message : i18n.t('errors:activities'));
     } finally {
       setLoading(false);
     }

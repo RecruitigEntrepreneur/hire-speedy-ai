@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { listenTextT } from '@/lib/briefCatalogText';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -134,6 +136,25 @@ export const CONTRACTING_GRUPPEN: { titel: string; items: string[] }[] = [
 
 const ALLE = [...BENEFIT_GRUPPEN, ...CONTRACTING_GRUPPEN].flatMap((g) => g.items);
 
+/**
+ * Die Anzeige eines Benefits in der Sprache des Lesers.
+ *
+ * Der deutsche Text ist der Speicherwert (jobs.benefits) und bleibt es. Die
+ * Übersetzung hängt an der Stelle in der Liste (intakeCatalog: benefits.c<n>,
+ * benefitsContracting.c<n>). Selbst eingetragene Benefits bleiben, wie sie sind.
+ * Die aufrufende Komponente lädt den Namespace `intakeCatalog`.
+ */
+const FEST = BENEFIT_GRUPPEN.flatMap((g) => g.items);
+const EXTERN = CONTRACTING_GRUPPEN.flatMap((g) => g.items);
+export const benefitAnzeige = (wert: string): string =>
+  FEST.includes(wert) ? listenTextT('benefits', FEST, wert) : listenTextT('benefitsContracting', EXTERN, wert);
+
+/** Die Überschrift einer Benefit-Gruppe in der Sprache des Lesers. */
+export const benefitGruppeAnzeige = (titel: string, contract: 'full-time' | 'freelance'): string =>
+  contract === 'freelance'
+    ? listenTextT('benefitGroupsContracting', CONTRACTING_GRUPPEN.map((g) => g.titel), titel)
+    : listenTextT('benefitGroups', BENEFIT_GRUPPEN.map((g) => g.titel), titel);
+
 interface Props {
   gewaehlt: string[];
   onChange: (benefits: string[]) => void;
@@ -143,6 +164,7 @@ interface Props {
 }
 
 export function BenefitsBlock({ gewaehlt, onChange, vererbt, contract = 'full-time' }: Props) {
+  const { t } = useTranslation(['intake', 'intakeCatalog']);
   const gruppen = contract === 'freelance' ? CONTRACTING_GRUPPEN : BENEFIT_GRUPPEN;
   const [eigen, setEigen] = useState('');
   /**
@@ -176,14 +198,14 @@ export function BenefitsBlock({ gewaehlt, onChange, vererbt, contract = 'full-ti
       >
         <Gift className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Benefits
+          {t('benefitsBlock.title')}
         </span>
         <span className="min-w-0 flex-1 truncate text-xs">
           {gewaehlt.length > 0 ? (
-            gewaehlt.join(' · ')
+            gewaehlt.map(benefitAnzeige).join(' · ')
           ) : (
             <span className="text-muted-foreground">
-              {vererbt ? 'aus Ihrem Firmenprofil — bitte bestätigen' : 'anklicken, was zutrifft'}
+              {vererbt ? t('benefitsBlock.inherited') : t('benefitsBlock.clickHint')}
             </span>
           )}
         </span>
@@ -197,7 +219,7 @@ export function BenefitsBlock({ gewaehlt, onChange, vererbt, contract = 'full-ti
       <div className="space-y-2.5 border-t p-4 pt-3">
         {gruppen.map((g) => (
           <div key={g.titel}>
-            <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">{g.titel}</p>
+            <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">{benefitGruppeAnzeige(g.titel, contract)}</p>
             <div className="flex flex-wrap gap-1.5">
               {g.items.map((b) => (
                 <button
@@ -212,7 +234,7 @@ export function BenefitsBlock({ gewaehlt, onChange, vererbt, contract = 'full-ti
                   )}
                 >
                   {an(b) && <Check className="h-2.5 w-2.5 shrink-0" />}
-                  {b}
+                  {benefitAnzeige(b)}
                 </button>
               ))}
             </div>
@@ -221,7 +243,7 @@ export function BenefitsBlock({ gewaehlt, onChange, vererbt, contract = 'full-ti
 
         {eigene.length > 0 && (
           <div>
-            <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">Von Ihnen ergänzt</p>
+            <p className="mb-1 text-[10px] uppercase tracking-wide text-muted-foreground">{t('benefitsBlock.ownAdded')}</p>
             <div className="flex flex-wrap gap-1.5">
               {eigene.map((b) => (
                 <button
@@ -243,11 +265,11 @@ export function BenefitsBlock({ gewaehlt, onChange, vererbt, contract = 'full-ti
             value={eigen}
             onChange={(e) => setEigen(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); eigenesHinzu(); } }}
-            placeholder="Weitere …"
+            placeholder={t('benefitsBlock.morePlaceholder')}
             className="h-7 text-xs"
           />
           <Button size="sm" variant="outline" className="h-7 gap-1 px-2 text-xs" disabled={!eigen.trim()} onClick={eigenesHinzu}>
-            <Plus className="h-3 w-3" /> Hinzufügen
+            <Plus className="h-3 w-3" /> {t('shared.add')}
           </Button>
         </div>
       </div>

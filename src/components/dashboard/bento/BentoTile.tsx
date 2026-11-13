@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChevronRight, type LucideIcon } from 'lucide-react';
@@ -15,7 +16,8 @@ interface BentoTileProps {
 
 /** Einheitliche Bento-Kachel: Header (Icon + Titel + optional Count + "Alle ›")
  *  und ein flex-Body, der die Kachel füllt – so werden die vier Boxen gleich hoch. */
-export function BentoTile({ icon: Icon, title, count, to, toLabel = 'Alle', children }: BentoTileProps) {
+export function BentoTile({ icon: Icon, title, count, to, toLabel, children }: BentoTileProps) {
+  const { t } = useTranslation('clientDashboard');
   return (
     <Card className="border-border/30 shadow-sm h-full">
       <CardContent className="p-5 flex flex-col h-full">
@@ -30,7 +32,7 @@ export function BentoTile({ icon: Icon, title, count, to, toLabel = 'Alle', chil
           {to && (
             <Button variant="ghost" size="sm" asChild className="h-7 text-xs text-muted-foreground gap-1 shrink-0">
               <Link to={to}>
-                {toLabel}
+                {toLabel ?? t('tiles.all')}
                 <ChevronRight className="h-3.5 w-3.5" />
               </Link>
             </Button>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
@@ -23,6 +24,8 @@ interface Props {
 }
 
 export function VerifyStep({ draft, onSend, onConfirm, onEditEmail, onVerified }: Props) {
+  const { t } = useTranslation('clientFunnel');
+  const bold = { bold: <strong className="text-foreground" /> };
   const email = draft.contact_email ?? '';
   const alreadyVerified = draft.states.identity === 'email_verified';
 
@@ -80,7 +83,7 @@ export function VerifyStep({ draft, onSend, onConfirm, onEditEmail, onVerified }
           <CheckCircle2 className="h-5 w-5 text-emerald-600" />
         </div>
         <div>
-          <h2 className="text-xl font-bold tracking-tight">E-Mail-Adresse bestätigt</h2>
+          <h2 className="text-xl font-bold tracking-tight">{t('verify.confirmedTitle')}</h2>
           <p className="mt-1 text-sm text-muted-foreground">{email}</p>
         </div>
       </div>
@@ -93,11 +96,11 @@ export function VerifyStep({ draft, onSend, onConfirm, onEditEmail, onVerified }
         <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-muted">
           <Mail className="h-5 w-5 text-muted-foreground" />
         </div>
-        <h2 className="text-xl font-bold tracking-tight">Ihre E-Mail-Adresse bestätigen</h2>
+        <h2 className="text-xl font-bold tracking-tight">{t('verify.title')}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           {sent
-            ? <>Wir haben einen sechsstelligen Code an <strong className="text-foreground">{masked}</strong> gesendet.</>
-            : <>Wir senden einen sechsstelligen Code an <strong className="text-foreground">{email}</strong>.</>}
+            ? <Trans t={t} i18nKey="verify.sent" values={{ email: masked }} components={bold} />
+            : <Trans t={t} i18nKey="verify.willSend" values={{ email }} components={bold} />}
         </p>
       </div>
 
@@ -107,12 +110,12 @@ export function VerifyStep({ draft, onSend, onConfirm, onEditEmail, onVerified }
             <>
               <Button onClick={send} disabled={busy || !email} className="w-full gap-2">
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
-                Code senden
+                {t('verify.sendCode')}
               </Button>
               {/* Ohne diesen Satz steht unten ein Feld ohne Anlass. Mit ihm
                   weiss der Kunde, dass ein aelterer Code hier hingehoert. */}
               <p className="text-center text-xs text-muted-foreground">
-                Schon einen Code erhalten? Hier eintragen.
+                {t('verify.haveCode')}
               </p>
             </>
           )}
@@ -136,7 +139,7 @@ export function VerifyStep({ draft, onSend, onConfirm, onEditEmail, onVerified }
 
           {busy && (
             <p className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Wird geprüft
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t('common.checking')}
             </p>
           )}
 
@@ -146,7 +149,7 @@ export function VerifyStep({ draft, onSend, onConfirm, onEditEmail, onVerified }
               onClick={onEditEmail}
               className="text-muted-foreground underline underline-offset-2 hover:text-foreground"
             >
-              Adresse ändern
+              {t('verify.changeAddress')}
             </button>
             {sent && (
               <button
@@ -155,7 +158,7 @@ export function VerifyStep({ draft, onSend, onConfirm, onEditEmail, onVerified }
                 disabled={cooldown > 0 || busy}
                 className="text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:cursor-default disabled:no-underline disabled:opacity-60"
               >
-                {cooldown > 0 ? `Erneut senden in ${cooldown} s` : 'Code erneut senden'}
+                {cooldown > 0 ? t('verify.resendIn', { seconds: cooldown }) : t('verify.resend')}
               </button>
             )}
           </div>
@@ -170,7 +173,7 @@ export function VerifyStep({ draft, onSend, onConfirm, onEditEmail, onVerified }
       </Card>
 
       <p className="text-center text-xs text-muted-foreground">
-        Der Code ist 15 Minuten gültig. Prüfen Sie gegebenenfalls den Spam-Ordner.
+        {t('verify.validity')}
       </p>
     </div>
   );

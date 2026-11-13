@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { intlLocale } from '@/i18n/languages';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -72,16 +74,18 @@ interface Props {
 
 type Feld = keyof CompanyDraft;
 
-const FELDER: { key: Feld; label: string; pflicht?: boolean; ph: string }[] = [
-  { key: 'company_name', label: 'Firmenname', pflicht: true, ph: 'wie er im Alltag verwendet wird' },
-  { key: 'company_legal_name', label: 'Vollständige Firmierung', ph: 'z. B. Muster GmbH' },
-  { key: 'company_industry', label: 'Branche', ph: 'z. B. Maschinenbau' },
-  { key: 'company_website', label: 'Website', ph: 'https://…' },
-  { key: 'company_street', label: 'Straße', ph: 'Straße und Hausnummer' },
-  { key: 'company_postal_code', label: 'PLZ', ph: '80337' },
-  { key: 'company_city', label: 'Ort', ph: 'München' },
-  { key: 'company_registration_number', label: 'Handelsregister', ph: 'z. B. HRB 288632' },
-  { key: 'company_vat_id', label: 'USt-IdNr.', ph: 'z. B. DE123456789' },
+// Beschriftung und Beispiel stehen in den Sprachdateien (intake: company.field.<key>,
+// company.placeholder.<key>) und werden beim Zeichnen gelesen.
+const FELDER: { key: Feld; pflicht?: boolean }[] = [
+  { key: 'company_name', pflicht: true },
+  { key: 'company_legal_name' },
+  { key: 'company_industry' },
+  { key: 'company_website' },
+  { key: 'company_street' },
+  { key: 'company_postal_code' },
+  { key: 'company_city' },
+  { key: 'company_registration_number' },
+  { key: 'company_vat_id' },
 ];
 
 /**
@@ -118,6 +122,7 @@ const FREEMAIL = /(gmail|googlemail|outlook|hotmail|live|yahoo|gmx|web\.de|t-onl
 const RECHTSFORM = /\s+(GmbH(\s*&\s*Co\.?\s*KG)?|AG|SE|KG|OHG|UG(\s*\(haftungsbeschränkt\))?|mbH|e\.\s?K\.|GbR)\s*$/i;
 
 export function CompanyBlock({ werte, ausAnzeige, onChange, onEnrich, onHeadcount }: Props) {
+  const { t, i18n } = useTranslation(['intake', 'intakeCatalog']);
   /**
    * Eingaben leben lokal, nicht am gespeicherten Entwurf.
    *
@@ -182,12 +187,12 @@ export function CompanyBlock({ werte, ausAnzeige, onChange, onEnrich, onHeadcoun
       // (kann hier nicht auftreten -- ohne Domain rufen wir gar nicht),
       // mal "Unbekannte Operation." aus einem Deploy-Rueckstand. Beides hat
       // auf einer Kundenseite nichts zu suchen.
-      setNote('Die automatische Ergänzung ist gerade nicht möglich. Bitte tragen Sie die Angaben von Hand ein.');
+      setNote(t('company.enrichFailed'));
       return;
     }
     const a = res as Anreicherung;
     if (!(a.legal_name || a.street || a.registration_number || a.vat_id || a.city)) {
-      setNote('Auf der Website war kein Impressum mit verwertbaren Angaben zu finden.');
+      setNote(t('company.enrichEmpty'));
       return;
     }
     setVorschlag(a);
@@ -221,7 +226,11 @@ export function CompanyBlock({ werte, ausAnzeige, onChange, onEnrich, onHeadcoun
   };
 
   const fehlendePflicht = FELDER.filter((f) => f.pflicht && !wert(f.key));
-  const label = (k: Feld) => FELDER.find((f) => f.key === k)!;
+  const label = (k: Feld) => ({
+    ...FELDER.find((f) => f.key === k)!,
+    label: t(`company.field.${k}`),
+    ph: t(`company.placeholder.${k}`),
+  });
 
   /** Ein Wert mit dauerhafter Beschriftung. Klick oeffnet ihn. */
   const zelle = (k: Feld, mit?: Feld) => {
@@ -270,7 +279,7 @@ export function CompanyBlock({ werte, ausAnzeige, onChange, onEnrich, onHeadcoun
               !zusammen && (f.pflicht ? 'text-amber-600' : 'text-muted-foreground'),
             )}
           >
-            <span className="truncate">{zusammen || (f.pflicht ? 'fehlt' : 'ergänzen')}</span>
+            <span className="truncate">{zusammen || (f.pflicht ? t('company.missing') : t('company.addValue'))}</span>
             <Pencil className="h-2.5 w-2.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-40" />
           </button>
         )}
@@ -282,14 +291,14 @@ export function CompanyBlock({ werte, ausAnzeige, onChange, onEnrich, onHeadcoun
     <div className="rounded-xl border bg-card">
       <div className="flex items-center justify-between gap-2 border-b px-4 py-2">
         <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          <Building2 className="h-3.5 w-3.5" /> Ihr Unternehmen
+          <Building2 className="h-3.5 w-3.5" /> {t('company.title')}
           <span className="hidden font-normal normal-case tracking-normal opacity-70 sm:inline">
-            — steht später auf der Vereinbarung
+            {t('company.titleNote')}
           </span>
         </p>
         {busy ? (
           <span className="flex shrink-0 items-center gap-1.5 text-[11px] text-muted-foreground">
-            <Loader2 className="h-3 w-3 animate-spin" /> Website wird gelesen
+            <Loader2 className="h-3 w-3 animate-spin" /> {t('company.readingWebsite')}
           </span>
         ) : domain ? (
           <Button
@@ -298,7 +307,7 @@ export function CompanyBlock({ werte, ausAnzeige, onChange, onEnrich, onHeadcoun
             className="h-6 shrink-0 gap-1 px-2 text-[11px] text-muted-foreground"
             onClick={() => holen(domain)}
           >
-            <Sparkles className="h-3 w-3" /> Aus Impressum
+            <Sparkles className="h-3 w-3" /> {t('company.fromImprint')}
           </Button>
         ) : null}
       </div>
@@ -318,7 +327,10 @@ export function CompanyBlock({ werte, ausAnzeige, onChange, onEnrich, onHeadcoun
 
         {fehlendePflicht.length > 0 && (
           <p className="pt-1 text-[11px] text-amber-600">
-            Ohne {fehlendePflicht.map((f) => f.label).join(' und ')} können wir die Vereinbarung nicht ausstellen.
+            {t('company.withoutFields', {
+              fields: new Intl.ListFormat(intlLocale(i18n.language), { style: 'long', type: 'conjunction' })
+                .format(fehlendePflicht.map((f) => label(f.key).label)),
+            })}
           </p>
         )}
         {note && <p className="pt-1 text-[11px] text-amber-600">{note}</p>}
@@ -326,31 +338,31 @@ export function CompanyBlock({ werte, ausAnzeige, onChange, onEnrich, onHeadcoun
         {vorschlag && (
           <div className="mt-1 rounded-lg border border-primary/30 bg-primary/[0.03] p-3">
             <Badge variant="outline" className="mb-2 gap-1 text-[10px]">
-              <Sparkles className="h-2.5 w-2.5 text-primary" /> aus Ihrem Impressum gelesen
+              <Sparkles className="h-2.5 w-2.5 text-primary" /> {t('company.suggestion.badge')}
             </Badge>
             <ul className="mb-2.5 space-y-0.5 text-xs">
-              {vorschlag.legal_name && <li><span className="text-muted-foreground">Firmierung: </span>{vorschlag.legal_name}</li>}
+              {vorschlag.legal_name && <li><span className="text-muted-foreground">{t('company.suggestion.legalName')}: </span>{vorschlag.legal_name}</li>}
               {(vorschlag.street || vorschlag.city) && (
                 <li>
-                  <span className="text-muted-foreground">Adresse: </span>
+                  <span className="text-muted-foreground">{t('company.suggestion.address')}: </span>
                   {[vorschlag.street, [vorschlag.postal_code, vorschlag.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
                 </li>
               )}
-              {vorschlag.registration_number && <li><span className="text-muted-foreground">Handelsregister: </span>{vorschlag.registration_number}</li>}
-              {vorschlag.vat_id && <li><span className="text-muted-foreground">USt-IdNr.: </span>{vorschlag.vat_id}</li>}
-              {vorschlag.industry && <li><span className="text-muted-foreground">Branche: </span>{vorschlag.industry}</li>}
-              {vorschlag.headcount ? <li><span className="text-muted-foreground">Mitarbeitende: </span>{vorschlag.headcount}</li> : null}
+              {vorschlag.registration_number && <li><span className="text-muted-foreground">{t('company.suggestion.register')}: </span>{vorschlag.registration_number}</li>}
+              {vorschlag.vat_id && <li><span className="text-muted-foreground">{t('company.suggestion.vatId')}: </span>{vorschlag.vat_id}</li>}
+              {vorschlag.industry && <li><span className="text-muted-foreground">{t('company.suggestion.industry')}: </span>{vorschlag.industry}</li>}
+              {vorschlag.headcount ? <li><span className="text-muted-foreground">{t('company.suggestion.headcount')}: </span>{vorschlag.headcount}</li> : null}
             </ul>
             <div className="flex gap-2">
               <Button size="sm" className="h-7 gap-1 text-xs" onClick={uebernehmen}>
-                <Check className="h-3 w-3" /> Stimmt, übernehmen
+                <Check className="h-3 w-3" /> {t('company.suggestion.accept')}
               </Button>
               <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs text-muted-foreground" onClick={() => setVorschlag(null)}>
-                <X className="h-3 w-3" /> Verwerfen
+                <X className="h-3 w-3" /> {t('company.suggestion.discard')}
               </Button>
             </div>
             <p className="mt-2 text-[10px] text-muted-foreground">
-              Wir füllen nur leere Felder. Was Sie selbst eingetragen haben, bleibt stehen.
+              {t('company.suggestion.note')}
             </p>
           </div>
         )}

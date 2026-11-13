@@ -9,6 +9,8 @@ import {
 } from './placement-service.ts';
 import { onInvoicePaid } from './nachbesetzung.ts';
 import { esc, layout } from './intake-mail.ts';
+import { m, tx } from './notify-i18n.ts';
+import type { Lang } from './i18n.ts';
 
 export const UUID = /^[0-9a-f-]{36}$/i;
 export const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -76,8 +78,9 @@ export async function applyInvoicePayment(ctx: PlacementCtx, inv: any, o: {
         if (p) {
           const { data: s } = await ctx.db.from('submissions').select('recruiter_id').eq('id', (p as any).submission_id).maybeSingle();
           const started = !!(p as any).start_fixed_at || ['started', 'completed'].includes((p as any).placement_state);
-          await notify(ctx, (s as any)?.recruiter_id, 'placement_paid', 'Kunde hat bezahlt',
-            started ? `Rechnung ${inv.invoice_number} ist bezahlt. Dein Anteil kommt mit der nächsten Monats-Gutschrift.` : `Rechnung ${inv.invoice_number} ist bezahlt. Dein Anteil kommt mit der Monats-Gutschrift, sobald dein Kandidat angefangen hat.`,
+          await notify(ctx, (s as any)?.recruiter_id, 'placement_paid', (l) => tx(l, 'Kunde hat bezahlt', 'Client has paid', 'Kunden har betalat', 'Kunden har betalt'),
+            (l) => started ? tx(l, m`Rechnung ${inv.invoice_number} ist bezahlt. Dein Anteil kommt mit der nächsten Monats-Gutschrift.`, m`Invoice ${inv.invoice_number} has been paid. Your share comes with the next monthly credit note.`, m`Faktura ${inv.invoice_number} är betald. Din andel kommer med nästa månatliga kreditnota.`, m`Faktura ${inv.invoice_number} er betalt. Andelen din kommer med neste månedlige kreditnota.`)
+              : tx(l, m`Rechnung ${inv.invoice_number} ist bezahlt. Dein Anteil kommt mit der Monats-Gutschrift, sobald dein Kandidat angefangen hat.`, m`Invoice ${inv.invoice_number} has been paid. Your share comes with the monthly credit note once your candidate has started.`, m`Faktura ${inv.invoice_number} är betald. Din andel kommer med den månatliga kreditnotan så snart din kandidat har börjat.`, m`Faktura ${inv.invoice_number} er betalt. Andelen din kommer med den månedlige kreditnotaen så snart kandidaten din har begynt.`),
             'placement', inv.placement_id);
         }
       }
@@ -107,13 +110,15 @@ export interface CustomerMail {
   attachments?: { filename: string; contentBase64: string; contentType: string }[];
   template: string;
   meta: Record<string, unknown>;
+  /** Sprache der Mail (lang-Attribut, Fußzeile); ohne Angabe Deutsch */
+  lang?: Lang | null;
 }
 
 /** An die Rechnungs-E-Mail und alle Kopien. Rückgabe: wer es bekommen hat. */
 export async function mailCustomer(ctx: PlacementCtx, inv: any, m: CustomerMail): Promise<{ sentTo: string[]; failed: string[]; to: string | null }> {
   const { to, cc } = await customerRecipients(ctx, inv);
   must(to, 'Die Rechnungs-E-Mail des Kunden fehlt.', 'conflict');
-  const html = layout({ preheader: m.heading, heading: m.heading, body: m.paragraphs.map((p) => `<p style="margin:0 0 12px 0;">${p}</p>`).join(''), cta: m.cta });
+  const html = layout({ ...(m.lang ? { lang: m.lang } : {}), preheader: m.heading, heading: m.heading, body: m.paragraphs.map((p) => `<p style="margin:0 0 12px 0;">${p}</p>`).join(''), cta: m.cta });
   const sentTo: string[] = [];
   const failed: string[] = [];
   for (const addr of [to!, ...cc]) {

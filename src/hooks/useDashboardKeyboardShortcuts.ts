@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
+import { useTranslation } from 'react-i18next';
 
 interface ShortcutConfig {
   keys: string[];
@@ -13,6 +14,7 @@ export function useDashboardKeyboardShortcuts(onHelpOpen?: () => void) {
   const navigate = useNavigate();
   const location = useLocation();
   const { role } = useAuth();
+  const { t } = useTranslation('shortcuts');
   const [keyBuffer, setKeyBuffer] = useState<string[]>([]);
   const [bufferTimeout, setBufferTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
 
@@ -34,51 +36,51 @@ export function useDashboardKeyboardShortcuts(onHelpOpen?: () => void) {
     { 
       keys: ['g', 'd'], 
       action: () => navigate(getBasePath()), 
-      description: 'Dashboard',
+      description: t('item.dashboard'),
       category: 'navigation'
     },
     { 
       keys: ['g', 'j'], 
       action: () => navigate(`${getBasePath()}/jobs`), 
-      description: 'Jobs',
+      description: t('item.jobs'),
       category: 'navigation'
     },
     { 
       keys: ['g', 't'], 
       action: () => navigate(`${getBasePath()}/talent`), 
-      description: 'Talent Hub',
+      description: t('item.talent'),
       category: 'navigation'
     },
     { 
       keys: ['g', 'i'], 
       action: () => navigate(`${getBasePath()}/interviews`), 
-      description: 'Interviews',
+      description: t('item.interviews'),
       category: 'navigation'
     },
     { 
       keys: ['g', 'm'], 
       action: () => navigate(`${getBasePath()}/messages`), 
-      description: 'Nachrichten',
+      description: t('item.messages'),
       category: 'navigation'
     },
     { 
       keys: ['g', 's'], 
       action: () => navigate(`${getBasePath()}/settings`), 
-      description: 'Einstellungen',
+      description: t('item.settings'),
       category: 'navigation'
     },
     // Action shortcuts
     { 
       keys: ['n', 'j'], 
       action: () => navigate(`${getBasePath()}/jobs/new`), 
-      description: 'Neuer Job',
+      description: t('item.newJob'),
       category: 'actions'
     },
     // Help
     { 
       keys: ['?'], 
       action: () => onHelpOpen?.(), 
-      description: 'Shortcuts anzeigen',
+      description: t('item.help'),
       category: 'actions'
     },
   ];

@@ -1,16 +1,19 @@
+import { useTranslation } from 'react-i18next';
 import type { QuestionMessage } from './useClientQuestions';
+import { fmtDayMonth } from '@/lib/localeFormat';
 
-const tag = (iso: string) => (iso ? new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : '');
+const tag = (iso: string) => (iso ? fmtDayMonth(iso) : '');
 
 /** Fragen des Kunden und Antworten des Headhunters, älteste zuerst. */
 export function QuestionThreadList({ messages, name }: { messages: QuestionMessage[]; name: string }) {
+  const { t } = useTranslation('clientCandidates');
   const last = messages[messages.length - 1];
   return (
     <div className="space-y-2 rounded-md bg-muted/50 p-3 text-sm">
       {messages.map((m) =>
         m.mine ? (
           <div key={m.id}>
-            <p className="text-xs text-muted-foreground">Sie · {tag(m.createdAt)}</p>
+            <p className="text-xs text-muted-foreground">{t('questions.you')} · {tag(m.createdAt)}</p>
             <p className="whitespace-pre-wrap">{m.content}</p>
           </div>
         ) : (
@@ -20,7 +23,7 @@ export function QuestionThreadList({ messages, name }: { messages: QuestionMessa
           </div>
         ),
       )}
-      {last?.mine && <p className="text-xs text-muted-foreground">wartet auf Antwort</p>}
+      {last?.mine && <p className="text-xs text-muted-foreground">{t('questions.waiting')}</p>}
     </div>
   );
 }

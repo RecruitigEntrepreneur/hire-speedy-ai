@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,6 +22,7 @@ import { toast } from "sonner";
 import { AlertTriangle, Loader2, Trash2 } from "lucide-react";
 
 export function DataDeletionRequest() {
+  const { t } = useTranslation("privacy");
   const [loading, setLoading] = useState(false);
   const [reason, setReason] = useState("");
   const [confirmToken, setConfirmToken] = useState("");
@@ -32,7 +34,7 @@ export function DataDeletionRequest() {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session) {
-        toast.error("Nicht authentifiziert");
+        toast.error(t("notAuthenticated"));
         return;
       }
 
@@ -49,10 +51,10 @@ export function DataDeletionRequest() {
       if (error) throw error;
 
       setRequestSent(true);
-      toast.success("Löschanfrage gesendet. Bitte prüfen Sie Ihre E-Mails.");
+      toast.success(t("deletion.requestSent"));
     } catch (error) {
       console.error("Deletion request error:", error);
-      toast.error("Fehler beim Senden der Löschanfrage");
+      toast.error(t("deletion.requestFailed"));
     } finally {
       setLoading(false);
     }
@@ -60,7 +62,7 @@ export function DataDeletionRequest() {
 
   const handleConfirmDeletion = async () => {
     if (!confirmToken) {
-      toast.error("Bitte geben Sie den Bestätigungscode ein");
+      toast.error(t("deletion.codeMissing"));
       return;
     }
 
@@ -68,7 +70,7 @@ export function DataDeletionRequest() {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session) {
-        toast.error("Nicht authentifiziert");
+        toast.error(t("notAuthenticated"));
         return;
       }
 
@@ -84,13 +86,13 @@ export function DataDeletionRequest() {
 
       if (error) throw error;
 
-      toast.success("Ihr Konto wurde gelöscht");
+      toast.success(t("deletion.deleted"));
       // Sign out and redirect
       await supabase.auth.signOut();
       window.location.href = "/";
     } catch (error) {
       console.error("Deletion confirm error:", error);
-      toast.error("Fehler bei der Bestätigung. Ungültiger Code?");
+      toast.error(t("deletion.confirmFailed"));
     } finally {
       setLoading(false);
     }
@@ -101,7 +103,7 @@ export function DataDeletionRequest() {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session) {
-        toast.error("Nicht authentifiziert");
+        toast.error(t("notAuthenticated"));
         return;
       }
 
@@ -114,10 +116,10 @@ export function DataDeletionRequest() {
 
       setRequestSent(false);
       setConfirmToken("");
-      toast.success("Löschanfrage abgebrochen");
+      toast.success(t("deletion.cancelled"));
     } catch (error) {
       console.error("Cancellation error:", error);
-      toast.error("Fehler beim Abbrechen");
+      toast.error(t("deletion.cancelFailed"));
     } finally {
       setLoading(false);
     }
@@ -128,29 +130,28 @@ export function DataDeletionRequest() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-destructive">
           <Trash2 className="h-5 w-5" />
-          Konto löschen
+          {t("deletion.title")}
         </CardTitle>
         <CardDescription>
-          Löschen Sie Ihr Konto und alle damit verbundenen Daten (DSGVO Art. 17)
+          {t("deletion.description")}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Warnung</AlertTitle>
+          <AlertTitle>{t("deletion.warning")}</AlertTitle>
           <AlertDescription>
-            Die Kontolöschung ist unwiderruflich. Alle Ihre Daten werden anonymisiert 
-            und können nicht wiederhergestellt werden.
+            {t("deletion.warningText")}
           </AlertDescription>
         </Alert>
 
         {!requestSent ? (
           <>
             <div className="space-y-2">
-              <Label htmlFor="reason">Grund für die Löschung (optional)</Label>
+              <Label htmlFor="reason">{t("deletion.reason")}</Label>
               <Textarea
                 id="reason"
-                placeholder="Teilen Sie uns mit, warum Sie Ihr Konto löschen möchten..."
+                placeholder={t("deletion.reasonPlaceholder")}
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 rows={3}
@@ -161,24 +162,23 @@ export function DataDeletionRequest() {
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" disabled={loading}>
                   {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Kontolöschung anfordern
+                  {t("deletion.request")}
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Sind Sie sicher?</AlertDialogTitle>
+                  <AlertDialogTitle>{t("deletion.sure")}</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Sie erhalten eine E-Mail mit einem Bestätigungslink. Erst nach der 
-                    Bestätigung wird Ihr Konto gelöscht.
+                    {t("deletion.sureText")}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+                  <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={handleRequestDeletion}
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   >
-                    Löschung anfordern
+                    {t("deletion.requestShort")}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -188,16 +188,15 @@ export function DataDeletionRequest() {
           <>
             <Alert>
               <AlertDescription>
-                Wir haben Ihnen eine E-Mail mit einem Bestätigungscode gesendet. 
-                Geben Sie diesen Code unten ein, um die Löschung zu bestätigen.
+                {t("deletion.codeSent")}
               </AlertDescription>
             </Alert>
 
             <div className="space-y-2">
-              <Label htmlFor="confirm-token">Bestätigungscode</Label>
+              <Label htmlFor="confirm-token">{t("deletion.code")}</Label>
               <Input
                 id="confirm-token"
-                placeholder="Code aus der E-Mail eingeben..."
+                placeholder={t("deletion.codePlaceholder")}
                 value={confirmToken}
                 onChange={(e) => setConfirmToken(e.target.value)}
               />
@@ -210,10 +209,10 @@ export function DataDeletionRequest() {
                 disabled={loading || !confirmToken}
               >
                 {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Löschung bestätigen
+                {t("deletion.confirm")}
               </Button>
               <Button variant="outline" onClick={handleCancelDeletion} disabled={loading}>
-                Abbrechen
+                {t("cancel")}
               </Button>
             </div>
           </>

@@ -1,6 +1,7 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Calendar, Download, RefreshCw } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface PeriodSelectorProps {
   value: number;
@@ -17,14 +18,15 @@ export function PeriodSelector({
   onExport,
   isRefreshing,
 }: PeriodSelectorProps) {
+  const { t } = useTranslation('clientDashboard');
   const periods = [
-    { value: 7, label: 'Last 7 Days' },
-    { value: 14, label: 'Last 14 Days' },
-    { value: 30, label: 'Last 30 Days' },
-    { value: 60, label: 'Last 60 Days' },
-    { value: 90, label: 'Last 90 Days' },
-    { value: 180, label: 'Last 6 Months' },
-    { value: 365, label: 'Last Year' },
+    { value: 7, label: t('analytics.period.days', { count: 7 }) },
+    { value: 14, label: t('analytics.period.days', { count: 14 }) },
+    { value: 30, label: t('analytics.period.days', { count: 30 }) },
+    { value: 60, label: t('analytics.period.days', { count: 60 }) },
+    { value: 90, label: t('analytics.period.days', { count: 90 }) },
+    { value: 180, label: t('analytics.period.sixMonths') },
+    { value: 365, label: t('analytics.period.year') },
   ];
 
   return (

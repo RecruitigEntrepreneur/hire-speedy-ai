@@ -7,6 +7,11 @@ import {
   TASK_ACTION, TASK_CHIP, sinceLabel, waitingLabel,
   type ClientDoneItem, type ClientTask, type ClientTaskKind, type ClientWaitingItem, type TaskChip, type TaskContext,
 } from '@/lib/clientTasksApi';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
+import { intlLocale } from '@/i18n/languages';
+
+const byLabel = (by: string) => i18n.t(`clientTasks:by.${['candidate', 'recruiter', 'matchunt'].includes(by) ? by : 'other'}`);
 
 /**
  * Bausteine der Kunden-Aufgaben (23.10.2026): eine Zeile für Liste und Kachel, Karten für
@@ -32,6 +37,7 @@ export function Chip({ chip, className }: { chip: TaskChip; className?: string }
 }
 
 export function TaskRow({ task, onOpen, compact = false, active = false }: { task: ClientTask; onOpen: (t: ClientTask) => void; compact?: boolean; active?: boolean }) {
+  useTranslation('clientTasks');
   const Icon = TASK_ICON[task.kind] ?? CheckCircle2;
   const c = task.context;
   // Zeile auf der Seite: Fakten statt Kurztext, darunter warum es eilt (Kachel bleibt kompakt)
@@ -62,7 +68,7 @@ export function TaskRow({ task, onOpen, compact = false, active = false }: { tas
         {!compact && task.note && <p className="truncate text-xs text-amber-600 dark:text-amber-400">{task.note}</p>}
       </button>
       {!compact && <span className="hidden shrink-0 text-xs text-muted-foreground sm:block">{waitingLabel(task)}</span>}
-      {compact && <span className="shrink-0 text-xs text-muted-foreground">{sinceLabel(task.since).replace('seit ', '')}</span>}
+      {compact && <span className="shrink-0 text-xs text-muted-foreground">{sinceLabel(task.since).replace(/^(seit|since|sedan|for|i) /, '')}</span>}
       {/* Auf dem Handy reicht die Zeile als Knopf, der Text bekommt den Platz */}
       <Button size="sm" variant={task.urgent ? 'default' : 'outline'} className="hidden h-7 shrink-0 text-xs sm:inline-flex" onClick={() => onOpen(task)}>{TASK_ACTION[task.kind]}</Button>
     </div>
@@ -70,7 +76,7 @@ export function TaskRow({ task, onOpen, compact = false, active = false }: { tas
 }
 
 export function WaitingRow({ item, onOpen }: { item: ClientWaitingItem; onOpen?: (w: ClientWaitingItem) => void }) {
-  const label = item.by === 'candidate' ? 'Kandidat' : item.by === 'recruiter' ? 'Headhunter' : item.by === 'matchunt' ? 'Matchunt' : 'Termin';
+  const label = byLabel(item.by);
   const clickable = !!onOpen && isContractWaiting(item.key) && !!item.submissionId;
   return (
     <div className={cn('flex items-center gap-3 rounded-lg px-2.5 py-2', clickable && 'cursor-pointer hover:bg-accent/50')} onClick={clickable ? () => onOpen!(item) : undefined}
@@ -89,7 +95,7 @@ export function DoneRow({ item }: { item: ClientDoneItem }) {
     <div className="flex items-center gap-3 rounded-lg px-2.5 py-1.5 text-sm text-muted-foreground">
       <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
       <span className="min-w-0 flex-1 truncate">{item.label}{item.answer ? ` · ${item.answer}` : ''}</span>
-      <span className="shrink-0 text-xs">{new Date(item.doneAt).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+      <span className="shrink-0 text-xs">{new Date(item.doneAt).toLocaleString(intlLocale(i18n.language), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
     </div>
   );
 }
@@ -163,12 +169,13 @@ export const isContractWaiting = (key: string) => /^(sign-company|docusign-cand|
 
 /** Kopf des Bewerberprofils: „IHRE AUFGABEN“ und „LÄUFT BEI ANDEREN“ als Karten. */
 export function ProfileTaskCards({ tasks, waiting, onOpen, onOpenWaiting }: { tasks: ClientTask[]; waiting: ClientWaitingItem[]; onOpen: (t: ClientTask) => void; onOpenWaiting?: (w: ClientWaitingItem) => void }) {
+  const { t: tr } = useTranslation('clientTasks');
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <div>
-        <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Ihre Aufgaben ({tasks.length})</p>
+        <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{tr('cards.yourTasks', { count: tasks.length })}</p>
         {tasks.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Gerade nichts für Sie zu tun.</p>
+          <p className="text-sm text-muted-foreground">{tr('cards.nothing')}</p>
         ) : (
           <div className="space-y-1.5">
             {tasks.map((t) => (
@@ -187,7 +194,7 @@ export function ProfileTaskCards({ tasks, waiting, onOpen, onOpenWaiting }: { ta
         )}
       </div>
       <div>
-        <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Läuft bei anderen ({waiting.length})</p>
+        <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{tr('cards.withOthers', { count: waiting.length })}</p>
         {waiting.length === 0 ? (
           <p className="text-sm text-muted-foreground">–</p>
         ) : (
@@ -197,7 +204,7 @@ export function ProfileTaskCards({ tasks, waiting, onOpen, onOpenWaiting }: { ta
               const clickable = !!onOpenWaiting && isContractWaiting(w.key);
               const body = (
                 <>
-                  <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">{w.by === 'candidate' ? 'Kandidat' : w.by === 'recruiter' ? 'Headhunter' : w.by === 'matchunt' ? 'Matchunt' : 'Termin'}</span>
+                  <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">{byLabel(w.by)}</span>
                   <p className="mt-1 text-sm font-medium">{w.title}</p>
                   <p className="text-xs text-muted-foreground">{w.detail}</p>
                 </>
@@ -215,14 +222,15 @@ export function ProfileTaskCards({ tasks, waiting, onOpen, onOpenWaiting }: { ta
 
 /** Platzhalter in Kartengröße, solange die Aufgaben laden: der Kopf hat gleich seine Höhe (29.10.2026). */
 export function ProfileTaskCardsLoading() {
+  const { t: tr } = useTranslation('clientTasks');
   return (
     <div className="grid gap-3 sm:grid-cols-2" aria-busy="true">
       <div>
-        <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Ihre Aufgaben</p>
+        <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{tr('cards.yourTasksTitle')}</p>
         <Skeleton className="h-[78px] w-full rounded-lg" />
       </div>
       <div>
-        <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Läuft bei anderen</p>
+        <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{tr('cards.withOthersTitle')}</p>
         <Skeleton className="h-4 w-8" />
       </div>
     </div>

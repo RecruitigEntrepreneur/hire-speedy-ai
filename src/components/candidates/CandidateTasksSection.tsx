@@ -26,13 +26,20 @@ import { cn } from '@/lib/utils';
 import { ScrollMoreHint } from './ScrollMoreHint';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
+import { intlLocale } from '@/i18n/languages';
+import { dateFnsLocale } from '@/lib/candidateDateLocale';
+
+/** Texte der Aufgaben, die außerhalb der Komponente entstehen: candidateDetail:tasks.<schlüssel>. */
+const tx = (key: string): string => i18n.t(`candidateDetail:tasks.${key}`);
 import { getExposeReadiness } from '@/hooks/useExposeReadiness';
 import { useActivityLogger } from '@/hooks/useCandidateActivityLog';
 import { useRecruiterTasks } from '@/hooks/useRecruiterTasks';
 import { useSearchParams } from 'react-router-dom';
 import { useUnifiedTaskInbox, type UnifiedTaskItem } from '@/hooks/useUnifiedTaskInbox';
-import { vorbereitenTexte, VORBEREITEN_TON } from '@/lib/kandidatVorbereiten';
+import { VORBEREITEN_TON } from '@/lib/kandidatVorbereiten';
+import { prepTexts } from '@/components/recruiter/tasks/taskWindow';
 import { CreateTaskDialog } from '@/components/influence/CreateTaskDialog';
 import { TaskDetailDialog, TaskDetailItem } from '@/components/influence/TaskDetailDialog';
 import { Honorar } from '@/components/recruiter/Honorar';
@@ -95,28 +102,28 @@ interface CandidateTasksSectionProps {
 const priorityConfig = {
   critical: {
     icon: AlertCircle,
-    label: 'Kritisch',
+    labelKey: 'tasks.prio_critical',
     color: 'text-destructive',
     bgColor: 'bg-destructive/10',
     borderColor: 'border-l-destructive',
   },
   high: {
     icon: AlertTriangle,
-    label: 'Hoch',
+    labelKey: 'tasks.prio_high',
     color: 'text-amber-600',
     bgColor: 'bg-amber-500/10',
     borderColor: 'border-l-amber-500',
   },
   medium: {
     icon: Clock,
-    label: 'Mittel',
+    labelKey: 'tasks.prio_medium',
     color: 'text-blue-600',
     bgColor: 'bg-blue-500/10',
     borderColor: 'border-l-blue-500',
   },
   low: {
     icon: Clock,
-    label: 'Normal',
+    labelKey: 'tasks.prio_low',
     color: 'text-muted-foreground',
     bgColor: 'bg-muted',
     borderColor: 'border-l-muted-foreground',
@@ -145,8 +152,8 @@ function buildExposeTasks(
   if (!hasCv) {
     tasks.push({
       id: 'expose-cv',
-      title: 'CV hochladen und analysieren lassen',
-      description: 'Skills, Erfahrung und Zusammenfassung werden automatisch aus dem CV extrahiert.',
+      title: tx('cv_title'),
+      description: tx('cv_desc'),
       actions: ['cv_upload'],
     });
   }
@@ -154,8 +161,8 @@ function buildExposeTasks(
   if (!hasInterview) {
     tasks.push({
       id: 'expose-interview',
-      title: 'Interview durchführen',
-      description: 'Gehaltsvorstellung, Wechselmotivation und Verfügbarkeit werden im Interview erfasst.',
+      title: tx('iv_title'),
+      description: tx('iv_desc'),
       actions: ['interview', 'call'],
     });
   }
@@ -167,18 +174,18 @@ function buildExposeTasks(
   });
 
   const fieldTaskMap: Record<string, { title: string; description: string; actions: ExposeTask['actions'] }> = {
-    'Name': { title: 'Name eintragen', description: 'Der Name des Kandidaten fehlt.', actions: ['edit'] },
-    'E-Mail': { title: 'E-Mail eintragen', description: 'E-Mail-Adresse des Kandidaten fehlt.', actions: ['edit'] },
-    'Telefon': { title: 'Telefonnummer eintragen', description: 'Telefonnummer des Kandidaten fehlt.', actions: ['edit'] },
-    'Jobtitel': { title: 'Jobtitel eintragen', description: 'Aktuelle Position/Jobtitel fehlt.', actions: ['edit'] },
-    'Standort': { title: 'Standort eintragen', description: 'Stadt/Standort des Kandidaten fehlt.', actions: ['edit'] },
-    'Gehalt': { title: 'Gehaltsvorstellung erfragen', description: 'Für das Exposé wird eine Gehaltsvorstellung benötigt.', actions: ['call', 'edit'] },
-    'Verfügbarkeit': { title: 'Verfügbarkeit klären', description: 'Verfügbarkeitsdatum oder Kündigungsfrist eintragen.', actions: ['call', 'edit'] },
-    'Skills': { title: 'Skills ergänzen (mind. 3)', description: 'Mindestens 3 Skills werden für das Exposé benötigt.', actions: ['edit'] },
-    'Erfahrung': { title: 'Berufserfahrung eintragen', description: 'Erfahrungsjahre für das Exposé eintragen.', actions: ['edit'] },
-    'CV Summary': { title: 'CV hochladen', description: 'CV-Zusammenfassung fehlt.', actions: ['cv_upload'] },
-    'CV Highlights': { title: 'CV hochladen', description: 'CV-Highlights fehlen.', actions: ['cv_upload'] },
-    'Wechselmotivation': { title: 'Wechselmotivation erfragen', description: 'Warum will der Kandidat wechseln?', actions: ['call', 'interview'] },
+    'Name': { title: tx('f_name_title'), description: tx('f_name_desc'), actions: ['edit'] },
+    'E-Mail': { title: tx('f_email_title'), description: tx('f_email_desc'), actions: ['edit'] },
+    'Telefon': { title: tx('f_phone_title'), description: tx('f_phone_desc'), actions: ['edit'] },
+    'Jobtitel': { title: tx('f_jobtitle_title'), description: tx('f_jobtitle_desc'), actions: ['edit'] },
+    'Standort': { title: tx('f_location_title'), description: tx('f_location_desc'), actions: ['edit'] },
+    'Gehalt': { title: tx('f_salary_title'), description: tx('f_salary_desc'), actions: ['call', 'edit'] },
+    'Verfügbarkeit': { title: tx('f_availability_title'), description: tx('f_availability_desc'), actions: ['call', 'edit'] },
+    'Skills': { title: tx('f_skills_title'), description: tx('f_skills_desc'), actions: ['edit'] },
+    'Erfahrung': { title: tx('f_experience_title'), description: tx('f_experience_desc'), actions: ['edit'] },
+    'CV Summary': { title: tx('f_cvSummary_title'), description: tx('f_cvSummary_desc'), actions: ['cv_upload'] },
+    'CV Highlights': { title: tx('f_cvHighlights_title'), description: tx('f_cvHighlights_desc'), actions: ['cv_upload'] },
+    'Wechselmotivation': { title: tx('f_motivation_title'), description: tx('f_motivation_desc'), actions: ['call', 'interview'] },
   };
 
   for (const field of residual) {
@@ -224,6 +231,9 @@ function toDetailItem(
 }
 
 export function CandidateTasksSection({ candidateId, activeTaskId, candidate, onEdit, onCvUpload, onStartInterview, showExposeTasks = true }: CandidateTasksSectionProps) {
+  const { t, i18n: lang } = useTranslation('candidateDetail');
+  const de = dateFnsLocale(lang.language);
+  const tagMonat = (iso: string) => new Date(iso).toLocaleDateString(intlLocale(lang.language), { day: '2-digit', month: '2-digit' });
   const [tasks, setTasks] = useState<CandidateTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [contact, setContact] = useState<CandidateContact>({});
@@ -381,10 +391,10 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
         taskId
       );
 
-      toast.success('Aufgabe als erledigt markiert');
+      toast.success(t('tasks.aufgabe_als_erledigt_markiert'));
     } catch (error) {
       console.error('Error marking task done:', error);
-      toast.error('Fehler beim Aktualisieren');
+      toast.error(t('tasks.fehler_beim_aktualisieren'));
     }
   };
 
@@ -407,11 +417,11 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
   const waitingTasks = [...inboxWaiting, ...inboxParked].filter(i => i.candidateId === candidateId);
 
   const derivedLabel = (category: string) =>
-    category === 'interview_debrief_due' ? 'Nachgespräch' : category === 'client_review_stalled' ? 'Prüfung'
-      : category === 'client_feedback_due' ? 'Feedback' : category === 'job_closed_inform' ? 'Besetzt'
-      : category === 'offer_deliver' ? 'Angebot' : category === 'recommendation_due' ? 'Empfehlung'
-        : category === 'offer_counter_stalled' ? 'Gegenwunsch' : category === 'contract_check' ? 'Gegenprobe'
-          : category.startsWith('contract_') ? 'Vertrag' : 'Nachfassen';
+    category === 'interview_debrief_due' ? t('tasks.d_debrief') : category === 'client_review_stalled' ? t('tasks.d_review')
+      : category === 'client_feedback_due' ? t('tasks.d_feedback') : category === 'job_closed_inform' ? t('tasks.d_filled')
+      : category === 'offer_deliver' ? t('tasks.d_offer') : category === 'recommendation_due' ? t('tasks.d_recommendation')
+        : category === 'offer_counter_stalled' ? t('tasks.d_counter') : category === 'contract_check' ? t('tasks.d_check')
+          : category.startsWith('contract_') ? t('tasks.d_contract') : t('tasks.d_followup');
 
   const handleCompleteDerivedTask = async (item: UnifiedTaskItem, e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -424,7 +434,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
       { item_type: 'derived', task_category: item.taskCategory },
       item.submissionId || undefined
     );
-    toast.success('Erledigt — kommt wieder, falls sich weiterhin nichts bewegt');
+    toast.success(t('tasks.erledigt_kommt_wieder_falls_sich_7224'));
   };
 
   const openDerivedDetail = (item: UnifiedTaskItem) => {
@@ -467,7 +477,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
         { task_type: task.task_type }
       );
     }
-    toast.success('Aufgabe erledigt');
+    toast.success(t('tasks.aufgabe_erledigt'));
   };
 
   const openTaskDetail = (task: CandidateTask) => {
@@ -545,7 +555,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
         <div className="flex items-center gap-2">
           <ListTodo className="h-3.5 w-3.5 text-muted-foreground animate-pulse" />
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Aufgaben
+            {t('tasks.aufgaben')}
           </span>
         </div>
         <div className="flex gap-2">
@@ -567,7 +577,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
         <div className="flex items-center gap-2">
           <ListTodo className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Aufgaben{totalPending > 0 ? ` (${totalPending})` : ''}{waitingTasks.length > 0 ? ` · Wartet (${waitingTasks.length})` : ''}
+            {t('tasks.aufgaben')}{totalPending > 0 ? ` (${totalPending})` : ''}{waitingTasks.length > 0 ? ` · ${t('tasks.wartet')} (${waitingTasks.length})` : ''}
           </span>
           {criticalCount > 0 && (
             <Badge variant="destructive" className="text-[9px] h-4 px-1.5">
@@ -577,7 +587,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
           {completedTasks.length > 0 && totalShown === 0 && (
             <Badge variant="outline" className="text-[9px] h-4 px-1.5 text-emerald-600 border-emerald-500/50">
               <Check className="h-2.5 w-2.5 mr-0.5" />
-              Alles erledigt
+              {t('tasks.alles_erledigt')}
             </Badge>
           )}
         </div>
@@ -592,7 +602,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
               <Plus className="h-3.5 w-3.5 text-muted-foreground" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="bottom" className="text-xs">Aufgabe hinzufügen</TooltipContent>
+          <TooltipContent side="bottom" className="text-xs">{t('tasks.aufgabe_hinzufuegen')}</TooltipContent>
         </Tooltip>
       </div>
 
@@ -627,7 +637,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                   {/* Row 1: Badge + Fee */}
                   <div className="flex items-center gap-1.5 mb-1">
                     <Badge variant="outline" className={cn('shrink-0 text-[9px] px-1.5 py-0 leading-4', item.prep ? cn('border-transparent', VORBEREITEN_TON[item.prep.art] ?? 'bg-muted text-muted-foreground') : config.color)}>
-                      {item.prep ? vorbereitenTexte(item.prep).pill : derivedLabel(item.taskCategory)}
+                      {item.prep ? prepTexts(item.prep).pill : derivedLabel(item.taskCategory)}
                     </Badge>
                     {item.feeValue != null && item.feeValue > 0 && (
                       <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 tabular-nums">
@@ -639,9 +649,9 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                   {/* Row 2: Title (2 lines) */}
                   <p className="text-xs font-medium line-clamp-2 leading-tight min-h-[2rem]">
                     {item.prep
-                      ? vorbereitenTexte(item.prep).kurz
+                      ? prepTexts(item.prep).kurz
                       : item.taskCategory === 'client_review_stalled'
-                      ? `${item.jobTitle ?? 'Stelle'} · Kunde prüft seit ${Math.floor((Date.now() - new Date(item.createdAt).getTime()) / 86_400_000)} Tagen`
+                      ? t('tasks.client_checking', { job: item.jobTitle ?? t('tasks.role'), days: Math.floor((Date.now() - new Date(item.createdAt).getTime()) / 86_400_000) })
                       : item.title}
                   </p>
 
@@ -693,10 +703,10 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                 className={cn('shrink-0 snap-start flex h-[110px] w-[200px] flex-col rounded-lg border border-l-[3px] border-l-muted-foreground/30 p-2.5 opacity-80', item.parkKind === 'contract' && 'cursor-pointer hover:opacity-100')}
               >
                 <div className="flex items-center gap-1.5 mb-1">
-                  <Badge variant="outline" className="shrink-0 text-[9px] px-1.5 py-0 leading-4 text-muted-foreground">Wartet</Badge>
+                  <Badge variant="outline" className="shrink-0 text-[9px] px-1.5 py-0 leading-4 text-muted-foreground">{t('tasks.wartet')}</Badge>
                 </div>
                 <p className="text-xs font-medium line-clamp-2 leading-tight min-h-[2rem] text-muted-foreground">
-                  {item.parkKind === 'contract' ? 'Vertrag' : item.parkKind === 'counter' ? 'Gegenwunsch' : 'Pausiert'} · {item.jobTitle ?? 'Stelle'}
+                  {item.parkKind === 'contract' ? t('tasks.park_contract') : item.parkKind === 'counter' ? t('tasks.park_counter') : t('tasks.park_paused')} · {item.jobTitle ?? t('tasks.role')}
                 </p>
                 <p className="mt-auto text-[10px] text-muted-foreground line-clamp-2">{item.parkNote}</p>
               </div>
@@ -708,24 +718,24 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
               >
                 <div className="flex items-center gap-1.5 mb-1">
                   <Badge variant="outline" className="shrink-0 text-[9px] px-1.5 py-0 leading-4 text-muted-foreground">
-                    {item.waitState === 'matchunt' ? 'Matchunt' : 'Wartet'}
+                    {item.waitState === 'matchunt' ? 'Matchunt' : t('tasks.wartet')}
                   </Badge>
                   {item.feeValue != null && item.feeValue > 0 && (
                     <span className="text-[10px] font-medium text-muted-foreground tabular-nums"><Honorar>{`~€${Math.round(item.feeValue / 1000)}k`}</Honorar></span>
                   )}
                 </div>
                 <p className="text-xs font-medium line-clamp-2 leading-tight min-h-[2rem] text-muted-foreground">
-                  {item.jobTitle ?? 'Stelle'} · Kunde erinnert {item.lastNudgeAt ? new Date(item.lastNudgeAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : ''}
+                  {t('tasks.client_reminded', { job: item.jobTitle ?? t('tasks.role'), date: item.lastNudgeAt ? tagMonat(item.lastNudgeAt) : '' })}
                 </p>
                 <p className="mt-auto text-[10px] text-muted-foreground">
                   {item.waitState === 'matchunt'
-                    ? 'Matchunt kümmert sich'
-                    : `${(item.nudgeCount ?? 0) >= 2 ? 'Matchunt übernimmt' : '2. Erinnerung'} ab ${item.nextNudgeAt ? new Date(item.nextNudgeAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : ''}`}
+                    ? t('tasks.matchunt_handles')
+                    : t((item.nudgeCount ?? 0) >= 2 ? 'tasks.matchunt_takes_over' : 'tasks.second_reminder', { date: item.nextNudgeAt ? tagMonat(item.nextNudgeAt) : '' })}
                   {item.waitState !== 'matchunt' && (candidateUpdateChoice({
                     hasEmail: !!item.candidateEmail, lastContactAt: item.lastCandidateContactAt ?? null, lastUpdateAt: item.lastCandidateUpdateAt ?? null, submittedAt: item.createdAt, nudgeAt: item.lastNudgeAt ?? null,
                   }, new Date()).erledigt
-                    ? <span className="block">Bescheid gegeben</span>
-                    : <span className="block text-primary">Kandidat Bescheid geben →</span>)}
+                    ? <span className="block">{t('tasks.bescheid_gegeben')}</span>
+                    : <span className="block text-primary">{t('tasks.kandidat_bescheid_geben')}</span>)}
                 </p>
               </div>
             ))}
@@ -748,7 +758,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                   {/* Row 1: Badge + Time */}
                   <div className="flex items-center gap-1.5 mb-1">
                     <Badge variant="outline" className={cn('shrink-0 text-[9px] px-1.5 py-0 leading-4', config.color)}>
-                      {config.label}
+                      {t(config.labelKey)}
                     </Badge>
                     <span className="text-[10px] text-muted-foreground">{timeAgo}</span>
                   </div>
@@ -801,9 +811,9 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                 {/* Row 1: Badge + label */}
                 <div className="flex items-center gap-1.5 mb-1">
                   <Badge variant="outline" className="shrink-0 text-[9px] px-1.5 py-0 leading-4 text-blue-600 border-blue-500/50">
-                    Exposé
+                    {t('tasks.expos')}
                   </Badge>
-                  <span className="text-[10px] text-muted-foreground">Exposé-Pflicht</span>
+                  <span className="text-[10px] text-muted-foreground">{t('tasks.expos_pflicht')}</span>
                 </div>
 
                 {/* Row 2: Title (2 lines) */}
@@ -862,7 +872,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                   {/* Row 1: Badge + Time */}
                   <div className="flex items-center gap-1.5 mb-1">
                     <Badge variant="outline" className="shrink-0 text-[9px] px-1.5 py-0 leading-4 text-violet-600 border-violet-500/50">
-                      Manuell
+                      {t('tasks.manuell')}
                     </Badge>
                     <span className="text-[10px] text-muted-foreground">{timeAgo}</span>
                   </div>
@@ -896,7 +906,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
       {/* Completed count (subtle) */}
       {completedTasks.length > 0 && totalPending > 0 && (
         <p className="text-[10px] text-muted-foreground pl-5.5">
-          + {completedTasks.length} erledigte Aufgabe{completedTasks.length !== 1 ? 'n' : ''}
+          {t('tasks.completed', { count: completedTasks.length })}
         </p>
       )}
 
@@ -916,7 +926,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
         onSnooze={async (itemId, until) => {
           if (detailItem?.itemType === 'derived') {
             await inboxSnooze('derived', itemId, until);
-            toast.success('Aufgabe zurückgestellt');
+            toast.success(t('tasks.aufgabe_zurueckgestellt'));
             return;
           }
           // Snooze: update snoozed_until on the alert
@@ -927,7 +937,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
               .update({ snoozed_until: until.toISOString() } as any)
               .eq('id', itemId);
             setTasks(prev => prev.filter(t => t.id !== itemId));
-            toast.success('Aufgabe zurückgestellt');
+            toast.success(t('tasks.aufgabe_zurueckgestellt'));
           }
         }}
       />

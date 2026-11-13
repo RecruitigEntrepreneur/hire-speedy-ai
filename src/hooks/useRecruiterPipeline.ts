@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { normalizeStage, isClosedStage } from '@/lib/submissionStage';
@@ -27,13 +29,19 @@ export interface RecruiterPipeline {
   totalFee: number;
 }
 
+/**
+ * Beschriftung der Stufen in der Sprache der Oberfläche (Namespace recruiterSubmissions,
+ * pipeline.*). Jeder Zugriff liest neu, damit nichts in einer Sprache einfriert;
+ * useRecruiterPipeline lädt den Namespace.
+ */
+const pipelineLabel = (key: PipelineStageKey): string => i18n.t(`recruiterSubmissions:pipeline.${key}`);
 export const PIPELINE_LABELS: Record<PipelineStageKey, string> = {
-  submitted: 'Eingereicht',
-  in_review: 'In Prüfung',
-  interview_1: '1. Gespräch',
-  interview_2: '2. Gespräch',
-  offer: 'Angebot',
-  placed: 'Platziert',
+  get submitted() { return pipelineLabel('submitted'); },
+  get in_review() { return pipelineLabel('in_review'); },
+  get interview_1() { return pipelineLabel('interview_1'); },
+  get interview_2() { return pipelineLabel('interview_2'); },
+  get offer() { return pipelineLabel('offer'); },
+  get placed() { return pipelineLabel('placed'); },
 };
 
 const calcFee = (job: any): number => {
@@ -43,6 +51,7 @@ const calcFee = (job: any): number => {
 };
 
 export function useRecruiterPipeline() {
+  const { i18n: lang } = useTranslation('recruiterSubmissions');
   const { user } = useAuth();
   const [data, setData] = useState<RecruiterPipeline | null>(null);
 
@@ -132,5 +141,10 @@ export function useRecruiterPipeline() {
     return () => { cancelled = true; };
   }, [user?.id]);
 
-  return data;
+  // Beschriftung beim Anzeigen setzen: nach einem Sprachwechsel stimmt sie ohne neues Laden.
+  return useMemo(
+    () => (data ? { ...data, stages: data.stages.map((s) => ({ ...s, label: PIPELINE_LABELS[s.key] })) } : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [data, lang.language],
+  );
 }

@@ -2,6 +2,7 @@
 // Jede Person bekommt ihre eigene Einladung mit eigener UID und nur sich selbst
 // als Teilnehmer, damit niemand die Mailadressen der anderen Seite sieht.
 // Gleiche UID + höhere SEQUENCE = Änderung, METHOD:CANCEL = Absage.
+import { tr, type Lang } from './i18n.ts';
 
 export interface IcsInvite {
   method: 'REQUEST' | 'CANCEL';
@@ -20,6 +21,8 @@ export interface IcsInvite {
   nowMs?: number;
   /** Erinnerung im Kalender, Minuten vorher (Standard 15; vor Ort mehr wegen der Anfahrt) */
   alarmMinutes?: number;
+  /** Sprache des Empfängers für „Abgesagt:“ und die Erinnerung; ohne Angabe Deutsch. */
+  lang?: Lang | null;
 }
 
 const utcStamp = (ms: number) => new Date(ms).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
@@ -67,7 +70,7 @@ export function buildIcs(invite: IcsInvite): string {
     `DTSTAMP:${utcStamp(invite.nowMs ?? Date.now())}`,
     `DTSTART:${utcStamp(start)}`,
     `DTEND:${utcStamp(end)}`,
-    `SUMMARY:${icsEscape(cancel ? `Abgesagt: ${invite.summary}` : invite.summary)}`,
+    `SUMMARY:${icsEscape(cancel ? `${tr(invite.lang, { de: 'Abgesagt', en: 'Cancelled', sv: 'Inställt', nb: 'Avlyst' })}: ${invite.summary}` : invite.summary)}`,
     `DESCRIPTION:${icsEscape(invite.description)}`,
     ...(invite.location ? [`LOCATION:${icsEscape(invite.location)}`] : []),
     ...(invite.url ? [`URL:${invite.url}`] : []),
@@ -75,7 +78,7 @@ export function buildIcs(invite: IcsInvite): string {
     `ATTENDEE;CN=${paramValue(invite.attendeeName || invite.attendeeEmail)};ROLE=REQ-PARTICIPANT;PARTSTAT=${cancel ? 'DECLINED' : 'NEEDS-ACTION'};RSVP=FALSE:mailto:${invite.attendeeEmail}`,
     `STATUS:${cancel ? 'CANCELLED' : 'CONFIRMED'}`,
     'TRANSP:OPAQUE',
-    ...(cancel ? [] : ['BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:Interview in ${invite.alarmMinutes ?? 15} Minuten`, `TRIGGER:-PT${invite.alarmMinutes ?? 15}M`, 'END:VALARM']),
+    ...(cancel ? [] : ['BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${tr(invite.lang, { de: 'Interview in {n} Minuten', en: 'Interview in {n} minutes', sv: 'Intervju om {n} minuter', nb: 'Intervju om {n} minutter' }, { n: invite.alarmMinutes ?? 15 })}`, `TRIGGER:-PT${invite.alarmMinutes ?? 15}M`, 'END:VALARM']),
     'END:VEVENT',
     'END:VCALENDAR',
   ];

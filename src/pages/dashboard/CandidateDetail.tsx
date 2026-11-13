@@ -39,8 +39,8 @@ import {
   Globe,
   Users,
 } from 'lucide-react';
-import { format } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { fmtDate, fmtDayMonth, fmtTime } from '@/lib/localeFormat';
+import { term } from '@/lib/candidateTerms';
 
 import { EducationCard, FitTextCard, InterviewInsightsCard, MussKriterienCard } from '@/components/candidates/client/ClientCandidateCards';
 import { AskColleaguesDialog } from '@/components/candidates/client/AskColleaguesDialog';
@@ -84,18 +84,14 @@ import { kundenGeld } from '@/lib/contractingKunde';
 // Helpers
 // ============================================================================
 
-const isPlaceholder = (val: string) => {
-  const placeholders = ['Nicht angegeben', 'Ausstehend', 'Unbekannt', 'Flexibel',
-    'Noch nicht besprochen', 'CV-Analyse ausstehend', 'Wird im Interview besprochen',
-    'Wird basierend auf CV ermittelt', 'Präferenz noch nicht erfasst', 'Fachkraft',
-    'Vom Kandidaten noch nicht freigegeben', 'Standort nicht angegeben'];
-  return placeholders.some(p => val.includes(p));
-};
+// Platzhalter (blass, nicht ins PDF) kommen als Schalter aus useClientCandidateView, nicht als Textvergleich.
 
-function buildWorkModelLabel(workModel: string, remoteDays: number | null, relocation: boolean | null): string {
+type TFn = (key: string, options?: Record<string, unknown>) => string;
+
+function buildWorkModelLabel(workModel: string, remoteDays: number | null, relocation: boolean | null, t: TFn): string {
   const parts = [workModel];
-  if (remoteDays && remoteDays > 0) parts.push(`${remoteDays}T Remote`);
-  if (relocation === true) parts.push('umzugsbereit');
+  if (remoteDays && remoteDays > 0) parts.push(t('detail.remoteDays', { n: remoteDays }));
+  if (relocation === true) parts.push(t('detail.relocation'));
   return parts.join(', ');
 }
 
@@ -128,6 +124,7 @@ export default function CandidateDetail() {
   const { user } = useAuth();
   const { toast } = useToast();
   const { t } = useTranslation();
+  const { t: tc } = useTranslation(['clientCandidates', 'candidateTerms']);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -179,8 +176,9 @@ export default function CandidateDetail() {
   const teamQuery = useTeamData(myOrg?.id);
   const teamMembers = (teamQuery.data?.members ?? []).filter((m) => m.status === 'active');
   const memberName = (uid: string) => teamMembers.find((m) => m.user_id === uid)?.full_name ?? null;
-  // „von Ihnen“, „von Anna Weber“ oder „aus Ihrem Team“ (ältere Anfragen ohne Person: null)
-  const vonWem = (uid: string | null) => (!uid ? null : uid === user?.id ? 'von Ihnen' : memberName(uid) ? `von ${memberName(uid)}` : 'aus Ihrem Team');
+  // Wer: Sie selbst, ein Teammitglied mit Namen oder „Ihr Team“ (ältere Anfragen ohne Person: null)
+  const vonWem = (uid: string | null): { kind: 'me' | 'member' | 'team'; name: string } | null =>
+    !uid ? null : uid === user?.id ? { kind: 'me', name: '' } : memberName(uid) ? { kind: 'member', name: memberName(uid)! } : { kind: 'team', name: '' };
 
   // DSGVO: Zugriff auf das Kandidatenprofil serverseitig protokollieren
   // (einmal pro Submission und Seitenaufruf, nicht pro Re-Render)
@@ -350,10 +348,10 @@ export default function CandidateDetail() {
       }
       await addComment(content, mentionedIds, 'Ihre Meinung zu einem Kandidaten ist gefragt');
       fetchComments();
-      toast({ title: 'Anfrage gesendet', description: 'Die Antworten erscheinen unter den Team-Notizen.' });
+      toast({ title: tc('detail.askSent'), description: tc('detail.askSentHint') });
       return true;
     } catch {
-      toast({ title: 'Die Anfrage konnte nicht gesendet werden', variant: 'destructive' });
+      toast({ title: tc('detail.askError'), variant: 'destructive' });
       return false;
     }
   };
@@ -369,9 +367,9 @@ export default function CandidateDetail() {
       await addComment(newComment, mentionedIds);
       setNewComment('');
       fetchComments();
-      toast({ title: 'Notiz gespeichert' });
+      toast({ title: tc('detail.noteSaved') });
     } catch {
-      toast({ title: 'Die Notiz konnte nicht gespeichert werden', variant: 'destructive' });
+      toast({ title: tc('detail.noteError'), variant: 'destructive' });
     } finally {
       setCommentLoading(false);
     }
@@ -423,7 +421,7 @@ export default function CandidateDetail() {
     setDelegatedTask(null);
     void clientTasksApi.logDone(done, `${done.title} erledigt`).catch(() => undefined);
     void queryClient.invalidateQueries({ queryKey: ['client-tasks'] });
-    sonnerToast.success(`Erledigt: ${done.title}`);
+    sonnerToast.success(tc('detail.taskDone', { title: done.title }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientTasks.data, delegatedTask]);
 
@@ -480,10 +478,10 @@ export default function CandidateDetail() {
     return (
       <DashboardLayout>
         <div className="text-center py-12">
-          <h2 className="text-xl font-semibold">Kandidat nicht gefunden</h2>
+          <h2 className="text-xl font-semibold">{tc('view.notFound')}</h2>
           <p className="text-muted-foreground mt-2">{error}</p>
           <Button asChild className="mt-4">
-            <Link to="/dashboard/candidates">Zurück zur Übersicht</Link>
+            <Link to="/dashboard/candidates">{tc('detail.backToList')}</Link>
           </Button>
         </div>
       </DashboardLayout>
@@ -498,10 +496,10 @@ export default function CandidateDetail() {
     candidateId, submissionId, matchScore, fitLabel, dealProbability, motivationStatus,
     certifications, languageSkills, industryExperience, targetRoles,
     careerGoals, relocationWilling, remoteDaysPreferred,
-    keySellingPoints,
+    keySellingPoints, placeholders: ph,
   } = candidateView;
 
-  const enrichedWorkModel = buildWorkModelLabel(workModel, remoteDaysPreferred, relocationWilling);
+  const enrichedWorkModel = buildWorkModelLabel(workModel, remoteDaysPreferred, relocationWilling, tc);
   const anonCode = candidateAnonCode(candidateId);
   const fmtSeniority = (s: string) => (s && /^[a-z]/.test(s) ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
@@ -523,11 +521,14 @@ export default function CandidateDetail() {
   // Contracting: nie Gehalt oder Satz des Kandidaten, sondern der Hinweis (lib/contractingKunde).
   const geld = kundenGeld(jobReqs?.employment_type, iv?.salary_wish ?? salaryRange);
   const gehalt = geld.value;
+  const gehaltPlaceholder = jobReqs?.employment_type !== 'freelance' && !iv?.salary_wish && ph.salary;
   const tsd = (n: number) => Math.round(n / 1000);
   const budget = jobReqs?.salary_min || jobReqs?.salary_max
-    ? jobReqs.salary_min && jobReqs.salary_max ? `${tsd(jobReqs.salary_min)}–${tsd(jobReqs.salary_max)} T€` : `${tsd((jobReqs.salary_min || jobReqs.salary_max)!)} T€`
+    ? jobReqs.salary_min && jobReqs.salary_max ? tc('detail.budgetRange', { from: tsd(jobReqs.salary_min), to: tsd(jobReqs.salary_max) }) : tc('detail.budget', { value: tsd((jobReqs.salary_min || jobReqs.salary_max)!) })
     : null;
-  const verfuegbar = verfuegbarAus(iv) ?? availability;
+  const verfuegbarGespraech = verfuegbarAus(iv);
+  const verfuegbar = verfuegbarGespraech ?? availability;
+  const verfuegbarPlaceholder = !verfuegbarGespraech && ph.availability;
 
   // Lebenslauf (PDF) aus genau den Daten, die der Kunde hier sieht.
   const downloadCv = async () => {
@@ -542,33 +543,33 @@ export default function CandidateDetail() {
         jobTitle,
         anonym: !identityUnlocked,
         facts: [
-          { label: 'Seniorität', value: fmtSeniority(seniority) },
-          { label: 'Erfahrung', value: experience },
-          { label: geld.label, value: gehalt },
-          { label: 'Verfügbar', value: verfuegbar },
-          { label: 'Region', value: region },
-          { label: 'Arbeitsmodell', value: enrichedWorkModel },
-        ].filter((r) => r.value && !isPlaceholder(r.value)),
+          { label: tc('detail.facts.seniority'), value: fmtSeniority(seniority), placeholder: ph.seniority },
+          { label: tc('detail.facts.experience'), value: experience, placeholder: ph.experience },
+          { label: geld.label, value: gehalt, placeholder: gehaltPlaceholder },
+          { label: tc('cards.available'), value: verfuegbar, placeholder: verfuegbarPlaceholder },
+          { label: tc('detail.facts.region'), value: region, placeholder: ph.region },
+          { label: tc('detail.facts.workModel'), value: enrichedWorkModel, placeholder: ph.workModel },
+        ].filter((r) => r.value && !r.placeholder).map(({ label, value }) => ({ label, value })),
         gespraech: iv ? [
-          iv.change_motivation && { label: 'Warum wechseln', value: iv.change_motivation },
-          iv.why_now && { label: 'Warum jetzt', value: iv.why_now },
-          (iv.offer_requirements ?? []).length > 0 && { label: 'Wichtig ist', value: (iv.offer_requirements ?? []).join(', ') },
-          fuehrung(iv) && { label: 'Führung', value: fuehrung(iv)! },
+          iv.change_motivation && { label: tc('cards.whyChange'), value: iv.change_motivation },
+          iv.why_now && { label: tc('cards.whyNow'), value: iv.why_now },
+          (iv.offer_requirements ?? []).length > 0 && { label: tc('cards.important'), value: (iv.offer_requirements ?? []).map((w) => term(w)).join(', ') },
+          fuehrung(iv) && { label: tc('cards.leadership'), value: fuehrung(iv)! },
         ].filter(Boolean) as { label: string; value: string }[] : [],
         werdegang: (exps ?? []).map((e) => ({
-          title: e.job_title ?? 'Position',
-          company: identityUnlocked ? e.company_name ?? 'Unternehmen' : 'Unternehmen',
-          period: `${jahr(e.start_date)} – ${e.is_current ? 'heute' : jahr(e.end_date)}`,
+          title: e.job_title ?? tc('view.jobFallback'),
+          company: identityUnlocked ? e.company_name ?? tc('labels.company') : tc('labels.company'),
+          period: `${jahr(e.start_date)} – ${e.is_current ? tc('detail.today') : jahr(e.end_date)}`,
           description: e.description,
         })),
         ausbildung: (insights?.education ?? []).map((e) => [e.degree, e.field_of_study, e.institution, e.graduation_year].filter(Boolean).join(' · ')),
         skills: topSkills,
         sprachen: (languageSkills ?? []).map((l: unknown) => (typeof l === 'string' ? l : [(l as { language?: string }).language, (l as { level?: string }).level].filter(Boolean).join(' '))).filter(Boolean),
       });
-      downloadPdf(bytes, `Kandidatenprofil ${identityUnlocked ? displayName : anonCode}.pdf`);
+      downloadPdf(bytes, tc('detail.pdfFile', { name: identityUnlocked ? displayName : anonCode }));
     } catch (e) {
       console.error('PDF fehlgeschlagen', e);
-      toast({ title: 'Der Lebenslauf konnte nicht erstellt werden', variant: 'destructive' });
+      toast({ title: tc('detail.pdfError'), variant: 'destructive' });
     } finally {
       setPdfBusy(false);
     }
@@ -580,55 +581,46 @@ export default function CandidateDetail() {
   // Nach der Unterschrift gibt es keine Absage mehr (Paket 3)
   const signedContract = state.key === 'vertrag_unterschrieben';
 
-  const tagMonat = (iso: string) => format(new Date(iso), 'dd.MM.', { locale: de });
+  const tagMonat = (iso: string) => fmtDayMonth(iso);
   const tageSeit = (iso: string) => Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000));
   const lastRejection = subState?.rejections?.[0] ?? null;
   const grundLabel = (c: string | null) => REJECTION_CATEGORIES.find((r) => r.value === c)?.label ?? null;
 
   const ctxFor = (): string => {
     const k = state.key;
+    const hh = hhName;
     // Angefragt: wann und von wem, und wer jetzt dran ist
     const lastIv = subState?.latestInterview;
     if (k === 'wartet_kandidat' && lastIv) {
       const von = vonWem(lastIv.requestedBy);
-      const wer = von === 'von Ihnen' ? 'Sie haben' : von && von !== 'aus Ihrem Team' ? `${von.slice(4)} hat` : 'Ihr Team hat';
       const tage = tageSeit(lastIv.createdAt);
-      return `${wer} am ${tagMonat(lastIv.createdAt)} ein Interview angefragt. Der Kandidat hat noch nicht zugesagt (${tage === 0 ? 'seit heute' : tage === 1 ? 'seit gestern' : `seit ${tage} Tagen`}). ${hhName} hält den Kontakt und meldet sich, sobald er zusagt.`;
+      const since = tage === 0 ? tc('detail.since.today') : tage === 1 ? tc('detail.since.yesterday') : tc('detail.since.days', { count: tage });
+      return tc(`detail.ctx.requested_${von?.kind ?? 'team'}`, { name: von?.name ?? '', date: tagMonat(lastIv.createdAt), since, hh });
     }
     // Abgelehnt: wann, von wem, welcher Grund
     if (k === 'archiv' && subState?.archiveKind === 'abgelehnt' && lastRejection) {
       const von = vonWem(lastRejection.rejectedBy);
-      const wer = von === 'von Ihnen' ? 'Sie haben' : von && von !== 'aus Ihrem Team' ? `${von.slice(4)} hat` : 'Ihr Team hat';
       const grund = grundLabel(lastRejection.reasonCategory);
-      return `${wer} am ${tagMonat(lastRejection.createdAt)} abgelehnt.${grund ? ` Grund: ${grund}.` : ''} ${hhName} ist informiert.`;
+      return tc(`detail.ctx.rejected_${von?.kind ?? 'team'}${grund ? '_reason' : ''}`, { name: von?.name ?? '', date: tagMonat(lastRejection.createdAt), reason: grund ?? '', hh });
     }
     // Angebot über den Headhunter (Einzelheiten in der Angebots-Box)
-    if (k === 'offer_with_hh') return `Ihr Angebot liegt bei ${hhName}. ${hhName.split(' ')[0]} bespricht es mit dem Kandidaten, danach kommt es schriftlich per Mail, und der Kandidat antwortet selbst.`;
-    if (k === 'offer_accept_reported') return `${hhName} hat die Zusage gemeldet. Der Kandidat bestätigt sie gerade per Mail, danach schicken Sie den Arbeitsvertrag.`;
-    if (k === 'offer_considering') return `Der Kandidat überlegt noch. ${hhName} hält Kontakt.`;
-    if (k === 'offer_overdue') return `Die Antwortfrist ist abgelaufen. Verlängern Sie die Frist oder fragen Sie ${hhName}.`;
-    if (k === 'offer_negotiating') return `Der Kandidat hat einen Gegenwunsch. Sie entscheiden: anpassen, beim Angebot bleiben oder absagen.`;
-    if (k === 'offer_accepted') return 'Zusage! Jetzt fehlt nur noch der unterschriebene Arbeitsvertrag.';
-    // Arbeitsvertrag (Paket 3); Einzelheiten in der Vertrags-Box
-    if (k === 'vertrag_unterwegs') return `Der Arbeitsvertrag ist unterwegs. ${hhName} hakt beim Kandidaten nach.`;
-    if (k === 'vertrag_bestaetigen') return `${hhName} meldet die Unterschrift. Bitte bestätigen Sie unten.`;
-    if (k === 'vertrag_unterschrieben') return 'Der Arbeitsvertrag ist unterschrieben.';
-    if (k === 'vertrag_abgelehnt') return 'Der Vertrag wurde in DocuSign abgelehnt. Passen Sie ihn an oder schicken Sie ihn selbst.';
-    if (k === 'offer_rejected') return `${identityUnlocked ? displayName.split(' ')[0] : 'Der Kandidat'} hat abgesagt. ${hhName} sucht weiter für Sie.`;
-    if (k === 'offer_withdrawn') return 'Sie haben das Angebot zurückgezogen.';
+    if (k === 'offer_with_hh') return tc('detail.ctx.offer_with_hh', { hh, first: hh.split(' ')[0] });
+    if (['offer_accept_reported', 'offer_considering', 'offer_overdue', 'offer_negotiating', 'offer_accepted',
+      'vertrag_unterwegs', 'vertrag_bestaetigen', 'vertrag_unterschrieben', 'vertrag_abgelehnt', 'offer_withdrawn'].includes(k)) {
+      return tc(`detail.ctx.${k}`, { hh });
+    }
+    if (k === 'offer_rejected') return tc('detail.ctx.offer_rejected', { name: identityUnlocked ? displayName.split(' ')[0] : tc('detail.theCandidate'), hh });
     // Nach dem Feedback: der gewählte Weg, mit dem Namen des Headhunters
-    if (k === 'naechste_runde') return `Ihr Feedback: weiter. Planen Sie Interview ${nextRoundNo}, gern vor Ort mit dem Team. ${hhName} weiß Bescheid.`;
-    if (k === 'angebot_vorbereiten') return hasRecommendation
-      ? `${hhName} hat Ihnen eine Empfehlung geschickt (unten). Damit trifft Ihr Angebot beim ersten Mal.`
-      : `Sie möchten ein Angebot machen. ${hhName} spricht mit dem Kandidaten und schickt Ihnen eine Empfehlung, was es für eine Zusage braucht.`;
-    if (k === 'unsicher') return questions.data?.messages.length && !questions.data.waiting
-      ? `${hhName} hat Ihre Frage beantwortet. Sie können jetzt entscheiden.`
-      : `Sie sind noch unsicher. ${hhName} klärt Ihre Frage; Sie können trotzdem jederzeit entscheiden.`;
+    if (k === 'naechste_runde') return tc('detail.ctx.naechste_runde', { round: nextRoundNo, hh });
+    if (k === 'angebot_vorbereiten') return tc(hasRecommendation ? 'detail.ctx.angebot_vorbereiten_rec' : 'detail.ctx.angebot_vorbereiten', { hh });
+    if (k === 'unsicher') return tc(questions.data?.messages.length && !questions.data.waiting ? 'detail.ctx.unsicher_answered' : 'detail.ctx.unsicher', { hh });
     if (k === 'wait_today' || k === 'wait_yesterday' || k === 'wait_days') return t('bewerber.detail.ctx.wait_new');
     if (k === 'wait_warn' || k === 'wait_crit') return t('bewerber.detail.ctx.wait_old', { days: (state.params as any)?.days ?? '' });
     if (k === 'archiv' && jobClosed) {
-      const seit = subState?.jobClosedAt ? ` seit ${tagMonat(subState.jobClosedAt)}` : '';
-      return `Die Stelle ist${seit} ${subState?.archiveKind === 'stelle_besetzt' ? 'besetzt' : 'geschlossen'}. ${hhName} sagt dem Kandidaten Bescheid, Sie müssen nichts tun.`;
+      const kind = subState?.archiveKind === 'stelle_besetzt' ? 'filled' : 'closed';
+      return subState?.jobClosedAt
+        ? tc(`detail.ctx.job_${kind}_since`, { date: tagMonat(subState.jobClosedAt), hh })
+        : tc(`detail.ctx.job_${kind}`, { hh });
     }
     if (k === 'archiv') return t('bewerber.detail.ctx.archiv');
     return t(`bewerber.detail.ctx.${k}`, state.params);
@@ -666,20 +658,20 @@ export default function CandidateDetail() {
   const mainAction = leadTask
     ? { label: taskMainLabel(leadTask.kind), Icon: leadTask.kind === 'review' || leadTask.kind === 'expired_request' ? Calendar : TASK_ICON[leadTask.kind], run: () => runLeadTask(leadTask) }
     : !isTerminal && !isPendingCandidate && !offerFlow
-      ? { label: waitingForRec ? 'Trotzdem jetzt Angebot machen' : t(primary.labelKey, state.params), Icon: PrimaryIcon, run: runPrimary }
+      ? { label: waitingForRec ? tc('detail.offerAnyway') : t(primary.labelKey, state.params), Icon: PrimaryIcon, run: runPrimary }
       // Abgesagt oder zurückgezogen: Es kann ein neues Angebot geben (E8, 02.11.2026)
       : !isTerminal && ['declined', 'withdrawn'].includes(subState?.offers?.[0]?.status ?? '')
-        ? { label: 'Neues Angebot', Icon: PrimaryIcon, run: () => setShowOffer(true) }
+        ? { label: tc('detail.newOffer'), Icon: PrimaryIcon, run: () => setShowOffer(true) }
         : null;
   // Bis Aufgaben und Stand da sind: Platzhalter statt eines Knopfs, der gleich wechselt
   const mainLoading = !leadTask && (tasksLoading || subStateLoading);
 
   // Verlauf: Einreichung, Interviews und Angebote chronologisch — das Gedächtnis der Bewerbung
   const verlauf: { when: string; label: string }[] = [];
-  if (subState?.submittedAt) verlauf.push({ when: subState.submittedAt, label: submitter?.name ? `Eingereicht von ${submitter.name}` : t('bewerber.detail.verlauf_submitted') });
+  if (subState?.submittedAt) verlauf.push({ when: subState.submittedAt, label: submitter?.name ? tc('detail.verlauf.submittedBy', { name: submitter.name }) : t('bewerber.detail.verlauf_submitted') });
   for (const iv of subState?.interviews ?? []) {
     const von = vonWem(iv.requestedBy);
-    verlauf.push({ when: iv.createdAt, label: von ? `Interview angefragt ${von}` : t('bewerber.detail.verlauf_iv_requested') });
+    verlauf.push({ when: iv.createdAt, label: von ? tc(`detail.verlauf.requested_${von.kind}`, { name: von.name }) : t('bewerber.detail.verlauf_iv_requested') });
     if (iv.scheduledAt) {
       const past = new Date(iv.scheduledAt).getTime() < Date.now();
       verlauf.push({
@@ -688,7 +680,7 @@ export default function CandidateDetail() {
           past && (iv.status === 'scheduled' || iv.status === 'completed')
             ? t('bewerber.detail.verlauf_iv_completed')
             : t('bewerber.detail.verlauf_iv_scheduled', {
-                time: format(new Date(iv.scheduledAt), 'HH:mm', { locale: de }),
+                time: fmtTime(iv.scheduledAt),
               }),
       });
     }
@@ -702,10 +694,10 @@ export default function CandidateDetail() {
   for (const r of subState?.rejections ?? []) {
     const von = vonWem(r.rejectedBy);
     const grund = REJECTION_CATEGORIES.find((c) => c.value === r.reasonCategory)?.label;
-    verlauf.push({ when: r.createdAt, label: `Abgelehnt${von ? ` ${von}` : ''}${grund ? ` · ${grund}` : ''}` });
+    verlauf.push({ when: r.createdAt, label: `${tc(`detail.verlauf.rejected${von ? `_${von.kind}` : ''}`, { name: von?.name ?? '' })}${grund ? ` · ${grund}` : ''}` });
   }
   for (const m of questions.data?.messages ?? []) {
-    verlauf.push({ when: m.createdAt, label: m.mine ? 'Frage an den Headhunter gestellt' : `Frage beantwortet von ${hhName}` });
+    verlauf.push({ when: m.createdAt, label: m.mine ? tc('detail.verlauf.asked') : tc('detail.verlauf.answered', { name: hhName }) });
   }
   if (subState?.latestInterview?.status === 'pending_response') {
     verlauf.push({ when: new Date().toISOString(), label: t('bewerber.detail.verlauf_iv_pending') });
@@ -738,7 +730,7 @@ export default function CandidateDetail() {
           <div className="flex h-full items-center gap-3 rounded-xl border bg-card/95 px-4 shadow-md backdrop-blur">
             <span className="font-semibold shrink-0">{identityUnlocked ? displayName : anonCode}</span>
             {subStateLoading ? <Skeleton className="h-5 w-32 rounded-full shrink-0" /> : <StatePill state={state} archiveKind={subState?.archiveKind} className="shrink-0" />}
-            <span className="hidden lg:inline min-w-0 text-sm text-muted-foreground truncate">für: {jobTitle}</span>
+            <span className="hidden lg:inline min-w-0 text-sm text-muted-foreground truncate">{tc('card.for', { job: jobTitle })}</span>
             <div className="ml-auto flex items-center gap-1.5 shrink-0">
               {!isViewer && !mainLoading && mainAction && (
                 <Button size="sm" onClick={mainAction.run} className="gap-1.5 h-8">
@@ -753,7 +745,7 @@ export default function CandidateDetail() {
               )}
               {canAsk && (
                 <Button variant="ghost" size="sm" className="h-8 text-muted-foreground" onClick={() => setShowFrage(true)}>
-                  Frage an {hhName}
+                  {tc('preview.askHh', { name: hhName })}
                 </Button>
               )}
             </div>
@@ -794,7 +786,7 @@ export default function CandidateDetail() {
                 <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-muted-foreground">
                   <span className="font-medium text-foreground">{currentRole}</span>
                   <span className="text-border">·</span>
-                  <span>für: {jobTitle}</span>
+                  <span>{tc('card.for', { job: jobTitle })}</span>
                 </div>
                 <p className="text-xs text-muted-foreground/70 mt-1">
                   {identityUnlocked
@@ -861,13 +853,13 @@ export default function CandidateDetail() {
 
             {/* Fakten */}
             <div className="mt-4 pt-3 border-t flex flex-wrap items-center gap-x-4 gap-y-1.5">
-              <KeyFactChip icon={GraduationCap} label="Seniorität" value={fmtSeniority(seniority)} faded={isPlaceholder(seniority)} />
-              <KeyFactChip icon={Briefcase} label="Erfahrung" value={experience} faded={isPlaceholder(experience)} />
-              <KeyFactChip icon={Banknote} label={geld.label} value={gehalt} faded={isPlaceholder(gehalt)} />
-              {budget && <KeyFactChip icon={Banknote} label="Ihre Stelle" value={budget} />}
-              <KeyFactChip icon={Clock} label="Verfügbar" value={verfuegbar} faded={isPlaceholder(verfuegbar)} />
-              <KeyFactChip icon={MapPin} label="Region" value={region} faded={isPlaceholder(region)} />
-              <KeyFactChip icon={Globe} label="Arbeitsmodell" value={enrichedWorkModel} faded={isPlaceholder(workModel)} />
+              <KeyFactChip icon={GraduationCap} label={tc('detail.facts.seniority')} value={fmtSeniority(seniority)} faded={ph.seniority} />
+              <KeyFactChip icon={Briefcase} label={tc('detail.facts.experience')} value={experience} faded={ph.experience} />
+              <KeyFactChip icon={Banknote} label={geld.label} value={gehalt ?? ''} faded={gehaltPlaceholder} />
+              {budget && <KeyFactChip icon={Banknote} label={tc('detail.facts.yourJob')} value={budget} />}
+              <KeyFactChip icon={Clock} label={tc('cards.available')} value={verfuegbar} faded={verfuegbarPlaceholder} />
+              <KeyFactChip icon={MapPin} label={tc('detail.facts.region')} value={region} faded={ph.region} />
+              <KeyFactChip icon={Globe} label={tc('detail.facts.workModel')} value={enrichedWorkModel} faded={ph.workModel} />
             </div>
 
             {/* Skills */}
@@ -878,7 +870,7 @@ export default function CandidateDetail() {
                 </Badge>
               ))}
               {topSkills.length > 8 && (
-                <span className="text-[10px] text-muted-foreground ml-0.5">+{topSkills.length - 8} weitere</span>
+                <span className="text-[10px] text-muted-foreground ml-0.5">{tc('detail.moreSkills', { count: topSkills.length - 8 })}</span>
               )}
             </div>
 
@@ -896,16 +888,16 @@ export default function CandidateDetail() {
                   <AvatarFallback className="bg-primary/10 text-[11px] text-primary">{initialsOf(hhName)}</AvatarFallback>
                 </Avatar>
                 <p className="text-sm text-muted-foreground flex-1 min-w-0">
-                  Eingereicht von {submitter.partnerNumber ? (
-                    <a href={`/partner/${submitter.partnerNumber}`} target="_blank" rel="noreferrer" title="Partner-Prüfseite öffnen" className="font-medium text-foreground hover:underline">{hhName}</a>
+                  {tc('preview.submittedBy')} {submitter.partnerNumber ? (
+                    <a href={`/partner/${submitter.partnerNumber}`} target="_blank" rel="noreferrer" title={tc('preview.partnerPage')} className="font-medium text-foreground hover:underline">{hhName}</a>
                   ) : <span className="font-medium text-foreground">{hhName}</span>}
                   {submitter.company ? ` · ${submitter.company}` : ' · Headhunter'}
                   {submitter.tierLabel ? ` · ${submitter.tierLabel}` : ''}
-                  {subState?.submittedAt ? ` · am ${format(new Date(subState.submittedAt), 'dd.MM.yyyy', { locale: de })}` : ''}
+                  {subState?.submittedAt ? ` · ${tc('detail.onDate', { date: fmtDate(subState.submittedAt) })}` : ''}
                 </p>
                 {canAsk && (
                   <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setShowFrage(true)}>
-                    Frage stellen
+                    {tc('detail.askQuestion')}
                   </Button>
                 )}
               </div>
@@ -954,13 +946,13 @@ export default function CandidateDetail() {
               <PendingRequestStatus submissionId={submissionId} jobTitle={jobTitle} compact={taskCardsShown} />
             ))}
             {!isViewer && !isTerminal && !calmBox && state.key === 'naechste_runde' && (
-              <Button variant="outline" size="sm" onClick={() => setShowOffer(true)}>Direkt Angebot machen</Button>
+              <Button variant="outline" size="sm" onClick={() => setShowOffer(true)}>{tc('detail.offerDirect')}</Button>
             )}
             {!isViewer && !isTerminal && (!calmBox || waitingForRec) && state.key === 'angebot_vorbereiten' && (
-              <Button variant="outline" size="sm" onClick={() => setShowInterviewDialog(true)}>Interview {nextRoundNo} planen</Button>
+              <Button variant="outline" size="sm" onClick={() => setShowInterviewDialog(true)}>{t('bewerber.actions.plan_next_round', { round: nextRoundNo })}</Button>
             )}
             {!isViewer && !isTerminal && subState?.offers?.[0]?.status === 'declined' && (
-              <Button asChild variant="outline" size="sm"><Link to="/dashboard/candidates">Andere Bewerber ansehen</Link></Button>
+              <Button asChild variant="outline" size="sm"><Link to="/dashboard/candidates">{tc('detail.otherCandidates')}</Link></Button>
             )}
             {!isViewer && !isTerminal && !signedContract && (subStateLoading ? (
               <Skeleton className="h-9 w-24 rounded-md" />
@@ -983,12 +975,12 @@ export default function CandidateDetail() {
             <div className="flex items-center gap-2 lg:ml-auto">
               <Button variant="ghost" size="sm" className="text-muted-foreground gap-1.5" onClick={() => void downloadCv()} disabled={pdfBusy}>
                 {pdfBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
-                Lebenslauf (PDF)
+                {tc('detail.cvPdf')}
               </Button>
               {!isViewer && user && (
                 <Button variant="ghost" size="sm" className="text-muted-foreground gap-1.5" onClick={() => setShowAsk(true)}>
                   <Users className="h-3.5 w-3.5" />
-                  Kollegen fragen
+                  {tc('detail.askColleagues')}
                 </Button>
               )}
             </div>
@@ -1012,8 +1004,8 @@ export default function CandidateDetail() {
             {candidateView.recruiterNotes?.trim() && (
               <Card>
                 <CardContent className="p-5">
-                  <h3 className="mb-3 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">Empfehlung von {hhName}</h3>
-                  <p className="text-sm leading-6">„{candidateView.recruiterNotes.trim()}“</p>
+                  <h3 className="mb-3 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{tc('preview.recommendation', { name: hhName })}</h3>
+                  <p className="text-sm leading-6">{tc('preview.quote', { text: candidateView.recruiterNotes.trim() })}</p>
                 </CardContent>
               </Card>
             )}
@@ -1042,12 +1034,12 @@ export default function CandidateDetail() {
                 submissionId={submissionId}
                 anonymized={!identityUnlocked}
                 empty={{
-                  title: 'Noch keine Stationen hinterlegt',
-                  text: 'Der Headhunter hat den Werdegang noch nicht eingetragen. Fragen Sie gern nach.',
+                  title: tc('detail.careerEmptyTitle'),
+                  text: tc('detail.careerEmptyText'),
                   action: (
                     <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowFrage(true)}>
                       <MessageSquare className="h-3.5 w-3.5" />
-                      Werdegang bei {hhName} anfragen
+                      {tc('detail.careerAsk', { name: hhName })}
                     </Button>
                   ),
                 }}
@@ -1067,7 +1059,7 @@ export default function CandidateDetail() {
                   <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{t('bewerber.detail.branchen')}</p>
                   <div className="flex flex-wrap gap-1">
                     {industryExperience.map((ie, idx) => (
-                      <Badge key={idx} variant="outline" className="text-[10px] font-normal">{ie}</Badge>
+                      <Badge key={idx} variant="outline" className="text-[10px] font-normal">{term(ie)}</Badge>
                     ))}
                   </div>
                 </div>
@@ -1077,7 +1069,7 @@ export default function CandidateDetail() {
                   <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{t('bewerber.detail.zielrollen')}</p>
                   <div className="flex flex-wrap gap-1">
                     {targetRoles.map((tr, idx) => (
-                      <Badge key={idx} variant="outline" className="text-[10px] font-normal">{tr}</Badge>
+                      <Badge key={idx} variant="outline" className="text-[10px] font-normal">{term(tr)}</Badge>
                     ))}
                   </div>
                 </div>
@@ -1088,7 +1080,7 @@ export default function CandidateDetail() {
                   <div className="flex flex-wrap gap-1">
                     {languageSkills.map((ls, idx) => (
                       <Badge key={idx} variant="outline" className="text-[10px] font-normal">
-                        {ls.level ? `${ls.language} (${ls.level})` : ls.language}
+                        {ls.level ? `${term(ls.language)} (${term(ls.level)})` : term(ls.language)}
                       </Badge>
                     ))}
                   </div>
@@ -1135,15 +1127,15 @@ export default function CandidateDetail() {
           {submitter && (
             <Card>
               <CardContent className="p-5">
-                <h3 className="mb-3 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">Fragen an {hhName}</h3>
+                <h3 className="mb-3 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{tc('detail.questionsTo', { name: hhName })}</h3>
                 {(questions.data?.messages.length ?? 0) > 0 ? (
                   <QuestionThreadList messages={questions.data!.messages} name={hhName} />
                 ) : (
-                  <p className="text-sm text-muted-foreground">Noch keine Fragen. {hhName} hat den Kandidaten eingereicht und kennt ihn aus dem Gespräch.</p>
+                  <p className="text-sm text-muted-foreground">{tc('detail.noQuestions', { name: hhName })}</p>
                 )}
                 {!isViewer && !isTerminal && (
                   <Button variant="outline" size="sm" className="mt-3" onClick={() => setShowFrage(true)}>
-                    Frage stellen
+                    {tc('detail.askQuestion')}
                   </Button>
                 )}
               </CardContent>
@@ -1172,7 +1164,7 @@ export default function CandidateDetail() {
                     <span className="mt-1.5 h-2 w-2 rounded-full bg-muted-foreground/40 shrink-0" />
                     <div>
                       <span className="text-[11px] text-muted-foreground/70">
-                        {format(new Date(e.when), 'dd.MM.yyyy', { locale: de })}
+                        {fmtDate(e.when)}
                       </span>
                       <p className="text-sm leading-tight">{e.label}</p>
                     </div>
@@ -1196,7 +1188,7 @@ export default function CandidateDetail() {
           <CardContent className="space-y-3">
             <div className="relative">
               <Textarea
-                placeholder={teamMembers.length > 1 ? 'Notiz hinzufügen … (@ erwähnt Teammitglieder)' : 'Notiz hinzufügen …'}
+                placeholder={teamMembers.length > 1 ? tc('detail.notePlaceholderMention') : tc('detail.notePlaceholder')}
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 className="min-h-[60px] text-sm"
@@ -1212,7 +1204,7 @@ export default function CandidateDetail() {
                     >
                       <User className="h-3.5 w-3.5 text-muted-foreground" />
                       <span className="flex-1 truncate">{m.full_name}</span>
-                      <span className="text-xs text-muted-foreground">{m.role}</span>
+                      <span className="text-xs text-muted-foreground">{['owner', 'admin', 'hr', 'hiring_manager', 'viewer', 'finance'].includes(m.role) ? tc(`ask.roles.${m.role}`) : m.role}</span>
                     </button>
                   ))}
                 </div>
@@ -1229,7 +1221,7 @@ export default function CandidateDetail() {
               ) : (
                 <Send className="h-4 w-4 mr-2" />
               )}
-              Speichern
+              {t('bewerber.notes.save')}
             </Button>
             <p className="text-[10px] text-muted-foreground/60">{t('bewerber.notes.visibility')}</p>
 
@@ -1241,7 +1233,7 @@ export default function CandidateDetail() {
                       <p className="text-sm">{renderCommentContent(comment.content)}</p>
                       <p className="text-xs text-muted-foreground mt-1">
                         {memberName(comment.user_id) ? `${memberName(comment.user_id)} · ` : ''}
-                        {format(new Date(comment.created_at), 'dd.MM.yyyy HH:mm', { locale: de })}
+                        {`${fmtDate(comment.created_at)} ${fmtTime(comment.created_at)}`}
                       </p>
                     </div>
                   ))}
@@ -1254,7 +1246,7 @@ export default function CandidateDetail() {
         {/* Footer-Hinweis nur solange die Identität gesperrt ist; EU-AI-Act-Hinweis steht in der Fit-Analyse */}
         {!identityUnlocked && (
           <p className="text-xs text-muted-foreground/60 text-center py-3">
-            Anonymisiertes Profil — nach der Interview-Zusage werden Name, Kontakt und Lebenslauf freigeschaltet.
+            {tc('detail.anonFooter')}
           </p>
         )}
       </div>
@@ -1283,12 +1275,12 @@ export default function CandidateDetail() {
         code={anonCode}
         role={currentRole}
         identityUnlocked={identityUnlocked}
-        noticeFallback={availability}
+        noticeFallback={candidateView.noticePeriod ?? availability}
       />
       <RejectionDialog
         open={showRejectDialog}
         onOpenChange={setShowRejectDialog}
-        notice={offerFlow && ['with_recruiter', 'considering', 'accept_reported', 'countered'].includes(subState?.offers?.[0]?.status ?? '') ? 'Das Angebot wird damit zurückgezogen.' : undefined}
+        notice={offerFlow && ['with_recruiter', 'considering', 'accept_reported', 'countered'].includes(subState?.offers?.[0]?.status ?? '') ? tc('detail.rejectWithdrawsOffer') : undefined}
         submission={{
           id: submissionId,
           candidate: { id: candidateId, full_name: displayName, email: email || '' },

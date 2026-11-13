@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useTranslation } from 'react-i18next';
 
 import {
   Dialog,
@@ -73,6 +74,7 @@ interface JobEditDialogProps {
 
 export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: JobEditDialogProps) {
   const { toast } = useToast();
+  const { t } = useTranslation('recruiterJobEdit');
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState(initialTab || 'basics');
 
@@ -179,12 +181,12 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
 
       if (error) throw error;
 
-      toast({ title: 'Job aktualisiert' });
+      toast({ title: t('edit.updated') });
       onSave();
       onOpenChange(false);
     } catch (error) {
       console.error('Error updating job:', error);
-      toast({ title: 'Fehler beim Speichern', variant: 'destructive' });
+      toast({ title: t('edit.saveError'), variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -204,10 +206,10 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
           <DialogHeader className="px-6 pt-6 pb-4">
             <DialogTitle className="flex items-center gap-2">
               <Briefcase className="h-5 w-5" />
-              Job bearbeiten
+              {t('edit.title')}
             </DialogTitle>
             <DialogDescription>
-              Bearbeite alle Details dieser Stelle
+              {t('edit.description')}
             </DialogDescription>
           </DialogHeader>
 
@@ -216,19 +218,19 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
               <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="basics" className="text-xs">
                   <Building2 className="h-3.5 w-3.5 mr-1.5" />
-                  Grunddaten
+                  {t('edit.tabs.basics')}
                 </TabsTrigger>
                 <TabsTrigger value="location" className="text-xs">
                   <MapPin className="h-3.5 w-3.5 mr-1.5" />
-                  Standort
+                  {t('edit.location')}
                 </TabsTrigger>
                 <TabsTrigger value="skills" className="text-xs">
                   <Users className="h-3.5 w-3.5 mr-1.5" />
-                  Skills
+                  {t('edit.tabs.skills')}
                 </TabsTrigger>
                 <TabsTrigger value="conditions" className="text-xs">
                   <DollarSign className="h-3.5 w-3.5 mr-1.5" />
-                  Konditionen
+                  {t('edit.tabs.conditions')}
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -238,50 +240,50 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
               <TabsContent value="basics" className="mt-0 space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="title">Jobtitel *</Label>
+                    <Label htmlFor="title">{t('edit.jobTitle')}</Label>
                     <Input
                       id="title"
                       value={formData.title}
                       onChange={(e) => handleInputChange('title', e.target.value)}
-                      placeholder="z.B. Senior Software Engineer"
+                      placeholder={t('edit.jobTitleExample')}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="company_name">Firmenname *</Label>
+                    <Label htmlFor="company_name">{t('edit.companyName')}</Label>
                     <Input
                       id="company_name"
                       value={formData.company_name}
                       onChange={(e) => handleInputChange('company_name', e.target.value)}
-                      placeholder="z.B. Acme GmbH"
+                      placeholder={t('edit.companyExample')}
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="description">Stellenbeschreibung</Label>
+                  <Label htmlFor="description">{t('edit.jobDescription')}</Label>
                   <Textarea
                     id="description"
                     value={formData.description}
                     onChange={(e) => handleInputChange('description', e.target.value)}
                     rows={5}
-                    placeholder="Beschreibe die Rolle und Verantwortlichkeiten..."
+                    placeholder={t('edit.jobDescriptionHint')}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="requirements">Anforderungen</Label>
+                  <Label htmlFor="requirements">{t('edit.requirements')}</Label>
                   <Textarea
                     id="requirements"
                     value={formData.requirements}
                     onChange={(e) => handleInputChange('requirements', e.target.value)}
                     rows={4}
-                    placeholder="Liste die Qualifikationen auf..."
+                    placeholder={t('edit.requirementsHint')}
                   />
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>Anstellungsart</Label>
+                    <Label>{t('edit.employment')}</Label>
                     <Select
                       value={formData.employment_type}
                       onValueChange={(v) => handleInputChange('employment_type', v)}
@@ -290,15 +292,15 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="full-time">Vollzeit</SelectItem>
-                        <SelectItem value="part-time">Teilzeit</SelectItem>
-                        <SelectItem value="contract">Befristet</SelectItem>
-                        <SelectItem value="freelance">Freelance</SelectItem>
+                        <SelectItem value="full-time">{t('edit.employmentType.fullTime')}</SelectItem>
+                        <SelectItem value="part-time">{t('edit.employmentType.partTime')}</SelectItem>
+                        <SelectItem value="contract">{t('edit.employmentType.contract')}</SelectItem>
+                        <SelectItem value="freelance">{t('edit.employmentType.freelance')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Erfahrungslevel</Label>
+                    <Label>{t('edit.level')}</Label>
                     <Select
                       value={formData.experience_level}
                       onValueChange={(v) => handleInputChange('experience_level', v)}
@@ -307,10 +309,10 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="junior">Junior (0-2 Jahre)</SelectItem>
-                        <SelectItem value="mid">Mid-Level (2-5 Jahre)</SelectItem>
-                        <SelectItem value="senior">Senior (5-8 Jahre)</SelectItem>
-                        <SelectItem value="lead">Lead/Principal (8+ Jahre)</SelectItem>
+                        <SelectItem value="junior">{t('edit.levels.junior')}</SelectItem>
+                        <SelectItem value="mid">{t('edit.levels.mid')}</SelectItem>
+                        <SelectItem value="senior">{t('edit.levels.senior')}</SelectItem>
+                        <SelectItem value="lead">{t('edit.levels.lead')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -318,7 +320,7 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>Gewünschter Einstellungszeitraum</Label>
+                    <Label>{t('edit.timeframe')}</Label>
                     <Select
                       value={formData.desired_timeframe}
                       onValueChange={(v) => handleInputChange('desired_timeframe', v)}
@@ -327,20 +329,20 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="low">Keine Eile</SelectItem>
-                        <SelectItem value="normal">Innerhalb 3 Monate</SelectItem>
-                        <SelectItem value="high">Schnellstmöglich</SelectItem>
-                        <SelectItem value="urgent">Sofort</SelectItem>
+                        <SelectItem value="low">{t('edit.timeframes.low')}</SelectItem>
+                        <SelectItem value="normal">{t('edit.timeframes.normal')}</SelectItem>
+                        <SelectItem value="high">{t('edit.timeframes.high')}</SelectItem>
+                        <SelectItem value="urgent">{t('edit.timeframes.urgent')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="industry">Branche</Label>
+                    <Label htmlFor="industry">{t('edit.industry')}</Label>
                     <Input
                       id="industry"
                       value={formData.industry}
                       onChange={(e) => handleInputChange('industry', e.target.value)}
-                      placeholder="z.B. Technologie, Finanzen..."
+                      placeholder={t('edit.industryExample')}
                     />
                   </div>
                 </div>
@@ -350,16 +352,16 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
               <TabsContent value="location" className="mt-0 space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="location">Standort</Label>
+                    <Label htmlFor="location">{t('edit.location')}</Label>
                     <Input
                       id="location"
                       value={formData.location}
                       onChange={(e) => handleInputChange('location', e.target.value)}
-                      placeholder="z.B. Berlin, Deutschland"
+                      placeholder={t('edit.locationExample')}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Remote-Modell</Label>
+                    <Label>{t('edit.remoteModel')}</Label>
                     <Select
                       value={formData.remote_type}
                       onValueChange={(v) => handleInputChange('remote_type', v)}
@@ -368,27 +370,27 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="onsite">Vor Ort</SelectItem>
-                        <SelectItem value="hybrid">Hybrid</SelectItem>
-                        <SelectItem value="remote">Remote</SelectItem>
+                        <SelectItem value="onsite">{t('edit.remote.onsite')}</SelectItem>
+                        <SelectItem value="hybrid">{t('edit.remote.hybrid')}</SelectItem>
+                        <SelectItem value="remote">{t('edit.remote.remote')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="office_address">Büro-Adresse</Label>
+                  <Label htmlFor="office_address">{t('edit.officeAddress')}</Label>
                   <Input
                     id="office_address"
                     value={formData.office_address}
                     onChange={(e) => handleInputChange('office_address', e.target.value)}
-                    placeholder="Straße, PLZ, Stadt"
+                    placeholder={t('edit.officeAddressHint')}
                   />
                 </div>
 
                 {formData.remote_type === 'hybrid' && (
                   <div className="space-y-3">
-                    <Label>Pflichttage im Büro pro Woche: {formData.onsite_days_required}</Label>
+                    <Label>{t('edit.onsiteDays', { days: formData.onsite_days_required })}</Label>
                     <Slider
                       value={[parseInt(formData.onsite_days_required) || 3]}
                       onValueChange={([v]) => handleInputChange('onsite_days_required', v.toString())}
@@ -398,8 +400,8 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
                       className="w-full"
                     />
                     <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>1 Tag</span>
-                      <span>5 Tage</span>
+                      <span>{t('edit.oneDay')}</span>
+                      <span>{t('edit.fiveDays')}</span>
                     </div>
                   </div>
                 )}
@@ -408,12 +410,12 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
               {/* Skills Tab */}
               <TabsContent value="skills" className="mt-0 space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="skills">Technische Skills</Label>
+                  <Label htmlFor="skills">{t('edit.technicalSkills')}</Label>
                   <Textarea
                     id="skills"
                     value={formData.skills}
                     onChange={(e) => handleInputChange('skills', e.target.value)}
-                    placeholder="z.B. React, TypeScript, Node.js, PostgreSQL, Docker..."
+                    placeholder={t('edit.technicalSkillsExample')}
                     rows={3}
                   />
                   {formData.skills && (
@@ -432,23 +434,23 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
                 <Separator />
 
                 <div className="space-y-2">
-                  <Label htmlFor="must_haves">Must-Haves</Label>
+                  <Label htmlFor="must_haves">{t('edit.mustHaves')}</Label>
                   <Textarea
                     id="must_haves"
                     value={formData.must_haves}
                     onChange={(e) => handleInputChange('must_haves', e.target.value)}
-                    placeholder="z.B. 5+ Jahre React, Erfahrung mit CI/CD, Teamführung..."
+                    placeholder={t('edit.mustHavesExample')}
                     rows={3}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="nice_to_haves">Nice-to-Haves</Label>
+                  <Label htmlFor="nice_to_haves">{t('edit.niceToHaves')}</Label>
                   <Textarea
                     id="nice_to_haves"
                     value={formData.nice_to_haves}
                     onChange={(e) => handleInputChange('nice_to_haves', e.target.value)}
-                    placeholder="z.B. Kubernetes-Kenntnisse, Open-Source-Beiträge, AWS-Zertifizierung..."
+                    placeholder={t('edit.niceToHavesExample')}
                     rows={3}
                   />
                 </div>
@@ -458,16 +460,16 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
               <TabsContent value="conditions" className="mt-0 space-y-4">
                 {/* Benefits Section */}
                 <div className="space-y-2">
-                  <Label htmlFor="benefits">Benefits & Zusatzleistungen</Label>
+                  <Label htmlFor="benefits">{t('edit.benefits')}</Label>
                   <Textarea
                     id="benefits"
                     value={formData.benefits}
                     onChange={(e) => handleInputChange('benefits', e.target.value)}
-                    placeholder="z.B. 30 Tage Urlaub, Firmenwagen, betriebliche Altersvorsorge, Weiterbildungsbudget..."
+                    placeholder={t('edit.benefitsExample')}
                     rows={3}
                   />
                   <div className="flex flex-wrap gap-1.5 mt-2">
-                    {['30 Tage Urlaub', 'Home Office', 'Firmenwagen', 'Weiterbildungsbudget', 'Betriebliche Altersvorsorge', 'Jobrad', 'Flexible Arbeitszeiten', 'Obstkorb & Getränke'].map((benefit) => {
+                    {[t('edit.benefitChips.b1'), t('edit.benefitChips.b2'), t('edit.benefitChips.b3'), t('edit.benefitChips.b4'), t('edit.benefitChips.b5'), t('edit.benefitChips.b6'), t('edit.benefitChips.b7'), t('edit.benefitChips.b8')].map((benefit) => {
                       const isSelected = formData.benefits.split(',').map(b => b.trim()).includes(benefit);
                       return (
                         <Badge
@@ -492,23 +494,23 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor="salary_min">Gehalt Min (€/Jahr)</Label>
+                    <Label htmlFor="salary_min">{t('edit.salaryMin')}</Label>
                     <Input
                       id="salary_min"
                       type="number"
                       value={formData.salary_min}
                       onChange={(e) => handleInputChange('salary_min', e.target.value)}
-                      placeholder="z.B. 60000"
+                      placeholder={t('edit.salaryMinExample')}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="salary_max">Gehalt Max (€/Jahr)</Label>
+                    <Label htmlFor="salary_max">{t('edit.salaryMax')}</Label>
                     <Input
                       id="salary_max"
                       type="number"
                       value={formData.salary_max}
                       onChange={(e) => handleInputChange('salary_max', e.target.value)}
-                      placeholder="z.B. 80000"
+                      placeholder={t('edit.salaryMaxExample')}
                     />
                   </div>
                 </div>
@@ -522,7 +524,7 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
           <DialogFooter className="px-6 py-4 flex-col sm:flex-row gap-2">
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Abbrechen
+                {t('edit.cancel')}
               </Button>
               <Button onClick={handleSave} disabled={saving}>
                 {saving ? (
@@ -530,7 +532,7 @@ export function JobEditDialog({ job, open, onOpenChange, onSave, initialTab }: J
                 ) : (
                   <Save className="h-4 w-4 mr-2" />
                 )}
-                Speichern
+                {t('edit.save')}
               </Button>
             </div>
           </DialogFooter>

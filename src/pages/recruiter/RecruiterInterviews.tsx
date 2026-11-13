@@ -2,7 +2,8 @@ import { useSearchParams } from 'react-router-dom';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { format, formatDistanceToNow } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { intlLocale } from '@/i18n/languages';
+import { dateFnsLocale } from '@/components/recruiter/termin/datum';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -36,6 +37,22 @@ import { cn } from '@/lib/utils';
 import { Honorar } from '@/components/recruiter/Honorar';
 import { ErstgespraecheAbschnitt, useErstgespraeche } from '@/components/recruiter/termin/Erstgespraeche';
 
+// Die Seite ruft ihre Texte als t('recruiterInterviews.…') auf. Der Namespace recruiterInterviews
+// führt dieselben Schlüssel in allen vier Sprachen; „translation“ (nur de/en) bleibt als Rückfall.
+const NS = ['recruiterInterviews', 'translation'];
+
+/** Tagesüberschrift der Agenda in der Sprache der Oberfläche (key = JJJJ-MM-TT, Ortszeit). */
+function dayHeading(key: string, language: string, today: string, tomorrow: string): string {
+  const [y, m, d] = key.split('-').map(Number);
+  const that = new Date(y, m - 1, d);
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const diff = Math.round((that.getTime() - now.getTime()) / 86_400_000);
+  if (diff === 0) return today;
+  if (diff === 1) return tomorrow;
+  return that.toLocaleDateString(intlLocale(language), { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
 const formatFee = (fee: number | null) => (fee ? `~€${Math.round(fee / 1000)}k` : null);
 
 function MeetingIcon({ type, className }: { type: string | null; className?: string }) {
@@ -67,7 +84,8 @@ function InterviewRow({
   variant: RecruiterTerminVariant;
   onOpen: (iv: RecruiterInterview, variant: RecruiterTerminVariant) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation(NS);
+  const locale = dateFnsLocale(i18n.language);
 
   return (
     <div
@@ -99,7 +117,7 @@ function InterviewRow({
             <div className="text-[10px] text-muted-foreground">
               {variant === 'agenda'
                 ? t('recruiterInterviews.row.duration', { min: iv.durationMinutes })
-                : format(new Date(iv.scheduledAt), 'dd.MM.', { locale: de })}
+                : format(new Date(iv.scheduledAt), t('page.fmt.dayMonth'), { locale })}
             </div>
           </>
         ) : (
@@ -156,7 +174,7 @@ function InterviewRow({
         {(variant === 'awaiting' || variant === 'counter') && (
           <div className="text-[11px] text-muted-foreground mt-0.5">
             {t('recruiterInterviews.row.waiting_since', {
-              time: formatDistanceToNow(new Date(iv.createdAt), { locale: de }),
+              time: formatDistanceToNow(new Date(iv.createdAt), { locale }),
             })}
           </div>
         )}
@@ -206,7 +224,8 @@ function InterviewRow({
 }
 
 export default function RecruiterInterviews() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation(NS);
+  const locale = dateFnsLocale(i18n.language);
   const erstgespraeche = useErstgespraeche({ kommende: true });
   const { data: agenda, isLoading, refetch } = useRecruiterInterviewAgenda();
   const [pastOpen, setPastOpen] = useState(false);
@@ -331,14 +350,14 @@ export default function RecruiterInterviews() {
                       <p className="text-[11px] font-medium uppercase tracking-wider text-primary mb-1">
                         {t('recruiterInterviews.next_up', {
                           time: formatDistanceToNow(new Date(nextUp.scheduledAt), {
-                            locale: de,
+                            locale,
                             addSuffix: true,
                           }),
                         })}
                       </p>
                       <p className="font-semibold truncate">
-                        {format(new Date(nextUp.scheduledAt), 'EEEE, dd.MM. · HH:mm', {
-                          locale: de,
+                        {format(new Date(nextUp.scheduledAt), t('page.fmt.nextUp'), {
+                          locale,
                         })}{' '}
                         — {nextUp.candidateName}
                       </p>
@@ -413,7 +432,7 @@ export default function RecruiterInterviews() {
                 {agenda!.agendaDays.map((day) => (
                   <div key={day.key} className="space-y-2">
                     <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      {day.label}{' '}
+                      {dayHeading(day.key, i18n.language, t('page.day.today'), t('page.day.tomorrow'))}{' '}
                       <span className="text-muted-foreground/60">({day.items.length})</span>
                     </p>
                     <div className="space-y-2">

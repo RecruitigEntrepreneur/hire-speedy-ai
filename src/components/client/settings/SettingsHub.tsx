@@ -1,4 +1,5 @@
 import { useState, type ComponentType } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Building2, Calendar, CheckCircle2, ChevronRight, FileText, Lock, Megaphone, User, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,9 +24,11 @@ export function SettingsHub({ company, companyName, isOwner, financeOnly = false
   /** Rolle Buchhaltung: nur „Mein Konto“ */
   financeOnly?: boolean;
   calendarConnected: boolean | null;
+  /** signed · countersign · awaitingYou · preparing */
   contractStatus: string | null;
   onOpen: (b: Bereich) => void;
 }) {
+  const { t } = useTranslation('clientSettings');
   const { profile, update } = company;
   const offen = isOwner ? fehlendeAuftrittAngaben(profile) : [];
   const [spaeter, setSpaeter] = useState<string[]>([]);
@@ -41,24 +44,24 @@ export function SettingsHub({ company, companyName, isOwner, financeOnly = false
   };
 
   const allTiles: Tile[] = [
-    { key: 'konto', icon: User, title: 'Mein Konto', text: 'Name, Passwort, Benachrichtigungen', status: 'Nur für Sie', tone: 'neutral' },
+    { key: 'konto', icon: User, title: t('hub.tiles.konto.title'), text: t('hub.tiles.konto.text'), status: t('hub.tiles.konto.status'), tone: 'neutral' },
     {
-      key: 'kalender', icon: Calendar, title: 'Kalender', text: 'Outlook, Interview-Zeiten',
-      status: calendarConnected == null ? 'Wird geprüft …' : calendarConnected ? 'Outlook verbunden' : 'Nicht verbunden', tone: calendarConnected ? 'ok' : 'warn',
+      key: 'kalender', icon: Calendar, title: t('hub.tiles.kalender.title'), text: t('hub.tiles.kalender.text'),
+      status: calendarConnected == null ? t('hub.tiles.kalender.checking') : calendarConnected ? t('hub.tiles.kalender.connected') : t('hub.tiles.kalender.notConnected'), tone: calendarConnected ? 'ok' : 'warn',
     },
     ...(isOwner ? [{
-      key: 'auftritt' as const, icon: Megaphone, title: 'Auftritt bei Headhuntern', text: 'Fakten, USP, Arbeitgeberprofil',
-      status: offen.length ? `${offen.length} ${offen.length === 1 ? 'Angabe fehlt' : 'Angaben fehlen'}` : 'Vollständig', tone: (offen.length ? 'warn' : 'ok') as Tile['tone'],
+      key: 'auftritt' as const, icon: Megaphone, title: t('hub.tiles.auftritt.title'), text: t('hub.tiles.auftritt.text'),
+      status: offen.length ? t('hub.tiles.auftritt.missing', { count: offen.length }) : t('hub.complete'), tone: (offen.length ? 'warn' : 'ok') as Tile['tone'],
     }] : []),
-    { key: 'team', icon: Users, title: 'Team', text: 'Kollegen und Rechte', status: 'Öffnet die Team-Seite', tone: 'neutral' },
+    { key: 'team', icon: Users, title: t('hub.tiles.team.title'), text: t('hub.tiles.team.text'), status: t('hub.tiles.team.status'), tone: 'neutral' },
     ...(isOwner ? [
       {
-        key: 'unternehmen' as const, icon: Building2, title: 'Unternehmen', text: 'Name, Logo, Rechnungsanschrift',
-        status: firmaFehlt.length ? `Fehlt: ${firmaFehlt.join(', ')}` : 'Vollständig', tone: (firmaFehlt.length ? 'warn' : 'ok') as Tile['tone'],
+        key: 'unternehmen' as const, icon: Building2, title: t('hub.tiles.unternehmen.title'), text: t('hub.tiles.unternehmen.text'),
+        status: firmaFehlt.length ? t('hub.tiles.unternehmen.missing', { fields: firmaFehlt.join(', ') }) : t('hub.complete'), tone: (firmaFehlt.length ? 'warn' : 'ok') as Tile['tone'],
       },
       {
-        key: 'vertrag' as const, icon: FileText, title: 'Vertrag und Rechnungen', text: 'Rahmenvertrag, Rechnungen',
-        status: contractStatus ?? 'Noch kein Vertrag', tone: (contractStatus === 'Unterschrieben' ? 'ok' : 'neutral') as Tile['tone'],
+        key: 'vertrag' as const, icon: FileText, title: t('hub.tiles.vertrag.title'), text: t('hub.tiles.vertrag.text'),
+        status: contractStatus ? t(`hub.contract.${contractStatus}`) : t('hub.contract.none'), tone: (contractStatus === 'signed' ? 'ok' : 'neutral') as Tile['tone'],
       },
     ] : []),
   ];
@@ -68,38 +71,38 @@ export function SettingsHub({ company, companyName, isOwner, financeOnly = false
   return (
     <div className="max-w-4xl space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Einstellungen</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('hub.title')}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {companyName}{isOwner ? (offenGesamt ? ` · ${offenGesamt} ${offenGesamt === 1 ? 'Punkt' : 'Punkte'} offen` : ' · alles eingerichtet') : ''}
+          {companyName}{isOwner ? (offenGesamt ? t('hub.openPoints', { count: offenGesamt }) : t('hub.allSetShort')) : ''}
         </p>
       </div>
 
       {isOwner && (frage ? (
         <section className="space-y-2">
-          <div className="flex items-center justify-between gap-2"><h2 className="text-sm font-medium">Noch offen</h2><SaveIndicator state={company.saveState} /></div>
+          <div className="flex items-center justify-between gap-2"><h2 className="text-sm font-medium">{t('hub.stillOpen')}</h2><SaveIndicator state={company.saveState} /></div>
           <div className="rounded-xl border border-amber-500/40 bg-card p-5">
-            <p className="text-xs text-muted-foreground">Auftritt bei Headhuntern · {offen.indexOf(frage) + 1} von {offen.length}</p>
+            <p className="text-xs text-muted-foreground">{t('hub.questionOf', { n: offen.indexOf(frage) + 1, total: offen.length })}</p>
             <p className="mt-1 text-base font-medium">{frage.frage}</p>
             <p className="mt-0.5 text-sm text-muted-foreground">{frage.hilfe}</p>
             <div className="mt-4 flex flex-wrap items-start gap-2">
               {frage.feld === 'headcount'
-                ? <Input type="number" className="max-w-48" value={antwort} onChange={(e) => setAntwort(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && speichern()} placeholder="z. B. 400" />
-                : <Textarea rows={2} className="min-w-64 flex-1" value={antwort} onChange={(e) => setAntwort(e.target.value)} placeholder="z. B. Weltmarktführer, familiengeführt, 30 Tage Urlaub" />}
-              <Button onClick={speichern} disabled={!antwort.trim()}>Speichern</Button>
-              <Button variant="ghost" onClick={() => { setSpaeter((s) => [...s, frage.feld]); setAntwort(''); }}>Später</Button>
+                ? <Input type="number" className="max-w-48" value={antwort} onChange={(e) => setAntwort(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && speichern()} placeholder={t('hub.headcountPh')} />
+                : <Textarea rows={2} className="min-w-64 flex-1" value={antwort} onChange={(e) => setAntwort(e.target.value)} placeholder={t('hub.uspPh')} />}
+              <Button onClick={speichern} disabled={!antwort.trim()}>{t('hub.save')}</Button>
+              <Button variant="ghost" onClick={() => { setSpaeter((s) => [...s, frage.feld]); setAntwort(''); }}>{t('hub.later')}</Button>
             </div>
           </div>
-          {fragen[1] && <p className="px-1 text-sm text-muted-foreground">Als Nächstes: {fragen[1].frage}</p>}
+          {fragen[1] && <p className="px-1 text-sm text-muted-foreground">{t('hub.nextUp', { question: fragen[1].frage })}</p>}
         </section>
       ) : offenGesamt === 0 && (
         <div className="flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-card p-4">
           <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-500" />
-          <div><p className="text-sm font-medium">Alles eingerichtet</p><p className="text-sm text-muted-foreground">Sie müssen hier nichts mehr tun. Ändern können Sie alles über die Bereiche unten.</p></div>
+          <div><p className="text-sm font-medium">{t('hub.allSet')}</p><p className="text-sm text-muted-foreground">{t('hub.allSetLead')}</p></div>
         </div>
       ))}
 
       <section className="space-y-2">
-        <h2 className="text-sm font-medium">Bereiche</h2>
+        <h2 className="text-sm font-medium">{t('hub.areas')}</h2>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {tiles.map(({ key, icon: Icon, title, text, status, tone }) => (
             <button
@@ -120,8 +123,8 @@ export function SettingsHub({ company, companyName, isOwner, financeOnly = false
         </div>
         {!isOwner && (
           <p className="flex items-center gap-1.5 px-1 pt-1 text-xs text-muted-foreground"><Lock className="h-3.5 w-3.5" />{financeOnly
-            ? 'Rechnungsanschrift, Rechnungs-Mail und Bestellnummer ändern Sie unter Rechnungen › Rechnungsdaten.'
-            : 'Firmendaten, Auftritt bei Headhuntern und Vertrag verwaltet der Inhaber des Kontos.'}</p>
+            ? t('hub.financeOnly')
+            : t('hub.ownerOnly')}</p>
         )}
       </section>
     </div>

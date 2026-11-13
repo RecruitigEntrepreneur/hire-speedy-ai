@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { Check, ChevronDown } from 'lucide-react';
 
@@ -45,6 +46,7 @@ export function CollapsibleGroup({
   oeffnenSignal,
   children,
 }: Props) {
+  const { t } = useTranslation('clientFunnel');
   const [auf, setAuf] = useState(standardOffen ?? offen > 0);
   useEffect(() => { if (oeffnenSignal) setAuf(true); }, [oeffnenSignal]);
   const fertig = offen === 0;
@@ -64,10 +66,10 @@ export function CollapsibleGroup({
             19 untersuchten Produkte zeigt an dieser Stelle eine Prozentzahl. */}
         {fertig ? (
           <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
-            <Check className="h-3 w-3" /> vollständig
+            <Check className="h-3 w-3" /> {t('collapsible.complete')}
           </span>
         ) : (
-          <span className="shrink-0 text-xs text-muted-foreground">{offen} offen</span>
+          <span className="shrink-0 text-xs text-muted-foreground">{t('collapsible.open', { count: offen })}</span>
         )}
 
         {zusammenfassung && !auf && (

@@ -50,7 +50,8 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow, format, isPast } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { useTranslation } from 'react-i18next';
+import { dfLocale, fmtNumber } from '@/lib/localeFormat';
 import { useCoachingPlaybook } from '@/hooks/useCoachingPlaybook';
 import { useActivityLogger } from '@/hooks/useCandidateActivityLog';
 import { SnoozeDropdown } from './SnoozeDropdown';
@@ -87,35 +88,36 @@ interface TaskDetailDialogProps {
 }
 
 const PRIORITY_CONFIG = {
-  critical: { icon: AlertCircle, label: 'Kritisch', color: 'text-destructive', bgColor: 'bg-destructive/10', borderColor: 'border-destructive' },
-  high: { icon: AlertTriangle, label: 'Hoch', color: 'text-amber-600', bgColor: 'bg-amber-500/10', borderColor: 'border-amber-500' },
-  medium: { icon: Clock, label: 'Mittel', color: 'text-blue-600', bgColor: 'bg-blue-500/10', borderColor: 'border-blue-500' },
-  low: { icon: Clock, label: 'Normal', color: 'text-muted-foreground', bgColor: 'bg-muted', borderColor: 'border-muted-foreground' },
+  critical: { icon: AlertCircle, color: 'text-destructive', bgColor: 'bg-destructive/10', borderColor: 'border-destructive' },
+  high: { icon: AlertTriangle, color: 'text-amber-600', bgColor: 'bg-amber-500/10', borderColor: 'border-amber-500' },
+  medium: { icon: Clock, color: 'text-blue-600', bgColor: 'bg-blue-500/10', borderColor: 'border-blue-500' },
+  low: { icon: Clock, color: 'text-muted-foreground', bgColor: 'bg-muted', borderColor: 'border-muted-foreground' },
 };
 
-const CATEGORY_CONFIG: Record<string, { label: string; color: string }> = {
-  'opt_in_pending': { label: 'Opt-In', color: 'bg-primary/10 text-primary' },
-  'opt_in_pending_24h': { label: 'Opt-In dringend', color: 'bg-destructive/10 text-destructive' },
-  'opt_in_pending_48h': { label: 'Opt-In überfällig', color: 'bg-destructive/10 text-destructive' },
-  'interview_prep_missing': { label: 'Vorbereitung', color: 'bg-primary/10 text-primary' },
-  'interview_reminder': { label: 'Interview', color: 'bg-blue-500/10 text-blue-600' },
-  'salary_mismatch': { label: 'Gehalt', color: 'bg-amber-500/10 text-amber-600' },
-  'salary_negotiation': { label: 'Gehalt', color: 'bg-amber-500/10 text-amber-600' },
-  'ghosting_risk': { label: 'Ghosting', color: 'bg-destructive/10 text-destructive' },
-  'engagement_drop': { label: 'Engagement', color: 'bg-primary/10 text-primary' },
-  'closing_opportunity': { label: 'Closing', color: 'bg-emerald-500/10 text-emerald-600' },
-  'follow_up_needed': { label: 'Follow-up', color: 'bg-blue-500/10 text-blue-600' },
-  'no_activity': { label: 'Inaktiv', color: 'bg-muted text-muted-foreground' },
-  'sla_warning': { label: 'SLA', color: 'bg-destructive/10 text-destructive' },
-  'document_missing': { label: 'Dokument', color: 'bg-amber-500/10 text-amber-600' },
-  'culture_concern': { label: 'Kultur', color: 'bg-amber-500/10 text-amber-600' },
-  'client_feedback_positive': { label: 'Feedback+', color: 'bg-emerald-500/10 text-emerald-600' },
-  'client_feedback_negative': { label: 'Feedback-', color: 'bg-destructive/10 text-destructive' },
-  'expose': { label: 'Exposé', color: 'bg-blue-500/10 text-blue-600' },
-  'call': { label: 'Anruf', color: 'bg-violet-500/10 text-violet-600' },
-  'email': { label: 'E-Mail', color: 'bg-violet-500/10 text-violet-600' },
-  'meeting': { label: 'Meeting', color: 'bg-violet-500/10 text-violet-600' },
-  'other': { label: 'Sonstiges', color: 'bg-muted text-muted-foreground' },
+// Beschriftung: taskDetail:category.<Schlüssel>
+const CATEGORY_CONFIG: Record<string, { color: string }> = {
+  'opt_in_pending': { color: 'bg-primary/10 text-primary' },
+  'opt_in_pending_24h': { color: 'bg-destructive/10 text-destructive' },
+  'opt_in_pending_48h': { color: 'bg-destructive/10 text-destructive' },
+  'interview_prep_missing': { color: 'bg-primary/10 text-primary' },
+  'interview_reminder': { color: 'bg-blue-500/10 text-blue-600' },
+  'salary_mismatch': { color: 'bg-amber-500/10 text-amber-600' },
+  'salary_negotiation': { color: 'bg-amber-500/10 text-amber-600' },
+  'ghosting_risk': { color: 'bg-destructive/10 text-destructive' },
+  'engagement_drop': { color: 'bg-primary/10 text-primary' },
+  'closing_opportunity': { color: 'bg-emerald-500/10 text-emerald-600' },
+  'follow_up_needed': { color: 'bg-blue-500/10 text-blue-600' },
+  'no_activity': { color: 'bg-muted text-muted-foreground' },
+  'sla_warning': { color: 'bg-destructive/10 text-destructive' },
+  'document_missing': { color: 'bg-amber-500/10 text-amber-600' },
+  'culture_concern': { color: 'bg-amber-500/10 text-amber-600' },
+  'client_feedback_positive': { color: 'bg-emerald-500/10 text-emerald-600' },
+  'client_feedback_negative': { color: 'bg-destructive/10 text-destructive' },
+  'expose': { color: 'bg-blue-500/10 text-blue-600' },
+  'call': { color: 'bg-violet-500/10 text-violet-600' },
+  'email': { color: 'bg-violet-500/10 text-violet-600' },
+  'meeting': { color: 'bg-violet-500/10 text-violet-600' },
+  'other': { color: 'bg-muted text-muted-foreground' },
 };
 
 interface SubmissionContext {
@@ -156,6 +158,7 @@ function OptInActionForm({
   onSaveField: (field: string, value: unknown) => void;
   saving: boolean;
 }) {
+  const { t } = useTranslation('taskDetail');
   const [salary, setSalary] = useState('');
   const [checks, setChecks] = useState({ cvPresent: false, salaryConfirmed: false });
 
@@ -174,16 +177,16 @@ function OptInActionForm({
     <div className="space-y-3">
       <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
         <ClipboardList className="h-3.5 w-3.5 text-primary" />
-        Aufgabe erledigen — Opt-In Checkliste
+        {t('optIn.heading')}
       </div>
       <div className="rounded-lg border bg-card p-3 space-y-3">
         <p className="text-sm text-muted-foreground">
-          Zusagen kann nur der Kandidat selbst, per Klick in der Einladung.
+          {t('optIn.onlyCandidate')}
         </p>
         <label className="flex items-center gap-2.5 cursor-pointer">
           <Checkbox checked={checks.cvPresent} disabled />
           <span className={cn('text-sm', checks.cvPresent ? 'text-foreground' : 'text-muted-foreground')}>
-            CV vorhanden {checks.cvPresent && <Check className="inline h-3 w-3 text-emerald-600 ml-1" />}
+            {t('optIn.cv')} {checks.cvPresent && <Check className="inline h-3 w-3 text-emerald-600 ml-1" />}
           </span>
         </label>
         <div className="space-y-1.5">
@@ -192,18 +195,18 @@ function OptInActionForm({
               checked={checks.salaryConfirmed}
               onCheckedChange={(v) => setChecks(c => ({ ...c, salaryConfirmed: !!v }))}
             />
-            <span className="text-sm">Gehaltswunsch bestätigt</span>
+            <span className="text-sm">{t('optIn.salaryConfirmed')}</span>
           </label>
           {checks.salaryConfirmed && !candidateData?.expected_salary && (
             <div className="flex items-center gap-2 ml-7">
               <Input
                 type="number"
-                placeholder="z.B. 75000"
+                placeholder={t('common.salaryPlaceholder')}
                 value={salary}
                 onChange={(e) => setSalary(e.target.value)}
                 className="h-8 text-sm w-32"
               />
-              <span className="text-xs text-muted-foreground">EUR/Jahr</span>
+              <span className="text-xs text-muted-foreground">{t('common.perYear')}</span>
               <Button
                 size="sm"
                 variant="outline"
@@ -230,6 +233,7 @@ function SalaryActionForm({
   onSaveField: (field: string, value: unknown) => void;
   saving: boolean;
 }) {
+  const { t } = useTranslation('taskDetail');
   const [desiredSalary, setDesiredSalary] = useState('');
 
   useEffect(() => {
@@ -242,15 +246,15 @@ function SalaryActionForm({
     <div className="space-y-3">
       <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
         <DollarSign className="h-3.5 w-3.5 text-amber-500" />
-        Aufgabe erledigen — Gehalt
+        {t('salary.heading')}
       </div>
       <div className="rounded-lg border bg-card p-3 space-y-3">
         <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">Gehaltswunsch (EUR/Jahr)</Label>
+          <Label className="text-xs text-muted-foreground">{t('salary.label')}</Label>
           <div className="flex items-center gap-2">
             <Input
               type="number"
-              placeholder="z.B. 75000"
+              placeholder={t('common.salaryPlaceholder')}
               value={desiredSalary}
               onChange={(e) => setDesiredSalary(e.target.value)}
               className="h-8 text-sm"
@@ -262,12 +266,12 @@ function SalaryActionForm({
               disabled={saving || !desiredSalary}
               onClick={() => onSaveField('expected_salary', Number(desiredSalary))}
             >
-              {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Speichern'}
+              {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : t('common.save')}
             </Button>
           </div>
           {candidateData?.expected_salary && (
             <p className="text-[10px] text-muted-foreground">
-              Aktuell gespeichert: {candidateData.expected_salary.toLocaleString('de-DE')} EUR
+              {t('salary.current', { amount: fmtNumber(candidateData.expected_salary) })}
             </p>
           )}
         </div>
@@ -283,6 +287,7 @@ function FollowUpActionForm({
   onSaveNote: (text: string) => void;
   saving: boolean;
 }) {
+  const { t } = useTranslation('taskDetail');
   const [followUpNote, setFollowUpNote] = useState('');
   const [nextContact, setNextContact] = useState('');
 
@@ -290,13 +295,13 @@ function FollowUpActionForm({
     <div className="space-y-3">
       <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
         <Calendar className="h-3.5 w-3.5 text-blue-500" />
-        Aufgabe erledigen — Follow-up
+        {t('followUp.heading')}
       </div>
       <div className="rounded-lg border bg-card p-3 space-y-3">
         <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">Was wurde besprochen?</Label>
+          <Label className="text-xs text-muted-foreground">{t('followUp.discussed')}</Label>
           <Textarea
-            placeholder="Kurze Zusammenfassung..."
+            placeholder={t('followUp.summaryPlaceholder')}
             value={followUpNote}
             onChange={(e) => setFollowUpNote(e.target.value)}
             className="text-sm min-h-[60px] resize-none"
@@ -304,7 +309,7 @@ function FollowUpActionForm({
           />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">Nächster Kontakt</Label>
+          <Label className="text-xs text-muted-foreground">{t('followUp.nextContact')}</Label>
           <Input
             type="date"
             value={nextContact}
@@ -327,7 +332,7 @@ function FollowUpActionForm({
             }}
           >
             {saving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Save className="h-3 w-3 mr-1" />}
-            Speichern & als erledigt markieren
+            {t('followUp.saveDone')}
           </Button>
         )}
       </div>
@@ -344,6 +349,7 @@ function MotivationActionForm({
   onSaveField: (field: string, value: unknown) => void;
   saving: boolean;
 }) {
+  const { t } = useTranslation('taskDetail');
   const [motivation, setMotivation] = useState('');
 
   useEffect(() => {
@@ -356,12 +362,12 @@ function MotivationActionForm({
     <div className="space-y-3">
       <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
         <FileText className="h-3.5 w-3.5 text-primary" />
-        Aufgabe erledigen — Wechselmotivation
+        {t('motivation.heading')}
       </div>
       <div className="rounded-lg border bg-card p-3 space-y-2">
-        <Label className="text-xs text-muted-foreground">Warum will der Kandidat wechseln?</Label>
+        <Label className="text-xs text-muted-foreground">{t('motivation.why')}</Label>
         <Textarea
-          placeholder="Wechselmotivation eintragen..."
+          placeholder={t('motivation.placeholder')}
           value={motivation}
           onChange={(e) => setMotivation(e.target.value)}
           className="text-sm min-h-[80px] resize-none"
@@ -374,11 +380,11 @@ function MotivationActionForm({
           onClick={() => onSaveField('change_motivation', motivation.trim())}
         >
           {saving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Save className="h-3 w-3 mr-1" />}
-          Speichern
+          {t('common.save')}
         </Button>
         {(candidateData as any)?.change_motivation && motivation !== (candidateData as any).change_motivation && (
           <p className="text-[10px] text-muted-foreground">
-            Gespeichert: {(candidateData as any).change_motivation.slice(0, 80)}...
+            {t('motivation.savedPreview', { text: (candidateData as any).change_motivation.slice(0, 80) })}
           </p>
         )}
       </div>
@@ -391,16 +397,17 @@ function DocumentActionForm({
 }: {
   candidateId: string | null;
 }) {
+  const { t } = useTranslation('taskDetail');
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
         <Upload className="h-3.5 w-3.5 text-amber-500" />
-        Aufgabe erledigen — Dokument
+        {t('document.heading')}
       </div>
       <div className="rounded-lg border border-dashed bg-card p-4 text-center space-y-2">
         <Upload className="h-6 w-6 text-muted-foreground mx-auto" />
         <p className="text-sm text-muted-foreground">
-          CV oder Dokument im Kandidatenprofil hochladen
+          {t('document.text')}
         </p>
         {candidateId && (
           <Button
@@ -410,7 +417,7 @@ function DocumentActionForm({
             onClick={() => window.open(`/recruiter/candidates/${candidateId}`, '_blank')}
           >
             <ExternalLink className="h-3 w-3" />
-            Profil öffnen zum Hochladen
+            {t('document.open')}
           </Button>
         )}
       </div>
@@ -425,6 +432,7 @@ function InterviewPrepActionForm({
   onSaveNote: (text: string) => void;
   saving: boolean;
 }) {
+  const { t } = useTranslation('taskDetail');
   const [checks, setChecks] = useState({
     briefingDone: false,
     timeslotConfirmed: false,
@@ -439,27 +447,27 @@ function InterviewPrepActionForm({
     <div className="space-y-3">
       <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
         <ClipboardList className="h-3.5 w-3.5 text-blue-500" />
-        Aufgabe erledigen — Interview-Vorbereitung
+        {t('prep.heading')}
       </div>
       <div className="rounded-lg border bg-card p-3 space-y-2.5">
         <label className="flex items-center gap-2.5 cursor-pointer">
           <Checkbox checked={checks.briefingDone} onCheckedChange={(v) => setChecks(c => ({ ...c, briefingDone: !!v }))} />
-          <span className="text-sm">Kandidat gebrieft</span>
+          <span className="text-sm">{t('prep.briefed')}</span>
         </label>
         <label className="flex items-center gap-2.5 cursor-pointer">
           <Checkbox checked={checks.timeslotConfirmed} onCheckedChange={(v) => setChecks(c => ({ ...c, timeslotConfirmed: !!v }))} />
-          <span className="text-sm">Termin bestätigt</span>
+          <span className="text-sm">{t('prep.slot')}</span>
         </label>
         <label className="flex items-center gap-2.5 cursor-pointer">
           <Checkbox checked={checks.prepSent} onCheckedChange={(v) => setChecks(c => ({ ...c, prepSent: !!v }))} />
-          <span className="text-sm">Vorbereitungsunterlagen gesendet</span>
+          <span className="text-sm">{t('prep.material')}</span>
         </label>
         <label className="flex items-center gap-2.5 cursor-pointer">
           <Checkbox checked={checks.reminderSent} onCheckedChange={(v) => setChecks(c => ({ ...c, reminderSent: !!v }))} />
-          <span className="text-sm">Erinnerung gesendet</span>
+          <span className="text-sm">{t('prep.reminder')}</span>
         </label>
         <Textarea
-          placeholder="Ergänzende Notiz (optional)..."
+          placeholder={t('prep.notePlaceholder')}
           value={prepNote}
           onChange={(e) => setPrepNote(e.target.value)}
           className="text-sm min-h-[40px] resize-none mt-1"
@@ -482,7 +490,7 @@ function InterviewPrepActionForm({
             }}
           >
             {saving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Check className="h-3 w-3 mr-1" />}
-            Alles erledigt
+            {t('prep.allDone')}
           </Button>
         )}
       </div>
@@ -497,6 +505,7 @@ function ClosingActionForm({
   onSaveNote: (text: string) => void;
   saving: boolean;
 }) {
+  const { t } = useTranslation('taskDetail');
   const [checks, setChecks] = useState({
     offerSent: false,
     salaryAgreed: false,
@@ -511,27 +520,27 @@ function ClosingActionForm({
     <div className="space-y-3">
       <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
         <ClipboardList className="h-3.5 w-3.5 text-emerald-500" />
-        Aufgabe erledigen — Closing
+        {t('closing.heading')}
       </div>
       <div className="rounded-lg border bg-card p-3 space-y-2.5">
         <label className="flex items-center gap-2.5 cursor-pointer">
           <Checkbox checked={checks.offerSent} onCheckedChange={(v) => setChecks(c => ({ ...c, offerSent: !!v }))} />
-          <span className="text-sm">Angebot unterbreitet</span>
+          <span className="text-sm">{t('closing.offer')}</span>
         </label>
         <label className="flex items-center gap-2.5 cursor-pointer">
           <Checkbox checked={checks.salaryAgreed} onCheckedChange={(v) => setChecks(c => ({ ...c, salaryAgreed: !!v }))} />
-          <span className="text-sm">Gehalt vereinbart</span>
+          <span className="text-sm">{t('closing.salary')}</span>
         </label>
         <label className="flex items-center gap-2.5 cursor-pointer">
           <Checkbox checked={checks.startDateSet} onCheckedChange={(v) => setChecks(c => ({ ...c, startDateSet: !!v }))} />
-          <span className="text-sm">Startdatum festgelegt</span>
+          <span className="text-sm">{t('closing.start')}</span>
         </label>
         <label className="flex items-center gap-2.5 cursor-pointer">
           <Checkbox checked={checks.contractSent} onCheckedChange={(v) => setChecks(c => ({ ...c, contractSent: !!v }))} />
-          <span className="text-sm">Vertrag gesendet</span>
+          <span className="text-sm">{t('closing.contract')}</span>
         </label>
         <Textarea
-          placeholder="Closing-Notiz (optional)..."
+          placeholder={t('closing.notePlaceholder')}
           value={closingNote}
           onChange={(e) => setClosingNote(e.target.value)}
           className="text-sm min-h-[40px] resize-none mt-1"
@@ -554,7 +563,7 @@ function ClosingActionForm({
             }}
           >
             {saving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Check className="h-3 w-3 mr-1" />}
-            Closing abschließen
+            {t('closing.finish')}
           </Button>
         )}
       </div>
@@ -569,6 +578,7 @@ function GhostingActionForm({
   onSaveNote: (text: string) => void;
   saving: boolean;
 }) {
+  const { t } = useTranslation('taskDetail');
   const [attempts, setAttempts] = useState({ call: false, email: false, whatsapp: false });
   const [ghostNote, setGhostNote] = useState('');
 
@@ -576,24 +586,24 @@ function GhostingActionForm({
     <div className="space-y-3">
       <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
         <AlertCircle className="h-3.5 w-3.5 text-destructive" />
-        Aufgabe erledigen — Kontaktversuche
+        {t('ghosting.heading')}
       </div>
       <div className="rounded-lg border bg-card p-3 space-y-2.5">
-        <p className="text-xs text-muted-foreground">Welche Kanäle wurden versucht?</p>
+        <p className="text-xs text-muted-foreground">{t('ghosting.which')}</p>
         <label className="flex items-center gap-2.5 cursor-pointer">
           <Checkbox checked={attempts.call} onCheckedChange={(v) => setAttempts(c => ({ ...c, call: !!v }))} />
-          <span className="text-sm flex items-center gap-1"><Phone className="h-3 w-3" /> Anruf versucht</span>
+          <span className="text-sm flex items-center gap-1"><Phone className="h-3 w-3" /> {t('ghosting.call')}</span>
         </label>
         <label className="flex items-center gap-2.5 cursor-pointer">
           <Checkbox checked={attempts.email} onCheckedChange={(v) => setAttempts(c => ({ ...c, email: !!v }))} />
-          <span className="text-sm flex items-center gap-1"><Mail className="h-3 w-3" /> E-Mail gesendet</span>
+          <span className="text-sm flex items-center gap-1"><Mail className="h-3 w-3" /> {t('ghosting.email')}</span>
         </label>
         <label className="flex items-center gap-2.5 cursor-pointer">
           <Checkbox checked={attempts.whatsapp} onCheckedChange={(v) => setAttempts(c => ({ ...c, whatsapp: !!v }))} />
-          <span className="text-sm flex items-center gap-1"><MessageSquare className="h-3 w-3" /> WhatsApp gesendet</span>
+          <span className="text-sm flex items-center gap-1"><MessageSquare className="h-3 w-3" /> {t('ghosting.whatsapp')}</span>
         </label>
         <Textarea
-          placeholder="Ergebnis / Nächster Schritt..."
+          placeholder={t('ghosting.notePlaceholder')}
           value={ghostNote}
           onChange={(e) => setGhostNote(e.target.value)}
           className="text-sm min-h-[40px] resize-none"
@@ -615,7 +625,7 @@ function GhostingActionForm({
             }}
           >
             {saving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Save className="h-3 w-3 mr-1" />}
-            Versuche dokumentieren
+            {t('ghosting.save')}
           </Button>
         )}
       </div>
@@ -630,6 +640,7 @@ function CultureConcernActionForm({
   onSaveNote: (text: string) => void;
   saving: boolean;
 }) {
+  const { t } = useTranslation('taskDetail');
   const [assessment, setAssessment] = useState('');
   const [verdict, setVerdict] = useState<'positive' | 'negative' | null>(null);
 
@@ -637,10 +648,10 @@ function CultureConcernActionForm({
     <div className="space-y-3">
       <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
         <FileText className="h-3.5 w-3.5 text-amber-500" />
-        Aufgabe erledigen — Kulturelle Passung
+        {t('culture.heading')}
       </div>
       <div className="rounded-lg border bg-card p-3 space-y-2.5">
-        <Label className="text-xs text-muted-foreground">Einschätzung</Label>
+        <Label className="text-xs text-muted-foreground">{t('culture.assessment')}</Label>
         <div className="flex gap-2">
           <Button
             variant={verdict === 'positive' ? 'default' : 'outline'}
@@ -648,7 +659,7 @@ function CultureConcernActionForm({
             className={cn('text-xs flex-1', verdict === 'positive' && 'bg-emerald-600 hover:bg-emerald-700')}
             onClick={() => setVerdict('positive')}
           >
-            Passt
+            {t('culture.fits')}
           </Button>
           <Button
             variant={verdict === 'negative' ? 'default' : 'outline'}
@@ -656,11 +667,11 @@ function CultureConcernActionForm({
             className={cn('text-xs flex-1', verdict === 'negative' && 'bg-destructive hover:bg-destructive/90')}
             onClick={() => setVerdict('negative')}
           >
-            Bedenken
+            {t('culture.concerns')}
           </Button>
         </div>
         <Textarea
-          placeholder="Begründung / Beobachtungen..."
+          placeholder={t('culture.placeholder')}
           value={assessment}
           onChange={(e) => setAssessment(e.target.value)}
           className="text-sm min-h-[60px] resize-none"
@@ -677,7 +688,7 @@ function CultureConcernActionForm({
             }}
           >
             {saving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Save className="h-3 w-3 mr-1" />}
-            Bewertung speichern
+            {t('culture.save')}
           </Button>
         )}
       </div>
@@ -688,6 +699,7 @@ function CultureConcernActionForm({
 // ── Main Dialog Component ──────────────────────────────────────────
 
 export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooze }: TaskDetailDialogProps) {
+  const { t } = useTranslation('taskDetail');
   const navigate = useNavigate();
   const { logActivity } = useActivityLogger();
   const { playbook } = useCoachingPlaybook(item?.playbookId ?? undefined);
@@ -786,9 +798,9 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
 
   const timeLabel = item.dueAt
     ? isPast(new Date(item.dueAt))
-      ? formatDistanceToNow(new Date(item.dueAt), { locale: de, addSuffix: false }) + ' überfällig'
-      : 'Fällig ' + format(new Date(item.dueAt), 'dd.MM.', { locale: de })
-    : formatDistanceToNow(new Date(item.createdAt), { locale: de, addSuffix: true });
+      ? t('main.overdue', { time: formatDistanceToNow(new Date(item.dueAt), { locale: dfLocale(), addSuffix: false }) })
+      : t('main.due', { date: format(new Date(item.dueAt), 'dd.MM.') })
+    : formatDistanceToNow(new Date(item.createdAt), { locale: dfLocale(), addSuffix: true });
 
   // ── Save handlers ──
 
@@ -807,10 +819,10 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
         item.itemType === 'alert' ? item.itemId : undefined
       );
       setNoteText('');
-      toast.success('Notiz gespeichert');
+      toast.success(t('common.noteSaved'));
       fetchContext();
     } catch {
-      toast.error('Fehler beim Speichern');
+      toast.error(t('common.saveError'));
     } finally {
       setSavingNote(false);
     }
@@ -829,7 +841,7 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
 
       // Update local state
       setCandidateData(prev => prev ? { ...prev, [field]: value } : prev);
-      toast.success('Gespeichert');
+      toast.success(t('common.saved'));
 
       // Log activity
       await logActivity(
@@ -841,7 +853,7 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
         item.submissionId || undefined
       );
     } catch {
-      toast.error('Fehler beim Speichern');
+      toast.error(t('common.saveError'));
     } finally {
       setSavingField(false);
     }
@@ -865,13 +877,13 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast.success('Kopiert!');
+    toast.success(t('common.copied'));
   };
 
   const replacePlaceholders = (text: string) => {
     return text
-      .replace(/\[Name\]/g, item.candidateName || 'Kandidat')
-      .replace(/\[Firma\]/g, item.companyName || 'Unternehmen');
+      .replace(/\[Name\]/g, item.candidateName || t('main.candidate'))
+      .replace(/\[Firma\]/g, item.companyName || t('main.placeholderCompany'));
   };
 
   // ── Determine which inline form to show ──
@@ -887,19 +899,6 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
   const isEngagement = item.taskCategory === 'engagement_drop';
 
   const hasInlineForm = isOptIn || isSalary || isFollowUp || isInterviewPrep || isClosing || isGhosting || isDocument || isCulture || isEngagement;
-
-  const STAGE_LABELS: Record<string, string> = {
-    new: 'Neu',
-    submitted: 'Eingereicht',
-    screening: 'Screening',
-    shortlisted: 'Shortlisted',
-    interview_requested: 'Interview angefragt',
-    candidate_opted_in: 'Opt-In erteilt',
-    interview: 'Interview',
-    interview_scheduled: 'Interview geplant',
-    offer: 'Angebot',
-    hired: 'Eingestellt',
-  };
 
   const ACTIVITY_ICONS: Record<string, string> = {
     call: '📞',
@@ -917,7 +916,7 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[900px] max-h-[85vh] p-0 gap-0 overflow-hidden">
         <DialogTitle className="sr-only">{item.title}</DialogTitle>
-        <DialogDescription className="sr-only">{item.description || item.recommendedAction || 'Aufgabe'}</DialogDescription>
+        <DialogDescription className="sr-only">{item.description || item.recommendedAction || t('main.task')}</DialogDescription>
         <div className="flex flex-col md:flex-row h-full max-h-[85vh]">
           {/* LEFT: Task + Inline Actions + Playbook */}
           <div className="flex-1 flex flex-col min-w-0 md:border-r">
@@ -931,10 +930,10 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
                   <h2 className="font-semibold text-base leading-tight">{item.title}</h2>
                   <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                     <Badge className={cn('text-[10px] font-medium px-1.5 py-0 h-4 border-0', categoryInfo.color)}>
-                      {categoryInfo.label}
+                      {t(`category.${CATEGORY_CONFIG[item.taskCategory] ? item.taskCategory : 'other'}`)}
                     </Badge>
                     <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0 h-4', priorityInfo.color)}>
-                      {priorityInfo.label}
+                      {t(`priority.${item.priority}`)}
                     </Badge>
                     <span className="text-[10px] text-muted-foreground">{timeLabel}</span>
                   </div>
@@ -949,7 +948,7 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                     <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
-                    Empfohlene Aktion
+                    {t('main.recommended')}
                   </div>
                   <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-3 text-sm">
                     {item.recommendedAction}
@@ -962,7 +961,7 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                     <MessageSquare className="h-3.5 w-3.5" />
-                    Warum diese Aufgabe?
+                    {t('main.why')}
                   </div>
                   <p className="text-sm text-muted-foreground">{item.description}</p>
                 </div>
@@ -1036,7 +1035,7 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
                     <button className="w-full flex items-center justify-between py-2 px-3 rounded-lg border hover:bg-muted/50 transition-colors">
                       <div className="flex items-center gap-2">
                         <BookOpen className="h-4 w-4 text-primary" />
-                        <span className="text-sm font-medium">Playbook: {playbook.title}</span>
+                        <span className="text-sm font-medium">{t('main.playbook', { title: playbook.title })}</span>
                       </div>
                       <ChevronDown className={cn('h-4 w-4 text-muted-foreground transition-transform', playbookOpen && 'rotate-180')} />
                     </button>
@@ -1048,19 +1047,19 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
                           {playbook.phone_script && (
                             <TabsTrigger value="phone" className="text-xs gap-1">
                               <Phone className="h-3 w-3" />
-                              Telefon
+                              {t('main.phone')}
                             </TabsTrigger>
                           )}
                           {playbook.email_template && (
                             <TabsTrigger value="email" className="text-xs gap-1">
                               <Mail className="h-3 w-3" />
-                              Email
+                              {t('main.email')}
                             </TabsTrigger>
                           )}
                           {playbook.whatsapp_template && (
                             <TabsTrigger value="whatsapp" className="text-xs gap-1">
                               <MessageSquare className="h-3 w-3" />
-                              WhatsApp
+                              {t('main.whatsapp')}
                             </TabsTrigger>
                           )}
                         </TabsList>
@@ -1082,7 +1081,7 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
                             </div>
                             {playbook.talking_points.length > 0 && (
                               <div>
-                                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Gesprächspunkte</p>
+                                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1">{t('main.talkingPoints')}</p>
                                 <ul className="space-y-0.5">
                                   {playbook.talking_points.map((tp, i) => (
                                     <li key={i} className="text-xs flex items-start gap-1.5">
@@ -1095,7 +1094,7 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
                             )}
                             {playbook.objection_handlers.length > 0 && (
                               <div>
-                                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1">Einwände</p>
+                                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1">{t('main.objections')}</p>
                                 <div className="space-y-1.5">
                                   {playbook.objection_handlers.map((oh, i) => (
                                     <div key={i} className="text-xs bg-muted/30 rounded p-2">
@@ -1155,11 +1154,11 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
               <div className="space-y-1.5">
                 <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   <Send className="h-3.5 w-3.5" />
-                  Notiz hinzufügen
+                  {t('main.addNote')}
                 </div>
                 <div className="flex gap-2">
                   <Textarea
-                    placeholder="Notiz eingeben..."
+                    placeholder={t('main.notePlaceholder')}
                     value={noteText}
                     onChange={(e) => setNoteText(e.target.value)}
                     className="text-sm min-h-[60px] resize-none"
@@ -1172,7 +1171,7 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
                       onClick={() => handleSaveNote()}
                       disabled={savingNote}
                     >
-                      {savingNote ? '...' : 'Speichern'}
+                      {savingNote ? '...' : t('common.save')}
                     </Button>
                   )}
                 </div>
@@ -1189,7 +1188,7 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
                   onClick={() => window.location.href = `tel:${item.candidatePhone}`}
                 >
                   <Phone className="h-3.5 w-3.5" />
-                  Anrufen
+                  {t('main.call')}
                 </Button>
               )}
               {item.candidateEmail && (
@@ -1200,7 +1199,7 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
                   onClick={() => window.location.href = `mailto:${item.candidateEmail}`}
                 >
                   <Mail className="h-3.5 w-3.5" />
-                  Email
+                  {t('main.email')}
                 </Button>
               )}
               <div className="flex-1" />
@@ -1216,7 +1215,7 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
                 onClick={handleDone}
               >
                 <Check className="h-3.5 w-3.5" />
-                Erledigt
+                {t('main.done')}
               </Button>
             </div>
           </div>
@@ -1228,10 +1227,10 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
               <div className="space-y-2">
                 <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   <User className="h-3.5 w-3.5" />
-                  Kandidat
+                  {t('main.candidate')}
                 </div>
                 <div className="space-y-1">
-                  <p className="font-medium text-sm">{item.candidateName || 'Unbekannt'}</p>
+                  <p className="font-medium text-sm">{item.candidateName || t('main.unknown')}</p>
                   {submissionContext?.candidateJobTitle && (
                     <p className="text-xs text-muted-foreground">{submissionContext.candidateJobTitle}</p>
                   )}
@@ -1243,10 +1242,10 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
                       </span>
                     )}
                     {submissionContext?.candidateExperience && (
-                      <span>{submissionContext.candidateExperience}J Erfahrung</span>
+                      <span>{t('main.experience', { years: submissionContext.candidateExperience })}</span>
                     )}
                     {submissionContext?.candidateSalary && (
-                      <span>Gehalt: {Math.round(submissionContext.candidateSalary / 1000)}K</span>
+                      <span>{t('main.salary', { k: Math.round(submissionContext.candidateSalary / 1000) })}</span>
                     )}
                   </div>
                   {/* Contact buttons */}
@@ -1289,7 +1288,7 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
                         onClick={() => { onOpenChange(false); navigate(`/recruiter/candidates/${item.candidateId}`); }}
                       >
                         <ExternalLink className="h-3 w-3" />
-                        Profil
+                        {t('main.profile')}
                       </Button>
                     )}
                   </div>
@@ -1305,10 +1304,10 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
                   <div className="space-y-2">
                     <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                       <Briefcase className="h-3.5 w-3.5" />
-                      Job
+                      {t('main.job')}
                     </div>
                     <div className="space-y-1.5">
-                      <p className="text-sm font-medium">{item.jobTitle || 'Unbekannt'}</p>
+                      <p className="text-sm font-medium">{item.jobTitle || t('main.unknown')}</p>
                       {item.companyName && (
                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
                           <Shield className="h-3 w-3" />
@@ -1319,14 +1318,14 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
                         <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs mt-2">
                           {submissionContext.matchScore != null && (
                             <>
-                              <span className="text-muted-foreground">Match</span>
+                              <span className="text-muted-foreground">{t('main.match')}</span>
                               <span className="font-medium">{submissionContext.matchScore}%</span>
                             </>
                           )}
                           {submissionContext.stage && (
                             <>
-                              <span className="text-muted-foreground">Stage</span>
-                              <span className="font-medium">{STAGE_LABELS[submissionContext.stage] || submissionContext.stage}</span>
+                              <span className="text-muted-foreground">{t('main.stage')}</span>
+                              <span className="font-medium">{t(`stage.${submissionContext.stage}`, { defaultValue: submissionContext.stage })}</span>
                             </>
                           )}
                         </div>
@@ -1339,7 +1338,7 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
                           onClick={() => { onOpenChange(false); navigate(`/recruiter/submissions/${item.submissionId}`); }}
                         >
                           <ExternalLink className="h-3 w-3" />
-                          Einreichung öffnen
+                          {t('main.openSubmission')}
                         </Button>
                       )}
                     </div>
@@ -1354,7 +1353,7 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
                   <div className="space-y-2">
                     <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                       <TrendingUp className="h-3.5 w-3.5" />
-                      Impact
+                      {t('main.impact')}
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
@@ -1379,10 +1378,10 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
               <div className="space-y-2">
                 <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   <Activity className="h-3.5 w-3.5" />
-                  Letzte Aktivität
+                  {t('main.lastActivity')}
                 </div>
                 {activities.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">Keine Aktivitäten</p>
+                  <p className="text-xs text-muted-foreground">{t('main.noActivity')}</p>
                 ) : (
                   <div className="space-y-1.5">
                     {activities.slice(0, 6).map((act) => (
@@ -1391,7 +1390,7 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
                         <div className="flex-1 min-w-0">
                           <span className="truncate block">{act.title}</span>
                           <span className="text-muted-foreground text-[10px]">
-                            {formatDistanceToNow(new Date(act.created_at), { locale: de, addSuffix: true })}
+                            {formatDistanceToNow(new Date(act.created_at), { locale: dfLocale(), addSuffix: true })}
                           </span>
                         </div>
                       </div>

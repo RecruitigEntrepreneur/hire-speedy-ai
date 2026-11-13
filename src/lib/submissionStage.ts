@@ -13,6 +13,7 @@
  * in der Datenbank steht — und keine abgelehnten Kandidaten mehr in aktiven
  * Spalten.
  */
+import i18n from '@/i18n';
 
 export const CANONICAL_STAGES = [
   'submitted',
@@ -89,21 +90,27 @@ export interface StageColumn {
 }
 
 /** Spaltenreihenfolge der Pipeline — deckt das kanonische Set vollstaendig ab. */
-export const STAGE_COLUMNS: StageColumn[] = [
-  { key: 'submitted', label: 'Eingereicht', color: 'bg-blue-500' },
-  { key: 'in_review', label: 'In Prüfung', color: 'bg-amber-500' },
-  { key: 'interview_requested', label: 'Interview angefragt', color: 'bg-orange-500' },
-  { key: 'candidate_opted_in', label: 'Opt-In erteilt', color: 'bg-cyan-500' },
-  { key: 'interview_scheduled', label: 'Termin steht', color: 'bg-purple-500' },
-  { key: 'interview_counter_proposed', label: 'Gegenvorschlag', color: 'bg-violet-500' },
-  { key: 'interview_completed', label: 'Interview geführt', color: 'bg-indigo-500' },
-  { key: 'offer', label: 'Angebot', color: 'bg-emerald-500' },
-  { key: 'placed', label: 'Vermittelt', color: 'bg-green-600' },
-  { key: 'interview_declined', label: 'Interview abgelehnt', color: 'bg-muted-foreground', closed: true },
-  { key: 'client_rejected', label: 'Vom Kunden abgelehnt', color: 'bg-destructive', closed: true },
-  { key: 'rejected', label: 'Abgelehnt', color: 'bg-destructive', closed: true },
-  { key: 'withdrawn', label: 'Zurückgezogen', color: 'bg-muted-foreground', closed: true },
+const STAGE_DEFS: Omit<StageColumn, 'label'>[] = [
+  { key: 'submitted', color: 'bg-blue-500' },
+  { key: 'in_review', color: 'bg-amber-500' },
+  { key: 'interview_requested', color: 'bg-orange-500' },
+  { key: 'candidate_opted_in', color: 'bg-cyan-500' },
+  { key: 'interview_scheduled', color: 'bg-purple-500' },
+  { key: 'interview_counter_proposed', color: 'bg-violet-500' },
+  { key: 'interview_completed', color: 'bg-indigo-500' },
+  { key: 'offer', color: 'bg-emerald-500' },
+  { key: 'placed', color: 'bg-green-600' },
+  { key: 'interview_declined', color: 'bg-muted-foreground', closed: true },
+  { key: 'client_rejected', color: 'bg-destructive', closed: true },
+  { key: 'rejected', color: 'bg-destructive', closed: true },
+  { key: 'withdrawn', color: 'bg-muted-foreground', closed: true },
 ];
+
+/** Beschriftung je Phase bei jedem Zugriff in der Sprache der Oberfläche (candidateLogic:stage.<key>). */
+export const STAGE_COLUMNS: StageColumn[] = STAGE_DEFS.map((c) => ({
+  ...c,
+  get label() { return i18n.t(`candidateLogic:stage.${c.key}`) as string; },
+}));
 
 export const stageLabel = (stage: string): string =>
   STAGE_COLUMNS.find((c) => c.key === stage)?.label ?? stage;

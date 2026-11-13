@@ -1,6 +1,8 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
+import { fmtNumber } from '@/lib/localeFormat';
 
 interface MetricCardProps {
   title: string;
@@ -20,11 +22,12 @@ export function MetricCard({
   icon: Icon,
   description,
   trend,
-  trendLabel = 'vs. last period',
+  trendLabel,
   className,
   iconColor = 'text-primary',
   isLoading,
 }: MetricCardProps) {
+  const { t } = useTranslation('clientDashboard');
   if (isLoading) {
     return (
       <Card className={className}>
@@ -48,7 +51,7 @@ export function MetricCard({
           <div className="space-y-1">
             <p className="text-sm font-medium text-muted-foreground">{title}</p>
             <p className="text-3xl font-bold">
-              {typeof value === 'number' ? value.toLocaleString() : value}
+              {typeof value === 'number' ? fmtNumber(value) : value}
             </p>
             {description && (
               <p className="text-xs text-muted-foreground">{description}</p>
@@ -71,7 +74,7 @@ export function MetricCard({
             >
               {trend > 0 ? '+' : ''}{trend}%
             </span>
-            <span className="text-xs text-muted-foreground">{trendLabel}</span>
+            <span className="text-xs text-muted-foreground">{trendLabel ?? t('analytics.vsLast')}</span>
           </div>
         )}
       </CardContent>

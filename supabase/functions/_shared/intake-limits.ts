@@ -216,6 +216,14 @@ export const LIMITS = {
     { zweck: 'kunde-code-eingabe', scope: 'email', key: email, limit: 30  },
     { zweck: 'kunde-code-eingabe', scope: 'ip',    key: ip,    limit: 100 },
   ],
+  /**
+   * Öffentlicher Headhunter-Link (/…?via=kennung): Öffnen zählt einen Aufruf.
+   * Großzügig wie beim Öffnen eines Aufnahme-Links; die Grenze schützt nur den Zähler.
+   */
+  recruiterLink: (ip: string | null, key: string): LimitRule[] => [
+    { zweck: 'hh-link', scope: 'ip',   key: ip,  limit: 30  },
+    { zweck: 'hh-link', scope: 'link', key: key, limit: 600 },
+  ],
   /** Impressum lesen: Firecrawl und KI kosten Geld; ein Vorgang braucht das ein-, zweimal. */
   recruiterEnrich: (caseId: string, ip: string | null): LimitRule[] => [
     { zweck: 'hh-impressum', scope: 'draft', key: caseId, limit: 6  },

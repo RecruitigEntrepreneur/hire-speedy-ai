@@ -19,7 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Building2, Users, Settings, ScrollText, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { dfLocale } from '@/lib/localeFormat';
 import { toast } from 'sonner';
 
 interface AuditEntry {
@@ -32,6 +32,7 @@ interface AuditEntry {
 
 export default function TeamManagement() {
   const { t } = useTranslation();
+  const { t: tt } = useTranslation('clientTeam');
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { organization, myRole, isAdmin, isLoading: orgLoading, ensureOrganization } = useMyOrganization();
@@ -223,7 +224,7 @@ export default function TeamManagement() {
                           <span>{auditLabel(entry)}</span>
                           <span className="whitespace-nowrap text-xs text-muted-foreground">
                             {formatDistanceToNow(new Date(entry.created_at), {
-                              locale: de,
+                              locale: dfLocale(),
                               addSuffix: true,
                             })}
                           </span>
@@ -284,7 +285,7 @@ export default function TeamManagement() {
                       <Input
                         type="email"
                         value={billingEmail ?? organization.billing_email ?? ''}
-                        placeholder="billing@firma.de"
+                        placeholder={tt('billingPlaceholder')}
                         onChange={(e) => setBillingEmail(e.target.value)}
                       />
                     </div>

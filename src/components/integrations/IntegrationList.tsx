@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import { IntegrationCard } from "./IntegrationCard";
 import { ConnectDialog } from "./ConnectDialog";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
 interface Integration {
   id: string;
@@ -25,6 +26,7 @@ interface Provider {
   docsUrl?: string;
 }
 
+// Produktbeschreibungen der Anbieter: Eigennamen und Slogans, bleiben englisch.
 const availableProviders: Provider[] = [
   { id: 'hubspot', name: 'HubSpot', logo: '🟠', description: 'CRM & Marketing Platform', authType: 'api_key', docsUrl: 'https://developers.hubspot.com/' },
   { id: 'salesforce', name: 'Salesforce', logo: '☁️', description: 'Enterprise CRM Platform', authType: 'oauth', docsUrl: 'https://developer.salesforce.com/' },
@@ -43,6 +45,7 @@ interface IntegrationListProps {
 }
 
 export function IntegrationList({ integrations, organizationId, onRefresh }: IntegrationListProps) {
+  const { t } = useTranslation('clientSettings');
   const [connectDialogOpen, setConnectDialogOpen] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
   const [syncingId, setSyncingId] = useState<string | null>(null);
@@ -57,7 +60,7 @@ export function IntegrationList({ integrations, organizationId, onRefresh }: Int
 
   const handleConnect = async (providerId: string, credentials: { apiKey?: string }) => {
     // In real implementation, this would call an edge function
-    toast.success(`${providerId} wird verbunden...`);
+    toast.success(t('integrations.connecting', { provider: providerId }));
     onRefresh();
   };
 
@@ -66,34 +69,34 @@ export function IntegrationList({ integrations, organizationId, onRefresh }: Int
     try {
       // In real implementation, this would call the sync edge function
       await new Promise(resolve => setTimeout(resolve, 2000));
-      toast.success("Synchronisierung gestartet");
+      toast.success(t('integrations.syncStarted'));
       onRefresh();
     } catch (error) {
-      toast.error("Synchronisierung fehlgeschlagen");
+      toast.error(t('integrations.syncFailed'));
     } finally {
       setSyncingId(null);
     }
   };
 
   const handleDisconnect = async (integrationId: string) => {
-    if (!confirm("Möchten Sie diese Integration wirklich trennen?")) return;
+    if (!confirm(t('integrations.confirmDisconnect'))) return;
     
     try {
       // In real implementation, this would delete the integration
-      toast.success("Integration getrennt");
+      toast.success(t('integrations.disconnected'));
       onRefresh();
     } catch (error) {
-      toast.error("Fehler beim Trennen der Integration");
+      toast.error(t('integrations.disconnectFailed'));
     }
   };
 
   const handleToggleSync = async (integrationId: string, field: 'sync_candidates' | 'sync_jobs', value: boolean) => {
     try {
       // In real implementation, this would update the integration
-      toast.success(`${field === 'sync_candidates' ? 'Kandidaten' : 'Jobs'} Sync ${value ? 'aktiviert' : 'deaktiviert'}`);
+      toast.success(t(`integrations.toggle.${field}.${value ? 'on' : 'off'}`));
       onRefresh();
     } catch (error) {
-      toast.error("Fehler beim Aktualisieren");
+      toast.error(t('integrations.updateFailed'));
     }
   };
 
@@ -102,7 +105,7 @@ export function IntegrationList({ integrations, organizationId, onRefresh }: Int
       {/* Connected Integrations */}
       {integrations.length > 0 && (
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold">Verbundene Integrationen</h3>
+          <h3 className="text-lg font-semibold">{t('integrations.connectedTitle')}</h3>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {integrations.map((integration) => (
               <IntegrationCard
@@ -121,9 +124,9 @@ export function IntegrationList({ integrations, organizationId, onRefresh }: Int
       {/* Available Integrations */}
       <Card>
         <CardHeader>
-          <CardTitle>Verfügbare Integrationen</CardTitle>
+          <CardTitle>{t('integrations.availableTitle')}</CardTitle>
           <CardDescription>
-            Verbinden Sie Ihr ATS-System um Kandidaten und Jobs zu synchronisieren
+            {t('integrations.availableLead')}
           </CardDescription>
         </CardHeader>
         <CardContent>

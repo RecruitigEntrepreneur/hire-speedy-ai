@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Check, Loader2, Pencil, Plus, RefreshCw, Sparkles, Trash2 } from 'lucide-react';
@@ -17,6 +18,7 @@ const newId = () => Math.random().toString(36).slice(2, 10);
 
 /** Interview-Leitfaden: Fragen aus Stelle und Headhunter-Notiz, abhaken und anpassen. */
 export function GuideChecklist({ interviewId, active }: Props) {
+  const { t } = useTranslation('clientInterviews');
   const queryClient = useQueryClient();
   const query = useQuery({
     queryKey: ['interview-guide', interviewId],
@@ -45,7 +47,7 @@ export function GuideChecklist({ interviewId, active }: Props) {
         await interviewApi.saveGuide(interviewId, next);
         queryClient.setQueryData<Awaited<ReturnType<typeof interviewApi.guide>>>(['interview-guide', interviewId], (old) => (old ? { ...old, guide: next } : old));
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : 'Der Leitfaden konnte nicht gespeichert werden.');
+        toast.error(e instanceof Error ? e.message : t('guide.saveFailed'));
       } finally {
         setSaving(false);
       }
@@ -64,19 +66,19 @@ export function GuideChecklist({ interviewId, active }: Props) {
   };
   const add = (si: number) => {
     if (!guide) return;
-    persist({ sections: guide.sections.map((s, a) => (a !== si ? s : { ...s, items: [...s.items, { id: newId(), text: 'Neue Frage', hint: null, done: false }] })) });
+    persist({ sections: guide.sections.map((s, a) => (a !== si ? s : { ...s, items: [...s.items, { id: newId(), text: t('guide.newQuestion'), hint: null, done: false }] })) });
     setEditing(true);
   };
 
   const regenerate = async () => {
-    if (!window.confirm('Leitfaden neu erstellen? Ihre Änderungen und Haken gehen verloren.')) return;
+    if (!window.confirm(t('guide.confirmRegenerate'))) return;
     setRegenerating(true);
     try {
       const fresh = await interviewApi.guide(interviewId, true);
       setGuide(fresh.guide);
       queryClient.setQueryData(['interview-guide', interviewId], fresh);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Der Leitfaden konnte nicht erstellt werden.');
+      toast.error(e instanceof Error ? e.message : t('guide.createFailed'));
     } finally {
       setRegenerating(false);
     }
@@ -85,16 +87,16 @@ export function GuideChecklist({ interviewId, active }: Props) {
   if (query.isLoading || (!guide && query.isFetching)) {
     return (
       <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" /> Leitfaden wird aus der Stelle und der Headhunter-Notiz erstellt …
+        <Loader2 className="h-4 w-4 animate-spin" /> {t('guide.creating')}
       </div>
     );
   }
   if (query.error || !guide) {
     return (
       <div className="space-y-2 py-6 text-sm">
-        <p className="text-muted-foreground">{query.error instanceof Error ? query.error.message : 'Der Leitfaden konnte nicht geladen werden.'}</p>
+        <p className="text-muted-foreground">{query.error instanceof Error ? query.error.message : t('guide.loadFailed')}</p>
         <Button size="sm" variant="outline" className="gap-1.5" onClick={() => query.refetch()}>
-          <RefreshCw className="h-3.5 w-3.5" /> Erneut versuchen
+          <RefreshCw className="h-3.5 w-3.5" /> {t('page.retry')}
         </Button>
       </div>
     );
@@ -106,17 +108,17 @@ export function GuideChecklist({ interviewId, active }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <p className="text-sm font-medium">{done} von {total} besprochen</p>
+        <p className="text-sm font-medium">{t('guide.progress', { done, total })}</p>
         {query.data?.source === 'ai' && (
-          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Sparkles className="h-3 w-3" /> aus Stelle und Headhunter-Notiz</span>
+          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Sparkles className="h-3 w-3" /> {t('guide.fromJob')}</span>
         )}
-        {saving && <span className="text-xs text-muted-foreground">speichert …</span>}
+        {saving && <span className="text-xs text-muted-foreground">{t('guide.saving')}</span>}
         <div className="ml-auto flex gap-1">
           <Button size="sm" variant={editing ? 'default' : 'ghost'} className="h-7 gap-1 text-xs" onClick={() => setEditing((e) => !e)}>
-            {editing ? <Check className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />} {editing ? 'Fertig' : 'Anpassen'}
+            {editing ? <Check className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />} {editing ? t('calendar.done') : t('guide.edit')}
           </Button>
           <Button size="sm" variant="ghost" className="h-7 gap-1 text-xs" onClick={regenerate} disabled={regenerating}>
-            {regenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} Neu erstellen
+            {regenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />} {t('guide.regenerate')}
           </Button>
         </div>
       </div>
@@ -136,7 +138,7 @@ export function GuideChecklist({ interviewId, active }: Props) {
                     'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors',
                     item.done ? 'border-foreground bg-foreground text-background' : 'border-muted-foreground/50 hover:border-foreground',
                   )}
-                  aria-label={item.done ? 'Als offen markieren' : 'Als besprochen markieren'}
+                  aria-label={item.done ? t('guide.markOpen') : t('guide.markDone')}
                 >
                   {item.done && <Check className="h-3 w-3" />}
                 </button>
@@ -154,7 +156,7 @@ export function GuideChecklist({ interviewId, active }: Props) {
                   {item.hint && !editing && <p className="text-xs text-muted-foreground">{item.hint}</p>}
                 </div>
                 {editing && (
-                  <button type="button" onClick={() => remove(si, ii)} className="mt-1 text-muted-foreground hover:text-destructive" aria-label="Frage entfernen">
+                  <button type="button" onClick={() => remove(si, ii)} className="mt-1 text-muted-foreground hover:text-destructive" aria-label={t('guide.removeQuestion')}>
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 )}
@@ -163,7 +165,7 @@ export function GuideChecklist({ interviewId, active }: Props) {
           </ul>
           {editing && (
             <button type="button" onClick={() => add(si)} className="inline-flex items-center gap-1 px-1 text-xs text-muted-foreground hover:text-foreground">
-              <Plus className="h-3 w-3" /> Frage hinzufügen
+              <Plus className="h-3 w-3" /> {t('guide.addQuestion')}
             </button>
           )}
         </section>

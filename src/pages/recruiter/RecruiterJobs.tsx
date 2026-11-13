@@ -47,7 +47,8 @@ import { useJobActivation } from '@/hooks/useJobActivation';
 import { formatAnonymousCompany } from '@/lib/anonymousCompanyFormat';
 import { verdienstJeTag } from '@/lib/recruiterContracting';
 import { formatDistanceToNow } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { useTranslation, Trans } from 'react-i18next';
+import { dateFnsLocale } from '@/components/recruiter/search/dateLocale';
 import { Honorar } from '@/components/recruiter/Honorar';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -89,7 +90,7 @@ const TOP_TAB_LIMIT = 10;
 /** Filter als ruhige Textknöpfe; gesetzte Filter heben sich ab. */
 const FILTER_TRIGGER = 'h-8 w-auto gap-1 border-0 bg-transparent px-2 text-sm text-muted-foreground shadow-none hover:text-foreground focus:ring-0 focus:ring-offset-0 [&>span]:truncate';
 const FILTER_ACTIVE = 'font-medium text-foreground';
-const REMOTE_FILTER_LABELS: Record<string, string> = { remote: 'Remote', hybrid: 'Hybrid', onsite: 'Vor Ort' };
+
 const LEVEL_FILTER_LABELS: Record<string, string> = { junior: 'Junior', mid: 'Mid', senior: 'Senior', lead: 'Lead', 'c-level': 'C-Level' };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -116,21 +117,23 @@ const formatEuroShort = (n: number) => {
 
 const STAGE_ORDER = ['submitted', 'screening', 'interview', 'offer', 'hired'] as const;
 
-const STAGE_CONFIG: Record<string, { label: string; shortLabel: string; dotColor: string; className: string }> = {
-  new:                  { label: 'Neu',                shortLabel: 'Neu',       dotColor: 'bg-muted-foreground',   className: 'bg-muted text-muted-foreground' },
-  submitted:            { label: 'Eingereicht',        shortLabel: 'Einger.',   dotColor: 'bg-blue-500',           className: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
-  screening:            { label: 'Screening',          shortLabel: 'Screen.',   dotColor: 'bg-violet-500',         className: 'bg-violet-500/10 text-violet-600 border-violet-500/20' },
-  shortlisted:          { label: 'Shortlisted',        shortLabel: 'Short.',    dotColor: 'bg-indigo-500',         className: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20' },
-  interview_requested:  { label: 'Interview angefragt', shortLabel: 'Angefr.',  dotColor: 'bg-amber-500',          className: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
-  candidate_opted_in:   { label: 'Opt-In erteilt',     shortLabel: 'Opt-In',    dotColor: 'bg-cyan-500',           className: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20' },
-  interview:            { label: 'Interview',          shortLabel: 'Interv.',   dotColor: 'bg-amber-500',          className: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
-  interview_scheduled:  { label: 'Interview geplant',  shortLabel: 'Geplant',   dotColor: 'bg-green-500',          className: 'bg-green-500/10 text-green-600 border-green-500/20' },
-  offer:                { label: 'Angebot',            shortLabel: 'Angebot',   dotColor: 'bg-emerald-500',        className: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
-  hired:                { label: 'Eingestellt',        shortLabel: 'Eingest.',  dotColor: 'bg-green-600',          className: 'bg-green-500/10 text-green-700 border-green-500/30' },
+// Texte der Stufen stehen im Namespace recruiterJobs unter stages.<key>.label / .short.
+type StageKey = 'new' | 'submitted' | 'screening' | 'shortlisted' | 'interview_requested' | 'candidate_opted_in' | 'interview' | 'interview_scheduled' | 'offer' | 'hired';
+const STAGE_CONFIG: Record<StageKey, { key: StageKey; dotColor: string; className: string }> = {
+  new:                  { key: 'new',                 dotColor: 'bg-muted-foreground',   className: 'bg-muted text-muted-foreground' },
+  submitted:            { key: 'submitted',           dotColor: 'bg-blue-500',           className: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
+  screening:            { key: 'screening',           dotColor: 'bg-violet-500',         className: 'bg-violet-500/10 text-violet-600 border-violet-500/20' },
+  shortlisted:          { key: 'shortlisted',         dotColor: 'bg-indigo-500',         className: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20' },
+  interview_requested:  { key: 'interview_requested', dotColor: 'bg-amber-500',          className: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
+  candidate_opted_in:   { key: 'candidate_opted_in',  dotColor: 'bg-cyan-500',           className: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20' },
+  interview:            { key: 'interview',           dotColor: 'bg-amber-500',          className: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
+  interview_scheduled:  { key: 'interview_scheduled', dotColor: 'bg-green-500',          className: 'bg-green-500/10 text-green-600 border-green-500/20' },
+  offer:                { key: 'offer',               dotColor: 'bg-emerald-500',        className: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
+  hired:                { key: 'hired',               dotColor: 'bg-green-600',          className: 'bg-green-500/10 text-green-700 border-green-500/30' },
 };
 
 function getStageInfo(stage: string | null) {
-  return STAGE_CONFIG[stage || 'new'] || STAGE_CONFIG.new;
+  return STAGE_CONFIG[(stage || 'new') as StageKey] || STAGE_CONFIG.new;
 }
 
 function getStageIndex(stage: string | null): number {
@@ -140,6 +143,7 @@ function getStageIndex(stage: string | null): number {
 
 function MiniStagePipeline({ currentStage }: { currentStage: string | null }) {
   const currentIndex = getStageIndex(currentStage);
+  const { t } = useTranslation('recruiterJobs');
 
   return (
     <div className="flex items-center gap-0.5">
@@ -165,8 +169,9 @@ function MiniStagePipeline({ currentStage }: { currentStage: string | null }) {
               />
             </TooltipTrigger>
             <TooltipContent side="bottom" className="text-xs">
-              {config.label}
-              {isActive && ' (aktuell)'}
+              {isActive
+                ? t('list.stageCurrent', { stage: t(`stages.${config.key}.label`) })
+                : t(`stages.${config.key}.label`)}
               {isPassed && ' ✓'}
             </TooltipContent>
           </Tooltip>
@@ -190,6 +195,7 @@ interface ActiveJobSubmission {
 export default function RecruiterJobs() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation('recruiterJobs');
 
   // Data
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -346,14 +352,14 @@ export default function RecruiterJobs() {
   }, [isSearching, effectiveCanActivate, jobs]);
 
   const handleConfirmActivation = useCallback(async (): Promise<ConfirmResult> => {
-    if (!activationDialogJobId) return { ok: false, error: 'Keine Stelle gewählt.' };
+    if (!activationDialogJobId) return { ok: false, error: t('list.noJobChosen') };
     const res = await activateJob(activationDialogJobId);
     if (res.success && res.result) {
       fetchJobs(); // Firmenname kommt ab „Ich suche“ aus der View
       return { ok: true, result: res.result };
     }
-    return { ok: false, error: res.error || 'Das hat nicht geklappt.' };
-  }, [activationDialogJobId, activateJob]);
+    return { ok: false, error: res.error || t('list.failed') };
+  }, [activationDialogJobId, activateJob, t]);
 
   // Firmenname ab „Ich suche“ (View: company_revealed) oder wie früher nach Opt-in.
   const isJobRevealed = useCallback((jobId: string): boolean => {
@@ -465,9 +471,9 @@ export default function RecruiterJobs() {
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Guten Morgen';
-    if (hour < 17) return 'Hallo';
-    return 'Guten Abend';
+    if (hour < 12) return t('list.greeting.morning');
+    if (hour < 17) return t('list.greeting.day');
+    return t('list.greeting.evening');
   };
 
   // ─── Render ─────────────────────────────────────────────────────────────
@@ -483,11 +489,11 @@ export default function RecruiterJobs() {
   }
 
   const tabs: { key: TabKey; label: string; count: number }[] = [
-    { key: 'all', label: 'Alle', count: tabCounts.all },
-    { key: 'urgent', label: 'Dringend', count: tabCounts.urgent },
-    { key: 'new', label: 'Neu', count: tabCounts.new },
-    { key: 'top', label: 'Top', count: tabCounts.top },
-    { key: 'mine', label: 'Meine Suchen', count: tabCounts.mine },
+    { key: 'all', label: t('list.tabs.all'), count: tabCounts.all },
+    { key: 'urgent', label: t('list.tabs.urgent'), count: tabCounts.urgent },
+    { key: 'new', label: t('list.tabs.new'), count: tabCounts.new },
+    { key: 'top', label: t('list.tabs.top'), count: tabCounts.top },
+    { key: 'mine', label: t('list.tabs.mine'), count: tabCounts.mine },
   ];
 
   return (
@@ -499,12 +505,12 @@ export default function RecruiterJobs() {
               Farbe nur mit Bedeutung: Rot dringend, Grün Geld. */}
           <div>
             <h1 className="truncate text-xl font-semibold tracking-tight">
-              {getGreeting()}{capitalizedName ? `, ${capitalizedName}` : ''}
+              {capitalizedName ? t('list.greeting.withName', { greeting: getGreeting(), name: capitalizedName }) : getGreeting()}
             </h1>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              {jobs.length} offene {jobs.length === 1 ? 'Stelle' : 'Stellen'}
-              {urgentCount > 0 && <> · <span className="text-destructive">{urgentCount} dringend</span></>}
-              {kpis.totalPotential > 0 && <> · <span className="font-medium text-emerald-500"><Honorar>{formatEuroShort(kpis.totalPotential)}</Honorar></span> mögliches Honorar</>}
+              {t('list.openJobs', { count: jobs.length })}
+              {urgentCount > 0 && <> · <span className="text-destructive">{t('list.urgentCount', { count: urgentCount })}</span></>}
+              {kpis.totalPotential > 0 && <> · <Trans t={t} i18nKey="list.potentialFee" components={{ fee: <span className="font-medium text-emerald-500"><Honorar>{formatEuroShort(kpis.totalPotential)}</Honorar></span> }} /></>}
             </p>
           </div>
 
@@ -514,7 +520,7 @@ export default function RecruiterJobs() {
               <div className="flex items-center gap-2">
                 <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  Meine aktiven Jobs ({myActiveJobsData.length})
+                  {t('list.myActiveJobs', { count: myActiveJobsData.length })}
                 </span>
               </div>
 
@@ -534,7 +540,7 @@ export default function RecruiterJobs() {
                   {myActiveJobsData.map((job) => {
                     const stageInfo = getStageInfo(job.stage);
                     const timeSince = job.submittedAt
-                      ? formatDistanceToNow(new Date(job.submittedAt), { locale: de, addSuffix: true })
+                      ? formatDistanceToNow(new Date(job.submittedAt), { locale: dateFnsLocale(i18n.language), addSuffix: true })
                       : null;
 
                     const anonLabel = job.companyRevealed
@@ -569,6 +575,7 @@ export default function RecruiterJobs() {
                             variant="ghost"
                             size="icon"
                             className="h-5 w-5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                            aria-label={t('list.openJobPage')}
                             onClick={(e) => { e.stopPropagation(); navigate(`/recruiter/jobs/${job.id}`); }}
                           >
                             <ExternalLink className="h-3 w-3" />
@@ -587,7 +594,7 @@ export default function RecruiterJobs() {
                             variant="outline"
                             className={cn('shrink-0 text-[9px] px-1.5 py-0 leading-4', stageInfo.className)}
                           >
-                            {stageInfo.shortLabel}
+                            {t(`stages.${stageInfo.key}.short`)}
                           </Badge>
                         </div>
 
@@ -595,7 +602,7 @@ export default function RecruiterJobs() {
                         <div className="flex items-center justify-between mt-1.5">
                           <span className="text-[10px] text-muted-foreground inline-flex items-center gap-1 truncate">
                             <Clock className="h-2.5 w-2.5 shrink-0" />
-                            {timeSince || 'Noch nicht eingereicht'}
+                            {timeSince || t('list.notSubmittedYet')}
                           </span>
                           <span className="text-[10px] font-semibold text-emerald-500 tabular-nums shrink-0">
                             {job.earning ? <Honorar>{formatEuroShort(job.earning)}</Honorar> : ''}
@@ -617,7 +624,7 @@ export default function RecruiterJobs() {
             <div className="relative mr-2 min-w-[180px] max-w-xs flex-1">
               <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Titel oder Skill"
+                placeholder={t('list.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="h-8 pl-8 text-sm"
@@ -625,21 +632,21 @@ export default function RecruiterJobs() {
             </div>
             <Select value={remoteFilter} onValueChange={setRemoteFilter}>
               <SelectTrigger className={cn(FILTER_TRIGGER, remoteFilter !== 'all' && FILTER_ACTIVE)}>
-                <SelectValue>{remoteFilter === 'all' ? 'Remote' : REMOTE_FILTER_LABELS[remoteFilter]}</SelectValue>
+                <SelectValue>{remoteFilter === 'all' ? t('list.filter.remote') : t(`list.remote.${remoteFilter}`, { defaultValue: remoteFilter })}</SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Remote: alle</SelectItem>
-                <SelectItem value="remote">Remote</SelectItem>
-                <SelectItem value="hybrid">Hybrid</SelectItem>
-                <SelectItem value="onsite">Vor Ort</SelectItem>
+                <SelectItem value="all">{t('list.filter.remoteAll')}</SelectItem>
+                <SelectItem value="remote">{t('list.remote.remote')}</SelectItem>
+                <SelectItem value="hybrid">{t('list.remote.hybrid')}</SelectItem>
+                <SelectItem value="onsite">{t('list.remote.onsite')}</SelectItem>
               </SelectContent>
             </Select>
             <Select value={levelFilter} onValueChange={setLevelFilter}>
               <SelectTrigger className={cn(FILTER_TRIGGER, levelFilter !== 'all' && FILTER_ACTIVE)}>
-                <SelectValue>{levelFilter === 'all' ? 'Level' : LEVEL_FILTER_LABELS[levelFilter]}</SelectValue>
+                <SelectValue>{levelFilter === 'all' ? t('list.filter.level') : LEVEL_FILTER_LABELS[levelFilter]}</SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Level: alle</SelectItem>
+                <SelectItem value="all">{t('list.filter.levelAll')}</SelectItem>
                 <SelectItem value="junior">Junior</SelectItem>
                 <SelectItem value="mid">Mid</SelectItem>
                 <SelectItem value="senior">Senior</SelectItem>
@@ -650,10 +657,10 @@ export default function RecruiterJobs() {
             {industries.length > 0 && (
               <Select value={industryFilter} onValueChange={setIndustryFilter}>
                 <SelectTrigger className={cn(FILTER_TRIGGER, 'max-w-[220px]', industryFilter !== 'all' && FILTER_ACTIVE)}>
-                  <SelectValue>{industryFilter === 'all' ? 'Branche' : industryFilter}</SelectValue>
+                  <SelectValue>{industryFilter === 'all' ? t('list.filter.industry') : industryFilter}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Branche: alle</SelectItem>
+                  <SelectItem value="all">{t('list.filter.industryAll')}</SelectItem>
                   {industries.map(ind => (
                     <SelectItem key={ind} value={ind}>{ind}</SelectItem>
                   ))}
@@ -662,16 +669,16 @@ export default function RecruiterJobs() {
             )}
             <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortKey)}>
               <SelectTrigger className={cn(FILTER_TRIGGER, 'ml-auto')}>
-                <SelectValue placeholder="Sortierung" />
+                <SelectValue placeholder={t('list.sort.placeholder')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="newest">Neueste zuerst</SelectItem>
-                <SelectItem value="fee">Höchste Fee</SelectItem>
+                <SelectItem value="newest">{t('list.sort.newest')}</SelectItem>
+                <SelectItem value="fee">{t('list.sort.fee')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          <div className="flex flex-wrap gap-x-5 border-b border-border" role="tablist" aria-label="Jobs filtern">
+          <div className="flex flex-wrap gap-x-5 border-b border-border" role="tablist" aria-label={t('list.tabsAria')}>
             {tabs.map(tab => (
               <button
                 key={tab.key}
@@ -708,11 +715,11 @@ export default function RecruiterJobs() {
               <Card className="border-border/30 bg-card">
                 <CardContent className="py-12 text-center">
                   <Briefcase className="mx-auto h-10 w-10 text-muted-foreground/30" />
-                  <h3 className="mt-3 font-semibold">Keine Jobs gefunden</h3>
+                  <h3 className="mt-3 font-semibold">{t('list.empty.title')}</h3>
                   <p className="text-sm text-muted-foreground">
                     {searchQuery || remoteFilter !== 'all'
-                      ? 'Passe deine Filter an'
-                      : 'Bald verfügbar'}
+                      ? t('list.empty.adjust')
+                      : t('list.empty.soon')}
                   </p>
                 </CardContent>
               </Card>
@@ -836,7 +843,7 @@ export default function RecruiterJobs() {
       <Dialog open={!!submitDialogJob} onOpenChange={(o) => { if (!o) setSubmitDialogJob(null); }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Kandidat einreichen</DialogTitle>
+            <DialogTitle>{t('list.submitCandidate')}</DialogTitle>
           </DialogHeader>
           {submitDialogJob && (
             <CandidateSubmitForm

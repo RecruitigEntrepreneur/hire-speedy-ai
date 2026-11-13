@@ -1,4 +1,10 @@
 import type { BesetzungItem } from '@/lib/besetzungApi';
+import i18n from '@/i18n';
+import { intlLocale } from '@/i18n/languages';
+
+// Texte in der Sprache der Oberfläche (clientPlacements), gelesen beim Aufruf (README Regel 7).
+const tb = (key: string, options?: Record<string, unknown>): string => i18n.t(`clientPlacements:${key}`, options);
+const loc = () => intlLocale(i18n.language);
 
 /**
  * Anzeige einer Besetzung (Etappe 2, 25.10.2026; Umbau Nachbesetzung 11.11.2026): Etikett,
@@ -14,35 +20,42 @@ export interface Fact { label: string; value: string; tone?: Tone; action?: 'po'
 
 const DAY = 86_400_000;
 export const todayKey = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
-export const dateDe = (iso: string | null | undefined) => (iso ? new Date(`${iso.slice(0, 10)}T12:00:00Z`).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' }) : '–');
-export const dayMonth = (iso: string | null | undefined) => (iso ? new Date(`${iso.slice(0, 10)}T12:00:00Z`).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', timeZone: 'UTC' }) : '–');
-export const eur = (cents: number | null | undefined) => (cents == null ? '–' : `${new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 }).format(Math.round(cents / 100))} €`);
-export const eurExact = (cents: number | null | undefined) => (cents == null ? '–' : `${new Intl.NumberFormat('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(cents / 100)} €`);
-export const eurYear = (v: number | null | undefined) => (v == null ? '–' : `${new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 }).format(v)} €`);
+export const dateDe = (iso: string | null | undefined) => (iso ? new Date(`${iso.slice(0, 10)}T12:00:00Z`).toLocaleDateString(loc(), { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' }) : '–');
+export const dayMonth = (iso: string | null | undefined) => (iso ? new Date(`${iso.slice(0, 10)}T12:00:00Z`).toLocaleDateString(loc(), { day: '2-digit', month: '2-digit', timeZone: 'UTC' }) : '–');
+export const eur = (cents: number | null | undefined) => (cents == null ? '–' : `${new Intl.NumberFormat(loc(), { maximumFractionDigits: 0 }).format(Math.round(cents / 100))} €`);
+export const eurExact = (cents: number | null | undefined) => (cents == null ? '–' : `${new Intl.NumberFormat(loc(), { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(cents / 100)} €`);
+export const eurYear = (v: number | null | undefined) => (v == null ? '–' : `${new Intl.NumberFormat(loc(), { maximumFractionDigits: 0 }).format(v)} €`);
 export const first = (name: string) => (name.startsWith('PR-') ? name : name.split(' ')[0]);
 /** „Cems“, „Max’“ */
 export const genitive = (n: string) => (/[sßxz]$/i.test(n) ? `${n}’` : `${n}s`);
+/** Genitiv in der Sprache der Oberfläche: „Cems“, englisch „Cem’s“, schwedisch/norwegisch „Cems“ bzw. „Lars“. */
+export const genitiveUi = (n: string) => {
+  const base = i18n.language.slice(0, 2);
+  if (base === 'en') return `${n}’s`;
+  if (base === 'sv' || base === 'nb') return /[sxz]$/i.test(n) ? n : `${n}s`;
+  return genitive(n);
+};
 
 /** „in 38 Tagen“, „heute“, „vor 4 Tagen“ */
 export function relDays(iso: string | null | undefined, today = todayKey()): string {
   if (!iso) return '';
   const d = Math.round((Date.parse(`${iso.slice(0, 10)}T12:00:00Z`) - Date.parse(`${today}T12:00:00Z`)) / DAY);
-  if (d === 0) return 'heute';
-  if (d === 1) return 'morgen';
-  if (d === -1) return 'gestern';
-  return d > 0 ? `in ${d} Tagen` : `vor ${-d} Tagen`;
+  if (d === 0) return tb('rel.today');
+  if (d === 1) return tb('rel.tomorrow');
+  if (d === -1) return tb('rel.yesterday');
+  return d > 0 ? tb('rel.inDays', { count: d }) : tb('rel.daysAgo', { count: -d });
 }
 
 /** Kopfzeile: „Mira Stein · Nachbesetzung für Cem“ bei einer Ersatzbesetzung. */
 export function titleOf(item: BesetzungItem): string {
-  return item.placement?.replaces ? `${item.name} · Nachbesetzung für ${first(item.placement.replaces.name)}` : item.name;
+  return item.placement?.replaces ? tb('title.replacementFor', { name: item.name, first: first(item.placement.replaces.name) }) : item.name;
 }
 
 export function packageLabel(i: BesetzungItem): string {
   const p = i.package;
-  if (p.replacement) return 'Nachbesetzung · kein neues Honorar';
+  if (p.replacement) return tb('pkg.replacement');
   const short = p.key === 'core' ? 'Core' : p.key === 'continuity_90' ? 'Continuity 90' : p.key === 'continuity_180' ? 'Continuity 180' : p.name;
-  return `${short} · ${String(p.pct).replace('.', ',')} %`;
+  return `${short} · ${new Intl.NumberFormat(loc(), { maximumFractionDigits: 2 }).format(Number(p.pct))} %`;
 }
 
 const startOf = (i: BesetzungItem) => i.placement?.startDate ?? i.offer?.startDate ?? null;
@@ -56,50 +69,50 @@ export function statusOf(i: BesetzungItem, today = todayKey()): { text: string; 
   const p = i.placement;
   if (i.group === 'angebot') {
     const o = i.offer!;
-    if (o.status === 'countered') return { text: 'Gegenwunsch', tone: 'bad' };
-    if (o.overdue) return { text: 'Antwortfrist abgelaufen', tone: 'bad' };
-    if (o.status === 'considering') return { text: `${who} überlegt`, tone: 'warn' };
-    if (o.status === 'accept_reported') return { text: `${who} bestätigt die Zusage`, tone: 'warn' };
-    return { text: `V${o.version} beim Headhunter`, tone: 'warn' };
+    if (o.status === 'countered') return { text: tb('status.countered'), tone: 'bad' };
+    if (o.overdue) return { text: tb('status.overdue'), tone: 'bad' };
+    if (o.status === 'considering') return { text: tb('status.considering', { who }), tone: 'warn' };
+    if (o.status === 'accept_reported') return { text: tb('status.acceptReported', { who }), tone: 'warn' };
+    return { text: tb('status.withRecruiter', { version: o.version }), tone: 'warn' };
   }
   if (p?.research) {
     const r = p.research;
-    if (r.state === 'running') return { text: 'Nachbesetzung läuft', tone: 'neutral' };
-    if (r.state === 'paused') return { text: 'Nachbesetzung ruht', tone: 'neutral' };
-    if (r.state === 'awaiting_position') return { text: 'Position bestätigen', tone: 'warn' };
-    if (r.state === 'awaiting_payment') return { text: 'Nachbesetzung startet nach Zahlung', tone: 'neutral' };
-    if (r.state === 'succeeded') return { text: 'Ersatz gefunden', tone: 'neutral' };
+    if (r.state === 'running') return { text: tb('status.researchRunning'), tone: 'neutral' };
+    if (r.state === 'paused') return { text: tb('status.researchPaused'), tone: 'neutral' };
+    if (r.state === 'awaiting_position') return { text: tb('status.confirmPosition'), tone: 'warn' };
+    if (r.state === 'awaiting_payment') return { text: tb('status.awaitingPayment'), tone: 'neutral' };
+    if (r.state === 'succeeded') return { text: tb('status.found'), tone: 'neutral' };
   }
-  if (p?.offer?.status === 'open') return { text: 'Angebot von Matchunt', tone: 'warn' };
+  if (p?.offer?.status === 'open') return { text: tb('status.matchuntOffer'), tone: 'warn' };
   if (p?.end) {
-    if (p.claim && ['submitted', 'in_review'].includes(p.claim.status)) return { text: 'Matchunt prüft', tone: 'neutral' };
-    return { text: p.end.kind === 'non_start' ? 'nicht angefangen' : 'beendet', tone: 'neutral' };
+    if (p.claim && ['submitted', 'in_review'].includes(p.claim.status)) return { text: tb('status.matchuntReviews'), tone: 'neutral' };
+    return { text: p.end.kind === 'non_start' ? tb('status.notStarted') : tb('status.ended'), tone: 'neutral' };
   }
-  if (p?.replaces && i.group !== 'ab') return { text: 'Nachbesetzung', tone: 'neutral' };
+  if (p?.replaces && i.group !== 'ab') return { text: tb('status.replacement'), tone: 'neutral' };
   if (i.group === 'start') {
     if (!p) {
       const s = i.contract?.status ?? 'preparing';
-      if (s === 'sent_self') return { text: `Vertrag liegt bei ${who}`, tone: 'warn' };
-      if (s === 'sent_digital') return { text: 'Unterschrift läuft', tone: 'warn' };
-      if (s === 'company_signed') return { text: `${who} unterschreibt`, tone: 'warn' };
-      if (s === 'reported' || s === 'signed') return { text: 'Unterschrift gemeldet', tone: 'warn' };
-      if (s === 'declined') return { text: 'Vertrag abgelehnt', tone: 'bad' };
-      return { text: 'Vertrag noch nicht verschickt', tone: 'bad' };
+      if (s === 'sent_self') return { text: tb('status.contractWith', { who }), tone: 'warn' };
+      if (s === 'sent_digital') return { text: tb('status.signing'), tone: 'warn' };
+      if (s === 'company_signed') return { text: tb('status.whoSigns', { who }), tone: 'warn' };
+      if (s === 'reported' || s === 'signed') return { text: tb('status.signatureReported'), tone: 'warn' };
+      if (s === 'declined') return { text: tb('status.contractDeclined'), tone: 'bad' };
+      return { text: tb('status.contractNotSent'), tone: 'bad' };
     }
-    if (p.startReport?.kind === 'started' && !p.startReport.contestedAt) return { text: 'Start bestätigen', tone: 'warn' };
-    if (startPassed(i, today)) return { text: `Start war am ${dayMonth(p.startDate)}`, tone: 'warn' };
-    return { text: 'unterschrieben', tone: 'good' };
+    if (p.startReport?.kind === 'started' && !p.startReport.contestedAt) return { text: tb('status.confirmStart'), tone: 'warn' };
+    if (startPassed(i, today)) return { text: tb('status.startWas', { date: dayMonth(p.startDate) }), tone: 'warn' };
+    return { text: tb('status.signed'), tone: 'good' };
   }
   if (i.group === 'haus') {
-    return i.package.continuityDays ? { text: 'Nachbesetzung möglich', tone: 'good' } : { text: 'Core', tone: 'neutral' };
+    return i.package.continuityDays ? { text: tb('status.replacementPossible'), tone: 'good' } : { text: tb('status.core'), tone: 'neutral' };
   }
-  return { text: 'abgeschlossen', tone: 'neutral' };
+  return { text: tb('status.done'), tone: 'neutral' };
 }
 
 /** Wer ist dran? (Aufgaben des Kunden haben Vorrang) */
 export function dranOf(i: BesetzungItem, hasTask: boolean, today = todayKey()): { text: string; tone: Tone } | null {
-  if (hasTask || i.dran === 'client' || startPassed(i, today)) return { text: 'Sie', tone: 'bad' };
-  if (i.dran === 'recruiter') return { text: 'Headhunter', tone: 'neutral' };
+  if (hasTask || i.dran === 'client' || startPassed(i, today)) return { text: tb('dran.you'), tone: 'bad' };
+  if (i.dran === 'recruiter') return { text: tb('dran.recruiter'), tone: 'neutral' };
   if (i.dran === 'candidate') return { text: first(i.name), tone: 'neutral' };
   return null;
 }
@@ -107,95 +120,94 @@ export function dranOf(i: BesetzungItem, hasTask: boolean, today = todayKey()): 
 export function stepsOf(i: BesetzungItem, today = todayKey()): Step[] {
   const p = i.placement;
   const start = startOf(i);
-  if (i.group === 'angebot') return [{ label: `Angebot V${i.offer?.version ?? 1}`, state: 'done' }, { label: 'Antwort', state: 'now' }, { label: 'Zusage', state: 'next' }, { label: 'Vertrag', state: 'next' }];
+  if (i.group === 'angebot') return [{ label: tb('steps.offer', { version: i.offer?.version ?? 1 }), state: 'done' }, { label: tb('steps.answer'), state: 'now' }, { label: tb('steps.acceptance'), state: 'next' }, { label: tb('steps.contract'), state: 'next' }];
   if (i.group === 'start' && !p) {
     const s = i.contract?.status ?? 'preparing';
-    const contract: Step = s === 'sent_self' ? { label: 'Vertrag selbst verschickt', state: 'now' }
-      : s === 'sent_digital' || s === 'company_signed' ? { label: 'Unterschrift läuft', state: 'now' }
-        : s === 'reported' || s === 'signed' ? { label: 'Unterschrift gemeldet', state: 'now' }
-          : s === 'declined' ? { label: 'Vertrag abgelehnt', state: 'bad' } : { label: 'Vertrag schicken', state: 'now' };
-    return [{ label: 'Zusage', state: 'done' }, contract, { label: 'Unterschrift', state: 'next' }, { label: start ? `Start ${dateDe(start)}` : 'Start', state: 'next' }];
+    const contract: Step = s === 'sent_self' ? { label: tb('steps.sentSelf'), state: 'now' }
+      : s === 'sent_digital' || s === 'company_signed' ? { label: tb('steps.signing'), state: 'now' }
+        : s === 'reported' || s === 'signed' ? { label: tb('steps.signatureReported'), state: 'now' }
+          : s === 'declined' ? { label: tb('steps.declined'), state: 'bad' } : { label: tb('steps.sendContract'), state: 'now' };
+    return [{ label: tb('steps.acceptance'), state: 'done' }, contract, { label: tb('steps.signature'), state: 'next' }, { label: start ? tb('steps.startOn', { date: dateDe(start) }) : tb('steps.start'), state: 'next' }];
   }
   const started = !!p?.startFixedAt || ['started', 'ended_early', 'completed'].includes(String(p?.state)) || !!p?.startConfirmedAt;
-  const signed: Step = { label: 'Unterschrieben', state: 'done' };
-  const begun: Step = { label: p?.startDate ? `Angefangen ${dayMonth(p.startDate)}` : 'Angefangen', state: 'done' };
+  const signed: Step = { label: tb('steps.signed'), state: 'done' };
+  const begun: Step = { label: p?.startDate ? tb('steps.begunOn', { date: dayMonth(p.startDate) }) : tb('steps.begun'), state: 'done' };
   if (p?.end) {
-    const ended: Step = { label: p.end.kind === 'non_start' ? 'Nicht angefangen' : `Endet${p.end.lastDay ? ` ${dayMonth(p.end.lastDay)}` : ''}`, state: 'done' };
-    const tail: Step = p.research?.state === 'succeeded' ? { label: 'Ersatz gefunden', state: 'done' }
-      : p.research?.state === 'running' || p.research?.state === 'paused' ? { label: 'Nachbesetzung läuft', state: 'now' }
-        : researchActive(i) ? { label: 'Nachbesetzung vorbereiten', state: 'now' }
-          : p.claim && ['submitted', 'in_review'].includes(p.claim.status) ? { label: 'Matchunt prüft', state: 'now' }
-            : p.offer?.status === 'open' ? { label: 'Angebot von Matchunt', state: 'now' }
-              : { label: 'Gemeldet', state: 'done' };
+    const ended: Step = { label: p.end.kind === 'non_start' ? tb('steps.notStarted') : p.end.lastDay ? tb('steps.endsOn', { date: dayMonth(p.end.lastDay) }) : tb('steps.ends'), state: 'done' };
+    const tail: Step = p.research?.state === 'succeeded' ? { label: tb('steps.found'), state: 'done' }
+      : p.research?.state === 'running' || p.research?.state === 'paused' ? { label: tb('steps.researchRunning'), state: 'now' }
+        : researchActive(i) ? { label: tb('steps.researchPrepare'), state: 'now' }
+          : p.claim && ['submitted', 'in_review'].includes(p.claim.status) ? { label: tb('steps.matchuntReviews'), state: 'now' }
+            : p.offer?.status === 'open' ? { label: tb('steps.matchuntOffer'), state: 'now' }
+              : { label: tb('steps.reported'), state: 'done' };
     return p.end.kind === 'non_start' ? [signed, ended, tail] : [signed, begun, ended, tail];
   }
   if (i.group === 'start') {
     const passed = startPassed(i, today);
-    return [{ label: 'Zusage', state: 'done' }, signed, { label: start ? `Start ${dateDe(start)}` : 'Start noch offen', state: passed ? 'done' : 'now' }, { label: 'Antritt bestätigen', state: passed ? 'now' : 'next' }];
+    return [{ label: tb('steps.acceptance'), state: 'done' }, signed, { label: start ? tb('steps.startOn', { date: dateDe(start) }) : tb('steps.startOpen'), state: passed ? 'done' : 'now' }, { label: tb('steps.confirmStart'), state: passed ? 'now' : 'next' }];
   }
   if (i.group === 'haus') {
     return [signed, begun,
-      p?.continuityEnd ? { label: `Nachbesetzung möglich bis ${dateDe(p.continuityEnd)}`, state: 'now' } : { label: `Im Haus bis ${dateDe(p?.coreUntil)}`, state: 'now' }];
+      p?.continuityEnd ? { label: tb('steps.replacementUntil', { date: dateDe(p.continuityEnd) }), state: 'now' } : { label: tb('steps.inHouseUntil', { date: dateDe(p?.coreUntil) }), state: 'now' }];
   }
-  if (!started) return [signed, { label: 'Abgeschlossen', state: 'done' }];
-  return [begun, { label: i.package.continuityDays ? 'Nachbesetzung vorbei' : '6 Monate im Haus', state: 'done' }];
+  if (!started) return [signed, { label: tb('steps.completed'), state: 'done' }];
+  return [begun, { label: i.package.continuityDays ? tb('steps.replacementOver') : tb('steps.sixMonths'), state: 'done' }];
 }
 
 export function invoiceFact(i: BesetzungItem): Fact {
   const inv = i.invoice;
-  if (!i.placement) return { label: 'Rechnung', value: 'nach der Unterschrift' };
-  if (i.package.replacement && !inv) return { label: 'Rechnung', value: 'keine neue Rechnung' };
-  if (!inv || inv.status === 'draft' || !inv.number) return { label: 'Rechnung', value: 'wird von Matchunt erstellt' };
-  if (inv.status === 'paid') return { label: 'Rechnung', value: `${inv.number} · bezahlt ${dayMonth(inv.paidAt)}` };
-  if (inv.reportedPaidOn) return { label: 'Rechnung', value: `${inv.number} · Zahlung wird geprüft` };
+  const label = tb('facts.invoice');
+  if (!i.placement) return { label, value: tb('facts.afterSignature') };
+  if (i.package.replacement && !inv) return { label, value: tb('facts.noNewInvoice') };
+  if (!inv || inv.status === 'draft' || !inv.number) return { label, value: tb('facts.byMatchunt') };
+  if (inv.status === 'paid') return { label, value: tb('facts.paid', { number: inv.number, date: dayMonth(inv.paidAt) }) };
+  if (inv.reportedPaidOn) return { label, value: tb('facts.checking', { number: inv.number }) };
   const open = inv.openCents ?? inv.totalCents;
-  if (inv.overdue) return { label: 'Rechnung', value: `${inv.number} · ${eur(open)} offen · überfällig seit ${dayMonth(inv.dueDate)}`, tone: 'bad' };
-  return { label: 'Rechnung', value: `${inv.number} · ${eur(open)} · fällig ${dateDe(inv.dueDate)}` };
+  if (inv.overdue) return { label, value: tb('facts.overdue', { number: inv.number, amount: eur(open), date: dayMonth(inv.dueDate) }), tone: 'bad' };
+  return { label, value: tb('facts.due', { number: inv.number, amount: eur(open), date: dateDe(inv.dueDate) }) };
 }
 
 /** Eckdaten: die ersten vier stehen auf der Karte, alle im Fenster. */
 export function factsOf(i: BesetzungItem, today = todayKey()): Fact[] {
   const p = i.placement;
   const start = startOf(i);
-  const fee: Fact = { label: 'Honorar', value: i.package.replacement ? (i.feeCents ? `${eur(i.feeCents)} netto (höheres Gehalt)` : 'kein neues Honorar') : i.feeCents == null ? '–' : `${p ? '' : 'ca. '}${eur(i.feeCents)} netto` };
-  const pkg: Fact = { label: 'Paket', value: packageLabel(i) };
+  const fee: Fact = { label: tb('facts.fee'), value: i.package.replacement ? (i.feeCents ? tb('facts.feeHigherSalary', { amount: eur(i.feeCents) }) : tb('facts.noNewFee')) : i.feeCents == null ? '–' : tb(p ? 'facts.feeNet' : 'facts.feeApprox', { amount: eur(i.feeCents) }) };
+  const pkg: Fact = { label: tb('facts.package'), value: packageLabel(i) };
   if (i.group === 'angebot') {
     const o = i.offer!;
     return [
-      { label: 'Angebot', value: `${eurYear(o.salary)}${o.variable ? ` + ${eurYear(o.variable)}` : ''} · Version ${o.version}` },
-      { label: 'Start laut Angebot', value: dateDe(o.startDate) },
-      { label: 'Antwort bis', value: dateDe(o.responseDue), tone: o.overdue ? 'bad' : undefined },
+      { label: tb('facts.offer'), value: o.variable ? tb('facts.offerValueVariable', { salary: eurYear(o.salary), variable: eurYear(o.variable), version: o.version }) : tb('facts.offerValue', { salary: eurYear(o.salary), version: o.version }) },
+      { label: tb('facts.startPerOffer'), value: dateDe(o.startDate) },
+      { label: tb('facts.answerBy'), value: dateDe(o.responseDue), tone: o.overdue ? 'bad' : undefined },
       fee, pkg,
     ];
   }
   const out: Fact[] = [];
   const started = !!p?.startFixedAt || ['started', 'ended_early', 'completed'].includes(String(p?.state)) || !!p?.startConfirmedAt;
-  if (p?.end) out.push({ label: p.end.kind === 'non_start' ? 'Nicht angefangen' : 'Endet', value: `${p.end.label}${p.end.lastDay ? ` · letzter Tag ${dateDe(p.end.lastDay)}` : ''}` });
-  if (i.group === 'start' && !p?.end) out.push({ label: 'Erster Arbeitstag', value: start ? `${dateDe(start)} · ${relDays(start, today)}` : 'noch offen', tone: startPassed(i, today) ? 'warn' : undefined });
-  else if (p && started) out.push({ label: 'Angefangen', value: p.startDate ? `${dateDe(p.startDate)}${p.startFixedAt || p.startConfirmedAt ? ' · bestätigt' : ''}` : 'ja' });
+  // p.end.label kommt so vom Server (Grund der Meldung)
+  if (p?.end) out.push({ label: p.end.kind === 'non_start' ? tb('facts.notStarted') : tb('facts.ends'), value: p.end.lastDay ? tb('facts.lastDay', { label: p.end.label, date: dateDe(p.end.lastDay) }) : p.end.label });
+  if (i.group === 'start' && !p?.end) out.push({ label: tb('facts.firstDay'), value: start ? `${dateDe(start)} · ${relDays(start, today)}` : tb('facts.stillOpen'), tone: startPassed(i, today) ? 'warn' : undefined });
+  else if (p && started) out.push({ label: tb('facts.begun'), value: p.startDate ? (p.startFixedAt || p.startConfirmedAt ? tb('facts.confirmed', { date: dateDe(p.startDate) }) : dateDe(p.startDate)) : tb('facts.yes') });
   out.push(pkg);
-  if (p?.replaces) out.push({ label: 'Nachbesetzung für', value: p.replaces.name });
-  if (i.group === 'haus' && p?.continuityEnd && !p.end) out.push({ label: 'Nachbesetzung möglich bis', value: `${dateDe(p.continuityEnd)} · melden bis ${dayMonth(p.reportUntil)}` });
-  else if (i.group === 'haus' && p?.coreUntil && !p.end) out.push({ label: 'Bleibt hier bis', value: dateDe(p.coreUntil) });
+  if (p?.replaces) out.push({ label: tb('facts.replacementFor'), value: p.replaces.name });
+  if (i.group === 'haus' && p?.continuityEnd && !p.end) out.push({ label: tb('facts.replacementUntil'), value: tb('facts.reportUntil', { date: dateDe(p.continuityEnd), until: dayMonth(p.reportUntil) }) });
+  else if (i.group === 'haus' && p?.coreUntil && !p.end) out.push({ label: tb('facts.staysUntil'), value: dateDe(p.coreUntil) });
   else out.push(fee);
   out.push(invoiceFact(i));
   // nur im Fenster
   if (i.group === 'haus' && !p?.end) out.push(fee);
-  if (i.grossCents != null) out.push({ label: p ? 'Bruttojahresziel' : 'Gehalt laut Zusage', value: eur(i.grossCents) });
+  if (i.grossCents != null) out.push({ label: p ? tb('facts.grossTarget') : tb('facts.salaryPerOffer'), value: eur(i.grossCents) });
   if (p) {
-    const value = p.purchaseOrder ? `${p.purchaseOrder}${p.costCenter ? ` · Kostenstelle ${p.costCenter}` : ''}` : p.costCenter ? `– · Kostenstelle ${p.costCenter}` : '–';
-    out.push({ label: 'Bestellnummer', value, action: i.can?.purchaseOrder ? 'po' : undefined });
+    const cc = p.costCenter ? tb('facts.costCenter', { value: p.costCenter }) : '';
+    const value = p.purchaseOrder ? `${p.purchaseOrder}${cc}` : p.costCenter ? `–${cc}` : '–';
+    out.push({ label: tb('facts.po'), value, action: i.can?.purchaseOrder ? 'po' : undefined });
   }
-  if (i.offer?.probationMonths && start && !p?.end) out.push({ label: 'Probezeit (Info)', value: `${i.offer.probationMonths} Monate laut Angebot` });
+  if (i.offer?.probationMonths && start && !p?.end) out.push({ label: tb('facts.probation'), value: tb('facts.probationValue', { count: i.offer.probationMonths }) });
   return out;
 }
 
-export const INTRO: Record<string, string> = {
-  angebot: 'Alle mit laufendem Angebot, bis zur Zusage.',
-  start: 'Nach der Zusage bis zum ersten Arbeitstag: Vertrag, Unterschrift, Start.',
-  haus: 'Seit dem ersten Arbeitstag. Mit Continuity, solange eine Nachbesetzung möglich ist, mit Core 6 Monate.',
-  ab: 'Fertig: nach der Nachbesetzungs-Frist bzw. 6 Monaten oder beendet. Nur zum Nachsehen.',
-};
+/** Satz über der Liste je Reiter (clientPlacements:intro.<Reiter>). */
+export const introOf = (tab: string): string => tb(`intro.${tab}`);
 
 // ---------------------------------------------------------------------------
 // Knöpfe je Phase (K4)
@@ -248,10 +260,7 @@ export interface ResearchPanel {
   lines: string[];
 }
 
-const SPHERE_WHY: Record<string, string> = {
-  position_changed: 'die Stelle wegfällt oder umgebaut wird',
-  offer_withdrawn: 'Sie das Angebot zurückgezogen haben',
-};
+const sphereWhy = (reason: string) => (['position_changed', 'offer_withdrawn'].includes(reason) ? tb(`sphere.${reason}`) : tb('sphere.default'));
 
 /** Was nach der Meldung „Besetzung endet“ im Fenster steht; null = keine Meldung, keine Nachbesetzung. */
 export function researchPanel(i: BesetzungItem): ResearchPanel | null {
@@ -262,48 +271,48 @@ export function researchPanel(i: BesetzungItem): ResearchPanel | null {
   const claim = p.claim;
   const offer = p.offer;
   const continuity = !!i.package.continuityDays;
-  const nonStartTitle = p.end?.kind === 'non_start' ? `${who} hat nicht angefangen` : null;
+  const nonStartTitle = p.end?.kind === 'non_start' ? tb('panel.notStarted', { who }) : null;
 
   if (r?.state === 'succeeded') {
     const rep = r.replacement;
     return {
       variant: 'found', title: null,
       rows: [
-        { text: 'Für alle Headhunter ausgeschrieben', date: r.startedAt, state: 'done' },
-        { text: `Ersatz gefunden${rep ? `: ${rep.name}` : ''}`, date: r.endedAt, state: 'done' },
+        { text: tb('panel.advertised'), date: r.startedAt, state: 'done' },
+        { text: rep ? tb('panel.foundName', { name: rep.name }) : tb('panel.found'), date: r.endedAt, state: 'done' },
       ],
-      lines: [rep ? `Neue Karte „${first(rep.name)} · Nachbesetzung für ${who}“. Keine neue Rechnung, außer das Gehalt ist höher.` : 'Keine neue Rechnung, außer das Gehalt ist höher.'],
+      lines: [rep ? tb('panel.newCard', { first: first(rep.name), who }) : tb('panel.noNewInvoice')],
     };
   }
   if (r?.state === 'cancelled' || r?.state === 'exhausted') {
     return {
       variant: 'ended', title: nonStartTitle,
-      rows: r.startedAt ? [{ text: 'Für alle Headhunter ausgeschrieben', date: r.startedAt, state: 'done' }, { text: 'Nachbesetzung beendet', date: r.endedAt, state: 'done' }] : [],
-      lines: [r.endReason === 'client_ended' ? 'Sie haben die Nachbesetzung beendet. Die Stelle ist für die Headhunter geschlossen.' : 'Matchunt hat die Nachbesetzung beendet.'],
+      rows: r.startedAt ? [{ text: tb('panel.advertised'), date: r.startedAt, state: 'done' }, { text: tb('panel.researchEnded'), date: r.endedAt, state: 'done' }] : [],
+      lines: [r.endReason === 'client_ended' ? tb('panel.clientEnded') : tb('panel.matchuntEnded')],
     };
   }
   if (r?.state === 'running' || r?.state === 'paused') {
     const days = r.days ?? 0;
-    const subs = r.fresh > 0 ? `${r.fresh} neue ${r.fresh === 1 ? 'Vorstellung' : 'Vorstellungen'}` : r.submissions > 0 ? `${r.submissions} ${r.submissions === 1 ? 'Vorstellung' : 'Vorstellungen'}` : 'noch keine Vorstellung';
+    const subs = r.fresh > 0 ? tb('panel.freshSubs', { count: r.fresh }) : r.submissions > 0 ? tb('panel.subs', { count: r.submissions }) : tb('panel.noSubs');
     return {
       variant: 'running', title: nonStartTitle,
       rows: [
-        { text: 'Für alle Headhunter ausgeschrieben', date: r.startedAt, state: 'done' },
-        { text: r.paused ? 'Nachbesetzung ruht' : (days === 0 ? 'Nachbesetzung läuft seit heute' : `Nachbesetzung läuft seit ${days} ${days === 1 ? 'Tag' : 'Tagen'}`), state: 'now' },
+        { text: tb('panel.advertised'), date: r.startedAt, state: 'done' },
+        { text: r.paused ? tb('panel.paused') : (days === 0 ? tb('panel.runningToday') : tb('panel.runningDays', { count: days })), state: 'now' },
       ],
       lines: [
-        `${r.recruiters} ${r.recruiters === 1 ? 'Headhunter sucht' : 'Headhunter suchen'} · ${subs}`,
-        ...(r.paused ? ['Wir haben die Suche angehalten, bis Sie die offenen Rückmeldungen gegeben haben. Danach geht es sofort weiter.'] : []),
+        tb('panel.recruiters', { count: r.recruiters, subs }),
+        ...(r.paused ? [tb('panel.pausedHint')] : []),
       ],
     };
   }
   if (r?.state === 'awaiting_payment') {
     const inv = r.kind === 'joker' ? p.researchInvoice : i.invoice;
     const rows: PanelRow[] = r.kind === 'joker'
-      ? [{ text: 'Angebot angenommen', date: offer?.answeredAt ?? null, state: 'done' }]
-      : [{ text: 'Matchunt hat geprüft', date: claim?.decidedAt ?? null, state: 'done' }, { text: 'Position bestätigt', state: 'done' }];
-    rows.push({ text: 'Rechnung bezahlen, dann startet die Suche', date: inv?.dueDate && inv.status !== 'paid' ? inv.dueDate : null, state: 'now' });
-    rows.push({ text: 'Nachbesetzung läuft, bis die Stelle besetzt ist', state: 'next' });
+      ? [{ text: tb('panel.offerAccepted'), date: offer?.answeredAt ?? null, state: 'done' }]
+      : [{ text: tb('panel.matchuntChecked'), date: claim?.decidedAt ?? null, state: 'done' }, { text: tb('panel.positionConfirmed'), state: 'done' }];
+    rows.push({ text: tb('panel.payThenStart'), date: inv?.dueDate && inv.status !== 'paid' ? inv.dueDate : null, state: 'now' });
+    rows.push({ text: tb('panel.runsUntilFilled'), state: 'next' });
     return { variant: 'payment', title: nonStartTitle, rows, lines: [] };
   }
   if (r?.state === 'awaiting_position') {
@@ -311,21 +320,21 @@ export function researchPanel(i: BesetzungItem): ResearchPanel | null {
     return {
       variant: 'position', title: nonStartTitle,
       rows: [
-        { text: 'Matchunt hat geprüft', date: claim?.decidedAt ?? null, state: 'done' },
-        paid ? { text: 'Rechnung bezahlt', date: i.invoice?.paidAt ?? null, state: 'done' } : { text: 'Rechnung bezahlen, dann startet die Suche', state: 'next' },
-        { text: 'Position bestätigen', state: 'now' },
+        { text: tb('panel.matchuntChecked'), date: claim?.decidedAt ?? null, state: 'done' },
+        paid ? { text: tb('panel.invoicePaid'), date: i.invoice?.paidAt ?? null, state: 'done' } : { text: tb('panel.payThenStart'), state: 'next' },
+        { text: tb('panel.confirmPosition'), state: 'now' },
       ],
-      lines: ['Bestätigen Sie die Stelle so, wie sie ist, oder passen Sie sie vorher an.', 'Liegt das Gehalt höher, berechnen wir nur den Unterschied.'],
+      lines: [tb('panel.confirmAsIs'), tb('panel.higherSalary')],
     };
   }
   if (offer?.status === 'open') {
     const price = eurExact(offer.priceCents);
     return {
-      variant: 'offer', title: nonStartTitle ?? `${who}: unser Angebot`, rows: [],
+      variant: 'offer', title: nonStartTitle ?? tb('panel.ourOffer', { who }), rows: [],
       lines: [
-        'Wir bieten Ihnen eine Nachbesetzung an',
-        `Wir schreiben die Stelle neu für alle Headhunter aus, bis sie besetzt ist. Sie zahlen dafür einmalig ${price.replace(',00 €', ' €')} netto, kein neues Honorar.`,
-        ...(offer.validUntil ? [`Angebot gültig bis ${dateDe(offer.validUntil)}`] : []),
+        tb('panel.weOffer'),
+        tb('panel.offerText', { price: price.replace(/[.,]00 €$/, ' €') }),
+        ...(offer.validUntil ? [tb('panel.offerValid', { date: dateDe(offer.validUntil) })] : []),
       ],
     };
   }
@@ -336,7 +345,7 @@ export function researchPanel(i: BesetzungItem): ResearchPanel | null {
   if (sphere && continuity) {
     return {
       variant: 'sphere', title: nonStartTitle, rows: [],
-      lines: ['Gemeldet, danke.', `Eine Nachbesetzung ist hier nicht vorgesehen, weil ${SPHERE_WHY[String(end.reason)] ?? 'der Grund auf Ihrer Seite liegt'} (Rahmenvertrag § 9 Abs. 4).`],
+      lines: [tb('panel.thanks'), tb('panel.sphere', { why: sphereWhy(String(end.reason)) })],
     };
   }
   const corePending = end.kind === 'non_start' && !continuity && !i.package.replacement && !offer && p.state !== 'cancelled' && !sphere;
@@ -344,54 +353,45 @@ export function researchPanel(i: BesetzungItem): ResearchPanel | null {
     return {
       variant: 'review', title: nonStartTitle,
       rows: [
-        { text: 'Gemeldet', date: end.reportedAt, state: 'done' },
-        { text: `Matchunt prüft Ihre Meldung${(claim?.reviewUntil ?? end.reviewUntil) ? ` bis ${dayMonth(claim?.reviewUntil ?? end.reviewUntil)}` : ''}`, state: 'now' },
+        { text: tb('panel.reported'), date: end.reportedAt, state: 'done' },
+        { text: (claim?.reviewUntil ?? end.reviewUntil) ? tb('panel.reviewingUntil', { date: dayMonth(claim?.reviewUntil ?? end.reviewUntil) }) : tb('panel.reviewing'), state: 'now' },
       ],
-      lines: ['Für Sie ist nichts zu tun.'],
+      lines: [tb('panel.nothingToDo')],
     };
   }
   if (claim?.status === 'rejected') {
     return {
       variant: 'rejected', title: nonStartTitle, rows: [],
-      lines: ['Gemeldet, danke.', `Matchunt kann die Meldung nicht als Nachbesetzung anerkennen${claim.rejectionReason ? `: ${claim.rejectionReason}` : '.'}`],
+      lines: [tb('panel.thanks'), claim.rejectionReason ? tb('panel.rejectedReason', { reason: claim.rejectionReason }) : tb('panel.rejected')],
     };
   }
   if (continuity && end.outcome === 'late') {
-    return { variant: 'late', title: nonStartTitle, rows: [], lines: ['Gemeldet, danke.', 'Die Meldefrist von 14 Tagen war schon abgelaufen. Eine Nachbesetzung ist deshalb nicht mehr möglich.'] };
+    return { variant: 'late', title: nonStartTitle, rows: [], lines: [tb('panel.thanks'), tb('panel.late')] };
   }
   if (continuity && end.outcome === 'outside') {
-    return { variant: 'outside', title: nonStartTitle, rows: [], lines: ['Gemeldet, danke.', 'Das Ende liegt nach dem Zeitraum der Nachbesetzung.'] };
+    return { variant: 'outside', title: nonStartTitle, rows: [], lines: [tb('panel.thanks'), tb('panel.outside')] };
   }
   // Variante Core (auch: Angebot abgelehnt oder abgelaufen)
   return {
     variant: 'core', title: nonStartTitle, rows: [],
-    lines: ['Gemeldet, danke.', i.can?.reopenJob ? 'Möchten Sie die Stelle wieder öffnen?' : ['published', 'paused'].includes(String(p.jobStatus)) ? 'Ihre Stelle ist weiter für die Headhunter offen.' : ''].filter(Boolean),
+    lines: [tb('panel.thanks'), i.can?.reopenJob ? tb('panel.reopen') : ['published', 'paused'].includes(String(p.jobStatus)) ? tb('panel.stillOpen') : ''].filter(Boolean),
   };
 }
 
 /** K5: Gründe je nachdem, ob die Person schon angefangen hat (wie nachbesetzung.ts). */
 export function endReasons(started: boolean, who: string): { key: string; label: string }[] {
-  return started
-    ? [
-      { key: 'candidate_resigned', label: `${who} hat selbst gekündigt` },
-      { key: 'performance_conduct', label: 'Wir trennen uns wegen Leistung oder Verhalten' },
-      { key: 'mutual_on_request', label: `Aufhebung auf Wunsch von ${who}` },
-      { key: 'position_changed', label: 'Stelle fällt weg oder wird umgebaut' },
-      { key: 'other', label: 'Etwas anderes' },
-    ]
-    : [
-      { key: 'declined_before_start', label: `${who} hat vor dem Start abgesagt` },
-      { key: 'no_show', label: `${who} ist nicht erschienen` },
-      { key: 'offer_withdrawn', label: 'Wir haben das Angebot zurückgezogen' },
-    ];
+  const keys = started
+    ? ['candidate_resigned', 'performance_conduct', 'mutual_on_request', 'position_changed', 'other']
+    : ['declined_before_start', 'no_show', 'offer_withdrawn'];
+  return keys.map((key) => ({ key, label: tb(`reasons.${key}`, { who }) }));
 }
 
 /** Satz nach dem Melden (K5). */
 export function endDoneText(outcome: string, kind: 'non_start' | 'departure', reviewUntil: string | null, reason: string): string {
-  if (outcome === 'claim') return reviewUntil ? `Gemeldet. Matchunt prüft Ihre Meldung bis ${dayMonth(reviewUntil)} Für Sie ist nichts zu tun.` : 'Gemeldet. Matchunt prüft Ihre Meldung. Für Sie ist nichts zu tun.';
-  if (outcome === 'client_sphere') return `Gemeldet, danke. Eine Nachbesetzung ist hier nicht vorgesehen, weil ${SPHERE_WHY[reason] ?? 'der Grund auf Ihrer Seite liegt'} (Rahmenvertrag § 9 Abs. 4).`;
-  if (outcome === 'late') return 'Gemeldet. Die Meldefrist von 14 Tagen war schon abgelaufen. Matchunt meldet sich bei Ihnen.';
-  if (outcome === 'outside') return 'Gemeldet. Das Ende liegt nach dem Zeitraum der Nachbesetzung.';
-  if (kind === 'non_start' && reason !== 'offer_withdrawn') return `Gemeldet, danke. Matchunt meldet sich${reviewUntil ? ` bis ${dayMonth(reviewUntil)}` : ''} bei Ihnen.`;
-  return 'Gemeldet, danke. Der Headhunter und Matchunt sind informiert.';
+  if (outcome === 'claim') return reviewUntil ? tb('endDone.claimUntil', { date: dayMonth(reviewUntil) }) : tb('endDone.claim');
+  if (outcome === 'client_sphere') return tb('endDone.sphere', { why: sphereWhy(reason) });
+  if (outcome === 'late') return tb('endDone.late');
+  if (outcome === 'outside') return tb('endDone.outside');
+  if (kind === 'non_start' && reason !== 'offer_withdrawn') return reviewUntil ? tb('endDone.nonStartUntil', { date: dayMonth(reviewUntil) }) : tb('endDone.nonStart');
+  return tb('endDone.other');
 }

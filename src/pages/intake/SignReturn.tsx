@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CheckCircle2, TriangleAlert, XCircle } from 'lucide-react';
 
 /**
@@ -27,27 +28,15 @@ const AUSGANG: Record<string, Ausgang> = {
   decline: 'abgelehnt',
 };
 
-const TEXTE: Record<Ausgang, { titel: string; text: string }> = {
-  unterschrieben: {
-    titel: 'Unterschrift eingegangen',
-    text: 'Vielen Dank. Matchunt zeichnet gegen — danach starten wir die Suche. '
-        + 'Sie können dieses Fenster schließen.',
-  },
-  abgelehnt: {
-    titel: 'Sie haben die Unterschrift abgelehnt',
-    text: 'Der Vertrag ist damit nicht zustande gekommen und die Suche startet nicht. '
-        + 'Ihre Aufnahme bleibt gespeichert — melden Sie sich, wenn Sie etwas ändern möchten.',
-  },
-  abgebrochen: {
-    titel: 'Noch nicht unterschrieben',
-    text: 'Der Signaturvorgang wurde beendet, ohne dass eine Unterschrift zustande kam — '
-        + 'meist, weil das Fenster zu lange offen stand. Ihre Aufnahme ist gespeichert, '
-        + 'nichts ist verloren. Sie bekommen einen neuen Link; solange gilt kein Vertrag '
-        + 'und die Suche startet nicht.',
-  },
+/** Die Texte stehen in den Sprachdateien (clientFunnel: signReturn.*). */
+const TEXTE: Record<Ausgang, 'signed' | 'declined' | 'aborted'> = {
+  unterschrieben: 'signed',
+  abgelehnt: 'declined',
+  abgebrochen: 'aborted',
 };
 
 export default function SignReturn() {
+  const { t } = useTranslation('clientFunnel');
   const event = useMemo(
     () => new URLSearchParams(window.location.search).get('event') ?? '',
     [],
@@ -66,7 +55,8 @@ export default function SignReturn() {
     }
   }, [event]);
 
-  const { titel, text } = TEXTE[ausgang];
+  const titel = t(`signReturn.${TEXTE[ausgang]}Title`);
+  const text = t(`signReturn.${TEXTE[ausgang]}Text`);
   const Symbol = ausgang === 'unterschrieben' ? CheckCircle2
                : ausgang === 'abgelehnt' ? XCircle : TriangleAlert;
   const farbe = ausgang === 'unterschrieben' ? 'text-emerald-600'

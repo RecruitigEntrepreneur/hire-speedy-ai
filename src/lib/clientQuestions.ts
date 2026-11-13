@@ -1,3 +1,4 @@
+import i18n from '@/i18n';
 import { NOTICE_OPTIONS, noticeParts } from '@/lib/candidateDossier';
 
 /**
@@ -30,10 +31,14 @@ export interface QuestionSuggestion {
   text: string;
 }
 
+// Deutsche Fassung (Quelle in clientCandidates:frage.q); angezeigt und ins Feld übernommen wird
+// der Text in der Sprache der Oberfläche, siehe q().
 export const Q_SALARY = 'Ist beim Gehalt Spielraum?';
 export const Q_NOTICE = 'Lässt sich die Kündigungsfrist verkürzen?';
 export const Q_MOTIVATION = 'Warum möchte der Kandidat wechseln?';
 export const Q_INTERVIEW = 'Wann wäre ein Interview möglich?';
+
+const q = (key: 'salary' | 'notice' | 'motivation' | 'interview') => i18n.t(`clientCandidates:frage.q.${key}`);
 
 const MAX_GAPS = 2;
 const SEVERITY_ORDER: Record<string, number> = { critical: 0, significant: 1, moderate: 1, minor: 2 };
@@ -103,17 +108,17 @@ export function questionSuggestions(ctx: QuestionContext): { common: QuestionSug
 
   const common: QuestionSuggestion[] = [];
   const wishMin = salaryWishMin(ctx.salaryWish);
-  if (wishMin != null && ctx.budgetMax != null && wishMin > ctx.budgetMax) common.push({ label: Q_SALARY, text: Q_SALARY });
+  if (wishMin != null && ctx.budgetMax != null && wishMin > ctx.budgetMax) common.push({ label: q('salary'), text: q('salary') });
   const months = noticeMonths(ctx.noticePeriod);
-  if (months != null && months >= 3) common.push({ label: Q_NOTICE, text: Q_NOTICE });
-  if (!ctx.changeMotivation?.trim()) common.push({ label: Q_MOTIVATION, text: Q_MOTIVATION });
-  common.push({ label: Q_INTERVIEW, text: Q_INTERVIEW });
+  if (months != null && months >= 3) common.push({ label: q('notice'), text: q('notice') });
+  if (!ctx.changeMotivation?.trim()) common.push({ label: q('motivation'), text: q('motivation') });
+  common.push({ label: q('interview'), text: q('interview') });
 
   const fromAssessment = readGaps(ctx.gaps)
     .sort((a, b) => (SEVERITY_ORDER[a.severity] ?? 2) - (SEVERITY_ORDER[b.severity] ?? 2))
     .slice(0, MAX_GAPS)
     .map((g) => gapTopic(g.text))
-    .map((topic) => ({ label: `${topic}?`, text: `Können Sie dazu mehr sagen: ${topic}?` }));
+    .map((topic) => ({ label: i18n.t('clientCandidates:frage.q.topicLabel', { topic }), text: i18n.t('clientCandidates:frage.q.topic', { topic }) }));
 
   return { common: common.filter(open), fromAssessment: fromAssessment.filter(open) };
 }

@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Users } from 'lucide-react';
+import { fmtDate, fmtTime } from '@/lib/localeFormat';
 
 interface CommentRow {
   id: string;
@@ -16,8 +17,7 @@ interface CommentRow {
 }
 
 function formatWhen(iso: string): string {
-  const d = new Date(iso);
-  return `${d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}, ${d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`;
+  return `${fmtDate(iso)}, ${fmtTime(iso)}`;
 }
 
 export function BewerberNotes({ submissionId }: { submissionId: string }) {

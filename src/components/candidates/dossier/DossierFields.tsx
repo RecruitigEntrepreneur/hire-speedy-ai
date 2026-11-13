@@ -1,11 +1,14 @@
 import { KeyboardEvent, ReactNode, createContext, useContext, useState } from 'react';
 import { X, Plus } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { Option, parseDigits } from '@/lib/candidateDossier';
 import type { OriginMap } from '@/lib/cvImport';
 import { hasPhrase, phrasesOf, togglePhrase } from '@/lib/interviewSuggestions';
+import { term } from '@/lib/candidateTerms';
+import { intlLocale } from '@/i18n/languages';
 
 /**
  * Herkunft je Feld (nur auf der Prüfseite des Lebenslauf-Imports gesetzt): Jedes Feld
@@ -27,11 +30,12 @@ export const FieldMissingContext = createContext<Set<string> | null>(null);
 export const FieldQuestionContext = createContext(false);
 
 function OriginLine({ field }: { field?: string }) {
+  const { t } = useTranslation('candidateDossier');
   const origins = useContext(FieldOriginContext);
   const o = field && origins ? origins[field as keyof OriginMap] : undefined;
   if (!o) return null;
-  if (o.source === 'suggestion') return <p className="text-xs text-warning">Vorschlag · bitte prüfen</p>;
-  const label = o.source === 'notes' ? 'aus deinen Notizen' : o.source === 'derived' ? o.quote || 'berechnet' : 'aus dem Lebenslauf';
+  if (o.source === 'suggestion') return <p className="text-xs text-warning">{t('fields.suggestionCheck')}</p>;
+  const label = o.source === 'notes' ? t('fields.fromNotes') : o.source === 'derived' ? o.quote || t('fields.computed') : t('fields.fromCv');
   const quote = o.source !== 'derived' && o.quote ? (o.quote.length > 90 ? `${o.quote.slice(0, 90)}…` : o.quote) : '';
   return (
     <p className="text-xs text-success">
@@ -61,6 +65,7 @@ export function Field({
   children: ReactNode;
   className?: string;
 }) {
+  const { t } = useTranslation('candidateDossier');
   const missing = useContext(FieldMissingContext);
   const isMissing = !!field && !!missing?.has(field);
   const question = useContext(FieldQuestionContext);
@@ -68,7 +73,7 @@ export function Field({
     <div className={cn('space-y-1.5', isMissing && 'border-l-2 border-warning pl-3', className)} data-dossier-field={field}>
       <label htmlFor={field ? fieldId(field) : undefined} className={question ? 'text-sm font-medium' : 'text-xs font-medium text-muted-foreground'}>
         {label}
-        {isMissing && <span className="ml-1.5 font-normal text-warning">fehlt</span>}
+        {isMissing && <span className="ml-1.5 font-normal text-warning">{t('fields.missing')}</span>}
       </label>
       {children}
       <OriginLine field={field} />
@@ -103,6 +108,7 @@ export function ChipGroup({
   /** Warum der Vorschlag, als Tooltip. */
   suggestedHint?: string;
 }) {
+  const { t } = useTranslation(['candidateDossier', 'candidateTerms']);
   return (
     <div className="flex flex-wrap gap-1.5" id={field ? fieldId(field) : undefined} role="radiogroup">
       {options.map((o) => {
@@ -113,11 +119,11 @@ export function ChipGroup({
             type="button"
             role="radio"
             aria-checked={value === o.value}
-            title={isSuggested ? suggestedHint ?? 'Vorschlag' : undefined}
+            title={isSuggested ? suggestedHint ?? t('fields.suggestion') : undefined}
             className={cn(chipClass(value === o.value), isSuggested && 'border-dashed border-primary text-primary')}
             onClick={() => onChange(value === o.value ? null : o.value)}
           >
-            {o.label}
+            {term(o.label)}
           </button>
         );
       })}
@@ -150,6 +156,7 @@ export function MultiChips({
   /** „+ Eigenes": Eintrag, der in keiner Liste steht. */
   allowCustom?: boolean;
 }) {
+  const { t } = useTranslation(['candidateDossier', 'candidateTerms']);
   const [custom, setCustom] = useState<string | null>(null);
   const all = [...options, ...values.filter((v) => !options.includes(v))];
   const full = max != null && values.length >= max;
@@ -169,7 +176,7 @@ export function MultiChips({
             type="button"
             aria-pressed={active}
             disabled={!active && full}
-            title={isSuggested ? 'Vorschlag aus der Akte' : undefined}
+            title={isSuggested ? t('fields.suggestionFromFile') : undefined}
             className={cn(
               chipClass(active),
               isSuggested && 'border-dashed border-primary text-primary',
@@ -177,14 +184,14 @@ export function MultiChips({
             )}
             onClick={() => onChange(active ? values.filter((v) => v !== o) : [...values, o])}
           >
-            {isSuggested && <span className="mr-1">Vorschlag:</span>}
-            {o}
+            {isSuggested && <span className="mr-1">{t('fields.suggestionPrefix')}</span>}
+            {term(o)}
           </button>
         );
       })}
       {allowCustom && (custom === null ? (
         <button type="button" className={cn(chipClass(false), 'text-muted-foreground')} disabled={full} onClick={() => setCustom('')}>
-          <Plus className="mr-0.5 inline h-3 w-3" /> Eigenes
+          <Plus className="mr-0.5 inline h-3 w-3" /> {t('fields.custom')}
         </button>
       ) : (
         <input
@@ -196,7 +203,7 @@ export function MultiChips({
             if (e.key === 'Escape') setCustom(null);
           }}
           onBlur={addCustom}
-          placeholder="Eigener Punkt"
+          placeholder={t('fields.customPlaceholder')}
           className="h-7 w-40 rounded-md border border-input bg-background px-2 text-xs outline-none"
         />
       ))}
@@ -226,6 +233,7 @@ export function PhraseChips({
   /** Das Textfeld erst auf „+ eigene Worte“ zeigen; steht schon eigener Text darin, bleibt es offen. */
   collapsible?: boolean;
 }) {
+  const { t } = useTranslation(['candidateDossier', 'candidateTerms']);
   const extras = suggested.filter((s) => !options.some((o) => o.toLowerCase() === s.toLowerCase()));
   const all = [...extras, ...options];
   const [opened, setOpened] = useState(false);
@@ -244,7 +252,7 @@ export function PhraseChips({
               className={cn(chipClass(active), isSuggested && 'border-dashed border-primary text-primary')}
               onClick={() => onChange(togglePhrase(value, o))}
             >
-              {o}
+              {term(o)}
             </button>
           );
         })}
@@ -254,12 +262,12 @@ export function PhraseChips({
           id={field ? fieldId(field) : undefined}
           value={value}
           rows={1}
-          placeholder={placeholder ?? 'Eigene Notiz (optional)'}
+          placeholder={placeholder ?? t('fields.ownNote')}
           onChange={(e) => onChange(e.target.value)}
           className="min-h-[36px] text-sm"
         />
       ) : (
-        <button type="button" className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => setOpened(true)}>+ eigene Worte</button>
+        <button type="button" className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => setOpened(true)}>{t('fields.ownWords')}</button>
       )}
     </div>
   );
@@ -280,6 +288,7 @@ export function TagInput({
   /** Vorschläge zum Antippen (z. B. aus dem Lebenslauf), mit optionalem Hinweis. */
   suggestions?: (string | { name: string; hint?: string })[];
 }) {
+  const { t } = useTranslation(['candidateDossier', 'candidateTerms']);
   const sugg = suggestions
     .map((x) => (typeof x === 'string' ? { name: x, hint: undefined as string | undefined } : x))
     .filter((x) => x.name.trim() && !values.some((v) => v.toLowerCase() === x.name.toLowerCase()));
@@ -305,7 +314,7 @@ export function TagInput({
       {values.map((v) => (
         <span key={v} className="inline-flex items-center gap-1 rounded bg-muted px-2 py-0.5 text-xs">
           {v}
-          <button type="button" aria-label={`${v} entfernen`} className="text-muted-foreground hover:text-destructive" onClick={() => onChange(values.filter((x) => x !== v))}>
+          <button type="button" aria-label={t('fields.remove', { name: v })} className="text-muted-foreground hover:text-destructive" onClick={() => onChange(values.filter((x) => x !== v))}>
             <X className="h-3 w-3" />
           </button>
         </span>
@@ -320,7 +329,7 @@ export function TagInput({
         className="min-w-[8rem] flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
       />
       {input.trim() && (
-        <button type="button" aria-label="Hinzufügen" className="text-muted-foreground hover:text-foreground" onClick={() => add(input)}>
+        <button type="button" aria-label={t('fields.add')} className="text-muted-foreground hover:text-foreground" onClick={() => add(input)}>
           <Plus className="h-3.5 w-3.5" />
         </button>
       )}
@@ -334,7 +343,7 @@ export function TagInput({
             className="rounded-md border border-dashed border-primary px-2 py-0.5 text-xs text-primary hover:bg-primary/10"
             onClick={() => onChange([...values, x.name])}
           >
-            + {x.name}{x.hint && <span className="text-muted-foreground"> · {x.hint}</span>}
+            + {term(x.name)}{x.hint && <span className="text-muted-foreground"> · {term(x.hint)}</span>}
           </button>
         ))}
       </div>
@@ -344,16 +353,17 @@ export function TagInput({
 }
 
 /** Jahresgehalt in Euro, Anzeige mit Tausenderpunkt. */
-export function MoneyInput({ value, onChange, field, placeholder = '€ / Jahr' }: { value: number | null; onChange: (value: number | null) => void; field?: string; placeholder?: string }) {
+export function MoneyInput({ value, onChange, field, placeholder }: { value: number | null; onChange: (value: number | null) => void; field?: string; placeholder?: string }) {
+  const { t, i18n } = useTranslation('candidateDossier');
   const [text, setText] = useState<string | null>(null);
-  const shown = text ?? (value != null ? value.toLocaleString('de-DE') : '');
+  const shown = text ?? (value != null ? value.toLocaleString(intlLocale(i18n.language)) : '');
   return (
     <div className="relative">
       <Input
         id={field ? fieldId(field) : undefined}
         inputMode="numeric"
         value={shown}
-        placeholder={placeholder}
+        placeholder={placeholder ?? t('fields.perYear')}
         onChange={(e) => {
           setText(e.target.value);
           onChange(parseDigits(e.target.value));

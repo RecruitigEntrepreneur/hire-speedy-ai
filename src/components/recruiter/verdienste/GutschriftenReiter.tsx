@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, FileText, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Trans, useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
+import { intlLocale } from '@/i18n/languages';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -14,17 +17,22 @@ import { abrechnungApi } from '@/lib/abrechnungApi';
 import { downloadBlob } from '@/lib/billingApi';
 import { zipStore } from '@/lib/zipStore';
 import {
-  MONTHS, OBJECTION_TOPICS, dm, eur2, runName, type CreditNoteItem,
+  OBJECTION_TOPICS, dm, eur2, runName, type CreditNoteItem,
 } from '../../../../supabase/functions/_shared/abrechnung-view';
 
-const monthOf = (period: string) => MONTHS[Number(String(period).slice(5, 7)) - 1] ?? period;
+// Monatsname in der Sprache der Oberfläche (deutsch wie bisher „Oktober“).
+const monthOf = (period: string) => {
+  const month = Number(String(period).slice(5, 7));
+  return month >= 1 && month <= 12 ? new Date(Date.UTC(2000, month - 1, 15)).toLocaleDateString(intlLocale(i18n.language), { month: 'long', timeZone: 'UTC' }) : period;
+};
 const linesText = (n: CreditNoteItem) => n.lines.map((l) => l.title).filter(Boolean).join(' · ');
 
 /** Verdienste › Gutschriften (H11): nächster Lauf, ausgestellte Gutschriften, Einwand, Export. */
 export function GutschriftenReiter() {
   const { user } = useAuth();
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: ['gutschriften', user?.id], queryFn: abrechnungApi.creditNotes, enabled: !!user, retry: false });
+  const { t } = useTranslation('recruiterEarnings');
+  const q = useQuery({ queryKey: ['gutschriften', user?.id, i18n.language], queryFn: abrechnungApi.creditNotes, enabled: !!user, retry: false });
   const [einwand, setEinwand] = useState<CreditNoteItem | null>(null);
   const [busy, setBusy] = useState('');
   const thisYear = String(new Date().getFullYear());
@@ -32,7 +40,7 @@ export function GutschriftenReiter() {
   const [year, setYear] = useState(years[0] ?? thisYear);
 
   if (q.isLoading) return <div className="flex h-32 items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>;
-  if (q.isError) return <p className="py-6 text-sm text-muted-foreground">{q.error instanceof Error ? q.error.message : 'Die Gutschriften konnten nicht geladen werden.'}</p>;
+  if (q.isError) return <p className="py-6 text-sm text-muted-foreground">{q.error instanceof Error ? q.error.message : t('notes.loadFailed')}</p>;
   const data = q.data!;
 
   const openPdf = async (n: CreditNoteItem) => {
@@ -44,7 +52,7 @@ export function GutschriftenReiter() {
       if (win) win.location.href = url; else window.location.assign(url);
     } catch (e) {
       win?.close();
-      toast.error(e instanceof Error ? e.message : 'Das PDF ist gerade nicht abrufbar.');
+      toast.error(e instanceof Error ? e.message : t('api.creditNoteFile'));
     } finally { setBusy(''); }
   };
 
@@ -52,34 +60,34 @@ export function GutschriftenReiter() {
     setBusy('export');
     try {
       const r = await abrechnungApi.creditNotesExport(year);
-      if (!r.count) { toast.error(`Für ${year} gibt es noch keine Gutschriften.`); return; }
-      const parts = [{ name: `gutschriften-${year}.csv`, bytes: new TextEncoder().encode(r.csv) }];
+      if (!r.count) { toast.error(t('notes.noneForYear', { year })); return; }
+      const parts = [{ name: `${t('notes.csvName', { year })}.csv`, bytes: new TextEncoder().encode(r.csv) }];
       for (const f of r.files) {
         const res = await fetch(f.url);
-        if (!res.ok) throw new Error(`${f.number} ließ sich nicht laden.`);
+        if (!res.ok) throw new Error(t('notes.fileFailed', { number: f.number }));
         parts.push({ name: `${f.number.replace(/[^\w.-]/g, '_')}.pdf`, bytes: new Uint8Array(await res.arrayBuffer()) });
       }
-      downloadBlob(zipStore(parts), `gutschriften-${year}.zip`);
+      downloadBlob(zipStore(parts), `${t('notes.csvName', { year })}.zip`);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Der Export hat nicht geklappt.');
+      toast.error(e instanceof Error ? e.message : t('api.export'));
     } finally { setBusy(''); }
   };
 
   return (
     <div className="space-y-4">
       {data.upcoming.length === 0 && data.notes.length === 0 && (
-        <p className="py-6 text-sm text-muted-foreground">Noch keine Gutschriften. Einmal im Monat rechnen wir alles ab, was fällig ist, und schicken dir die Gutschrift per Mail.</p>
+        <p className="py-6 text-sm text-muted-foreground">{t('notes.empty')}</p>
       )}
       {(data.upcoming.length > 0 || data.notes.length > 0) && (
         <ul className="divide-y divide-border border-y border-border">
           {data.upcoming.map((run) => (
             <li key={run.slot.runMonth} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3">
               <div className="min-w-0">
-                <p className="text-sm"><span className="font-medium">{runName(run.slot)}</span><span className="text-muted-foreground"> · in Vorbereitung</span></p>
+                <p className="text-sm"><span className="font-medium">{runName(run.slot, i18n.language)}</span><span className="text-muted-foreground">{t('notes.preparing')}</span></p>
                 <p className="truncate text-xs text-muted-foreground">{run.lines.map((l) => l.label).join(' · ')}</p>
               </div>
               <div className="text-right">
-                <p className="text-sm tabular-nums"><Honorar>{eur2(run.netCents)}</Honorar>{run.vatCents > 0 && <span className="text-muted-foreground"> + USt</span>}</p>
+                <p className="text-sm tabular-nums"><Honorar>{eur2(run.netCents, i18n.language)}</Honorar>{run.vatCents > 0 && <span className="text-muted-foreground">{t('notes.plusVat')}</span>}</p>
                 <p className="text-xs text-muted-foreground">{run.slot.short}</p>
               </div>
             </li>
@@ -91,22 +99,22 @@ export function GutschriftenReiter() {
                   <span className="font-medium">{n.number}</span>
                   <span className="text-muted-foreground">
                     {' · '}{monthOf(n.period)}
-                    {' · '}{n.status === 'paid' ? `ausgezahlt ${dm(n.paidOn)}` : n.status === 'cancelled' ? 'storniert' : `Geld bis ${dm(n.payUntil)}`}
+                    {' · '}{n.status === 'paid' ? t('notes.paidOn', { date: dm(n.paidOn, i18n.language) }) : n.status === 'cancelled' ? t('notes.cancelled') : t('notes.moneyUntil', { date: dm(n.payUntil, i18n.language) })}
                   </span>
                 </p>
                 <p className="truncate text-xs text-muted-foreground">
                   {linesText(n)}
                   {n.objection
-                    ? ` · Einwand ${n.objection.status === 'open' ? 'liegt bei Matchunt' : 'geklärt'}`
-                    : n.canObject ? ` · Einwand bis ${dm(n.objectionUntil)}` : ''}
+                    ? (n.objection.status === 'open' ? t('notes.objectionOpen') : t('notes.objectionResolved'))
+                    : n.canObject ? t('notes.objectionUntil', { date: dm(n.objectionUntil, i18n.language) }) : ''}
                 </p>
-                {n.objection?.status === 'resolved' && n.objection.resolution && <p className="text-xs text-muted-foreground">Antwort: {n.objection.resolution}</p>}
+                {n.objection?.status === 'resolved' && n.objection.resolution && <p className="text-xs text-muted-foreground">{t('notes.answer', { text: n.objection.resolution })}</p>}
               </div>
               <div className="text-right">
-                <p className={cn('text-sm tabular-nums', n.status === 'cancelled' && 'line-through text-muted-foreground')}><Honorar>{eur2(n.totalCents)}</Honorar> <span className="text-muted-foreground">brutto</span></p>
+                <p className={cn('text-sm tabular-nums', n.status === 'cancelled' && 'line-through text-muted-foreground')}><Honorar>{eur2(n.totalCents, i18n.language)}</Honorar> <span className="text-muted-foreground">{t('notes.gross')}</span></p>
                 <div className="mt-1 flex justify-end gap-1.5">
                   {n.hasPdf && <Button variant="outline" size="sm" className="h-7 px-2 text-xs" disabled={busy === `pdf-${n.id}`} onClick={() => void openPdf(n)}><FileText className="mr-1 h-3.5 w-3.5" />PDF</Button>}
-                  {n.canObject && <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => setEinwand(n)}>Einwand</Button>}
+                  {n.canObject && <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => setEinwand(n)}>{t('notes.objection')}</Button>}
                 </div>
               </div>
             </li>
@@ -116,15 +124,15 @@ export function GutschriftenReiter() {
 
       <Card>
         <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
-          <p className="text-sm">Für deinen Steuerberater <span className="text-muted-foreground">· alle Gutschriften {year} als CSV und die PDFs als ZIP</span></p>
+          <p className="text-sm"><Trans t={t} i18nKey="notes.forAdvisor" values={{ year }} components={{ muted: <span className="text-muted-foreground" /> }} /></p>
           <div className="flex items-center gap-2">
             {years.length > 1 && (
-              <select aria-label="Jahr" className="h-8 rounded-md border border-input bg-background px-2 text-sm" value={year} onChange={(e) => setYear(e.target.value)}>
+              <select aria-label={t('notes.year')} className="h-8 rounded-md border border-input bg-background px-2 text-sm" value={year} onChange={(e) => setYear(e.target.value)}>
                 {years.map((y) => <option key={y} value={y}>{y}</option>)}
               </select>
             )}
             <Button variant="outline" size="sm" disabled={busy === 'export'} onClick={() => void exportYear()}>
-              {busy === 'export' ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Download className="mr-1.5 h-3.5 w-3.5" />}Jahr {year} herunterladen
+              {busy === 'export' ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Download className="mr-1.5 h-3.5 w-3.5" />}{t('notes.downloadYear', { year })}
             </Button>
           </div>
         </CardContent>
@@ -140,19 +148,20 @@ function EinwandDialog({ note, onClose, onSent }: { note: CreditNoteItem | null;
   const [topic, setTopic] = useState('');
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  const { t } = useTranslation('recruiterEarnings');
   const reset = () => { setTopic(''); setText(''); };
   const send = async () => {
     if (!note) return;
-    if (!topic) { toast.error('Bitte wählen, was nicht stimmt.'); return; }
-    if (!text.trim()) { toast.error('Bitte kurz beschreiben, was nicht stimmt.'); return; }
+    if (!topic) { toast.error(t('objection.chooseTopic')); return; }
+    if (!text.trim()) { toast.error(t('objection.describe')); return; }
     setBusy(true);
     try {
       await abrechnungApi.objection(note.id, topic, text.trim());
-      toast.success('Dein Einwand ist bei Matchunt.');
+      toast.success(t('objection.sent'));
       reset();
       onSent();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Dein Einwand konnte nicht gesendet werden.');
+      toast.error(e instanceof Error ? e.message : t('api.objection'));
     } finally { setBusy(false); }
   };
   return (
@@ -161,28 +170,28 @@ function EinwandDialog({ note, onClose, onSent }: { note: CreditNoteItem | null;
         {note && (
           <>
             <DialogHeader>
-              <DialogTitle>Einwand zur Gutschrift {note.number}</DialogTitle>
-              <DialogDescription><Honorar>{`${linesText(note) || 'Gutschrift'} · ${eur2(note.netCents)}${note.vatCents > 0 ? ` + ${eur2(note.vatCents)} USt` : ''}`}</Honorar></DialogDescription>
+              <DialogTitle>{t('objection.title', { number: note.number })}</DialogTitle>
+              <DialogDescription><Honorar>{`${linesText(note) || t('objection.creditNote')} · ${eur2(note.netCents, i18n.language)}${note.vatCents > 0 ? t('objection.plusVat', { amount: eur2(note.vatCents, i18n.language) }) : ''}`}</Honorar></DialogDescription>
             </DialogHeader>
             <div className="space-y-3">
               <div className="space-y-1.5">
-                <p className="text-sm text-muted-foreground">Was stimmt nicht?</p>
+                <p className="text-sm text-muted-foreground">{t('objection.question')}</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {Object.entries(OBJECTION_TOPICS).map(([key, label]) => (
+                  {Object.keys(OBJECTION_TOPICS).map((key) => (
                     <button key={key} type="button" aria-pressed={topic === key} onClick={() => setTopic(key)}
-                      className={cn('rounded-full border px-2.5 py-1 text-xs', topic === key ? 'border-primary bg-primary text-primary-foreground' : 'border-border hover:bg-muted')}>{label}</button>
+                      className={cn('rounded-full border px-2.5 py-1 text-xs', topic === key ? 'border-primary bg-primary text-primary-foreground' : 'border-border hover:bg-muted')}>{t(`objection.topics.${key}`, { defaultValue: OBJECTION_TOPICS[key] })}</button>
                   ))}
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="einwand-text" className="sr-only">Beschreibung</Label>
-                <Textarea id="einwand-text" rows={4} maxLength={2000} value={text} onChange={(e) => setText(e.target.value)} placeholder="z. B. Laut Vertrag sind es 90.000 € inklusive Bonus" />
+                <Label htmlFor="einwand-text" className="sr-only">{t('objection.label')}</Label>
+                <Textarea id="einwand-text" rows={4} maxLength={2000} value={text} onChange={(e) => setText(e.target.value)} placeholder={t('objection.placeholder')} />
               </div>
-              <p className="text-xs text-muted-foreground">Frist 30 Tage ab Gutschrift (Vertrag § 14 Abs. 3), also bis {dm(note.objectionUntil)}. Den unstrittigen Teil zahlen wir normal aus.</p>
+              <p className="text-xs text-muted-foreground">{t('objection.deadline', { date: dm(note.objectionUntil, i18n.language) })}</p>
             </div>
             <DialogFooter>
-              <Button variant="ghost" onClick={() => { reset(); onClose(); }}>Abbrechen</Button>
-              <Button disabled={busy} onClick={() => void send()}>{busy ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}Einwand senden</Button>
+              <Button variant="ghost" onClick={() => { reset(); onClose(); }}>{t('cancel')}</Button>
+              <Button disabled={busy} onClick={() => void send()}>{busy ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : null}{t('objection.send')}</Button>
             </DialogFooter>
           </>
         )}

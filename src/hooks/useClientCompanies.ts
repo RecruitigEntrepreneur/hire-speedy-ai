@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import i18n from '@/i18n';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { isMissingColumnError } from '@/lib/intakeCapture';
@@ -53,11 +54,13 @@ export async function holeFirmenlogo(companyId: string): Promise<void> {
   }
 }
 
+/** Beschriftung je Rolle; wird beim Lesen übersetzt (clientSettings:companies.role.<rolle>). */
+const roleLabel = (role: CompanyRole) => i18n.t(`clientSettings:companies.role.${role}`);
 export const ROLE_LABEL: Record<CompanyRole, string> = {
-  main: 'Hauptfirma',
-  subsidiary: 'Tochterfirma',
-  sister: 'Schwesterfirma',
-  parent: 'Muttergesellschaft',
+  get main() { return roleLabel('main'); },
+  get subsidiary() { return roleLabel('subsidiary'); },
+  get sister() { return roleLabel('sister'); },
+  get parent() { return roleLabel('parent'); },
 };
 
 export const isVerified = (c: Pick<ClientCompany, 'status'> | null | undefined) => c?.status === 'verified';
@@ -72,7 +75,7 @@ export function companyAddress(c: Pick<CompanyData, 'street' | 'postal_code' | '
 
 /** „HRB 123 · USt-IdNr. DE… · Straße, PLZ Ort“ */
 export function companyFacts(c: CompanyData): string {
-  return [c.registration_number, c.vat_id ? `USt-IdNr. ${c.vat_id}` : null, companyAddress(c)].filter(Boolean).join(' · ');
+  return [c.registration_number, c.vat_id ? i18n.t('clientSettings:companies.vatFact', { vat: c.vat_id }) : null, companyAddress(c)].filter(Boolean).join(' · ');
 }
 
 const ROLE_ORDER: Record<CompanyRole, number> = { main: 0, parent: 1, subsidiary: 2, sister: 3 };
@@ -105,13 +108,13 @@ export function useClientCompanies() {
 
   /** Beantragen oder ändern; der Beleg (optional) liegt im eigenen Ordner. */
   const request = async (input: CompanyRequest, proof?: File | null): Promise<string> => {
-    if (!user) throw new Error('Bitte anmelden.');
+    if (!user) throw new Error(i18n.t('clientSettings:companies.signIn'));
     let proofPath: string | null = null;
     if (proof) {
       const safe = proof.name.replace(/[^a-zA-Z0-9._-]+/g, '_').slice(-80);
       proofPath = `${user.id}/${Date.now()}-${safe}`;
       const { error } = await supabase.storage.from('company-proofs').upload(proofPath, proof, { contentType: proof.type || undefined });
-      if (error) throw new Error('Der Beleg konnte nicht hochgeladen werden.');
+      if (error) throw new Error(i18n.t('clientSettings:companies.proofUploadFailed'));
     }
     const { data, error } = await (supabase as any).rpc('client_request_company', {
       p_id: input.id ?? null,
@@ -127,7 +130,7 @@ export function useClientCompanies() {
       p_role: input.role,
       p_proof_path: proofPath,
     });
-    if (error) throw new Error(error.message || 'Das hat nicht geklappt.');
+    if (error) throw new Error(error.message || i18n.t('clientSettings:companies.failed'));
     await qc.invalidateQueries({ queryKey: ['client-companies'] });
     // Website bekannt: Logo im Hintergrund holen, danach die Liste neu laden.
     if (data && input.website) void holeFirmenlogo(data as string).then(() => qc.invalidateQueries({ queryKey: ['client-companies'] }));

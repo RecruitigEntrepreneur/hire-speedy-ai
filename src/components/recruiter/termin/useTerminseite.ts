@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
 import { useAuth } from '@/lib/auth';
 import { linkedinApi, meineTerminseite, speichereTerminseite, type LinkedinStatus, type TerminseiteZeile } from '@/lib/terminApi';
 
@@ -37,6 +39,8 @@ export function useLinkedin(opts: { enabled?: boolean } = {}) {
 let ruecksprungGemeldet = false;
 /** Rücksprung aus LinkedIn oder Microsoft melden und die Adresse aufräumen. */
 export function useRuecksprung() {
+  // Lädt die Meldungen (Namespace recruiterTermin); gelesen werden sie erst beim Anzeigen.
+  useTranslation('recruiterTermin');
   const qc = useQueryClient();
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -50,12 +54,12 @@ export function useRuecksprung() {
     if (ruecksprungGemeldet) return;
     ruecksprungGemeldet = true;
     window.setTimeout(() => {
-      if (li === 'verbunden') { toast.success('LinkedIn ist verbunden.'); void qc.invalidateQueries({ queryKey: ['linkedin-status'] }); }
-      else if (li === 'abgebrochen') toast('LinkedIn-Verbindung abgebrochen.');
-      else if (li) toast.error('LinkedIn konnte nicht verbunden werden. Versuch es noch einmal.');
-      if (ka === 'verbunden') { toast.success('Outlook ist verbunden.'); void qc.invalidateQueries({ queryKey: ['calendar-status'] }); }
-      else if (ka === 'it') toast('Deine IT muss der Verbindung einmal zustimmen.');
-      else if (ka) toast.error('Outlook konnte nicht verbunden werden. Versuch es noch einmal.');
+      if (li === 'verbunden') { toast.success(i18n.t('recruiterTermin:rueck.linkedinConnected')); void qc.invalidateQueries({ queryKey: ['linkedin-status'] }); }
+      else if (li === 'abgebrochen') toast(i18n.t('recruiterTermin:rueck.linkedinCancelled'));
+      else if (li) toast.error(i18n.t('recruiterTermin:rueck.linkedinFailed'));
+      if (ka === 'verbunden') { toast.success(i18n.t('recruiterTermin:rueck.outlookConnected')); void qc.invalidateQueries({ queryKey: ['calendar-status'] }); }
+      else if (ka === 'it') toast(i18n.t('recruiterTermin:rueck.itConsent'));
+      else if (ka) toast.error(i18n.t('recruiterTermin:rueck.outlookFailed'));
     }, 0);
   }, [qc]);
 }

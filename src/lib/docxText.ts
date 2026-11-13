@@ -10,6 +10,7 @@
  *
  * Alte .doc-Dateien (Binaerformat) werden bewusst nicht unterstuetzt.
  */
+import i18n from '@/i18n';
 
 const SIG_EOCD = 0x06054b50;
 const SIG_CENTRAL = 0x02014b50;
@@ -33,7 +34,7 @@ export async function docxToText(file: File): Promise<string> {
   for (let i = buf.length - 22; i >= Math.max(0, buf.length - 65_557); i--) {
     if (view.getUint32(i, true) === SIG_EOCD) { eocd = i; break; }
   }
-  if (eocd < 0) throw new DocxError('Die Datei ist keine gültige Word-Datei.');
+  if (eocd < 0) throw new DocxError(i18n.t('errors:docxInvalid'));
 
   const count = view.getUint16(eocd + 10, true);
   let p = view.getUint32(eocd + 16, true);
@@ -50,7 +51,7 @@ export async function docxToText(file: File): Promise<string> {
 
     if (name === 'word/document.xml') {
       if (view.getUint32(localOffset, true) !== SIG_LOCAL) {
-        throw new DocxError('Die Word-Datei ist beschädigt.');
+        throw new DocxError(i18n.t('errors:docxBroken'));
       }
       const lName = view.getUint16(localOffset + 26, true);
       const lExtra = view.getUint16(localOffset + 28, true);
@@ -61,12 +62,12 @@ export async function docxToText(file: File): Promise<string> {
     }
     p += 46 + nameLen + extraLen + commentLen;
   }
-  throw new DocxError('In der Word-Datei steht kein Text.');
+  throw new DocxError(i18n.t('errors:docxEmpty'));
 }
 
 async function inflate(data: Uint8Array): Promise<string> {
   if (typeof DecompressionStream === 'undefined') {
-    throw new DocxError('Ihr Browser kann Word-Dateien nicht öffnen. Bitte als PDF oder Text.');
+    throw new DocxError(i18n.t('errors:docxBrowser'));
   }
   // Kopie statt `data` selbst: ab TypeScript 5.7 kann ein Uint8Array auch auf
   // einem SharedArrayBuffer liegen, und BlobPart nimmt das nicht an

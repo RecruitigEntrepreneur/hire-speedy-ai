@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState } from 'react';
 import {
   Dialog,
@@ -49,6 +50,7 @@ export function TagManagerDialog({
   onAssignTag,
   onRemoveTag,
 }: TagManagerDialogProps) {
+  const { t } = useTranslation('candidates');
   const [newTagName, setNewTagName] = useState('');
   const [newTagColor, setNewTagColor] = useState(TAG_COLORS[0]);
   const [isCreating, setIsCreating] = useState(false);
@@ -58,7 +60,7 @@ export function TagManagerDialog({
     setIsCreating(true);
     const result = await onCreateTag(newTagName.trim(), newTagColor);
     if (result) {
-      toast.success('Tag erstellt');
+      toast.success(t('tagManager.created'));
       setNewTagName('');
       setNewTagColor(TAG_COLORS[Math.floor(Math.random() * TAG_COLORS.length)]);
     }
@@ -75,9 +77,9 @@ export function TagManagerDialog({
   };
 
   const handleDeleteTag = async (tagId: string) => {
-    if (confirm('Tag wirklich löschen? Er wird von allen Kandidaten entfernt.')) {
+    if (confirm(t('tagManager.confirmDelete'))) {
       const success = await onDeleteTag(tagId);
-      if (success) toast.success('Tag gelöscht');
+      if (success) toast.success(t('tagManager.deleted'));
     }
   };
 
@@ -87,17 +89,17 @@ export function TagManagerDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Tag className="h-5 w-5" />
-            Tags verwalten
+            {t('tagManager.title')}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
           {/* Create New Tag */}
           <div className="space-y-2">
-            <Label>Neuen Tag erstellen</Label>
+            <Label>{t('tagManager.createNew')}</Label>
             <div className="flex gap-2">
               <Input
-                placeholder="Tag-Name..."
+                placeholder={t('tagManager.namePlaceholder')}
                 value={newTagName}
                 onChange={(e) => setNewTagName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleCreateTag()}
@@ -123,7 +125,7 @@ export function TagManagerDialog({
           {/* Existing Tags */}
           {candidateId && tags.length > 0 && (
             <div className="space-y-2">
-              <Label>Tags zuweisen</Label>
+              <Label>{t('tagManager.assign')}</Label>
               <div className="space-y-2 max-h-[200px] overflow-y-auto">
                 {tags.map((tag) => {
                   const isAssigned = candidateTags.some((t) => t.id === tag.id);
@@ -166,7 +168,7 @@ export function TagManagerDialog({
           {/* All Tags (when not assigning) */}
           {!candidateId && tags.length > 0 && (
             <div className="space-y-2">
-              <Label>Alle Tags</Label>
+              <Label>{t('tagManager.allTags')}</Label>
               <div className="flex flex-wrap gap-2">
                 {tags.map((tag) => (
                   <Badge
@@ -192,14 +194,14 @@ export function TagManagerDialog({
 
           {tags.length === 0 && (
             <p className="text-sm text-muted-foreground text-center py-4">
-              Noch keine Tags erstellt. Erstelle oben deinen ersten Tag.
+              {t('tagManager.empty')}
             </p>
           )}
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Schließen
+            {t('actions.close')}
           </Button>
         </DialogFooter>
       </DialogContent>

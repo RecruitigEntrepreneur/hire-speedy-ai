@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { fmtTime } from '@/lib/localeFormat';
 import { candidateAnonCode } from '@/lib/anonymization';
 import { getJobSearchers } from '@/lib/jobSearch';
 import { useAuth } from '@/lib/auth';
@@ -22,7 +24,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { dfLocale } from '@/lib/localeFormat';
 
 interface Message {
   id: string;
@@ -52,6 +54,7 @@ interface Conversation {
 }
 
 export default function ClientMessages() {
+  const { t } = useTranslation('clientDashboard');
   const { user } = useAuth();
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -128,7 +131,7 @@ export default function ClientMessages() {
           participant: {
             id: data.participantId,
             full_name: profile?.full_name || null,
-            email: profile?.email || 'Unbekannt',
+            email: profile?.email || t('messages.unknown'),
           },
           lastMessage: data.messages[0] || null,
           unreadCount,
@@ -161,7 +164,7 @@ export default function ClientMessages() {
           conv.code = candidateAnonCode(m.candidate_id);
           conv.jobTitle = (jobsRes.data ?? []).find((j) => j.id === m.job_id)?.title ?? null;
           conv.submissionId = (subsRes.data ?? []).find((x) => x.job_id === m.job_id && x.candidate_id === m.candidate_id)?.id ?? null;
-          if (!conv.participant.full_name) conv.participant.full_name = names.get(conv.participant.id) ?? 'Ihr Headhunter';
+          if (!conv.participant.full_name) conv.participant.full_name = names.get(conv.participant.id) ?? t('messages.yourHeadhunter');
         }
       }
 
@@ -173,7 +176,7 @@ export default function ClientMessages() {
       }
     } catch (error) {
       console.error('Error fetching conversations:', error);
-      toast({ title: 'Fehler beim Laden', variant: 'destructive' });
+      toast({ title: t('messages.loadError'), variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -244,7 +247,7 @@ export default function ClientMessages() {
       fetchMessages(selectedConversation.id);
     } catch (error) {
       console.error('Error sending message:', error);
-      toast({ title: 'Fehler beim Senden', variant: 'destructive' });
+      toast({ title: t('messages.sendError'), variant: 'destructive' });
     } finally {
       setSending(false);
     }
@@ -269,8 +272,8 @@ export default function ClientMessages() {
     <DashboardLayout>
         <div className="space-y-6">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Nachrichten</h1>
-            <p className="text-muted-foreground">Ihre Fragen an die Headhunter, je Kandidat</p>
+            <h1 className="text-3xl font-bold tracking-tight">{t('messages.title')}</h1>
+            <p className="text-muted-foreground">{t('messages.subtitle')}</p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-250px)]">
@@ -280,7 +283,7 @@ export default function ClientMessages() {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                    placeholder="Suchen..."
+                    placeholder={t('messages.searchPh')}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-9"
@@ -292,8 +295,8 @@ export default function ClientMessages() {
                   {filteredConversations.length === 0 ? (
                     <div className="text-center py-8">
                       <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground/50" />
-                      <p className="text-muted-foreground mt-2">Noch keine Fragen</p>
-                      <p className="text-xs text-muted-foreground mt-1 px-6">Fragen stellen Sie im Bewerberprofil über „Frage an …“.</p>
+                      <p className="text-muted-foreground mt-2">{t('messages.empty')}</p>
+                      <p className="text-xs text-muted-foreground mt-1 px-6">{t('messages.emptyLead')}</p>
                     </div>
                   ) : (
                     filteredConversations.map((conv) => (
@@ -334,7 +337,7 @@ export default function ClientMessages() {
                                 {conv.lastMessage.content}
                               </p>
                               <p className="text-xs text-muted-foreground mt-1">
-                                {format(new Date(conv.lastMessage.created_at), 'PP', { locale: de })}
+                                {format(new Date(conv.lastMessage.created_at), 'PP', { locale: dfLocale() })}
                               </p>
                             </>
                           )}
@@ -367,13 +370,13 @@ export default function ClientMessages() {
                           {selectedConversation.participant.full_name || selectedConversation.participant.email}
                         </CardTitle>
                         <p className="text-sm text-muted-foreground">
-                          Headhunter{selectedConversation.code ? ` · zu ${selectedConversation.code}` : ''}
+                          {selectedConversation.code ? t('messages.headhunterAbout', { code: selectedConversation.code }) : t('messages.headhunter')}
                           {selectedConversation.jobTitle ? ` · ${selectedConversation.jobTitle}` : ''}
                         </p>
                       </div>
                       {selectedConversation.submissionId && (
                         <Button asChild variant="outline" size="sm" className="ml-auto">
-                          <Link to={`/dashboard/candidates/${selectedConversation.submissionId}`}>Zum Bewerberprofil</Link>
+                          <Link to={`/dashboard/candidates/${selectedConversation.submissionId}`}>{t('messages.toProfile')}</Link>
                         </Button>
                       )}
                     </div>
@@ -404,7 +407,7 @@ export default function ClientMessages() {
                                   <p className={`text-xs mt-1 ${
                                     isMine ? 'text-primary-foreground/70' : 'text-muted-foreground'
                                   }`}>
-                                    {format(new Date(msg.created_at), 'HH:mm', { locale: de })}
+                                    {fmtTime(msg.created_at)}
                                   </p>
                                 </div>
                               </div>
@@ -418,7 +421,7 @@ export default function ClientMessages() {
                   <div className="p-4 border-t">
                     <div className="flex gap-2">
                       <Input
-                        placeholder={selectedConversation.submissionId ? 'Weitere Frage …' : 'Nachricht schreiben …'}
+                        placeholder={selectedConversation.submissionId ? t('messages.morePh') : t('messages.writePh')}
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
                         onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
@@ -439,7 +442,7 @@ export default function ClientMessages() {
                   <div className="text-center">
                     <MessageSquare className="h-16 w-16 mx-auto text-muted-foreground/50" />
                     <p className="text-muted-foreground mt-4">
-                      Wählen Sie links ein Gespräch aus
+                      {t('messages.pick')}
                     </p>
                   </div>
                 </div>

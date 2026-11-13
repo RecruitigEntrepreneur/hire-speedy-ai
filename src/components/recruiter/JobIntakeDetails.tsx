@@ -2,6 +2,8 @@ import type { ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ClipboardCheck, Lock } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { intlLocale } from '@/i18n/languages';
 
 /**
  * Was der Kunde in der Aufnahme selbst gesagt hat.
@@ -115,20 +117,12 @@ const leer = (v: unknown): boolean => {
  * dadurch woertlich "restructuring". Der Fragenkatalog schreibt heute die
  * deutschen Chip-Texte; diese Tabelle holt nur die alten Zeilen nach.
  */
-const ALTWERTE: Record<string, string> = {
-  growth: 'Wachstum',
-  succession: 'Nachfolge',
-  new_position: 'Neu geschaffen',
-  restructuring: 'Umstrukturierung',
-  // jobs_contract_limitation_check speichert Schluessel, keine Saetze.
-  unbefristet: 'Unbefristet',
-  befristet: 'Befristet',
-  befristet_mit_aussicht: 'Befristet, mit Aussicht auf Übernahme',
-  projekt: 'Projektvertrag',
-};
+// jobs_contract_limitation_check speichert Schluessel, keine Saetze. Texte: intake.legacy.<key>
+const ALTWERTE = ['growth', 'succession', 'new_position', 'restructuring', 'unbefristet', 'befristet', 'befristet_mit_aussicht', 'projekt'];
+type T = (key: string, options?: Record<string, unknown>) => string;
 
-const uebersetzt = (v: unknown) =>
-  typeof v === 'string' ? (ALTWERTE[v.trim().toLowerCase()] ?? v) : v;
+const uebersetzt = (v: unknown, t: T) =>
+  typeof v === 'string' && ALTWERTE.includes(v.trim().toLowerCase()) ? t(`intake.legacy.${v.trim().toLowerCase()}`) : v;
 
 /**
  * Eine Teamgroesse von -1 ist keine Teamgroesse. Der Wert steht auf
@@ -137,9 +131,9 @@ const uebersetzt = (v: unknown) =>
  */
 const zahl = (v: unknown) => (typeof v === 'number' && v > 0 ? v : null);
 
-/** Zahlen in Saetzen ("1.200 EUR pro Tag", "13,5 Monate") deutsch setzen. */
-const de = (v: unknown) =>
-  typeof v === 'number' ? v.toLocaleString('de-DE') : String(v ?? '?');
+/** Zahlen in Saetzen ("1.200 EUR pro Tag", "13,5 Monate") in der Schreibweise der Sprache setzen. */
+const de = (v: unknown, locale: string) =>
+  typeof v === 'number' ? v.toLocaleString(locale) : String(v ?? '?');
 
 /** jsonb: {"Betrieb": 60, "Projekte": 40} -> "Betrieb 60 % · Projekte 40 %". */
 function gewichtung(v: unknown): string | null {
@@ -152,6 +146,7 @@ function gewichtung(v: unknown): string | null {
 
 /** Eine Zeile erscheint nur, wenn sie einen Wert hat. */
 function Zeile({ frage, wert }: { frage: string; wert?: unknown }) {
+  const { t, i18n } = useTranslation('recruiterJobDetail');
   if (leer(wert)) return null;
   // 13.5 Monatsgehaelter liest sich auf Deutsch als 13,5.
   if (typeof wert === 'number') {
@@ -159,17 +154,17 @@ function Zeile({ frage, wert }: { frage: string; wert?: unknown }) {
       <div className="grid gap-x-6 gap-y-0.5 border-t border-border/60 py-2.5 sm:grid-cols-[13rem_1fr]">
         <dt className="text-xs leading-relaxed text-muted-foreground">{frage}</dt>
         <dd className="text-sm leading-relaxed tabular-nums">
-          {wert.toLocaleString('de-DE')}
+          {wert.toLocaleString(intlLocale(i18n.language))}
         </dd>
       </div>
     );
   }
 
   const text = Array.isArray(wert)
-    ? wert.filter((x) => x && !platzhalter(x)).map((x) => String(uebersetzt(x))).join(' · ')
+    ? wert.filter((x) => x && !platzhalter(x)).map((x) => String(uebersetzt(x, t))).join(' · ')
     : typeof wert === 'boolean'
-      ? (wert ? 'Ja' : 'Nein')
-      : String(uebersetzt(wert)).trim();
+      ? (wert ? t('intake.yes') : t('intake.no'))
+      : String(uebersetzt(wert, t)).trim();
   if (!text) return null;
 
   return (
@@ -226,11 +221,11 @@ const arbeitszeitVon = (job: IntakeDetails) => {
   return zeit ? `${kategorie}, ${zeit}` : kategorie;
 };
 
-/** Der Tagessatz ist EINE Zeile, auch wenn er aus zwei Spalten kommt. */
-const tagessatzVon = (job: IntakeDetails) =>
+/** Der Tagessatz ist EINE Zeile, auch wenn er aus zwei Spalten kommt. Ohne Übersetzer nur „vorhanden“. */
+const tagessatzVon = (job: IntakeDetails, t?: T, locale = 'de-DE') =>
   leer(job.day_rate_min) && leer(job.day_rate_max)
     ? null
-    : `${de(job.day_rate_min)} – ${de(job.day_rate_max)} € pro Tag`;
+    : t ? t('intake.dayRateRange', { min: de(job.day_rate_min, locale), max: de(job.day_rate_max, locale) }) : true;
 
 function gruppenVon(job: IntakeDetails): Record<string, unknown[]> {
   const freelance = job.employment_type === 'freelance';
@@ -287,6 +282,8 @@ export function JobIntakeDetails({
   job: IntakeDetails;
   isRevealed?: boolean;
 }) {
+  const { t, i18n } = useTranslation('recruiterJobDetail');
+  const locale = intlLocale(i18n.language);
   const freelance = job.employment_type === 'freelance';
   const aufteilung = gewichtung(job.task_breakdown);
   const teamgroesse = zahl(job.team_size);
@@ -296,18 +293,18 @@ export function JobIntakeDetails({
      nicht -- vor dem Reveal ist das von hier aus nicht unterscheidbar, also
      wird es als gesperrt benannt und nicht als fehlend. */
   const gesperrt = isRevealed ? [] : ([
-    { wert: job.daily_routine, name: 'Arbeitsalltag' },
-    { wert: job.company_culture, name: 'Zusammenarbeit im Team' },
-    { wert: job.negative_impact_if_unfilled, name: 'Was passiert, wenn die Stelle offen bleibt' },
-    { wert: job.unique_selling_points, name: 'Alleinstellungsmerkmale' },
-    { wert: job.position_advantages, name: 'Vorteile der Position' },
+    { wert: job.daily_routine, name: t('intake.locked.dailyRoutine') },
+    { wert: job.company_culture, name: t('intake.locked.culture') },
+    { wert: job.negative_impact_if_unfilled, name: t('intake.locked.ifUnfilled') },
+    { wert: job.unique_selling_points, name: t('intake.locked.usps') },
+    { wert: job.position_advantages, name: t('intake.locked.advantages') },
     // `career_example` traegt im Katalog `only: 'full-time'` -- bei Contracting
     // wird es nie gefragt. Es dort als "gesperrt" zu fuehren hiesse, dem
     // Recruiter eine Auskunft zu versprechen, die niemand gegeben hat.
-    { wert: job.career_example, name: 'Karrierebeispiel', gilt: !freelance },
-    { wert: job.industry_opportunities, name: 'Chancen der Branche' },
-    { wert: job.industry_challenges, name: 'Herausforderungen der Branche' },
-    { wert: job.company_headcount, name: 'Genaue Mitarbeiterzahl' },
+    { wert: job.career_example, name: t('intake.locked.careerExample'), gilt: !freelance },
+    { wert: job.industry_opportunities, name: t('intake.locked.industryChances') },
+    { wert: job.industry_challenges, name: t('intake.locked.industryChallenges') },
+    { wert: job.company_headcount, name: t('intake.locked.headcount') },
   ] as { wert: unknown; name: string; gilt?: boolean }[])
     .filter((f) => (f.gilt ?? true) && leer(f.wert))
     .map((f) => f.name);
@@ -323,111 +320,108 @@ export function JobIntakeDetails({
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-center gap-2">
           <ClipboardCheck className="h-4 w-4 text-success" />
-          <CardTitle className="text-base">Aus der Aufnahme</CardTitle>
+          <CardTitle className="text-base">{t('intake.title')}</CardTitle>
           <Badge variant="outline" className="border-success/30 text-success">
-            vom Kunden bestätigt
+            {t('intake.confirmed')}
           </Badge>
         </div>
         <p className="text-xs leading-relaxed text-muted-foreground">
-          Diese Angaben hat der Kunde im Briefing selbst gegeben — nicht ein Modell
-          aus der Anzeige geschrieben. Darauf kannst du dich im Kandidatengespräch berufen.
+          {t('intake.intro')}
         </p>
       </CardHeader>
 
       <CardContent className="space-y-6">
 
-        <Gruppe titel="Warum diese Stelle" werte={gruppen.warum}>
-          <Zeile frage="Warum sie offen ist" wert={job.vacancy_reason} />
-          <Zeile frage="Wenn sie offen bleibt" wert={job.negative_impact_if_unfilled} />
+        <Gruppe titel={t('intake.g.why')} werte={gruppen.warum}>
+          <Zeile frage={t('intake.q.vacancyReason')} wert={job.vacancy_reason} />
+          <Zeile frage={t('intake.q.ifUnfilled')} wert={job.negative_impact_if_unfilled} />
         </Gruppe>
 
         {/* Zuerst, weil der Headhunter danach sucht: was muss der Kandidat
             mitbringen, und was darf er hier noch lernen. Beides ist die
             Einstufung des Kunden an seiner eigenen Liste -- nicht die
             Wunschliste aus der Anzeige, die weiter oben steht. */}
-        <Gruppe titel="Was wirklich zählt" werte={gruppen.kriterien}>
-          <Zeile frage="Ohne das geht es nicht" wert={job.must_have_criteria} />
-          <Zeile frage="Kann nachgeschult werden" wert={job.trainable_skills} />
-          <Zeile frage="Verhandelbar" wert={job.nice_to_have_criteria} />
+        <Gruppe titel={t('intake.g.criteria')} werte={gruppen.kriterien}>
+          <Zeile frage={t('intake.q.mustHave')} wert={job.must_have_criteria} />
+          <Zeile frage={t('intake.q.trainable')} wert={job.trainable_skills} />
+          <Zeile frage={t('intake.q.negotiable')} wert={job.nice_to_have_criteria} />
         </Gruppe>
 
-        <Gruppe titel="Die Aufgabe" werte={gruppen.aufgabe}>
-          <Zeile frage="Der Arbeitsalltag" wert={job.daily_routine} />
-          <Zeile frage="Schwerpunkt" wert={job.task_focus} />
-          <Zeile frage="Gewichtung" wert={aufteilung} />
+        <Gruppe titel={t('intake.g.task')} werte={gruppen.aufgabe}>
+          <Zeile frage={t('intake.q.dailyRoutine')} wert={job.daily_routine} />
+          <Zeile frage={t('intake.q.focus')} wert={job.task_focus} />
+          <Zeile frage={t('intake.q.breakdown')} wert={aufteilung} />
         </Gruppe>
 
-        <Gruppe titel="Wer passt — und wer nicht" werte={gruppen.passung}>
-          <Zeile frage="Hat hier Erfolg" wert={job.success_profile} />
-          <Zeile frage="Ist hier gescheitert" wert={job.failure_profile} />
+        <Gruppe titel={t('intake.g.fit')} werte={gruppen.passung}>
+          <Zeile frage={t('intake.q.success')} wert={job.success_profile} />
+          <Zeile frage={t('intake.q.failure')} wert={job.failure_profile} />
         </Gruppe>
 
-        <Gruppe titel="Umfeld und Entscheidung" werte={gruppen.umfeld}>
-          <Zeile frage="Teamgröße" wert={teamgroesse} />
+        <Gruppe titel={t('intake.g.environment')} werte={gruppen.umfeld}>
+          <Zeile frage={t('intake.q.teamSize')} wert={teamgroesse} />
           {/* Erst nach dem Reveal in der View. Vorher traegt die
               Groessenklasse in der Eckdatenleiste die Auskunft. */}
-          <Zeile frage="Mitarbeitende gesamt" wert={zahl(job.company_headcount)} />
-          <Zeile frage="Aufbau der Abteilung" wert={job.department_structure} />
-          <Zeile frage={freelance ? 'Fachliche Führung' : 'Berichtet an'} wert={job.reports_to} />
-          <Zeile frage="Entscheidet mit" wert={job.decision_makers} />
-          <Zeile frage="Zusammenarbeit im Team" wert={job.company_culture} />
+          <Zeile frage={t('intake.q.headcount')} wert={zahl(job.company_headcount)} />
+          <Zeile frage={t('intake.q.department')} wert={job.department_structure} />
+          <Zeile frage={freelance ? t('intake.q.technicalLead') : t('intake.q.reportsTo')} wert={job.reports_to} />
+          <Zeile frage={t('intake.q.decisionMakers')} wert={job.decision_makers} />
+          <Zeile frage={t('intake.q.culture')} wert={job.company_culture} />
         </Gruppe>
 
         {freelance ? (
-          <Gruppe titel="Konditionen und Verkaufsargumente" werte={gruppen.angebot}>
-            <Zeile frage="Tagessatz" wert={tagessatzVon(job)} />
+          <Gruppe titel={t('intake.g.termsFreelance')} werte={gruppen.angebot}>
+            <Zeile frage={t('intake.q.dayRate')} wert={tagessatzVon(job, t, locale)} />
             <Zeile
-              frage="Laufzeit"
-              wert={leer(job.contract_duration_months) ? null : `${de(job.contract_duration_months)} Monate`}
+              frage={t('intake.q.duration')}
+              wert={leer(job.contract_duration_months) ? null : t('intake.months', { n: de(job.contract_duration_months, locale) })}
             />
             <Zeile
-              frage="Auslastung"
-              wert={leer(job.utilization_days_per_week) ? null : `${de(job.utilization_days_per_week)} Tage pro Woche`}
+              frage={t('intake.q.utilization')}
+              wert={leer(job.utilization_days_per_week) ? null : t('intake.daysPerWeek', { n: de(job.utilization_days_per_week, locale) })}
             />
-            <Zeile frage="Verlängerung möglich" wert={job.extension_possible} />
-            <Zeile frage="Wird gestellt" wert={job.benefits} />
-            <Zeile frage="Das macht das Projekt besonders" wert={job.unique_selling_points} />
-            <Zeile frage="Vorteile der Position" wert={job.position_advantages} />
+            <Zeile frage={t('intake.q.extension')} wert={job.extension_possible} />
+            <Zeile frage={t('intake.q.provided')} wert={job.benefits} />
+            <Zeile frage={t('intake.q.projectSpecial')} wert={job.unique_selling_points} />
+            <Zeile frage={t('intake.q.advantages')} wert={job.position_advantages} />
           </Gruppe>
         ) : (
-          <Gruppe titel="Das Angebot" werte={gruppen.angebot}>
-            <Zeile frage="Monatsgehälter" wert={job.salary_months} />
-            <Zeile frage="Bonus" wert={job.bonus_structure} />
-            <Zeile frage="Vertragsform" wert={job.contract_limitation} />
-            <Zeile frage="Benefits" wert={job.benefits} />
-            <Zeile frage="Entwicklungsweg" wert={job.career_path} />
-            <Zeile frage="Ein konkretes Beispiel" wert={job.career_example} />
-            <Zeile frage="Das macht die Firma besonders" wert={job.unique_selling_points} />
-            <Zeile frage="Vorteile der Position" wert={job.position_advantages} />
+          <Gruppe titel={t('intake.g.offer')} werte={gruppen.angebot}>
+            <Zeile frage={t('intake.q.salaryMonths')} wert={job.salary_months} />
+            <Zeile frage={t('intake.q.bonus')} wert={job.bonus_structure} />
+            <Zeile frage={t('intake.q.contractForm')} wert={job.contract_limitation} />
+            <Zeile frage={t('intake.q.benefits')} wert={job.benefits} />
+            <Zeile frage={t('intake.q.careerPath')} wert={job.career_path} />
+            <Zeile frage={t('intake.q.careerExample')} wert={job.career_example} />
+            <Zeile frage={t('intake.q.companySpecial')} wert={job.unique_selling_points} />
+            <Zeile frage={t('intake.q.advantages')} wert={job.position_advantages} />
           </Gruppe>
         )}
 
-        <Gruppe titel="Rahmen und Tempo" werte={gruppen.rahmen}>
-          <Zeile frage={freelance ? 'Anwesenheit' : 'Arbeitszeit'} wert={arbeitszeitVon(job)} />
-          <Zeile frage="Überstunden" wert={job.overtime_policy} />
-          <Zeile frage={freelance ? 'Leistungsnachweis' : 'Zeiterfassung'} wert={job.time_tracking_method} />
-          <Zeile frage="Betriebsrat" wert={betriebsratVon(job)} />
-          <Zeile frage="Betriebsrat tagt" wert={job.works_council_meeting_schedule} />
+        <Gruppe titel={t('intake.g.frame')} werte={gruppen.rahmen}>
+          <Zeile frage={freelance ? t('intake.q.presence') : t('intake.q.workingHours')} wert={arbeitszeitVon(job)} />
+          <Zeile frage={t('intake.q.overtime')} wert={job.overtime_policy} />
+          <Zeile frage={freelance ? t('intake.q.timesheet') : t('intake.q.timeTracking')} wert={job.time_tracking_method} />
+          <Zeile frage={t('intake.q.worksCouncil')} wert={betriebsratVon(job)} />
+          <Zeile frage={t('intake.q.worksCouncilMeets')} wert={job.works_council_meeting_schedule} />
           <Zeile
-            frage="Vom Ja bis zum Vertrag"
-            wert={leer(job.contract_creation_days) ? null : `${de(job.contract_creation_days)} Tage`}
+            frage={t('intake.q.yesToContract')}
+            wert={leer(job.contract_creation_days) ? null : t('intake.days', { n: de(job.contract_creation_days, locale) })}
           />
-          <Zeile frage="Vertrag digital" wert={job.contract_sent_digitally} />
+          <Zeile frage={t('intake.q.contractDigital')} wert={job.contract_sent_digitally} />
         </Gruppe>
 
-        <Gruppe titel="Das solltest du vorher wissen" werte={gruppen.vorher}>
-          <Zeile frage="Sensible Vertragsthemen" wert={job.contract_sensitive_topics} />
-          <Zeile frage="Chancen der Branche" wert={job.industry_opportunities} />
-          <Zeile frage="Herausforderungen der Branche" wert={job.industry_challenges} />
+        <Gruppe titel={t('intake.g.before')} werte={gruppen.vorher}>
+          <Zeile frage={t('intake.q.sensitive')} wert={job.contract_sensitive_topics} />
+          <Zeile frage={t('intake.q.industryChances')} wert={job.industry_opportunities} />
+          <Zeile frage={t('intake.q.industryChallenges')} wert={job.industry_challenges} />
         </Gruppe>
 
         {gesperrt.length > 0 && (
           <p className="flex items-start gap-2 border-t border-border/60 pt-4 text-xs leading-relaxed text-muted-foreground">
             <Lock className="mt-0.5 h-3 w-3 shrink-0" />
             <span>
-              Erhoben, aber erst nach dem Reveal sichtbar: {gesperrt.join(', ')}.
-              Diese Angaben nennen Standorte, Produkte oder Personen und würden den
-              Kunden verraten. Frag sie nicht beim Kunden nach — sie stehen bereits da.
+              {t('intake.lockedNote', { list: gesperrt.join(', ') })}
             </span>
           </p>
         )}

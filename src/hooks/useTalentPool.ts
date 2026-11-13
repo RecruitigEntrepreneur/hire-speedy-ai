@@ -2,6 +2,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { toast } from 'sonner';
+import i18n from '@/i18n';
+
+// Meldungen in der Sprache der Oberfläche, gelesen beim Aufruf.
+const tx = (key: string) => i18n.t(`talentPool:toast.${key}`);
 
 export interface TalentPoolEntry {
   id: string;
@@ -118,14 +122,14 @@ export function useTalentPool() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
-      toast.success('Kandidat zum Talent Pool hinzugefügt');
+      toast.success(tx('added'));
     },
     onError: (error: any) => {
       console.error('Error adding to pool:', error);
       if (error.code === '23505') {
-        toast.error('Kandidat ist bereits im Pool');
+        toast.error(tx('duplicate'));
       } else {
-        toast.error('Fehler beim Hinzufügen');
+        toast.error(tx('addFailed'));
       }
     },
   });
@@ -141,11 +145,11 @@ export function useTalentPool() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
-      toast.success('Eintrag aktualisiert');
+      toast.success(tx('updated'));
     },
     onError: (error) => {
       console.error('Error updating entry:', error);
-      toast.error('Fehler beim Aktualisieren');
+      toast.error(tx('updateFailed'));
     },
   });
 
@@ -160,11 +164,11 @@ export function useTalentPool() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
-      toast.success('Aus Pool entfernt');
+      toast.success(tx('removed'));
     },
     onError: (error) => {
       console.error('Error removing from pool:', error);
-      toast.error('Fehler beim Entfernen');
+      toast.error(tx('removeFailed'));
     },
   });
 
@@ -189,11 +193,11 @@ export function useTalentPool() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['talent-pool'] });
-      toast.success('Als kontaktiert markiert');
+      toast.success(tx('contacted'));
     },
     onError: (error) => {
       console.error('Error marking contacted:', error);
-      toast.error('Fehler');
+      toast.error(tx('failed'));
     },
   });
 
@@ -262,7 +266,7 @@ export function useTalentAlerts() {
     },
     onError: (error) => {
       console.error('Error updating alert:', error);
-      toast.error('Fehler beim Aktualisieren');
+      toast.error(tx('updateFailed'));
     },
   });
 

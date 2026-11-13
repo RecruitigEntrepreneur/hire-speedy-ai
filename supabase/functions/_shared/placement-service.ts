@@ -13,6 +13,8 @@ import { eur, renderInvoicePdf, type InvoiceDoc } from './invoice-pdf.ts';
 import { esc, layout } from './intake-mail.ts';
 import { bountyFor, differenceFeeCents, isPackageKey, snapshotWithConditions, splitFor, versionOfSnapshot, type PackageKey } from './konditionen.ts';
 import { recruiterVersionForJob } from './konditionen-db.ts';
+import { dateKeyIn, eurCentsIn, m, textsFor, tx, type LangText } from './notify-i18n.ts';
+import { clientLanguage } from './recipient-language.ts';
 
 export interface FilePort {
   put(path: string, bytes: Uint8Array, contentType?: string): Promise<void>;
@@ -70,9 +72,14 @@ export async function profile(db: SupabaseClient, userId: string | null | undefi
   const { data } = await db.from('profiles').select('full_name, email').eq('user_id', userId).maybeSingle();
   return data ? { name: (data as any).full_name ?? '', email: (data as any).email ?? null } : null;
 }
-export async function notify(ctx: ServiceCtx, userId: string | null | undefined, type: string, title: string, message: string, relatedType: string, relatedId: string) {
+/**
+ * Glocke. Titel und Text als Funktion der Sprache werden in der Profilsprache des Empfängers
+ * geschrieben (Mehrsprachigkeit 13.11.2026); feste Texte bleiben, wie sie sind.
+ */
+export async function notify(ctx: ServiceCtx, userId: string | null | undefined, type: string, title: LangText, message: LangText, relatedType: string, relatedId: string) {
   if (!userId) return;
-  const { error } = await ctx.db.from('notifications').insert({ user_id: userId, type, title, message, related_type: relatedType, related_id: relatedId });
+  const t = await textsFor(ctx.db, userId, title, message);
+  const { error } = await ctx.db.from('notifications').insert({ user_id: userId, type, title: t.title, message: t.message, related_type: relatedType, related_id: relatedId });
   if (error) console.warn('[placement] Benachrichtigung nicht gespeichert', error.code, error.message);
 }
 
@@ -166,7 +173,13 @@ export async function onContractFinal(ctx: PlacementCtx, contractId: string) {
   for (const o of ((others ?? []) as any[]).filter((x) => x.id !== b.submission.id)) {
     await ctx.db.from('submissions').update({ stage: 'withdrawn' }).eq('id', o.id);
     const { data: oj } = await ctx.db.from('jobs').select('client_id, title').eq('id', o.job_id).maybeSingle();
-    await notify(ctx, (oj as any)?.client_id, 'candidate_unavailable', 'Kandidat steht nicht mehr zur Verfügung', `${o.identity_unlocked ? b.candidate.full_name : 'Ein Kandidat'} für „${(oj as any)?.title ?? 'Ihre Stelle'}“ hat eine andere Stelle angenommen.`, 'submission', o.id);
+    await notify(ctx, (oj as any)?.client_id, 'candidate_unavailable',
+      (l) => tx(l, 'Kandidat steht nicht mehr zur Verfügung', 'Candidate no longer available', 'Kandidaten är inte längre tillgänglig', 'Kandidaten er ikke lenger tilgjengelig'),
+      (l) => {
+        const who = o.identity_unlocked ? b.candidate.full_name : tx(l, 'Ein Kandidat', 'A candidate', 'En kandidat', 'En kandidat');
+        const jt = (oj as any)?.title ?? tx(l, 'Ihre Stelle', 'your role', 'din tjänst', 'stillingen din');
+        return tx(l, m`${who} für „${jt}“ hat eine andere Stelle angenommen.`, m`${who} for “${jt}” has accepted another job.`, m`${who} för ”${jt}” har tackat ja till en annan tjänst.`, m`${who} til «${jt}» har takket ja til en annen stilling.`);
+      }, 'submission', o.id);
   }
 
   // Stelle als besetzt schließen (Wahl beim Melden)
@@ -177,7 +190,8 @@ export async function onContractFinal(ctx: PlacementCtx, contractId: string) {
     }).eq('id', b.job.id);
     const { data: subs } = await ctx.db.from('submissions').select('id, recruiter_id').eq('job_id', b.job.id).in('stage', ACTIVE_STAGES);
     for (const r of [...new Set(((subs ?? []) as any[]).map((x) => x.recruiter_id).filter((x) => x && x !== b.submission.recruiter_id))]) {
-      await notify(ctx, r as string, 'job_filled', 'Stelle besetzt', `„${b.job.title}“ ist besetzt. Deine Einreichungen dafür sind abgeschlossen.`, 'job', b.job.id);
+      await notify(ctx, r as string, 'job_filled', (l) => tx(l, 'Stelle besetzt', 'Role filled', 'Tjänsten tillsatt', 'Stillingen besatt'),
+        (l) => tx(l, m`„${b.job.title}“ ist besetzt. Deine Einreichungen dafür sind abgeschlossen.`, m`“${b.job.title}” has been filled. Your submissions for it are closed.`, m`”${b.job.title}” är tillsatt. Dina kandidater för den är avslutade.`, m`«${b.job.title}» er besatt. Kandidatene dine til den er avsluttet.`), 'job', b.job.id);
     }
   }
 
@@ -185,7 +199,9 @@ export async function onContractFinal(ctx: PlacementCtx, contractId: string) {
   for (const uid of await adminIds(ctx.db)) {
     await notify(ctx, uid, 'invoice_draft', `Rechnung zur Freigabe: ${b.candidate.full_name}`, `${b.job.company_name} · ${eur(p.client_fee_cents ?? 0)} netto`, 'invoice', invoiceId ?? p.id);
   }
-  await notify(ctx, b.submission.recruiter_id, 'placement_created', `Einstellung verbindlich: ${b.candidate.full_name}`, `Start ${dateDe(c.start_date)}. Was du wann bekommst, siehst du unter Verdienste.`, 'placement', p.id);
+  await notify(ctx, b.submission.recruiter_id, 'placement_created',
+    (l) => tx(l, m`Einstellung verbindlich: ${b.candidate.full_name}`, m`Hire confirmed: ${b.candidate.full_name}`, m`Anställningen är bindande: ${b.candidate.full_name}`, m`Ansettelsen er bindende: ${b.candidate.full_name}`),
+    (l) => tx(l, `Start ${dateKeyIn(c.start_date, l)}. Was du wann bekommst, siehst du unter Verdienste.`, `Start ${dateKeyIn(c.start_date, l)}. What you get and when is shown under Earnings.`, `Start ${dateKeyIn(c.start_date, l)}. Vad du får och när ser du under Intäkter.`, `Oppstart ${dateKeyIn(c.start_date, l)}. Hva du får og når, ser du under Inntekter.`), 'placement', p.id);
   const { error: evErr } = await ctx.db.from('employment_contract_events').insert({ contract_id: c.id, event_type: 'placement_created', actor_role: 'system', details: { placementId: p.id, invoiceId } });
   if (evErr) console.warn('[placement] Verlauf nicht gespeichert', evErr.message);
   return { created: true, placementId: p.id, invoiceId };
@@ -253,7 +269,8 @@ async function onReplacementFinal(ctx: PlacementCtx, c: any, b: Awaited<ReturnTy
     await ctx.db.from('submissions').update({ stage: 'withdrawn' }).eq('id', o.id);
   }
   for (const r of [...new Set(((subs ?? []) as any[]).map((x) => x.recruiter_id).filter((x) => x && x !== b.submission.recruiter_id))]) {
-    await notify(ctx, r as string, 'job_filled', 'Nachbesetzung besetzt', `„${b.job.title}“ ist wieder besetzt. Deine Einreichungen dafür sind abgeschlossen.`, 'job', b.job.id);
+    await notify(ctx, r as string, 'job_filled', (l) => tx(l, 'Nachbesetzung besetzt', 'Replacement filled', 'Ersättningen tillsatt', 'Erstatningen besatt'),
+      (l) => tx(l, m`„${b.job.title}“ ist wieder besetzt. Deine Einreichungen dafür sind abgeschlossen.`, m`“${b.job.title}” has been filled again. Your submissions for it are closed.`, m`”${b.job.title}” är tillsatt igen. Dina kandidater för den är avslutade.`, m`«${b.job.title}» er besatt igjen. Kandidatene dine til den er avsluttet.`), 'job', b.job.id);
   }
 
   let invoiceId: string | null = null;
@@ -270,8 +287,12 @@ async function onReplacementFinal(ctx: PlacementCtx, c: any, b: Awaited<ReturnTy
       await notify(ctx, uid, 'invoice_draft', `Rechnung zur Freigabe: Unterschied ${b.candidate.full_name}`, `${b.job.company_name} · ${eur(diffFee)} netto`, 'invoice', invoiceId ?? p.id);
     }
   }
-  await notify(ctx, b.submission.recruiter_id, 'placement_created', `Nachbesetzung verbindlich: ${b.candidate.full_name}`,
-    `Start ${dateDe(c.start_date)}. Deine Auslobung (${eur(bounty)}) kommt in einem Teil, sobald ${b.candidate.full_name.split(' ')[0]} angefangen hat.`, 'placement', p.id);
+  await notify(ctx, b.submission.recruiter_id, 'placement_created',
+    (l) => tx(l, m`Nachbesetzung verbindlich: ${b.candidate.full_name}`, m`Replacement confirmed: ${b.candidate.full_name}`, m`Ersättningen är bindande: ${b.candidate.full_name}`, m`Erstatningen er bindende: ${b.candidate.full_name}`),
+    (l) => {
+      const d = dateKeyIn(c.start_date, l), amount = l === 'de' || l === 'de-AT' || l === 'de-CH' ? eur(bounty) : eurCentsIn(bounty, l), fn = b.candidate.full_name.split(' ')[0];
+      return tx(l, m`Start ${d}. Deine Auslobung (${amount}) kommt in einem Teil, sobald ${fn} angefangen hat.`, m`Start ${d}. Your bounty (${amount}) is paid in one part as soon as ${fn} has started.`, m`Start ${d}. Din ersättning (${amount}) betalas ut i en del så snart ${fn} har börjat.`, m`Oppstart ${d}. Dusøren din (${amount}) utbetales i én del så snart ${fn} har begynt.`);
+    }, 'placement', p.id);
   for (const uid of await adminIds(ctx.db)) {
     await notify(ctx, uid, 'placement_created', `Nachbesetzung besetzt: ${b.candidate.full_name}`, `${b.job.company_name} · ${b.job.title} · Auslobung ${eur(bounty)}`, 'placement', p.id);
   }
@@ -526,19 +547,28 @@ export async function releaseInvoiceCore(ctx: PlacementCtx, rawInv: any, actorId
     await ctx.db.from('placements').update({ invoice_state: 'invoiced' }).eq('id', inv.placement_id).neq('invoice_state', 'paid');
   }
 
-  // Versand an die Rechnungs-E-Mail, PDF im Anhang
-  const heading = `Rechnung ${number}`;
-  const what = inv.invoice_type === 'research_option' ? 'die Nachbesetzung' : inv.invoice_type === 'salary_difference' ? 'die Nachbesetzung (Unterschied zum höheren Gehalt)' : 'die Personalvermittlung';
+  // Versand an die Rechnungs-E-Mail, PDF im Anhang. Die Rechnung (PDF) bleibt deutsch; der
+  // Mailtext folgt der Sprache des Kunden (Profil der Adresse, sonst Land der Rechnungsanschrift).
+  const ml = await clientLanguage(ctx.db, { email: recipientEmail, country: cp.billing_country ?? inv.recipient?.country ?? null });
+  const mlDe = ml === 'de' || ml === 'de-AT' || ml === 'de-CH';
+  const amountText = mlDe ? eur(Number(inv.total_amount_cents)) : eurCentsIn(Number(inv.total_amount_cents), ml);
+  const dueText = mlDe ? dateDe(due) : dateKeyIn(due, ml);
+  const heading = tx(ml, m`Rechnung ${number}`, m`Invoice ${number}`, m`Faktura ${number}`, m`Faktura ${number}`);
+  const what = inv.invoice_type === 'research_option' ? tx(ml, 'die Nachbesetzung', 'the replacement', 'ersättningsrekryteringen', 'erstatningsrekrutteringen')
+    : inv.invoice_type === 'salary_difference' ? tx(ml, 'die Nachbesetzung (Unterschied zum höheren Gehalt)', 'the replacement (difference for the higher salary)', 'ersättningsrekryteringen (skillnad för den högre lönen)', 'erstatningsrekrutteringen (differanse for høyere lønn)')
+      : tx(ml, 'die Personalvermittlung', 'the placement', 'rekryteringen', 'rekrutteringen');
+  const lineTitle = esc(String(inv.lines?.[0]?.title ?? '').replace(/^(Personalvermittlung|Nachbesetzung): /, ''));
   const body2 = [
-    `<p style="margin:0 0 12px 0;">Guten Tag,</p>`,
-    `<p style="margin:0 0 12px 0;">anbei unsere Rechnung <strong>${esc(number)}</strong> über <strong>${esc(eur(Number(inv.total_amount_cents)))}</strong> für ${what} (${esc(String(inv.lines?.[0]?.title ?? '').replace(/^(Personalvermittlung|Nachbesetzung): /, ''))}).</p>`,
-    ...(poFollows ? ['<p style="margin:0 0 12px 0;">Ihre Bestellnummer lag noch nicht vor; auf der Rechnung steht „Bestellnummer folgt“.</p>'] : []),
-    `<p style="margin:0 0 12px 0;">Zahlbar bis ${esc(dateDe(due))}. Bei Fragen antworten Sie einfach auf diese Mail.</p>`,
+    `<p style="margin:0 0 12px 0;">${tx(ml, 'Guten Tag,', 'Hello,', 'Hej,', 'Hei,')}</p>`,
+    `<p style="margin:0 0 12px 0;">${tx(ml, m`anbei unsere Rechnung <strong>${esc(number)}</strong> über <strong>${esc(amountText)}</strong> für ${what} (${lineTitle}).`, m`please find attached our invoice <strong>${esc(number)}</strong> for <strong>${esc(amountText)}</strong> for ${what} (${lineTitle}).`, m`bifogat finns vår faktura <strong>${esc(number)}</strong> på <strong>${esc(amountText)}</strong> för ${what} (${lineTitle}).`, m`vedlagt er vår faktura <strong>${esc(number)}</strong> på <strong>${esc(amountText)}</strong> for ${what} (${lineTitle}).`)}</p>`,
+    ...(poFollows ? [`<p style="margin:0 0 12px 0;">${tx(ml, 'Ihre Bestellnummer lag noch nicht vor; auf der Rechnung steht „Bestellnummer folgt“.', 'Your purchase order number was not yet available; the invoice says “Bestellnummer folgt” (PO number to follow).', 'Ert inköpsordernummer fanns inte än; på fakturan står ”Bestellnummer folgt” (inköpsordernummer följer).', 'Innkjøpsordrenummeret deres forelå ikke ennå; på fakturaen står «Bestellnummer folgt» (innkjøpsordrenummer følger).')}</p>`] : []),
+    `<p style="margin:0 0 12px 0;">${tx(ml, m`Zahlbar bis ${esc(dueText)}. Bei Fragen antworten Sie einfach auf diese Mail.`, m`Payable by ${esc(dueText)}. If you have any questions, simply reply to this email.`, m`Betalas senast ${esc(dueText)}. Har du frågor svarar du bara på det här mejlet.`, m`Betales innen ${esc(dueText)}. Har du spørsmål, svarer du bare på denne e-posten.`)}</p>`,
+    ...(mlDe ? [] : [`<p style="margin:0 0 12px 0;color:#6b7280;">${tx(ml, '', 'The invoice itself (PDF) is issued in German.', 'Själva fakturan (PDF) är utfärdad på tyska.', 'Selve fakturaen (PDF) er utstedt på tysk.')}</p>`]),
   ].join('');
   const invoiceMail = (to: string) => ctx.mail({
     fromEmail: ctx.fromEmail, fromName: 'Matchunt', to, replyTo: 'info@bluewater-bridge.de',
-    subject: `${heading} – Matchunt`, html: layout({ preheader: heading, heading, body: body2 }),
-    text: `${heading}\nBetrag: ${eur(Number(inv.total_amount_cents))}\nZahlbar bis ${dateDe(due)}`,
+    subject: `${heading} – Matchunt`, html: layout({ lang: ml, preheader: heading, heading, body: body2 }),
+    text: `${heading}\n${tx(ml, 'Betrag', 'Amount', 'Belopp', 'Beløp')}: ${amountText}\n${tx(ml, m`Zahlbar bis ${dueText}`, m`Payable by ${dueText}`, m`Betalas senast ${dueText}`, m`Betales innen ${dueText}`)}`,
     attachments: [{ filename: `${number.replace(/[^\w.-]/g, '_')}.pdf`, contentBase64: encodeBase64(bytes), contentType: 'application/pdf' }],
   }, { template: 'invoice_issued', meta: { invoice_id: inv.id } });
   const result = await invoiceMail(recipientEmail);
@@ -552,7 +582,8 @@ export async function releaseInvoiceCore(ctx: PlacementCtx, rawInv: any, actorId
   if (inv.submission_id) {
     const { data: offer } = await ctx.db.from('offers').select('created_by').eq('submission_id', inv.submission_id).eq('status', 'accepted').maybeSingle();
     for (const uid of [...new Set([(offer as any)?.created_by, inv.client_id].filter(Boolean))] as string[]) {
-      await notify(ctx, uid, 'invoice_issued', `Rechnung ${number}`, `${eur(Number(inv.total_amount_cents))}, zahlbar bis ${dateDe(due)}`, 'submission', inv.submission_id);
+      await notify(ctx, uid, 'invoice_issued', (l) => tx(l, m`Rechnung ${number}`, m`Invoice ${number}`, m`Faktura ${number}`, m`Faktura ${number}`),
+        (l) => l === 'de' || l === 'de-AT' || l === 'de-CH' ? `${eur(Number(inv.total_amount_cents))}, zahlbar bis ${dateDe(due)}` : tx(l, '', `${eurCentsIn(Number(inv.total_amount_cents), l)}, payable by ${dateKeyIn(due, l)}`, `${eurCentsIn(Number(inv.total_amount_cents), l)}, betalas senast ${dateKeyIn(due, l)}`, `${eurCentsIn(Number(inv.total_amount_cents), l)}, betales innen ${dateKeyIn(due, l)}`), 'submission', inv.submission_id);
     }
   }
   return { ok: true, number, sent: result.sent, mailError: result.sent ? null : result.error ?? null };

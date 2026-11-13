@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
+import i18n from '@/i18n';
 
 export interface PipelineCandidate {
   id: string;
@@ -35,13 +36,24 @@ export interface PipelineJob {
 // Professional muted color palette for pipeline stages
 // Kanonisches Stage-Vokabular — muss zum CHECK submissions_stage_check passen
 // (Migration 20260725130000). Abweichende Werte werden von der DB abgelehnt.
+// Die Bezeichnung wird beim Lesen in der Sprache der Oberfläche geholt (clientCandidates:pipeline).
+const stage = <K extends string>(key: K, color: string, dotColor: string, textColor: string) => ({
+  key,
+  get label(): string {
+    return i18n.t(`clientCandidates:pipeline.${key}`);
+  },
+  color,
+  dotColor,
+  textColor,
+});
+
 export const PIPELINE_STAGES = [
-  { key: 'submitted', label: 'Neu', color: 'border-slate-400', dotColor: 'bg-slate-400', textColor: 'text-slate-600' },
-  { key: 'in_review', label: 'In Prüfung', color: 'border-blue-400', dotColor: 'bg-blue-400', textColor: 'text-blue-600' },
-  { key: 'interview_scheduled', label: 'Interview geplant', color: 'border-purple-400', dotColor: 'bg-purple-400', textColor: 'text-purple-600' },
-  { key: 'interview_completed', label: 'Interview geführt', color: 'border-violet-400', dotColor: 'bg-violet-400', textColor: 'text-violet-600' },
-  { key: 'offer', label: 'Angebot', color: 'border-amber-400', dotColor: 'bg-amber-400', textColor: 'text-amber-600' },
-  { key: 'placed', label: 'Vermittelt', color: 'border-emerald-500', dotColor: 'bg-emerald-500', textColor: 'text-emerald-600' },
+  stage('submitted', 'border-slate-400', 'bg-slate-400', 'text-slate-600'),
+  stage('in_review', 'border-blue-400', 'bg-blue-400', 'text-blue-600'),
+  stage('interview_scheduled', 'border-purple-400', 'bg-purple-400', 'text-purple-600'),
+  stage('interview_completed', 'border-violet-400', 'bg-violet-400', 'text-violet-600'),
+  stage('offer', 'border-amber-400', 'bg-amber-400', 'text-amber-600'),
+  stage('placed', 'border-emerald-500', 'bg-emerald-500', 'text-emerald-600'),
 ] as const;
 
 export function useHiringPipeline(jobId?: string) {
@@ -138,7 +150,7 @@ export function useHiringPipeline(jobId?: string) {
             hoursInStage: Math.floor((now.getTime() - submittedAt.getTime()) / (1000 * 60 * 60)),
             candidate: {
               id: sub.candidate?.id,
-              fullName: sub.candidate?.full_name || 'Unbekannt',
+              fullName: sub.candidate?.full_name || i18n.t('clientCandidates:labels.unknown'),
               email: sub.candidate?.email || '',
               phone: sub.candidate?.phone,
               expectedSalary: sub.candidate?.expected_salary,

@@ -4,6 +4,11 @@
 // calendar-connect, get-interview-by-token, process-interview-response und
 // interview-client-link; hier stehen nur die Verträge und dünne Aufrufer.
 import { supabase } from '@/integrations/supabase/client';
+import i18n from '@/i18n';
+import { intlLocale } from '@/i18n/languages';
+
+// Anzeige-Texte im Namespace interviews, beim Aufruf gelesen (README Regel 7).
+const tx = (key: string, options?: Record<string, unknown>) => i18n.t(`interviews:${key}`, options);
 
 export type SlotStatus = 'all' | 'required' | 'busy' | 'booked';
 export type Weekday = '1' | '2' | '3' | '4' | '5' | '6' | '7';
@@ -33,10 +38,14 @@ export const DEFAULT_INTERVIEW_HOURS: InterviewHoursRules = {
   absences: [],
 };
 
-export const WEEKDAY_LABELS: Record<Weekday, string> = { '1': 'Mo', '2': 'Di', '3': 'Mi', '4': 'Do', '5': 'Fr', '6': 'Sa', '7': 'So' };
+/** Kurzname des Wochentags in der Sprache der Oberfläche (Mo, Di … / Mon, Tue …). */
+export const weekdayLabel = (day: Weekday): string => tx(`weekday.${day}`);
+/** Wochentage als Anzeige-Liste; beim Zugriff übersetzt. */
+export const WEEKDAY_LABELS: Record<Weekday, string> = Object.defineProperties({} as Record<Weekday, string>,
+  Object.fromEntries((['1', '2', '3', '4', '5', '6', '7'] as Weekday[]).map((d) => [d, { get: () => weekdayLabel(d), enumerable: true }])));
 export const INTERVIEW_DURATIONS = [30, 45, 60, 90, 120, 180, 240] as const;
 /** „60 Min“, ab 3 Stunden „3 Std.“ */
-export const durationLabel = (minutes: number) => (minutes >= 180 ? `${minutes / 60} Std.` : `${minutes} Min`);
+export const durationLabel = (minutes: number) => (minutes >= 180 ? tx('duration.hours', { n: minutes / 60 }) : tx('duration.minutes', { n: minutes }));
 export const MAX_PROPOSALS = 5;
 
 /** Person aus dem Team des Kunden. */
@@ -252,10 +261,10 @@ export interface SendResult { interviewId: string; candidateMailSent: boolean; r
 export interface MailPreview { subject: string; html: string; fromName: string }
 
 /** Ruft eine Edge Function auf und reicht deren Fehlermeldung (message) durch. */
-export async function callFunction<T>(name: string, body: Record<string, unknown>, fallback = 'Das hat nicht geklappt. Bitte erneut versuchen.'): Promise<T> {
+export async function callFunction<T>(name: string, body: Record<string, unknown>, fallback?: string): Promise<T> {
   const { data, error } = await supabase.functions.invoke(name, { body });
   if (error) {
-    let message = fallback;
+    let message = fallback ?? tx('error.generic');
     const ctx = (error as { context?: unknown }).context;
     if (ctx instanceof Response) {
       const detail = await ctx.clone().json().catch(() => null);
@@ -283,10 +292,10 @@ export const interviewApi = {
   confirmAlternative: (interviewId: string) => callFunction<{ scheduledAt: string }>('interview-request', { action: 'confirm_alternative', interviewId }),
   withdraw: (interviewId: string, reason: string) => callFunction<{ ok: true }>('interview-request', { action: 'withdraw', interviewId, reason }),
   inviteColleague: (input: InviteColleagueInput) => callFunction<InviteColleagueResult>('interview-request', { action: 'invite_colleague', ...input }),
-  feedback: (input: FeedbackInput) => callFunction<FeedbackResult>('interview-request', { action: 'feedback', ...input }, 'Das Feedback konnte nicht gespeichert werden.'),
+  feedback: (input: FeedbackInput) => callFunction<FeedbackResult>('interview-request', { action: 'feedback', ...input }, tx('error.feedback')),
   /** „Noch unsicher“ entschieden: wirkt wie das Feedback selbst */
-  decideUnsure: (interviewId: string, way: 'offer' | 'next_round') => callFunction<FeedbackResult>('interview-request', { action: 'decide_unsure', interviewId, way }, 'Die Entscheidung konnte nicht gespeichert werden.'),
-  setLink: (interviewId: string, url: string) => callFunction<{ ok: true }>('interview-request', { action: 'set_link', interviewId, url }, 'Der Link konnte nicht gespeichert werden.'),
+  decideUnsure: (interviewId: string, way: 'offer' | 'next_round') => callFunction<FeedbackResult>('interview-request', { action: 'decide_unsure', interviewId, way }, tx('error.decision')),
+  setLink: (interviewId: string, url: string) => callFunction<{ ok: true }>('interview-request', { action: 'set_link', interviewId, url }, tx('error.link')),
 };
 
 export const calendarApi = {
@@ -308,7 +317,7 @@ export const hoursApi = {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (supabase as any).from('client_interview_hours')
       .upsert({ user_id: userId, rules: normalizeRules(rules), updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
-    if (error) throw new Error('Die Interview-Zeiten konnten nicht gespeichert werden.');
+    if (error) throw new Error(tx('error.hours'));
   },
 };
 
@@ -386,10 +395,12 @@ export const clientLinkApi = {
 // Anzeige in deutscher Zeit (der Browser kann in einer anderen Zone stehen)
 // ---------------------------------------------------------------------------
 
+// Format in der Sprache der Oberfläche, Zeitzone bleibt die deutsche.
 const TZ = 'Europe/Berlin';
-export const fmtTime = (iso: string) => new Intl.DateTimeFormat('de-DE', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(iso));
-export const fmtDayShort = (iso: string) => new Intl.DateTimeFormat('de-DE', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(iso)).replace(/\.(?=,)/, '').replace(/\.$/, '');
-export const fmtDayLong = (iso: string) => new Intl.DateTimeFormat('de-DE', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(iso));
+const uiLocale = () => intlLocale(i18n.language);
+export const fmtTime = (iso: string) => new Intl.DateTimeFormat(uiLocale(), { timeZone: TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(iso));
+export const fmtDayShort = (iso: string) => new Intl.DateTimeFormat(uiLocale(), { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(iso)).replace(/\.(?=,)/, '').replace(/\.$/, '');
+export const fmtDayLong = (iso: string) => new Intl.DateTimeFormat(uiLocale(), { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(iso));
 export const fmtRange = (iso: string, minutes: number) => `${fmtDayShort(iso)} · ${fmtTime(iso)}–${fmtTime(new Date(Date.parse(iso) + minutes * 60000).toISOString())}`;
 
 /** Montag (YYYY-MM-DD, deutsche Zeit) der Woche, in der iso liegt, verschoben um weeks. */
@@ -439,11 +450,11 @@ export function describeHours(rules: InterviewHoursRules): string {
   for (const d of ['1', '2', '3', '4', '5', '6', '7'] as Weekday[]) {
     const windows = rules.weekly[d];
     if (!windows?.length) continue;
-    const key = windows.map(([a, b]) => `${a.replace(':00', '')}–${b.replace(':00', '')}`).join(' und ');
+    const key = windows.map(([a, b]) => `${a.replace(':00', '')}–${b.replace(':00', '')}`).join(tx('describe.and'));
     const last = groups[groups.length - 1];
     if (last && last.key === key && Number(last.days[last.days.length - 1]) === Number(d) - 1) last.days.push(d);
     else groups.push({ days: [d], key });
   }
-  if (!groups.length) return 'keine Zeiten festgelegt';
+  if (!groups.length) return tx('describe.none');
   return groups.map((g) => `${WEEKDAY_LABELS[g.days[0]]}${g.days.length > 1 ? `–${WEEKDAY_LABELS[g.days[g.days.length - 1]]}` : ''} ${g.key}`).join(' · ');
 }

@@ -34,21 +34,15 @@ interface InviteMemberDialogProps {
   onOpenChange?: (open: boolean) => void;
 }
 
-const ROLE_CARDS: { key: Role; label: string; text: string }[] = [
-  { key: 'admin', label: 'Administrator', text: 'Alles, auch Nutzer und Verträge' },
-  { key: 'hr', label: 'HR / Recruiting', text: 'Alle Stellen und Kandidaten' },
-  { key: 'hiring_manager', label: 'Fachbereich', text: 'Nur ausgewählte Stellen, entscheidet mit' },
-  { key: 'viewer', label: 'Betrachter', text: 'Nur ausgewählte Stellen, nur lesen' },
-  // Etappe 4 (25.10.2026): Buchhaltung sieht nur Rechnungen und Rechnungsdaten
-  { key: 'finance', label: 'Buchhaltung', text: 'Nur Rechnungen und Rechnungsdaten, keine Kandidaten' },
+// Nur Schlüssel; die Texte kommen beim Anzeigen aus clientTeam:dialog.roles / dialog.choices.
+const ROLE_CARDS: Role[] = ['admin', 'hr', 'hiring_manager', 'viewer', 'finance'];
+
+const JOB_CHOICES: { key: Role; text: 'decide' | 'read' }[] = [
+  { key: 'hiring_manager', text: 'decide' },
+  { key: 'viewer', text: 'read' },
 ];
 
-const JOB_CHOICES: { key: Role; label: string; text: string }[] = [
-  { key: 'hiring_manager', label: 'Mitentscheiden', text: 'Kandidaten ansehen und bewerten, Interviews führen, Feedback geben' },
-  { key: 'viewer', label: 'Nur mitlesen', text: 'Sieht Kandidaten und Stand, entscheidet nicht' },
-];
-
-const STATUS_LABEL: Record<string, string> = { published: 'läuft', pending_approval: 'in Prüfung', pending_client_approval: 'in Freigabe' };
+const STATUS_KEYS = ['published', 'pending_approval', 'pending_client_approval'] as const;
 
 /**
  * Einladen (K8/K9): von der Stelle aus geht es nur um diese Stelle, von der
@@ -66,6 +60,7 @@ export function InviteMemberDialog({
   onOpenChange: onOpenChangeProp,
 }: InviteMemberDialogProps) {
   const { t } = useTranslation();
+  const { t: tt } = useTranslation('clientTeam');
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [openState, setOpenState] = useState(false);
@@ -116,7 +111,7 @@ export function InviteMemberDialog({
     return (orgJobs ?? []).filter((j) => !q || j.title.toLowerCase().includes(q) || (j.location ?? '').toLowerCase().includes(q));
   }, [orgJobs, jobQuery]);
 
-  const jobTitle = (id: string) => (jobContext?.id === id ? jobContext.title : orgJobs?.find((j) => j.id === id)?.title ?? 'Stelle');
+  const jobTitle = (id: string) => (jobContext?.id === id ? jobContext.title : orgJobs?.find((j) => j.id === id)?.title ?? tt('dialog.jobFallback'));
 
   const reset = () => {
     setName('');
@@ -164,12 +159,12 @@ export function InviteMemberDialog({
         const { error } = await supabase.from('job_collaborators').insert(rows as never);
         if (error) throw error;
       }
-      toast.success(`${existing.full_name || existing.email} hat jetzt Zugriff.`);
+      toast.success(tt('dialog.granted', { name: existing.full_name || existing.email }));
       queryClient.invalidateQueries({ queryKey: ['team-data', organizationId] });
       onSuccess?.();
       handleOpenChange(false);
     } catch (e) {
-      toast.error((e as Error).message || 'Zugriff konnte nicht gegeben werden.');
+      toast.error((e as Error).message || tt('dialog.grantError'));
     } finally {
       setGranting(false);
     }
@@ -199,9 +194,9 @@ export function InviteMemberDialog({
       )}
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{jobContext ? 'Kollegen zu dieser Stelle einladen' : 'Teammitglied einladen'}</DialogTitle>
+          <DialogTitle>{jobContext ? tt('dialog.titleJob') : tt('dialog.title')}</DialogTitle>
           <DialogDescription>
-            {jobContext ? [jobContext.title, jobContext.location].filter(Boolean).join(' · ') : 'Die Einladung kommt per E-Mail und ist 7 Tage gültig.'}
+            {jobContext ? [jobContext.title, jobContext.location].filter(Boolean).join(' · ') : tt('dialog.description')}
           </DialogDescription>
         </DialogHeader>
 
@@ -216,7 +211,7 @@ export function InviteMemberDialog({
             </div>
             <div className="flex gap-2">
               <Input readOnly value={inviteUrl} className="text-xs" />
-              <Button type="button" variant="outline" size="icon" onClick={copyLink} aria-label="Link kopieren">
+              <Button type="button" variant="outline" size="icon" onClick={copyLink} aria-label={tt('dialog.copyLink')}>
                 {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
               </Button>
             </div>
@@ -228,25 +223,25 @@ export function InviteMemberDialog({
           <div className="space-y-4 text-sm">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1.4fr]">
               <div className="space-y-1.5">
-                <Label htmlFor="invite-name">Name</Label>
-                <Input id="invite-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Anna Weber" />
+                <Label htmlFor="invite-name">{tt('dialog.name')}</Label>
+                <Input id="invite-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={tt('dialog.namePlaceholder')} />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="invite-email">E-Mail</Label>
-                <Input id="invite-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="kollege@unternehmen.de" />
+                <Label htmlFor="invite-email">{tt('dialog.email')}</Label>
+                <Input id="invite-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={tt('dialog.emailPlaceholder')} />
               </div>
             </div>
 
             {existing && (
               <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs">
-                <p className="font-medium">{existing.full_name || existing.email} ist schon im Team.</p>
-                <p className="text-muted-foreground">{role === 'finance' ? 'Die Rolle änderst du in der Teamliste.' : 'Statt einer Einladung gibst du nur Zugriff auf die gewählten Stellen.'}</p>
+                <p className="font-medium">{tt('dialog.alreadyMember', { name: existing.full_name || existing.email })}</p>
+                <p className="text-muted-foreground">{role === 'finance' ? tt('dialog.alreadyFinance') : tt('dialog.alreadyGrant')}</p>
               </div>
             )}
 
             {jobContext ? (
               <div className="space-y-1.5">
-                <p className="font-medium">Was soll {name.trim().split(' ')[0] || 'die Person'} bei dieser Stelle tun?</p>
+                <p className="font-medium">{tt('dialog.whatShould', { name: name.trim().split(' ')[0] || tt('dialog.thePerson') })}</p>
                 <div className="grid grid-cols-2 gap-2">
                   {JOB_CHOICES.map((c) => (
                     <button
@@ -255,25 +250,25 @@ export function InviteMemberDialog({
                       onClick={() => setRole(c.key)}
                       className={cn('rounded-lg border p-2.5 text-left transition-colors', role === c.key ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/40')}
                     >
-                      <span className="block font-medium">{c.label}</span>
-                      <span className="block text-xs text-muted-foreground">{c.text}</span>
+                      <span className="block font-medium">{tt(`dialog.choices.${c.text}`)}</span>
+                      <span className="block text-xs text-muted-foreground">{tt(`dialog.choices.${c.text}_text`)}</span>
                     </button>
                   ))}
                 </div>
               </div>
             ) : (
               <div className="space-y-1.5">
-                <p className="font-medium">Rolle</p>
+                <p className="font-medium">{tt('dialog.role')}</p>
                 <div className="grid grid-cols-2 gap-2">
-                  {ROLE_CARDS.map((c) => (
+                  {ROLE_CARDS.map((key) => (
                     <button
-                      key={c.key}
+                      key={key}
                       type="button"
-                      onClick={() => setRole(c.key)}
-                      className={cn('rounded-lg border p-2.5 text-left transition-colors', c.key === 'finance' && 'col-span-2', role === c.key ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/40')}
+                      onClick={() => setRole(key)}
+                      className={cn('rounded-lg border p-2.5 text-left transition-colors', key === 'finance' && 'col-span-2', role === key ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/40')}
                     >
-                      <span className="block font-medium">{c.label}</span>
-                      <span className="block text-xs text-muted-foreground">{c.text}</span>
+                      <span className="block font-medium">{tt(`dialog.roles.${key}`)}</span>
+                      <span className="block text-xs text-muted-foreground">{tt(`dialog.roles.${key}_text`)}</span>
                     </button>
                   ))}
                 </div>
@@ -283,7 +278,7 @@ export function InviteMemberDialog({
             {role === 'finance' && !existing && (
               <label className="flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-sm">
                 <Checkbox checked={billingCc} onCheckedChange={(c) => setBillingCc(c === true)} className="mt-0.5" />
-                <span>Rechnungen auch an diese Adresse schicken<span className="block text-xs text-muted-foreground">Kommt zu „Weitere Empfänger“ in den Rechnungsdaten.</span></span>
+                <span>{tt('dialog.billingCc')}<span className="block text-xs text-muted-foreground">{tt('dialog.billingCcHint')}</span></span>
               </label>
             )}
 
@@ -292,20 +287,20 @@ export function InviteMemberDialog({
                 {jobContext && !showMoreJobs ? (
                   <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <Lock className="h-3.5 w-3.5" />
-                    Zugriff nur auf diese Stelle ·
+                    {tt('dialog.onlyThisJob')}
                     <button type="button" className="text-primary hover:underline" onClick={() => setShowMoreJobs(true)}>
-                      weitere Stellen hinzufügen
+                      {tt('dialog.addMoreJobs')}
                     </button>
                   </p>
                 ) : (
                   <>
-                    <p className="font-medium">Welche Stellen?</p>
+                    <p className="font-medium">{tt('dialog.whichJobs')}</p>
                     {jobIds.length > 0 && (
                       <div className="flex flex-wrap gap-1.5">
                         {jobIds.map((id) => (
                           <Badge key={id} variant="secondary" className="gap-1 pr-1 font-normal">
                             {jobTitle(id)}
-                            <button type="button" aria-label="Entfernen" onClick={() => toggleJob(id)} className="rounded hover:bg-muted">
+                            <button type="button" aria-label={tt('dialog.remove')} onClick={() => toggleJob(id)} className="rounded hover:bg-muted">
                               <X className="h-3 w-3" />
                             </button>
                           </Badge>
@@ -314,22 +309,22 @@ export function InviteMemberDialog({
                     )}
                     <div className="relative">
                       <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                      <Input value={jobQuery} onChange={(e) => setJobQuery(e.target.value)} placeholder="Stelle suchen …" className="h-8 pl-8 text-sm" />
+                      <Input value={jobQuery} onChange={(e) => setJobQuery(e.target.value)} placeholder={tt('dialog.searchJob')} className="h-8 pl-8 text-sm" />
                     </div>
                     <div className="max-h-44 overflow-y-auto rounded-lg border">
                       {filteredJobs.length === 0 ? (
-                        <p className="p-3 text-xs text-muted-foreground">{orgJobs ? 'Keine laufende Stelle passt.' : 'Stellen werden geladen …'}</p>
+                        <p className="p-3 text-xs text-muted-foreground">{orgJobs ? tt('dialog.noJobMatch') : tt('dialog.jobsLoading')}</p>
                       ) : (
                         filteredJobs.map((j) => (
                           <label key={j.id} className="flex cursor-pointer items-center gap-2 border-b px-3 py-2 last:border-b-0 hover:bg-muted/40">
                             <input type="checkbox" checked={jobIds.includes(j.id)} onChange={() => toggleJob(j.id)} />
                             <span className="min-w-0 flex-1 truncate">{j.title}</span>
-                            <span className="shrink-0 text-[11px] text-muted-foreground">{STATUS_LABEL[j.status] ?? j.status}</span>
+                            <span className="shrink-0 text-[11px] text-muted-foreground">{(STATUS_KEYS as readonly string[]).includes(j.status) ? tt(`dialog.status.${j.status}`) : j.status}</span>
                           </label>
                         ))
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground">Es erscheinen nur laufende Stellen und Stellen in Prüfung.</p>
+                    <p className="text-xs text-muted-foreground">{tt('dialog.jobsHint')}</p>
                   </>
                 )}
               </div>
@@ -337,20 +332,20 @@ export function InviteMemberDialog({
 
             {!existing && (
               <div className="space-y-1.5">
-                <Label htmlFor="invite-message" className="text-xs text-muted-foreground">Kurze Nachricht (optional)</Label>
+                <Label htmlFor="invite-message" className="text-xs text-muted-foreground">{tt('dialog.message')}</Label>
                 <Textarea
                   id="invite-message"
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   rows={2}
                   maxLength={500}
-                  placeholder={jobContext ? `${name.trim().split(' ')[0] || 'Hallo'}, bitte schau dir die Kandidaten an.` : ''}
+                  placeholder={jobContext ? tt('dialog.messagePlaceholder', { name: name.trim().split(' ')[0] || tt('dialog.hello') }) : ''}
                 />
               </div>
             )}
 
             <div className="flex items-center justify-between gap-2 pt-2">
-              <span className="text-xs text-muted-foreground">{existing ? '' : 'Einladung per E-Mail, 7 Tage gültig'}</span>
+              <span className="text-xs text-muted-foreground">{existing ? '' : tt('dialog.footer')}</span>
               <div className="flex gap-2">
                 <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
                   {t('team.invite.cancel')}
@@ -358,7 +353,7 @@ export function InviteMemberDialog({
                 {existing ? (
                   <Button onClick={grantAccess} disabled={granting || jobIds.length === 0 || !needsJobScope}>
                     {granting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    Zugriff geben
+                    {tt('dialog.grant')}
                   </Button>
                 ) : (
                   <Button onClick={submit} disabled={sendInvite.isPending || !emailValid || (needsJobScope && jobIds.length === 0)}>

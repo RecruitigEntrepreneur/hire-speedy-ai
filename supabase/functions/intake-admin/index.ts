@@ -11,6 +11,8 @@ import { accountForEmail, lastAccessMail, notifyAccessProblem, sendClientAccess 
 import { linkFramework, notifyFrameworkConflict } from '../_shared/framework-link.ts';
 import { firmenprofilAusAufnahme, firmaAusAufnahme } from '../_shared/firmenprofil.ts';
 import { holeFirmenlogo } from '../_shared/firmenlogo.ts';
+import { customerMailLanguage, profileLanguage, seedProfileLanguage } from '../_shared/intake-language.ts';
+import { reviewMailTexts } from '../_shared/intake-i18n.ts';
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void } | undefined;
 
@@ -30,7 +32,10 @@ async function deliverAccess(supabase: Db, draft: Record<string, any>, mandate: 
   }
   // An die Adresse des Kontos: nur für sie öffnet der Link die Anmeldung.
   const { data } = await supabase.auth.admin.getUserById(userId);
+  // In der Sprache des Kunden: Entwurf, sonst Link, sonst Profil des Kontos.
+  const lang = await customerMailLanguage(supabase, draft) ?? await profileLanguage(supabase, userId);
   const result = await sendClientAccess(supabase, {
+    lang,
     userId, email: data?.user?.email ?? draft.contact_email, name: draft.contact_name ?? null,
     title: draftSummary(draft).title, mandateNumber: mandate.mandate_number ?? null,
     signed: signed || mandate.signature_status === 'not_required',
@@ -198,6 +203,10 @@ serve(async (req) => {
           });
         }
       }
+
+      // Sprache der Aufnahme ans Profil, wenn dort noch keine steht: In ihr
+      // öffnet sich das Dashboard, und die Anmeldecodes gehen in ihr raus.
+      await seedProfileLanguage(supabase, clientUserId, await customerMailLanguage(supabase, draft));
 
       // ---- Uebergang, atomar in der Datenbank ------------------------------
       const jobRow = draftToJobRow(draft);
@@ -370,25 +379,26 @@ serve(async (req) => {
       }
 
       if (draft.contact_email) {
+        // Der Rahmen der Mail in der Sprache des Kunden (Entwurf, sonst Link). Der
+        // Grund steht so da, wie der Admin ihn geschrieben hat.
+        const mailLang = await customerMailLanguage(supabase, draft);
+        const text = reviewMailTexts(mailLang, { reject: isReject });
         const html = layout({
-          preheader: isReject ? 'Zu Ihrer Anfrage' : 'Wir haben noch eine Rückfrage.',
-          heading: isReject ? 'Zu Ihrer Anfrage' : 'Eine Rückfrage zu Ihrer Anfrage',
+          lang: mailLang,
+          preheader: text.preheader,
+          heading: text.heading,
           body: `
-            <p style="margin:0 0 16px 0;">Guten Tag ${esc(draft.contact_name ?? '')},</p>
+            <p style="margin:0 0 16px 0;">${text.hello} ${esc(draft.contact_name ?? '')},</p>
             <p style="margin:0 0 16px 0;">
-              ${
-                isReject
-                  ? `wir können Ihre Anfrage für <strong>${esc(summary.title)}</strong> derzeit leider nicht annehmen.`
-                  : `zu Ihrer Anfrage für <strong>${esc(summary.title)}</strong> haben wir noch eine Rückfrage.`
-              }
+              ${text.lead(`<strong>${esc(summary.title)}</strong>`)}
             </p>
             <div style="margin:0 0 16px 0;padding:14px 16px;background:#f9fafb;border-left:3px solid #d1d5db;">${esc(reason).replace(/\n/g, '<br/>')}</div>
-            ${isReject ? '<p style="margin:0;">Für Rückfragen erreichen Sie uns jederzeit über diese Adresse.</p>' : ''}`,
-          cta: resumeUrl ? { label: 'Aufnahme ergänzen', url: resumeUrl } : undefined,
+            ${isReject ? `<p style="margin:0;">${text.closing}</p>` : ''}`,
+          cta: resumeUrl ? { label: text.cta, url: resumeUrl } : undefined,
         });
         await sendIntakeMail(supabase, {
           to: draft.contact_email,
-          subject: isReject ? 'Zu Ihrer Beauftragungsanfrage' : 'Rückfrage zu Ihrer Beauftragungsanfrage',
+          subject: text.subject,
           html,
           template: isReject ? 'intake_rejected' : 'intake_changes_requested',
           replyTo: adminEmail,

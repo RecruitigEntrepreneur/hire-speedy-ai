@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Sparkles, ChevronDown, ChevronUp, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 interface CandidateCvAiSummaryCardProps {
   summary: string | null;
@@ -11,6 +12,7 @@ interface CandidateCvAiSummaryCardProps {
 }
 
 export function CandidateCvAiSummaryCard({ summary, bullets }: CandidateCvAiSummaryCardProps) {
+  const { t } = useTranslation('candidateDetail');
   const [expanded, setExpanded] = useState(false);
 
   // Parse bullets safely
@@ -24,12 +26,12 @@ export function CandidateCvAiSummaryCard({ summary, bullets }: CandidateCvAiSumm
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <FileText className="h-4 w-4 text-muted-foreground" />
-            AI-Zusammenfassung
+            {t('cvSummary.title')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Kein CV geparst – laden Sie einen Lebenslauf hoch für automatische Analyse.
+            {t('cvSummary.empty')}
           </p>
         </CardContent>
       </Card>
@@ -47,9 +49,9 @@ export function CandidateCvAiSummaryCard({ summary, bullets }: CandidateCvAiSumm
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-primary" />
-          AI-Zusammenfassung
+          {t('cvSummary.title')}
           <Badge variant="secondary" className="text-xs ml-auto">
-            aus CV
+            {t('cvSummary.fromCv')}
           </Badge>
         </CardTitle>
       </CardHeader>
@@ -72,12 +74,12 @@ export function CandidateCvAiSummaryCard({ summary, bullets }: CandidateCvAiSumm
                 {expanded ? (
                   <>
                     <ChevronUp className="h-3 w-3 mr-1" />
-                    Weniger anzeigen
+                    {t('common.showLess')}
                   </>
                 ) : (
                   <>
                     <ChevronDown className="h-3 w-3 mr-1" />
-                    Mehr anzeigen
+                    {t('common.showMore')}
                   </>
                 )}
               </Button>
@@ -87,7 +89,7 @@ export function CandidateCvAiSummaryCard({ summary, bullets }: CandidateCvAiSumm
 
         {parsedBullets.length > 0 && (
           <div className="pt-2 border-t">
-            <p className="text-xs text-muted-foreground mb-2">Highlights</p>
+            <p className="text-xs text-muted-foreground mb-2">{t('cvSummary.highlights')}</p>
             <ul className="space-y-1">
               {parsedBullets.slice(0, expanded ? undefined : 3).map((bullet, idx) => (
                 <li key={idx} className="flex items-start gap-2 text-sm">
@@ -104,7 +106,7 @@ export function CandidateCvAiSummaryCard({ summary, bullets }: CandidateCvAiSumm
                 onClick={() => setExpanded(true)}
               >
                 <ChevronDown className="h-3 w-3 mr-1" />
-                +{parsedBullets.length - 3} weitere
+                {t('cvSummary.more', { count: parsedBullets.length - 3 })}
               </Button>
             )}
           </div>

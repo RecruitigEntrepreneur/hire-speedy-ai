@@ -6,6 +6,12 @@
  * den Kunden. Gehalt, Angebot, Start und Bedenken gehen nie an den Kunden.
  */
 import { earliestStart } from './candidateDossier';
+import i18n from '@/i18n';
+import { fmtDate, fmtMoney, isGerman, tFor } from '@/lib/localeFormat';
+
+// Sätze in der Sprache der Oberfläche (taskTexts:nachLib), gelesen beim Aufruf (README Regel 7).
+// Die Listen unten tragen den deutschen Text als Rückfall; angezeigt wird recruiterTasks:nach.options.*.
+const tn = (key: string, options?: Record<string, unknown>): string => i18n.t(`taskTexts:nachLib.${key}`, options);
 
 export type Drei = 'ja' | 'unsicher' | 'nein';
 export type Bauch = 'gut' | 'gemischt' | 'schlecht';
@@ -48,9 +54,15 @@ export const START: { key: StartArt; label: string }[] = [
   { key: 'sofort', label: 'Sofort' }, { key: 'nach_frist', label: 'Nach Kündigungsfrist' }, { key: 'fester_tag', label: 'Fester Tag' },
 ];
 
-const labelOf = (list: { key: string; label: string }[], key: string | null) => list.find(x => x.key === key)?.label ?? null;
-export const euroVoll = (n: number) => `${n.toLocaleString('de-DE')} €`;
-const datum = (iso: string) => new Date(`${iso.slice(0, 10)}T12:00:00`).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+const GROUP = new Map<unknown, string>([[BAUCH, 'bauch'], [DREI, 'drei'], [ANGEBOT_PUNKTE, 'angebot'], [START, 'start']]);
+const labelOf = (list: { key: string; label: string }[], key: string | null) => {
+  const hit = list.find(x => x.key === key);
+  if (!hit) return null;
+  return i18n.t(`recruiterTasks:nach.options.${GROUP.get(list)}.${hit.key}`, { defaultValue: hit.label });
+};
+/** „92.000 €“ auf Deutsch wie bisher, sonst Geldformat der Sprache. */
+export const euroVoll = (n: number) => (isGerman() ? `${n.toLocaleString('de-DE')} €` : fmtMoney(n));
+const datum = (iso: string) => fmtDate(`${iso.slice(0, 10)}T12:00:00`);
 
 /** „92.000“, „92k“, „92 000 €“ → 92000. Leer → null. */
 export function parseEuro(input: string): number | null {
@@ -81,35 +93,35 @@ export interface Abgleich {
 export function gehaltAbgleich(n: Nachgespraech, ctx: { akte: number | null; stelleMin: number | null; stelleMax: number | null }): Abgleich | null {
   const wunsch = wunschGehalt(n);
   if (!wunsch) return null;
-  const was = n.angebot_fix_min ? `Angebot ab ${euroVoll(wunsch)}` : `${euroVoll(wunsch)} genannt`;
+  const was = n.angebot_fix_min ? tn('salary.offerFrom', { amount: euroVoll(wunsch) }) : tn('salary.named', { amount: euroVoll(wunsch) });
   const teile: string[] = [];
   let warn = false;
-  if (ctx.stelleMax && wunsch > ctx.stelleMax) { teile.push(`liegt über der Stelle (bis ${euroVoll(ctx.stelleMax)})`); warn = true; }
-  else if (ctx.stelleMax && wunsch === ctx.stelleMax) { teile.push(`liegt am oberen Ende der Stelle (bis ${euroVoll(ctx.stelleMax)})`); warn = true; }
-  else if (ctx.stelleMax || ctx.stelleMin) teile.push('passt zur Stelle');
+  if (ctx.stelleMax && wunsch > ctx.stelleMax) { teile.push(tn('salary.aboveJob', { max: euroVoll(ctx.stelleMax) })); warn = true; }
+  else if (ctx.stelleMax && wunsch === ctx.stelleMax) { teile.push(tn('salary.topOfJob', { max: euroVoll(ctx.stelleMax) })); warn = true; }
+  else if (ctx.stelleMax || ctx.stelleMin) teile.push(tn('salary.fitsJob'));
   if (n.gehalt_besprochen && n.gehalt_firma && wunsch > n.gehalt_firma) {
-    teile.push(teile.length ? `Firma nannte ${euroVoll(n.gehalt_firma)}` : `liegt über dem, was die Firma nannte (${euroVoll(n.gehalt_firma)})`);
+    teile.push(teile.length ? tn('salary.companyNamed', { amount: euroVoll(n.gehalt_firma) }) : tn('salary.aboveCompany', { amount: euroVoll(n.gehalt_firma) }));
     warn = true;
   }
   const akte = ctx.akte !== wunsch
-    ? { field: 'expected_salary' as const, value: wunsch, label: ctx.akte ? `Akte von ${euroVoll(ctx.akte)} auf ${euroVoll(wunsch)} setzen?` : `Wunschgehalt ${euroVoll(wunsch)} in die Akte?` }
+    ? { field: 'expected_salary' as const, value: wunsch, label: ctx.akte ? tn('salary.fileFromTo', { from: euroVoll(ctx.akte), to: euroVoll(wunsch) }) : tn('salary.fileSet', { amount: euroVoll(wunsch) }) }
     : undefined;
   if (teile.length === 0 && !akte) return null;
-  return { tone: warn ? 'warn' : 'ok', text: teile.length ? `${was} ${teile.join(', ')}.` : `${was}.`, akte };
+  return { tone: warn ? 'warn' : 'ok', text: teile.length ? tn('sentence', { what: was, parts: teile.join(', ') }) : tn('sentenceShort', { what: was }), akte };
 }
 
 export function startAbgleich(n: Nachgespraech, ctx: { noticePeriod: string | null; availabilityDate: string | null }, today: Date): Abgleich | null {
   const frist = ctx.noticePeriod ? earliestStart(ctx.noticePeriod, today) : null;
   const wunsch = n.start_art === 'sofort' ? isoTag(today) : n.start_art === 'nach_frist' ? frist : n.start_datum;
   if (!wunsch) return null;
-  const was = n.start_art === 'sofort' ? 'Start sofort' : `Start ${datum(wunsch)}`;
+  const was = n.start_art === 'sofort' ? tn('start.now') : tn('start.on', { date: datum(wunsch) });
   let text: string;
   let warn = false;
-  if (frist && wunsch < frist) { text = `${was} liegt vor dem Ende der Kündigungsfrist (frühestens ${datum(frist)}).`; warn = true; }
-  else if (frist) text = `${was} passt zur Kündigungsfrist.`;
-  else text = `${was}.`;
+  if (frist && wunsch < frist) { text = tn('start.beforeNotice', { what: was, date: datum(frist) }); warn = true; }
+  else if (frist) text = tn('start.fitsNotice', { what: was });
+  else text = tn('sentenceShort', { what: was });
   const akte = (ctx.availabilityDate ?? '').slice(0, 10) !== wunsch
-    ? { field: 'availability_date' as const, value: wunsch, label: ctx.availabilityDate ? `Akte „verfügbar ab“ von ${datum(ctx.availabilityDate)} auf ${datum(wunsch)} setzen?` : `„Verfügbar ab ${datum(wunsch)}“ in die Akte?` }
+    ? { field: 'availability_date' as const, value: wunsch, label: ctx.availabilityDate ? tn('start.fileFromTo', { from: datum(ctx.availabilityDate), to: datum(wunsch) }) : tn('start.fileSet', { date: datum(wunsch) }) }
     : undefined;
   return { tone: warn ? 'warn' : 'ok', text, akte };
 }
@@ -122,19 +134,25 @@ function isoTag(d: Date) {
 export function zusammenfassung(n: Nachgespraech, today: Date, noticePeriod: string | null = null): string[] {
   const z: string[] = [];
   const bauch = labelOf(BAUCH, n.bauchgefuehl);
-  if (bauch) z.push(`Bauchgefühl ${bauch.toLowerCase()}`);
-  if (n.zusammenarbeit) z.push(`Zusammenarbeit: ${labelOf(DREI, n.zusammenarbeit)!.toLowerCase()}${n.ansprechpartner.trim() ? ` (${n.ansprechpartner.trim()})` : ''}`);
-  if (n.gehalt_besprochen === false) z.push('Gehalt: nicht besprochen');
+  if (bauch) z.push(tn('summary.gut', { value: bauch.toLowerCase() }));
+  if (n.zusammenarbeit) {
+    const value = labelOf(DREI, n.zusammenarbeit)!.toLowerCase();
+    z.push(n.ansprechpartner.trim() ? tn('summary.togetherWith', { value, person: n.ansprechpartner.trim() }) : tn('summary.together', { value }));
+  }
+  if (n.gehalt_besprochen === false) z.push(tn('summary.salaryNot'));
   else if (n.gehalt_besprochen && (n.gehalt_kandidat || n.gehalt_firma)) {
-    z.push(`Gehalt: ${[n.gehalt_kandidat ? `Kandidat ${euroVoll(n.gehalt_kandidat)}` : null, n.gehalt_firma ? `Firma ${euroVoll(n.gehalt_firma)}` : null].filter(Boolean).join(', ')}`);
+    z.push(tn('summary.salary', { list: [n.gehalt_kandidat ? tn('summary.salaryCandidate', { amount: euroVoll(n.gehalt_kandidat) }) : null, n.gehalt_firma ? tn('summary.salaryCompany', { amount: euroVoll(n.gehalt_firma) }) : null].filter(Boolean).join(', ') }));
   }
   const punkte = n.angebot_punkte.map(k => labelOf(ANGEBOT_PUNKTE, k)).filter(Boolean).join(', ');
-  if (n.angebot_fix_min || punkte) z.push(`Angebot: ${[n.angebot_fix_min ? `ab ${euroVoll(n.angebot_fix_min)} fix` : null, punkte || null].filter(Boolean).join(', ')}`);
+  if (n.angebot_fix_min || punkte) z.push(tn('summary.offer', { list: [n.angebot_fix_min ? tn('summary.offerFix', { amount: euroVoll(n.angebot_fix_min) }) : null, punkte || null].filter(Boolean).join(', ') }));
   if (n.start_art) {
     const frist = n.start_art === 'nach_frist' && noticePeriod ? earliestStart(noticePeriod, today) : null;
-    z.push(`Start: ${n.start_art === 'sofort' ? 'sofort' : n.start_art === 'nach_frist' ? `nach Kündigungsfrist${frist ? `, ${datum(frist)}` : ''}` : n.start_datum ? datum(n.start_datum) : 'fester Tag, noch offen'}`);
+    const value = n.start_art === 'sofort' ? tn('summary.startNow')
+      : n.start_art === 'nach_frist' ? (frist ? tn('summary.startNoticeOn', { date: datum(frist) }) : tn('summary.startNotice'))
+        : n.start_datum ? datum(n.start_datum) : tn('summary.startOpen');
+    z.push(tn('summary.start', { value }));
   }
-  if (n.will_weiter) z.push(`Will weiter: ${labelOf(DREI, n.will_weiter)!.toLowerCase()}`);
+  if (n.will_weiter) z.push(tn('summary.wants', { value: labelOf(DREI, n.will_weiter)!.toLowerCase() }));
   return z;
 }
 
@@ -142,28 +160,24 @@ export function zusammenfassung(n: Nachgespraech, today: Date, noticePeriod: str
 export function kurzzeile(n: Nachgespraech): string {
   const t: string[] = [];
   if (n.bauchgefuehl) t.push(labelOf(BAUCH, n.bauchgefuehl)!.toLowerCase());
-  if (n.will_weiter === 'ja') t.push('will weiter');
-  else if (n.will_weiter === 'unsicher') t.push('unsicher');
-  else if (n.will_weiter === 'nein') t.push('will nicht weiter');
+  if (n.will_weiter === 'ja') t.push(tn('short.wants'));
+  else if (n.will_weiter === 'unsicher') t.push(tn('short.unsure'));
+  else if (n.will_weiter === 'nein') t.push(tn('short.wantsNot'));
   const head = t.join(', ');
   const wunsch = wunschGehalt(n);
-  return [head || null, wunsch ? (n.angebot_fix_min ? `Angebot ab ${euroVoll(wunsch)}` : euroVoll(wunsch)) : null, n.start_datum ? `Start ${datum(n.start_datum)}` : n.start_art === 'sofort' ? 'Start sofort' : n.start_art === 'nach_frist' ? 'Start nach Kündigungsfrist' : null]
+  return [head || null, wunsch ? (n.angebot_fix_min ? tn('salary.offerFrom', { amount: euroVoll(wunsch) }) : euroVoll(wunsch)) : null, n.start_datum ? tn('start.on', { date: datum(n.start_datum) }) : n.start_art === 'sofort' ? tn('start.now') : n.start_art === 'nach_frist' ? tn('short.startNotice') : null]
     .filter(Boolean).join(' · ');
 }
 
 /**
  * Vorschlag an den Kunden. Ohne Namen (die Mail nennt den Kandidaten darunter) und
- * ohne Gehalt, Angebot, Start oder Bedenken.
+ * ohne Gehalt, Angebot, Start oder Bedenken. In der Sprache des Kunden (`lang`, sonst Deutsch).
  */
-export function kundenText(n: Nachgespraech): string {
-  if (n.will_weiter === 'nein') {
-    return 'Nach dem Interview hat sich der Kandidat entschieden, den Prozess nicht weiterzuführen. Danke für Ihre Zeit und das Gespräch. Gern stelle ich Ihnen weitere Profile vor.';
-  }
-  if (n.will_weiter === 'ja') {
-    const eindruck = n.bauchgefuehl === 'gut' ? 'einen sehr guten Eindruck vom Interview' : 'einen guten Eindruck vom Interview';
-    return `Der Kandidat hat ${eindruck} und möchte gern weitermachen. Wie ist Ihr Eindruck, und wie sieht der nächste Schritt aus?`;
-  }
-  return 'Das Interview ist gelaufen, ich bin mit dem Kandidaten im Austausch. Wie ist Ihr Eindruck, und wie sieht der nächste Schritt aus?';
+export function kundenText(n: Nachgespraech, lang = 'de'): string {
+  const t = (key: string) => tFor(lang, 'taskMessages')(`client.${key}`) as string;
+  if (n.will_weiter === 'nein') return t('afterNo');
+  if (n.will_weiter === 'ja') return t(n.bauchgefuehl === 'gut' ? 'afterYesVeryGood' : 'afterYes');
+  return t('afterOpen');
 }
 
 /** Zeile aus der Datenbank → Formular */

@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/select';
 import { useTalentPool } from '@/hooks/useTalentPool';
 import { UserPlus, Loader2, Star, Clock, Coffee, Users } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const poolSchema = z.object({
   pool_type: z.enum(['general', 'silver_medalist', 'future_fit', 'passive']),
@@ -51,13 +52,6 @@ interface AddToPoolDialogProps {
   trigger?: React.ReactNode;
 }
 
-const poolTypeDescriptions = {
-  general: 'Allgemeiner Kandidatenpool',
-  silver_medalist: 'War auf Platz 2 oder 3, sehr gut qualifiziert',
-  future_fit: 'Noch nicht bereit, aber großes Potenzial',
-  passive: 'Aktuell nicht aktiv suchend',
-};
-
 export function AddToPoolDialog({
   candidateId,
   candidateName,
@@ -66,6 +60,7 @@ export function AddToPoolDialog({
   experienceYears,
   trigger,
 }: AddToPoolDialogProps) {
+  const { t } = useTranslation('talentPool');
   const [open, setOpen] = useState(false);
   const { addToPool } = useTalentPool();
 
@@ -95,15 +90,15 @@ export function AddToPoolDialog({
         {trigger || (
           <Button variant="outline" size="sm">
             <UserPlus className="h-4 w-4 mr-2" />
-            Zum Pool hinzufügen
+            {t('add.button')}
           </Button>
         )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Zum Talent Pool hinzufügen</DialogTitle>
+          <DialogTitle>{t('add.title')}</DialogTitle>
           <DialogDescription>
-            {candidateName} für zukünftige Positionen vormerken
+            {t('add.description', { name: candidateName })}
           </DialogDescription>
         </DialogHeader>
 
@@ -114,42 +109,42 @@ export function AddToPoolDialog({
               name="pool_type"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Kategorie</FormLabel>
+                  <FormLabel>{t('add.category')}</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Kategorie wählen" />
+                        <SelectValue placeholder={t('add.categoryPlaceholder')} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="general">
                         <div className="flex items-center gap-2">
                           <Users className="h-4 w-4" />
-                          Allgemein
+                          {t('typeOption.general')}
                         </div>
                       </SelectItem>
                       <SelectItem value="silver_medalist">
                         <div className="flex items-center gap-2">
                           <Star className="h-4 w-4 text-amber-500" />
-                          Silber-Medaillist
+                          {t('typeOption.silver_medalist')}
                         </div>
                       </SelectItem>
                       <SelectItem value="future_fit">
                         <div className="flex items-center gap-2">
                           <Clock className="h-4 w-4 text-blue-500" />
-                          Future Fit
+                          {t('typeOption.future_fit')}
                         </div>
                       </SelectItem>
                       <SelectItem value="passive">
                         <div className="flex items-center gap-2">
                           <Coffee className="h-4 w-4 text-purple-500" />
-                          Passiv
+                          {t('typeOption.passive')}
                         </div>
                       </SelectItem>
                     </SelectContent>
                   </Select>
                   <FormDescription>
-                    {poolTypeDescriptions[field.value]}
+                    {t(`typeHint.${field.value}`)}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -161,10 +156,10 @@ export function AddToPoolDialog({
               name="added_reason"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Grund für Aufnahme</FormLabel>
+                  <FormLabel>{t('add.reason')}</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="z.B. Sehr guter Kandidat, aber Position besetzt"
+                      placeholder={t('add.reasonPlaceholder')}
                       {...field}
                     />
                   </FormControl>
@@ -178,7 +173,7 @@ export function AddToPoolDialog({
               name="contact_frequency"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Kontakt-Frequenz</FormLabel>
+                  <FormLabel>{t('add.frequency')}</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
@@ -186,13 +181,13 @@ export function AddToPoolDialog({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="monthly">Monatlich</SelectItem>
-                      <SelectItem value="quarterly">Vierteljährlich</SelectItem>
-                      <SelectItem value="yearly">Jährlich</SelectItem>
+                      <SelectItem value="monthly">{t('add.monthly')}</SelectItem>
+                      <SelectItem value="quarterly">{t('add.quarterly')}</SelectItem>
+                      <SelectItem value="yearly">{t('add.yearly')}</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormDescription>
-                    Wie oft soll an Kontaktaufnahme erinnert werden?
+                    {t('add.frequencyHint')}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -204,19 +199,19 @@ export function AddToPoolDialog({
               name="availability"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Verfügbarkeit</FormLabel>
+                  <FormLabel>{t('add.availability')}</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Verfügbarkeit wählen" />
+                        <SelectValue placeholder={t('add.availabilityPlaceholder')} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="immediate">Sofort verfügbar</SelectItem>
-                      <SelectItem value="2_weeks">In 2 Wochen</SelectItem>
-                      <SelectItem value="1_month">In 1 Monat</SelectItem>
-                      <SelectItem value="3_months">In 3 Monaten</SelectItem>
-                      <SelectItem value="passive">Nicht aktiv suchend</SelectItem>
+                      <SelectItem value="immediate">{t('availabilityOption.immediate')}</SelectItem>
+                      <SelectItem value="2_weeks">{t('availabilityOption.2_weeks')}</SelectItem>
+                      <SelectItem value="1_month">{t('availabilityOption.1_month')}</SelectItem>
+                      <SelectItem value="3_months">{t('availabilityOption.3_months')}</SelectItem>
+                      <SelectItem value="passive">{t('availabilityOption.passive')}</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -229,10 +224,10 @@ export function AddToPoolDialog({
               name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Notizen</FormLabel>
+                  <FormLabel>{t('add.notes')}</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Weitere Notizen zum Kandidaten..."
+                      placeholder={t('add.notesPlaceholder')}
                       rows={3}
                       {...field}
                     />
@@ -248,13 +243,13 @@ export function AddToPoolDialog({
                 variant="outline"
                 onClick={() => setOpen(false)}
               >
-                Abbrechen
+                {t('add.cancel')}
               </Button>
               <Button type="submit" disabled={addToPool.isPending}>
                 {addToPool.isPending && (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 )}
-                Hinzufügen
+                {t('add.submit')}
               </Button>
             </div>
           </form>

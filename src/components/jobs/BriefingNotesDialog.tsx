@@ -12,6 +12,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import { useTranslation } from 'react-i18next';
 import { FileText, Loader2 } from 'lucide-react';
 
 interface BriefingNotesDialogProps {
@@ -31,6 +32,7 @@ export function BriefingNotesDialog({
   initialNotes = '',
   onSaved,
 }: BriefingNotesDialogProps) {
+  const { t } = useTranslation('recruiterJobEdit');
   const [notes, setNotes] = useState(initialNotes);
   const [saving, setSaving] = useState(false);
 
@@ -44,12 +46,12 @@ export function BriefingNotesDialog({
 
       if (error) throw error;
 
-      toast.success('Briefing Notes gespeichert');
+      toast.success(t('notes.saved'));
       onOpenChange(false);
       onSaved?.();
     } catch (error) {
       console.error('Error saving briefing notes:', error);
-      toast.error('Fehler beim Speichern');
+      toast.error(t('notes.saveError'));
     } finally {
       setSaving(false);
     }
@@ -61,36 +63,36 @@ export function BriefingNotesDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5 text-primary" />
-            Briefing Notes
+            {t('notes.title')}
           </DialogTitle>
           <DialogDescription>
-            Hinweise für Recruiter zu "{jobTitle}"
+            {t('notes.description', { title: jobTitle })}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="notes">Notizen für Recruiter</Label>
+            <Label htmlFor="notes">{t('notes.label')}</Label>
             <Textarea
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="z.B. Besondere Anforderungen, Team-Kultur, wichtige Soft Skills, No-Gos..."
+              placeholder={t('notes.placeholder')}
               className="min-h-[200px] resize-none"
             />
             <p className="text-xs text-muted-foreground">
-              Diese Notizen helfen Recruitern, passendere Kandidaten zu finden.
+              {t('notes.hint')}
             </p>
           </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Abbrechen
+            {t('notes.cancel')}
           </Button>
           <Button onClick={handleSave} disabled={saving}>
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Speichern
+            {t('notes.save')}
           </Button>
         </DialogFooter>
       </DialogContent>

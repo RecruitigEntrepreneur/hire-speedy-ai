@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -7,12 +8,9 @@ import { toast } from 'sonner';
 import { errorText, fmtDayShort, pauseJob } from '@/lib/jobSearch';
 import { cn } from '@/lib/utils';
 
-const DURATIONS = [
-  { weeks: 1, label: '1 Woche' },
-  { weeks: 2, label: '2 Wochen' },
-  { weeks: 4, label: '4 Wochen' },
-];
+const DURATIONS = [1, 2, 4];
 
+/** Gespeicherte Werte (Grund der Pause, sehen die Headhunter); angezeigt über clientJobs:pause.reason.r<n>. */
 const REASONS = [
   'Wir prüfen erst die vorhandenen Kandidaten',
   'Interne Freigabe offen',
@@ -34,7 +32,9 @@ export function PauseJobDialog({
   jobTitle: string;
   onDone: () => void;
 }) {
+  const { t } = useTranslation('clientJobs');
   const [weeks, setWeeks] = useState(2);
+  const reasonLabel = (r: string) => (r === 'Sonstiges' ? t('pause.other') : t(`pause.reason.r${REASONS.indexOf(r)}`));
   const [reason, setReason] = useState('');
   const [other, setOther] = useState('');
   const [busy, setBusy] = useState(false);
@@ -45,7 +45,7 @@ export function PauseJobDialog({
     setBusy(true);
     try {
       await pauseJob(jobId, until, finalReason);
-      toast.success(`„${jobTitle}“ pausiert bis ${fmtDayShort(until.toISOString())}`);
+      toast.success(t('pause.done', { title: jobTitle, date: fmtDayShort(until.toISOString()) }));
       onOpenChange(false);
       onDone();
     } catch (err) {
@@ -59,31 +59,31 @@ export function PauseJobDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Stelle pausieren</DialogTitle>
+          <DialogTitle>{t('pause.title')}</DialogTitle>
           <DialogDescription>{jobTitle}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 text-sm">
           <div>
-            <p className="mb-1.5 font-medium">Bis wann?</p>
+            <p className="mb-1.5 font-medium">{t('pause.until')}</p>
             <div className="flex flex-wrap gap-2">
-              {DURATIONS.map((d) => (
+              {DURATIONS.map((w) => (
                 <button
-                  key={d.weeks}
+                  key={w}
                   type="button"
-                  onClick={() => setWeeks(d.weeks)}
+                  onClick={() => setWeeks(w)}
                   className={cn(
                     'rounded-md border px-3 py-1.5 text-sm transition-colors',
-                    weeks === d.weeks ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-muted/50',
+                    weeks === w ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-muted/50',
                   )}
                 >
-                  {d.label}
+                  {t('pause.weeks', { count: w })}
                 </button>
               ))}
             </div>
           </div>
           <div>
             <p className="mb-1.5 font-medium">
-              Warum? <span className="font-normal text-muted-foreground">(hilft den Headhuntern)</span>
+              {t('pause.why')} <span className="font-normal text-muted-foreground">{t('pause.whyHint')}</span>
             </p>
             <div className="flex flex-wrap gap-2">
               {[...REASONS, 'Sonstiges'].map((r) => (
@@ -96,28 +96,28 @@ export function PauseJobDialog({
                     reason === r ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-muted/50',
                   )}
                 >
-                  {r}
+                  {reasonLabel(r)}
                 </button>
               ))}
             </div>
             {reason === 'Sonstiges' && (
-              <Input className="mt-2" value={other} onChange={(e) => setOther(e.target.value)} placeholder="Kurz beschreiben" maxLength={120} />
+              <Input className="mt-2" value={other} onChange={(e) => setOther(e.target.value)} placeholder={t('pause.otherPh')} maxLength={120} />
             )}
           </div>
           <ul className="space-y-1 rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
-            <li>Bis zum {fmtDayShort(until.toISOString())} kommen keine neuen Kandidaten.</li>
-            <li>Laufende Kandidaten, Interviews und Angebote gehen weiter.</li>
-            <li>Die Headhunter erfahren es, ihre Suche ruht mit.</li>
-            <li>Danach läuft die Stelle wieder an. 3 Tage vorher fragen wir Sie: verlängern oder schließen?</li>
+            <li>{t('pause.info1', { date: fmtDayShort(until.toISOString()) })}</li>
+            <li>{t('pause.info2')}</li>
+            <li>{t('pause.info3')}</li>
+            <li>{t('pause.info4')}</li>
           </ul>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Abbrechen
+            {t('common.cancel')}
           </Button>
           <Button onClick={confirm} disabled={busy || (reason === 'Sonstiges' && !other.trim())}>
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-            Pausieren bis {fmtDayShort(until.toISOString())}
+            {t('pause.confirm', { date: fmtDayShort(until.toISOString()) })}
           </Button>
         </DialogFooter>
       </DialogContent>

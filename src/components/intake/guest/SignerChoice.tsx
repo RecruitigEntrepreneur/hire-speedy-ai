@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,6 +27,7 @@ interface Props {
 }
 
 export function SignerChoice({ contactName, busy, error, onChoose }: Props) {
+  const { t } = useTranslation('clientFunnel');
   const [modus, setModus] = useState<'frage' | 'andere'>('frage');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -33,9 +35,9 @@ export function SignerChoice({ contactName, busy, error, onChoose }: Props) {
   return (
     <div className="space-y-5">
       <div className="text-center">
-        <h1 className="text-xl font-bold tracking-tight">Wer unterschreibt den Vertrag?</h1>
+        <h1 className="text-xl font-bold tracking-tight">{t('signer.title')}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Rahmenvertrag und Einzelauftrag gehen in einem Durchgang zur Unterschrift.
+          {t('signer.lead')}
         </p>
       </div>
 
@@ -50,10 +52,10 @@ export function SignerChoice({ contactName, busy, error, onChoose }: Props) {
             <UserCheck className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
             <span>
               <span className="block font-medium">
-                Ich unterschreibe selbst{contactName ? ` – ${contactName}` : ''}
+                {contactName ? t('signer.selfNamed', { name: contactName }) : t('signer.self')}
               </span>
               <span className="mt-0.5 block text-sm text-muted-foreground">
-                Sie unterschreiben gleich hier, ohne Umweg über E-Mail. Dauert etwa zwei Minuten.
+                {t('signer.selfText')}
               </span>
             </span>
             {busy && <Loader2 className="ml-auto h-4 w-4 animate-spin" />}
@@ -67,10 +69,9 @@ export function SignerChoice({ contactName, busy, error, onChoose }: Props) {
           >
             <Users className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
             <span>
-              <span className="block font-medium">Jemand anderes unterschreibt</span>
+              <span className="block font-medium">{t('signer.other')}</span>
               <span className="mt-0.5 block text-sm text-muted-foreground">
-                Wir senden den Vertrag direkt an die zuständige Person. Sie bekommen Bescheid,
-                sobald unterschrieben ist.
+                {t('signer.otherText')}
               </span>
             </span>
           </button>
@@ -78,31 +79,31 @@ export function SignerChoice({ contactName, busy, error, onChoose }: Props) {
       ) : (
         <div className="space-y-4 rounded-lg border p-4">
           <div>
-            <Label htmlFor="signer-name">Name der unterzeichnenden Person</Label>
+            <Label htmlFor="signer-name">{t('signer.nameLabel')}</Label>
             <Input id="signer-name" value={name} onChange={(e) => setName(e.target.value)}
-              className="mt-1" placeholder="Vor- und Nachname" autoFocus />
+              className="mt-1" placeholder={t('common.namePlaceholder')} autoFocus />
           </div>
           <div>
-            <Label htmlFor="signer-mail">Geschäftliche E-Mail-Adresse</Label>
+            <Label htmlFor="signer-mail">{t('common.businessEmail')}</Label>
             <Input id="signer-mail" type="email" value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1" placeholder="name@ihrunternehmen.de" />
+              className="mt-1" placeholder={t('common.emailPlaceholder')} />
             <p className="mt-1 text-xs text-muted-foreground">
-              An diese Adresse geht der Vertrag zur digitalen Unterschrift.
+              {t('signer.emailHint')}
             </p>
           </div>
 
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setModus('frage')} disabled={busy}>
-              Zurück
+              {t('common.back')}
             </Button>
             <Button
               className="flex-1"
               disabled={busy || !name.trim() || !email.trim()}
               onClick={() => onChoose({ self: false, name: name.trim(), email: email.trim() })}
             >
-              {busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Wird gesendet …</>
-                    : <><FileSignature className="mr-2 h-4 w-4" /> Vertrag dorthin senden</>}
+              {busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t('common.sending')}</>
+                    : <><FileSignature className="mr-2 h-4 w-4" /> {t('signer.send')}</>}
             </Button>
           </div>
         </div>
@@ -115,8 +116,7 @@ export function SignerChoice({ contactName, busy, error, onChoose }: Props) {
       )}
 
       <p className="text-center text-xs text-muted-foreground">
-        Mit dieser Anfrage ist noch kein Vertrag zustande gekommen. Er wird wirksam, wenn
-        beide Seiten unterschrieben haben — Sie zuerst, Matchunt zuletzt.
+        {t('signer.note')}
       </p>
     </div>
   );

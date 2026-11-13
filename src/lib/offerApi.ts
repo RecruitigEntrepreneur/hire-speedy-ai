@@ -1,4 +1,10 @@
 import { callFunction } from '@/lib/interviewScheduling';
+import i18n from '@/i18n';
+import { intlLocale } from '@/i18n/languages';
+import { fmtNumber, fmtTime, isGerman } from '@/lib/localeFormat';
+
+// Anzeige in der Sprache der Oberfläche (offers), gelesen beim Aufruf (README Regel 7)
+const to = (key: string, options?: Record<string, unknown>): string => i18n.t(`offers:${key}`, options);
 
 /** Angebot über den Headhunter (22.10.2026): Typen und Aufrufe der Function offer. */
 
@@ -146,58 +152,78 @@ export const offerApi = {
   context: (submissionId: string) => callFunction<OfferContext>('offer', { action: 'context', submissionId }),
   recruiterContext: (submissionId: string) => callFunction<RecruiterOfferContext>('offer', { action: 'recruiter_context', submissionId }),
   einsatzAnfragen: (submissionId: string, input: EinsatzInput) =>
-    callFunction<{ ok: true; requestedAt: string; einsatz: EinsatzInput }>('offer', { action: 'einsatz_anfragen', submissionId, ...input }, 'Die Anfrage konnte nicht gesendet werden.'),
-  create: (input: OfferInput) => callFunction<{ offerId: string; offer: OfferView; candidateMailAt: string | null }>('offer', { action: 'create', ...input }, 'Das Angebot konnte nicht gesendet werden.'),
-  respond: (input: AnswerInput) => callFunction<{ ok: true; offer: OfferView; awaitingConfirmation?: boolean }>('offer', { action: 'respond', ...input }, 'Die Antwort konnte nicht gespeichert werden.'),
+    callFunction<{ ok: true; requestedAt: string; einsatz: EinsatzInput }>('offer', { action: 'einsatz_anfragen', submissionId, ...input }, to('errors.einsatz')),
+  create: (input: OfferInput) => callFunction<{ offerId: string; offer: OfferView; candidateMailAt: string | null }>('offer', { action: 'create', ...input }, to('errors.create')),
+  respond: (input: AnswerInput) => callFunction<{ ok: true; offer: OfferView; awaitingConfirmation?: boolean }>('offer', { action: 'respond', ...input }, to('errors.respond')),
   /** Gespräch geführt: Mail mit dem Angebot geht sofort an den Kandidaten */
-  talked: (offerId: string) => callFunction<{ ok: true; alreadySent?: boolean }>('offer', { action: 'talked', offerId }, 'Die Mail konnte nicht gesendet werden.'),
+  talked: (offerId: string) => callFunction<{ ok: true; alreadySent?: boolean }>('offer', { action: 'talked', offerId }, to('errors.talked')),
   /** Rückruf erledigt: bleibt beim Angebot, oder nicht erreicht (nur notiert) */
   callbackDone: (offerId: string, outcome: 'stays' | 'unreachable') =>
-    callFunction<{ ok: true; outcome: string }>('offer', { action: 'callback_done', offerId, outcome }, 'Das konnte nicht gespeichert werden.'),
+    callFunction<{ ok: true; outcome: string }>('offer', { action: 'callback_done', offerId, outcome }, to('errors.callback')),
   keep: (offerId: string, note: string) => callFunction<{ ok: true }>('offer', { action: 'keep', offerId, note }),
   /** Gegenwunsch annehmen: Version 2 mit genau den Werten des Wunsches */
-  acceptCounter: (offerId: string) => callFunction<{ offerId: string; offer: OfferView }>('offer', { action: 'accept_counter', offerId }, 'Der Wunsch konnte nicht angenommen werden.'),
+  acceptCounter: (offerId: string) => callFunction<{ offerId: string; offer: OfferView }>('offer', { action: 'accept_counter', offerId }, to('errors.acceptCounter')),
   withdraw: (offerId: string) => callFunction<{ ok: true }>('offer', { action: 'withdraw', offerId }),
   extend: (offerId: string, responseDue: string) => callFunction<{ ok: true }>('offer', { action: 'extend', offerId, responseDue }),
   /** Headhunter bittet den Kunden um mehr Zeit für den Kandidaten */
-  askExtension: (offerId: string) => callFunction<{ ok: true }>('offer', { action: 'ask_extension', offerId }, 'Die Bitte konnte nicht gesendet werden.'),
+  askExtension: (offerId: string) => callFunction<{ ok: true }>('offer', { action: 'ask_extension', offerId }, to('errors.askExtension')),
   recommend: (submissionId: string, intro: string, items: RecommendationItem[]) =>
-    callFunction<{ ok: true }>('offer', { action: 'recommend', submissionId, intro, items }, 'Die Empfehlung konnte nicht gesendet werden.'),
+    callFunction<{ ok: true }>('offer', { action: 'recommend', submissionId, intro, items }, to('errors.recommend')),
 };
 
+/** Absagegründe: `key` wird gespeichert, `label` ist der deutsche Text; angezeigt wird `declineLabel(key)`. */
 export const DECLINE_REASONS: { key: string; label: string }[] = [
   { key: 'salary', label: 'Gehalt' }, { key: 'counter_offer', label: 'Gegenangebot Arbeitgeber' }, { key: 'other_job', label: 'andere Stelle' },
   { key: 'personal', label: 'persönlich' }, { key: 'other', label: 'anderer Grund' },
 ];
 
+export const declineLabel = (key: string) => to(`decline.${key}`, { defaultValue: DECLINE_REASONS.find((r) => r.key === key)?.label ?? key });
+
+/**
+ * „Ort · Modell“ des Angebots, so gespeichert, wie die Function es baut („München · 3 Tage Büro“)
+ * oder der Kunde es geändert hat. Angezeigt werden die bekannten Teile in der Sprache der Oberfläche.
+ */
+export function workModelLabel(value: string | null | undefined): string {
+  if (!value || isGerman()) return value ?? '';
+  return value.split(' · ').map((part) => {
+    const days = part.match(/^(\d+) Tage Büro$/);
+    if (days) return to('workModel.officeDays', { count: Number(days[1]) });
+    if (part === 'vor Ort') return to('workModel.onsite');
+    if (part === 'remote') return to('workModel.remote');
+    return part;
+  }).join(' · ');
+}
+
 /** Offene Stände: das Angebot liegt beim Headhunter oder beim Kunden. */
 export const OPEN_OFFER = ['with_recruiter', 'considering', 'accept_reported', 'countered'];
 
-export const euro = (n: number | null | undefined) => (n == null ? '' : `${new Intl.NumberFormat('de-DE').format(n)} €`);
+// Die Namen (…De) sind geblieben; Datum, Zahl und Uhrzeit folgen der Sprache der Oberfläche.
+export const euro = (n: number | null | undefined) => (n == null ? '' : `${fmtNumber(n)} €`);
 /** „Do., 29.10.“; in einem anderen Jahr mit Jahr: „Fr., 01.01.2027“ */
 export const dayDe = (iso: string | null | undefined) => {
   if (!iso) return '';
   const d = new Date(`${iso.slice(0, 10)}T12:00:00`);
   const other = d.getFullYear() !== new Date().getFullYear();
-  return d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', ...(other ? { year: 'numeric' } : {}) });
+  return d.toLocaleDateString(intlLocale(i18n.language), { weekday: 'short', day: '2-digit', month: '2-digit', ...(other ? { year: 'numeric' } : {}) });
 };
 export const isoDay = (d: Date) => d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
 const berlinDay = (ms: number) => new Date(ms).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
-export const timeDe = (iso: string) => new Date(iso).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' });
+export const timeDe = (iso: string) => fmtTime(iso, undefined, 'Europe/Berlin');
+const dayMonthBerlin = (iso: string) => new Date(iso).toLocaleDateString(intlLocale(i18n.language), { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' });
 /** „um 17:05“, „morgen um 08:00“, „am 27.10. um 08:00“ */
 export const whenDe = (iso: string, now: number) => {
   const d = Date.parse(iso);
-  if (berlinDay(d) === berlinDay(now)) return `um ${timeDe(iso)}`;
-  if (berlinDay(d) === berlinDay(now + 86_400_000)) return `morgen um ${timeDe(iso)}`;
-  return `am ${new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' })} um ${timeDe(iso)}`;
+  if (berlinDay(d) === berlinDay(now)) return to('when.today', { time: timeDe(iso) });
+  if (berlinDay(d) === berlinDay(now + 86_400_000)) return to('when.tomorrow', { time: timeDe(iso) });
+  return to('when.on', { date: dayMonthBerlin(iso), time: timeDe(iso) });
 };
 /** Kurz für „seit …“ und „bis …“: „15:05“, „morgen 08:00“, „gestern 17:30“, „22.10., 17:30“ */
 export const shortDe = (iso: string, now: number) => {
   const d = Date.parse(iso);
   if (berlinDay(d) === berlinDay(now)) return timeDe(iso);
-  if (berlinDay(d) === berlinDay(now + 86_400_000)) return `morgen ${timeDe(iso)}`;
-  if (berlinDay(d) === berlinDay(now - 86_400_000)) return `gestern ${timeDe(iso)}`;
-  return `${new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' })}, ${timeDe(iso)}`;
+  if (berlinDay(d) === berlinDay(now + 86_400_000)) return to('short.tomorrow', { time: timeDe(iso) });
+  if (berlinDay(d) === berlinDay(now - 86_400_000)) return to('short.yesterday', { time: timeDe(iso) });
+  return to('short.on', { date: dayMonthBerlin(iso), time: timeDe(iso) });
 };
 
 /** Fünf Werktage ab heute (Bindefrist im Rahmenvertrag). */

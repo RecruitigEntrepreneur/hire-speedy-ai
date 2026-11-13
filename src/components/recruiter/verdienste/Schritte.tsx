@@ -1,4 +1,5 @@
 import { Fragment } from 'react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { Honorar } from '@/components/recruiter/Honorar';
 import type { ChainItem, StepView } from '../../../../supabase/functions/_shared/abrechnung-view';
@@ -8,6 +9,7 @@ import type { ChainItem, StepView } from '../../../../supabase/functions/_shared
  * Ruhig, ohne Ampelfarben; nur der aktuelle Schritt ist hervorgehoben.
  */
 export function SchrittListe({ steps }: { steps: StepView[] }) {
+  const { t } = useTranslation('recruiterEarnings');
   return (
     <ol className="divide-y divide-border border-y border-border">
       {steps.map((s, i) => (
@@ -18,7 +20,7 @@ export function SchrittListe({ steps }: { steps: StepView[] }) {
           <span className={cn(s.state === 'current' && 'font-medium', s.state === 'todo' && 'text-muted-foreground')}>
             <Honorar>{s.text}</Honorar>
             {s.note && <span className="text-muted-foreground"> · <Honorar>{s.note}</Honorar></span>}
-            <span className="sr-only">{s.state === 'done' ? ' (erledigt)' : s.state === 'current' ? ' (jetzt)' : ' (später)'}</span>
+            <span className="sr-only">{s.state === 'done' ? t('steps.done') : s.state === 'current' ? t('steps.current') : t('steps.todo')}</span>
           </span>
           <span className={cn('whitespace-nowrap text-xs tabular-nums', s.state === 'current' ? 'text-foreground' : 'text-muted-foreground')}>{s.date}</span>
         </li>

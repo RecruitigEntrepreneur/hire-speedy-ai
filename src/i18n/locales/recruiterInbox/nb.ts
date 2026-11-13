@@ -1,0 +1,55 @@
+import type de from './de';
+import type { Messages } from '../../types';
+
+const nb: Messages<typeof de> = {
+  notifications: {
+    title: 'Varsler',
+    unread_one: '{{count}} ulest melding',
+    unread_other: '{{count}} uleste meldinger',
+    allRead: 'Alle meldinger lest',
+    markAll: 'Merk alle som lest',
+    markedAll: 'Alle merket som lest',
+    all: 'Alle',
+    unreadTab: 'Uleste',
+    emptyTitle: 'Ingen varsler',
+    emptyUnread: 'Alle meldinger er lest',
+    emptyAll: 'Du har ikke fått noen varsler ennå',
+    optInNote: 'Bare kandidaten selv kan takke ja, med et klikk i invitasjonen.',
+  },
+  time: {
+    justNow: 'Akkurat nå',
+    minutes: 'For {{count}} min siden',
+    hours: 'For {{count}} t siden',
+    yesterday: 'I går',
+  },
+  messages: {
+    title: 'Meldinger',
+    unread_one: '{{count}} ulest melding',
+    unread_other: '{{count}} uleste meldinger',
+    subtitle: 'Kommunikasjon med kunder',
+    unknown: 'Ukjent',
+    client: 'Kunde',
+    clientOf: 'Kunde · {{company}}',
+    sent: 'Sendt',
+    scrubbed: 'Kandidatens navn eller arbeidsgiver ble fjernet fordi vedkommende ikke har samtykket ennå.',
+    error: 'Feil',
+    sendFailed: 'Meldingen kunne ikke sendes.',
+    search: 'Søk...',
+    none: 'Ingen samtaler',
+    candidate: 'Kandidat',
+    questionAbout: 'Spørsmål om <link>{{name}}</link> · {{job}}',
+    yourCandidate: 'kandidaten din',
+    replyNote: 'Svaret går til kunden (bjelle og e-post). Kandidatens navn og arbeidsgiver fjernes så lenge vedkommende ikke har samtykket.',
+    write: 'Skriv en melding...',
+    pickTitle: 'Velg en samtale',
+    pickText: 'Klikk på en samtale til venstre for å vise meldinger',
+  },
+  privacy: {
+    title: 'Personvern',
+    subtitle: 'Administrer personopplysningene og samtykkene dine',
+    consents: 'Samtykker',
+    export: 'Dataeksport',
+    delete: 'Slett konto',
+  },
+};
+export default nb;

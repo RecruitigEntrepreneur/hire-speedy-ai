@@ -5,6 +5,9 @@ import { isPlausibleEmail, maskEmail } from './domain.ts';
 import { must, dbError } from './recruiter-onboarding-service.ts';
 import { checkLoginLink } from './recruiter-login-link.ts';
 import { CODE_LENGTH, CODE_PATTERN, storeCode, redeemCode, type SessionDeps } from './login-code.ts';
+import { normLang } from './i18n.ts';
+import { profileLanguage } from './intake-language.ts';
+import { clientLoginCodeMailTexts } from './intake-i18n.ts';
 
 /**
  * Kundenanmeldung per Code (/anmelden, Entscheidung 25.09.2026).
@@ -82,7 +85,7 @@ async function resolveEmail(db: SupabaseClient, body: Identity): Promise<string>
   return email;
 }
 
-export async function sendClientCode(db: SupabaseClient, body: Identity & { ip: string | null }, deps: ClientCodeDeps = liveClientDeps()) {
+export async function sendClientCode(db: SupabaseClient, body: Identity & { ip: string | null; lang?: unknown }, deps: ClientCodeDeps = liveClientDeps()) {
   const email = await resolveEmail(db, body);
   const limit = await deps.limits(db, LIMITS.clientCode(email, body.ip));
   if (!limit.allowed) {
@@ -96,18 +99,23 @@ export async function sendClientCode(db: SupabaseClient, body: Identity & { ip: 
   if (!account) return neutral;
   const code = await storeCode(db, account.id, email, CLIENT_CODE_KEY);
   must(code, 'Der Code konnte nicht erzeugt werden. Bitte versuchen Sie es gleich noch einmal.', 'upstream_error');
+  // Sprache der Mail: die des Aufrufs (Auswahl auf der Seite), sonst die am
+  // Profil des Kontos, sonst Deutsch wie bisher.
+  const lang = normLang(body.lang) ?? await profileLanguage(db, account.id);
+  const text = clientLoginCodeMailTexts(lang, { code });
   const result = await deps.mail(db, {
     to: email,
-    subject: `${code} ist Ihr Matchunt-Anmeldecode`,
+    subject: text.subject,
     template: 'client_login_code',
     html: layout({
-      preheader: `Ihr Anmeldecode: ${code}`,
-      heading: 'Ihr Anmeldecode',
-      body: `<p style="margin:0 0 16px 0;">Guten Tag${account.name ? ' ' + esc(account.name) : ''},</p>
-        <p style="margin:0 0 20px 0;">mit diesem Code melden Sie sich bei Matchunt an:</p>
+      lang,
+      preheader: text.preheader,
+      heading: text.heading,
+      body: `<p style="margin:0 0 16px 0;">${text.hello}${account.name ? ' ' + esc(account.name) : ''},</p>
+        <p style="margin:0 0 20px 0;">${text.intro}</p>
         <div style="font-size:34px;font-weight:700;letter-spacing:10px;padding:18px 0;color:#111827;">${esc(code)}</div>
-        <p style="margin:12px 0 0 0;">Der Code ist eine Stunde gültig. Danach fordern Sie auf der Seite einfach einen neuen an.</p>`,
-      footnote: 'Wenn Sie sich gerade nicht bei Matchunt anmelden wollten, ignorieren Sie diese Nachricht. Geben Sie den Code nicht weiter.',
+        <p style="margin:12px 0 0 0;">${text.validity}</p>`,
+      footnote: text.footnote,
     }),
     meta: { user_id: account.id },
   });

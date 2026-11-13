@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { toast } from 'sonner';
+import i18n from '@/i18n';
 
 export interface ReferenceRequest {
   id: string;
@@ -102,11 +103,11 @@ export function useReferenceRequests(candidateId?: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reference-requests'] });
-      toast.success('Referenzanfrage gesendet');
+      toast.success(i18n.t('reference:toast.requested'));
     },
     onError: (error) => {
       console.error('Error requesting reference:', error);
-      toast.error(error.message || 'Fehler beim Senden der Anfrage');
+      toast.error(error.message || i18n.t('reference:toast.requestFailed'));
     },
   });
 
@@ -206,11 +207,11 @@ export function useSubmitReference() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reference-requests'] });
-      toast.success('Referenz erfolgreich eingereicht');
+      toast.success(i18n.t('reference:toast.submitted'));
     },
     onError: (error) => {
       console.error('Error submitting reference:', error);
-      toast.error(error.message || 'Fehler beim Einreichen');
+      toast.error(error.message || i18n.t('reference:toast.submitFailed'));
     },
   });
 }

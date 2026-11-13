@@ -45,7 +45,15 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useTranslation } from 'react-i18next';
+import { useLanguageState } from '@/i18n';
+import { languageDef } from '@/i18n/languages';
+import { Flag } from '@/components/language/Flag';
+import { LanguageItems } from '@/components/language/LanguageMenu';
 import { NotificationBell } from './NotificationBell';
 import { HonorarSchalter } from '@/components/recruiter/Honorar';
 import { GlobalSearch } from './GlobalSearch';
@@ -98,36 +106,41 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
     }
   };
 
+  // Menü des Kunden in der Sprache der Oberfläche (clientNav); Admin-Menü bleibt deutsch.
+  const { t: tClient } = useTranslation('clientNav');
   const clientNavItems: NavItem[] = [
-    { label: 'Dashboard', href: '/dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
+    { label: tClient('items.dashboard'), href: '/dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
     // Kunden-Aufgaben (23.10.2026): Zahl bleibt, bis alles erledigt ist
-    { label: 'Aufgaben', href: '/dashboard/aufgaben', icon: <CheckSquare className="h-4 w-4" />, badge: clientTasks.data?.counts.total ?? 0 },
-    { label: 'Meine Jobs', href: '/dashboard/jobs', icon: <Briefcase className="h-4 w-4" /> },
-    { label: 'Bewerber', href: '/dashboard/candidates', icon: <Users className="h-4 w-4" /> },
-    { label: 'Interviews', href: '/dashboard/interviews', icon: <Calendar className="h-4 w-4" /> },
+    { label: tClient('items.tasks'), href: '/dashboard/aufgaben', icon: <CheckSquare className="h-4 w-4" />, badge: clientTasks.data?.counts.total ?? 0 },
+    { label: tClient('items.jobs'), href: '/dashboard/jobs', icon: <Briefcase className="h-4 w-4" /> },
+    { label: tClient('items.candidates'), href: '/dashboard/candidates', icon: <Users className="h-4 w-4" /> },
+    { label: tClient('items.interviews'), href: '/dashboard/interviews', icon: <Calendar className="h-4 w-4" /> },
     // Besetzungen (Etappe 2, 25.10.2026): ersetzt „Angebote“ und „Placements“
-    { label: 'Besetzungen', href: '/dashboard/besetzungen', icon: <UserCheck className="h-4 w-4" /> },
+    { label: tClient('items.placements'), href: '/dashboard/besetzungen', icon: <UserCheck className="h-4 w-4" /> },
     // Rechnungen (Etappe 3): eigener Bereich, nur wer Rechnungen sehen darf; Zahl = offene Belege
-    ...(clientInvoices.data?.canSee ? [{ label: 'Rechnungen', href: '/dashboard/rechnungen', icon: <Receipt className="h-4 w-4" />, badge: clientInvoices.data.totals.openCount }] : []),
-    { label: 'Analytics', href: '/dashboard/analytics', icon: <BarChart3 className="h-4 w-4" /> },
-    { label: 'Team', href: '/dashboard/team', icon: <UsersRound className="h-4 w-4" /> },
-    { label: 'Nachrichten', href: '/dashboard/messages', icon: <MessageSquare className="h-4 w-4" /> },
+    ...(clientInvoices.data?.canSee ? [{ label: tClient('items.invoices'), href: '/dashboard/rechnungen', icon: <Receipt className="h-4 w-4" />, badge: clientInvoices.data.totals.openCount }] : []),
+    { label: tClient('items.analytics'), href: '/dashboard/analytics', icon: <BarChart3 className="h-4 w-4" /> },
+    { label: tClient('items.team'), href: '/dashboard/team', icon: <UsersRound className="h-4 w-4" /> },
+    { label: tClient('items.messages'), href: '/dashboard/messages', icon: <MessageSquare className="h-4 w-4" /> },
   ];
 
+  // Menü des Headhunters in der Sprache der Oberfläche.
+  const { t: tNav } = useTranslation('recruiterNav');
+  const isRecruiter = role === 'recruiter';
   const recruiterNavItems: NavItem[] = [
-    { label: 'Übersicht', href: '/recruiter', icon: <LayoutDashboard className="h-4 w-4" /> },
-    { label: 'Aufgaben', href: '/recruiter/influence', icon: <CheckSquare className="h-4 w-4" /> },
-    { label: 'Interviews', href: '/recruiter/interviews', icon: <Calendar className="h-4 w-4" /> },
-    { label: 'Offene Jobs', href: '/recruiter/jobs', icon: <Briefcase className="h-4 w-4" /> },
-    { label: 'Meine Kandidaten', href: '/recruiter/candidates', icon: <Users className="h-4 w-4" /> },
-    { label: 'Pipeline', href: '/recruiter/submissions', icon: <FileText className="h-4 w-4" /> },
-    { label: 'Talent Pool', href: '/recruiter/talent-pool', icon: <Database className="h-4 w-4" /> },
-    { label: 'Matchunt Liga', href: '/recruiter/liga', icon: <Trophy className="h-4 w-4" /> },
-    { label: 'Verdienste', href: '/recruiter/earnings', icon: <DollarSign className="h-4 w-4" /> },
-    { label: 'Benachrichtigungen', href: '/recruiter/notifications', icon: <Activity className="h-4 w-4" /> },
-    { label: 'Nachrichten', href: '/recruiter/messages', icon: <MessageSquare className="h-4 w-4" /> },
-    { label: 'Profil', href: '/recruiter/profile', icon: <UserCheck className="h-4 w-4" /> },
-    { label: 'Datenschutz', href: '/recruiter/privacy', icon: <Shield className="h-4 w-4" /> },
+    { label: tNav('items.overview'), href: '/recruiter', icon: <LayoutDashboard className="h-4 w-4" /> },
+    { label: tNav('items.tasks'), href: '/recruiter/influence', icon: <CheckSquare className="h-4 w-4" /> },
+    { label: tNav('items.interviews'), href: '/recruiter/interviews', icon: <Calendar className="h-4 w-4" /> },
+    { label: tNav('items.jobs'), href: '/recruiter/jobs', icon: <Briefcase className="h-4 w-4" /> },
+    { label: tNav('items.candidates'), href: '/recruiter/candidates', icon: <Users className="h-4 w-4" /> },
+    { label: tNav('items.pipeline'), href: '/recruiter/submissions', icon: <FileText className="h-4 w-4" /> },
+    { label: tNav('items.talentPool'), href: '/recruiter/talent-pool', icon: <Database className="h-4 w-4" /> },
+    { label: tNav('items.liga'), href: '/recruiter/liga', icon: <Trophy className="h-4 w-4" /> },
+    { label: tNav('items.earnings'), href: '/recruiter/earnings', icon: <DollarSign className="h-4 w-4" /> },
+    { label: tNav('items.notifications'), href: '/recruiter/notifications', icon: <Activity className="h-4 w-4" /> },
+    { label: tNav('items.messages'), href: '/recruiter/messages', icon: <MessageSquare className="h-4 w-4" /> },
+    { label: tNav('items.profile'), href: '/recruiter/profile', icon: <UserCheck className="h-4 w-4" /> },
+    { label: tNav('items.privacy'), href: '/recruiter/privacy', icon: <Shield className="h-4 w-4" /> },
   ];
 
   const adminNavItems: NavItem[] = [
@@ -171,6 +184,9 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
     ? (financeOnly ? clientNavItems.filter((i) => i.href === '/dashboard/rechnungen') : clientNavItems)
     : [];
 
+  const { t: tCommon } = useTranslation('common');
+  const isClient = role === 'client';
+  const { language } = useLanguageState();
   const settingsHref = role === 'admin' ? '/admin/settings' : role === 'client' ? '/dashboard/settings' : '/recruiter/settings';
 
   // Buchhaltung landet auf jeder anderen Kundenseite bei „Rechnungen“ (Daten gibt ihr der Server ohnehin nicht)
@@ -210,13 +226,21 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
                 <DropdownMenuItem asChild>
                   <Link to={settingsHref} className="cursor-pointer">
                     <Settings className="mr-2 h-4 w-4" />
-                    Einstellungen
+                    {isRecruiter ? tNav('settings') : isClient ? tClient('settings') : 'Einstellungen'}
                   </Link>
                 </DropdownMenuItem>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="cursor-pointer" data-testid="account-language">
+                    <Flag code={languageDef(language).flag} className="mr-2" />
+                    <span className="flex-1">{tCommon('language.label')}</span>
+                    <span className="text-xs text-muted-foreground">{languageDef(language).label}</span>
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="min-w-[13rem]"><LanguageItems /></DropdownMenuSubContent>
+                </DropdownMenuSub>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />
-                  Abmelden
+                  {isRecruiter ? tNav('signOut') : isClient ? tClient('signOut') : 'Abmelden'}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -280,11 +304,11 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
                 )}
               >
                 <Settings className="h-4 w-4" />
-                Einstellungen
+                {isRecruiter ? tNav('settings') : isClient ? tClient('settings') : 'Einstellungen'}
               </Link>
               <div className="flex items-center gap-3 px-3 py-1">
                 <ThemeToggle />
-                <span className="text-xs text-muted-foreground">Theme</span>
+                <span className="text-xs text-muted-foreground">{isClient ? tClient('theme') : 'Theme'}</span>
               </div>
             </div>
           </div>

@@ -1,4 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
+import { intlLocale } from '@/i18n/languages';
+import {
+  chipLabelT, frageIntroT, frageKurzT, frageTextT, frageWhyT, slotLabelT, wertAnzeigeT,
+} from '@/lib/briefCatalogText';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -13,7 +19,7 @@ import { EuroSpanne, SkillList, type FlexibilityMap, type SkillVorschlag } from 
 import { Textarea } from '@/components/ui/textarea';
 import type { BuiltJob, FreelanceTerms } from '@/components/dashboard/intake/types';
 import type { Answers } from '@/components/dashboard/IntakeBriefing';
-import { BENEFIT_GRUPPEN, CONTRACTING_GRUPPEN } from './BenefitsBlock';
+import { BENEFIT_GRUPPEN, CONTRACTING_GRUPPEN, benefitAnzeige, benefitGruppeAnzeige } from './BenefitsBlock';
 import { CompanyBlock, type CompanyDraft, type Anreicherung } from './CompanyBlock';
 import type { CaptureState } from './CaptureStep';
 import { SEKUNDEN } from './etappenZeit';
@@ -37,8 +43,11 @@ import { AlertTriangle, ArrowLeft, ArrowRight, Check, CheckCircle2, FileText, Sp
  */
 
 type Etappe = 0 | 1 | 2 | 3;
-const ETAPPEN = ['Eckdaten', 'Vergütung', 'Anforderungen', 'Rahmendaten'] as const;
-const etappenName = (e: Etappe, freelance: boolean) => (freelance && e === 1 ? 'Konditionen' : ETAPPEN[e]);
+// Nur Schlüssel -- die Texte stehen in den Sprachdateien (intake: etappen.stage.*).
+const ETAPPEN = ['eckdaten', 'verguetung', 'anforderungen', 'rahmendaten'] as const;
+type T = TFunction<['intake', 'intakeCatalog']>;
+const etappenName = (t: T, e: Etappe, freelance: boolean) =>
+  t(`etappen.stage.${freelance && e === 1 ? 'konditionen' : ETAPPEN[e]}`);
 
 type Teil =
   | { art: 'eckdaten' }
@@ -52,42 +61,42 @@ type Teil =
 interface Schritt {
   id: string;
   etappe: Etappe;
-  titel: string;
-  titelContracting?: string;
+  /** Der Titel steht in den Sprachdateien: etappen.step.<id>, bei Contracting etappen.stepContracting.<id>. */
+  titelContracting?: true;
   teile: Teil[];
 }
 
 const SCHRITTE: Schritt[] = [
-  { id: 'worum', etappe: 0, titel: 'Worum geht es', teile: [{ art: 'eckdaten' }] },
-  { id: 'warum', etappe: 0, titel: 'Warum offen', teile: [{ art: 'dialog', frage: 'vakanz' }] },
-  { id: 'alltag', etappe: 0, titel: 'Arbeitsalltag', teile: [{ art: 'dialog', frage: 'alltag' }] },
-  { id: 'abteilung', etappe: 0, titel: 'Abteilung', teile: [{ art: 'felder', place: 'eckdaten', nur: ['department_structure', 'team_size'] }] },
-  { id: 'entscheidung', etappe: 0, titel: 'Berichtet an und Entscheidung', teile: [{ art: 'dialog', frage: 'entscheidung' }] },
+  { id: 'worum', etappe: 0, teile: [{ art: 'eckdaten' }] },
+  { id: 'warum', etappe: 0, teile: [{ art: 'dialog', frage: 'vakanz' }] },
+  { id: 'alltag', etappe: 0, teile: [{ art: 'dialog', frage: 'alltag' }] },
+  { id: 'abteilung', etappe: 0, teile: [{ art: 'felder', place: 'eckdaten', nur: ['department_structure', 'team_size'] }] },
+  { id: 'entscheidung', etappe: 0, teile: [{ art: 'dialog', frage: 'entscheidung' }] },
   {
-    id: 'vertrag', etappe: 0, titel: 'Homeoffice und Vertrag', titelContracting: 'Remote und Vertrag',
+    id: 'vertrag', etappe: 0, titelContracting: true,
     teile: [{ art: 'felder', place: 'eckdaten', nur: ['remote_days', 'contract_limitation'] }, { art: 'dialog', frage: 'vertrag' }],
   },
-  { id: 'verguetung', etappe: 1, titel: 'Vergütung', titelContracting: 'Konditionen', teile: [{ art: 'verguetung' }] },
-  { id: 'foerderung', etappe: 1, titel: 'Förderung', teile: [{ art: 'dialog', frage: 'foerderung' }] },
-  { id: 'kriterien', etappe: 2, titel: 'Kriterien', teile: [{ art: 'kriterien' }] },
-  { id: 'passung', etappe: 2, titel: 'Wer passt', teile: [{ art: 'dialog', frage: 'passung' }] },
-  { id: 'sourcing', etappe: 2, titel: 'Woher gute Kandidaten', teile: [{ art: 'dialog', frage: 'sourcing' }] },
-  { id: 'firma', etappe: 3, titel: 'Ihr Unternehmen', teile: [{ art: 'firma' }] },
-  { id: 'benefits', etappe: 3, titel: 'Benefits', teile: [{ art: 'benefits' }] },
-  { id: 'usp', etappe: 3, titel: 'Alleinstellung', titelContracting: 'Was das Projekt attraktiv macht', teile: [{ art: 'dialog', frage: 'usp' }] },
-  { id: 'kultur', etappe: 3, titel: 'Kultur', titelContracting: 'Zusammenarbeit', teile: [{ art: 'dialog', frage: 'kultur' }] },
-  { id: 'branche', etappe: 3, titel: 'Branche', teile: [{ art: 'dialog', frage: 'branche' }] },
-  { id: 'arbeitszeit', etappe: 3, titel: 'Arbeitszeit', titelContracting: 'Anwesenheit', teile: [{ art: 'felder', place: 'arbeitszeit', nur: ['arbeitszeit'] }] },
-  { id: 'auswahl', etappe: 3, titel: 'Auswahlprozess', teile: [{ art: 'dialog', frage: 'auswahlprozess' }] },
+  { id: 'verguetung', etappe: 1, titelContracting: true, teile: [{ art: 'verguetung' }] },
+  { id: 'foerderung', etappe: 1, teile: [{ art: 'dialog', frage: 'foerderung' }] },
+  { id: 'kriterien', etappe: 2, teile: [{ art: 'kriterien' }] },
+  { id: 'passung', etappe: 2, teile: [{ art: 'dialog', frage: 'passung' }] },
+  { id: 'sourcing', etappe: 2, teile: [{ art: 'dialog', frage: 'sourcing' }] },
+  { id: 'firma', etappe: 3, teile: [{ art: 'firma' }] },
+  { id: 'benefits', etappe: 3, teile: [{ art: 'benefits' }] },
+  { id: 'usp', etappe: 3, titelContracting: true, teile: [{ art: 'dialog', frage: 'usp' }] },
+  { id: 'kultur', etappe: 3, titelContracting: true, teile: [{ art: 'dialog', frage: 'kultur' }] },
+  { id: 'branche', etappe: 3, teile: [{ art: 'dialog', frage: 'branche' }] },
+  { id: 'arbeitszeit', etappe: 3, titelContracting: true, teile: [{ art: 'felder', place: 'arbeitszeit', nur: ['arbeitszeit'] }] },
+  { id: 'auswahl', etappe: 3, teile: [{ art: 'dialog', frage: 'auswahlprozess' }] },
   {
-    id: 'gremien', etappe: 3, titel: 'Betriebsrat und Vertragsdauer', titelContracting: 'Vertragsdauer',
+    id: 'gremien', etappe: 3, titelContracting: true,
     teile: [{ art: 'felder', place: 'arbeitszeit', nur: ['gremien', 'vertragstempo'] }],
   },
   {
-    id: 'erlaubnis', etappe: 3, titel: 'Arbeitserlaubnis und Abwerben',
+    id: 'erlaubnis', etappe: 3,
     teile: [{ art: 'felder', place: 'arbeitszeit', nur: ['arbeitserlaubnis', 'abwerbeschutz'] }],
   },
-  { id: 'einwaende', etappe: 3, titel: 'Einwände', teile: [{ art: 'dialog', frage: 'einwaende' }] },
+  { id: 'einwaende', etappe: 3, teile: [{ art: 'dialog', frage: 'einwaende' }] },
 ];
 
 const PRUEFEN = 'pruefen';
@@ -95,16 +104,16 @@ const PRUEFEN = 'pruefen';
 /** Hoechstens so viele KI-Nachfragen je Aufnahme -- wie im Briefing. */
 const MAX_NACHFRAGEN = 5;
 
-const QUELLE: Record<string, string> = {
-  ad: 'aus der Anzeige gelesen — bitte prüfen',
-  enrich: 'aus dem Impressum',
-  inherit: 'aus Ihrem Firmenprofil',
-  derive: 'aus Ihren Angaben abgeleitet — bitte prüfen',
-};
+/** Herkünfte mit Hinweis -- der Text steht unter intake: shared.source.<herkunft>. */
+const QUELLEN = ['ad', 'enrich', 'inherit', 'derive'];
 
 const frage = (key: string) => BRIEF_QUESTIONS.find((q) => q.key === key);
 const SLOT = new Map(BRIEF_QUESTIONS.flatMap((q) => q.slots.map((s) => [s.key, { s, q }] as const)));
 
+/**
+ * Der Wert als deutscher Text -- NUR fuer die Antwort, die an die KI geht
+ * (`schrittAbschliessen`). Auf dem Bildschirm steht `wertAnzeigeT`.
+ */
 const zeige = (v: unknown): string => {
   if (Array.isArray(v)) return v.join(' · ');
   if (typeof v === 'boolean') return v ? 'Ja' : 'Nein';
@@ -167,6 +176,7 @@ export function EtappenAnsicht({
   ausAnzeigeOffen, aufbauVorschlaege, jobDraft, askAi, sperren, weiter, nextLabel, onResumeLater, firmaFest,
   company, onCompany, onEnrich, speicherStand,
 }: Props) {
+  const { t } = useTranslation(['intake', 'intakeCatalog']);
   const { type, built: b, freelance, flexibility, dyn } = state;
   const built = b as BuiltJob;
   const katalog: CatalogState = dyn.catalog ?? EMPTY_CATALOG_STATE;
@@ -479,8 +489,8 @@ export function EtappenAnsicht({
    */
   const fehltEck = schritt?.teile.some((t) => t.art === 'eckdaten')
     ? [
-        ...(!built.title?.trim() ? [{ key: 'title', label: 'Jobtitel' }] : []),
-        ...(!built.location?.trim() ? [{ key: 'location', label: 'Standort' }] : []),
+        ...(!built.title?.trim() ? [{ key: 'title', label: t('shared.jobTitle') }] : []),
+        ...(!built.location?.trim() ? [{ key: 'location', label: t('shared.location') }] : []),
       ]
     : [];
 
@@ -558,56 +568,56 @@ export function EtappenAnsicht({
   };
 
   // ---- Darstellung -------------------------------------------------------
-  const titelVon = (s: Schritt) => (isFreelance && s.titelContracting) || s.titel;
+  const titelVon = (s: Schritt) => t(isFreelance && s.titelContracting ? `etappen.stepContracting.${s.id}` : `etappen.step.${s.id}`);
 
   const zeileAnzeige = (key: string) => {
     const e = SLOT.get(key);
-    const label = e ? slotLabel(e.s, type) : key;
-    return { key, label, wert: zeige(katalogKnown[key]?.value) };
+    const label = e ? slotLabelT(e.s, type) : key;
+    return { key, label, wert: wertAnzeigeT(key, katalogKnown[key]?.value, type) };
   };
 
-  const teilRendern = (t: Teil, i: number) => {
-    switch (t.art) {
+  const teilRendern = (teil: Teil, i: number) => {
+    switch (teil.art) {
       case 'eckdaten':
         return (
           <div key={i} className="space-y-3">
-            <p className="text-base font-semibold">Worum geht es?</p>
-            {ausAnzeige && <p className="-mt-2 text-[11px] text-amber-600">Arbeitsmodell und Erfahrung aus Ihrer Anzeige — bitte prüfen</p>}
+            <p className="text-base font-semibold">{t('etappen.whatAbout')}</p>
+            {ausAnzeige && <p className="-mt-2 text-[11px] text-amber-600">{t('etappen.fromAdHint')}</p>}
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <p className={cn('mb-1 text-sm font-medium', versucht && !built.title?.trim() && 'text-amber-600')}>Jobtitel</p>
-                <Input data-feld="title" value={built.title} onChange={(e) => setBuilt({ title: e.target.value })} placeholder="z. B. Senior Konstrukteur (m/w/d)" />
+                <p className={cn('mb-1 text-sm font-medium', versucht && !built.title?.trim() && 'text-amber-600')}>{t('shared.jobTitle')}</p>
+                <Input data-feld="title" value={built.title} onChange={(e) => setBuilt({ title: e.target.value })} placeholder={t('etappen.titlePlaceholder')} />
               </div>
               <div>
-                <p className={cn('mb-1 text-sm font-medium', versucht && !built.location?.trim() && 'text-amber-600')}>Standort</p>
-                <Input data-feld="location" value={built.location} onChange={(e) => setBuilt({ location: e.target.value })} placeholder="z. B. Stuttgart" />
+                <p className={cn('mb-1 text-sm font-medium', versucht && !built.location?.trim() && 'text-amber-600')}>{t('shared.location')}</p>
+                <Input data-feld="location" value={built.location} onChange={(e) => setBuilt({ location: e.target.value })} placeholder={t('etappen.locationPlaceholder')} />
               </div>
             </div>
             <div>
-              <p className="mb-1.5 text-sm font-medium">Arbeitsmodell</p>
+              <p className="mb-1.5 text-sm font-medium">{t('shared.workModel')}</p>
               <ChipWahl
-                optionen={[['remote', 'Remote'], ['hybrid', 'Hybrid'], ['onsite', 'Vor Ort']]}
+                optionen={[['remote', t('shared.remote.remote')], ['hybrid', t('shared.remote.hybrid')], ['onsite', t('shared.remote.onsite')]]}
                 wert={gewaehlt('remote_type') ? built.remote_type || 'hybrid' : ''}
                 onWahl={(v) => { setBuilt({ remote_type: v }); setKatalog('remote_type__gewaehlt', true); }}
               />
             </div>
             <div>
-              <p className="mb-1.5 text-sm font-medium">Erfahrung</p>
+              <p className="mb-1.5 text-sm font-medium">{t('shared.experience')}</p>
               <ChipWahl
-                optionen={[['junior', 'Junior'], ['mid', 'Mid-Level'], ['senior', 'Senior'], ['lead', 'Lead']]}
+                optionen={[['junior', t('shared.level.junior')], ['mid', t('shared.level.mid')], ['senior', t('shared.level.senior')], ['lead', t('shared.level.lead')]]}
                 wert={gewaehlt('experience_level') ? built.experience_level || 'mid' : ''}
                 onWahl={(v) => { setBuilt({ experience_level: v }); setKatalog('experience_level__gewaehlt', true); }}
               />
             </div>
             <div className="sm:w-1/2">
-              <p className="mb-1 text-sm font-medium">Branche</p>
-              <Input value={built.industry} onChange={(e) => setBuilt({ industry: e.target.value })} placeholder="z. B. Maschinenbau" />
+              <p className="mb-1 text-sm font-medium">{t('shared.industry')}</p>
+              <Input value={built.industry} onChange={(e) => setBuilt({ industry: e.target.value })} placeholder={t('etappen.industryPlaceholder')} />
             </div>
             {ausAnzeigeOffen.length > 0 && (
               <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
                 <p className="mb-2 flex items-center gap-1.5 text-sm">
                   <FileText className="h-4 w-4 text-amber-600" />
-                  Aus Ihrer Anzeige übernommen · <span className="font-medium">{ausAnzeigeOffen.length} noch zu prüfen</span>
+                  <span><Trans t={t} i18nKey="etappen.adTaken" values={{ count: ausAnzeigeOffen.length }} components={{ b: <span className="font-medium" /> }} /></span>
                 </p>
                 <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
                   {ausAnzeigeOffen.map(zeileAnzeige).map((z) => (
@@ -619,9 +629,9 @@ export function EtappenAnsicht({
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <Button size="sm" className="h-7 px-2.5 text-xs" onClick={() => ausAnzeigeOffen.forEach((k) => bestaetige(k))}>
-                    Alle bestätigen
+                    {t('etappen.confirmAll')}
                   </Button>
-                  <span className="text-xs text-muted-foreground">oder in den Schritten einzeln prüfen, dort steht „aus der Anzeige · stimmt“.</span>
+                  <span className="text-xs text-muted-foreground">{t('etappen.orCheckSingle')}</span>
                 </div>
               </div>
             )}
@@ -629,30 +639,30 @@ export function EtappenAnsicht({
         );
 
       case 'dialog': {
-        const q = frage(t.frage)!;
+        const q = frage(teil.frage)!;
         const slots = sichtbareSlots(q);
         const istGestellt = asked.includes(q.key);
         const unbeantwortet = slots.filter((s) => s.required && !hatWert(katalogKnown, s.key));
         const hatPflicht = q.slots.some((s) => s.required && (!s.only || s.only === type));
         return (
           <div key={i} className="space-y-3">
-            {q.intro && <p className="text-xs italic text-muted-foreground">{q.intro}</p>}
-            <p className="text-base font-semibold leading-snug">{frageText(q, type)}</p>
+            {q.intro && <p className="text-xs italic text-muted-foreground">{frageIntroT(q)}</p>}
+            <p className="text-base font-semibold leading-snug">{frageTextT(q, type)}</p>
             <div className="space-y-3">
               {slots.map((s) => (
                 <div key={s.key} data-feld={s.key} tabIndex={-1} className="scroll-mt-24 outline-none">
                   <p className="mb-1.5 flex flex-wrap items-baseline gap-x-1.5 text-xs text-muted-foreground">
                     <span className={cn('text-sm font-medium', versucht && s.required && !istGestellt && !hatWert(katalogKnown, s.key) ? 'text-amber-600' : 'text-foreground')}>
-                      {slotLabel(s, type)}
+                      {slotLabelT(s, type)}
                     </span>
-                    {!s.required && <span className="text-[10px]">(optional)</span>}
-                    {QUELLE[katalogKnown[s.key]?.from ?? ''] && (
-                      <span className="text-[10px] italic text-amber-600">{QUELLE[katalogKnown[s.key]!.from]}</span>
+                    {!s.required && <span className="text-[10px]">{t('shared.optional')}</span>}
+                    {QUELLEN.includes(katalogKnown[s.key]?.from ?? '') && (
+                      <span className="text-[10px] italic text-amber-600">{t(`shared.source.${katalogKnown[s.key]!.from}`)}</span>
                     )}
                   </p>
                   {typeof katalogKnown[`${s.key}__wortlaut`]?.value === 'string' && (
                     <p className="-mt-1 mb-1.5 text-[10px] text-amber-600">
-                      laut Anzeige: „{String(katalogKnown[`${s.key}__wortlaut`]!.value)}“
+                      {t('etappen.adWording', { text: String(katalogKnown[`${s.key}__wortlaut`]!.value) })}
                     </p>
                   )}
                   {(s.form === 'ai' || s.form === 'text') ? (
@@ -662,6 +672,7 @@ export function EtappenAnsicht({
                         ? katalog.answerSuggestions[s.key]
                         : s.form === 'ai' && katalog.aiAvailable !== false ? [] : (slotChips(s, type) ?? [])}
                       onSet={(v) => setKatalog(s.key, v)}
+                      anzeige={(a) => chipLabelT(s, type, a)}
                     />
                   ) : (
                   <SlotEingabe
@@ -682,10 +693,10 @@ export function EtappenAnsicht({
               ))}
             </div>
             <p className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
-              <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-primary/60" /> {q.why}
+              <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-primary/60" /> {frageWhyT(q)}
             </p>
             {hatPflicht && istGestellt && unbeantwortet.length > 0 && (
-              <p className="text-[11px] text-muted-foreground">Vermerkt: „Weiß ich nicht“. Sie können trotzdem noch antworten.</p>
+              <p className="text-[11px] text-muted-foreground">{t('etappen.notedDontKnow')}</p>
             )}
           </div>
         );
@@ -695,8 +706,8 @@ export function EtappenAnsicht({
         return (
           <div key={i}>
             <CatalogFields
-              place={t.place}
-              nur={t.nur}
+              place={teil.place}
+              nur={teil.nur}
               known={katalogKnown}
               onSet={setKatalog}
               onConfirm={bestaetige}
@@ -706,14 +717,14 @@ export function EtappenAnsicht({
               treppeOhneWeiter
               gross
             />
-            {t.nur.map((k) => frage(k)).filter((q): q is BriefQuestion => !!q && (!q.only || q.only === type)).map((q) => (
+            {teil.nur.map((k) => frage(k)).filter((q): q is BriefQuestion => !!q && (!q.only || q.only === type)).map((q) => (
               <p key={q.key} className="mt-2 flex items-start gap-1.5 text-[11px] text-muted-foreground">
-                <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-primary/60" /> {q.why}
+                <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-primary/60" /> {frageWhyT(q)}
               </p>
             ))}
-            {t.nur.includes('department_structure') && frage('team')?.why && (
+            {teil.nur.includes('department_structure') && frage('team')?.why && (
               <p className="mt-2 flex items-start gap-1.5 text-[11px] text-muted-foreground">
-                <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-primary/60" /> {frage('team')!.why}
+                <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-primary/60" /> {frageWhyT(frage('team')!)}
               </p>
             )}
           </div>
@@ -725,21 +736,21 @@ export function EtappenAnsicht({
           <div key={i} className="space-y-4">
             {/* Der Katalog hat fuer Contracting keine eigene Fassung dieser
                 Frage ("Fixgehalt") -- dort steht die Zeile selbst als Frage. */}
-            {q && !isFreelance && <p className="text-base font-semibold leading-snug">{frageText(q, type)}</p>}
+            {q && !isFreelance && <p className="text-base font-semibold leading-snug">{frageTextT(q, type)}</p>}
             {isFreelance ? (
               <div className="space-y-3">
                 <div>
-                  <p className="mb-1.5 text-base font-semibold">Ihr Budget je Tag (alles inklusive, zzgl. USt)</p>
+                  <p className="mb-1.5 text-base font-semibold">{t('profile.budgetPerDay')}</p>
                   <EuroSpanne
-                    feld="day_rate_range" von={freelance.dayRateMin} bis={freelance.dayRateMax} einheit="/ Tag"
+                    feld="day_rate_range" von={freelance.dayRateMin} bis={freelance.dayRateMax} einheit={t('profile.perDay')}
                     onVon={(n) => onState((s) => ({ ...s, freelance: { ...s.freelance, dayRateMin: n } }))}
                     onBis={(n) => onState((s) => ({ ...s, freelance: { ...s.freelance, dayRateMax: n } }))}
                   />
                 </div>
                 <div className="sm:w-1/2">
-                  <p className="mb-1 text-sm font-medium">Dauer (Monate)</p>
+                  <p className="mb-1 text-sm font-medium">{t('profile.duration')}</p>
                   <Input
-                    data-feld="contract_duration_months" inputMode="numeric" placeholder="z. B. 6"
+                    data-feld="contract_duration_months" inputMode="numeric" placeholder={t('etappen.durationPlaceholder')}
                     value={freelance.durationMonths ?? ''}
                     onChange={(e) => {
                       const v = e.target.value.replace(/\D/g, '');
@@ -748,18 +759,18 @@ export function EtappenAnsicht({
                   />
                 </div>
                 <div data-feld="utilization_days_per_week">
-                  <p className="mb-1.5 text-sm font-medium">Auslastung</p>
+                  <p className="mb-1.5 text-sm font-medium">{t('profile.utilization')}</p>
                   <ChipWahl
-                    optionen={[1, 2, 3, 4, 5].map((d) => [String(d), `${d} ${d === 1 ? 'Tag' : 'Tage'}/Woche`] as [string, string])}
+                    optionen={[1, 2, 3, 4, 5].map((d) => [String(d), t('profile.daysPerWeek', { count: d })] as [string, string])}
                     wert={freelance.utilizationDaysPerWeek ? String(freelance.utilizationDaysPerWeek) : ''}
                     onWahl={(v) => onState((s) => ({ ...s, freelance: { ...s.freelance, utilizationDaysPerWeek: Number(v) } }))}
                   />
                 </div>
                 <div>
-                  <p className="mb-1.5 text-sm font-medium">Verlängerung möglich <span className="text-xs font-normal text-muted-foreground">(optional)</span></p>
+                  <p className="mb-1.5 text-sm font-medium">{t('profile.extension')} <span className="text-xs font-normal text-muted-foreground">{t('shared.optional')}</span></p>
                   {/* Nichts vorgewaehlt: der Haken stand vorher schon drin. */}
                   <ChipWahl
-                    optionen={[['ja', 'Ja'], ['nein', 'Nein']]}
+                    optionen={[['ja', t('shared.yes')], ['nein', t('shared.no')]]}
                     wert={gewaehlt('extension_possible') ? (freelance.extensionPossible ? 'ja' : 'nein') : ''}
                     onWahl={(v) => {
                       onState((s) => ({ ...s, freelance: { ...s.freelance, extensionPossible: v === 'ja' } }));
@@ -770,9 +781,9 @@ export function EtappenAnsicht({
               </div>
             ) : (
               <div className="sm:w-2/3">
-                <p className="mb-1 text-sm font-medium">Gehalt von / bis (brutto)</p>
+                <p className="mb-1 text-sm font-medium">{t('profile.salaryRange')}</p>
                 <EuroSpanne
-                  feld="salary_range" von={built.salary_min} bis={built.salary_max} einheit="/ Jahr"
+                  feld="salary_range" von={built.salary_min} bis={built.salary_max} einheit={t('profile.perYear')}
                   onVon={(n) => setBuilt({ salary_min: n })} onBis={(n) => setBuilt({ salary_max: n })}
                 />
               </div>
@@ -780,7 +791,7 @@ export function EtappenAnsicht({
             <CatalogFields place="verguetung" known={katalogKnown} onSet={setKatalog} onConfirm={bestaetige} contract={type} gross />
             {q?.why && (
               <p className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
-                <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-primary/60" /> {q.why}
+                <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-primary/60" /> {frageWhyT(q)}
               </p>
             )}
           </div>
@@ -811,7 +822,7 @@ export function EtappenAnsicht({
       case 'firma':
         return (
           <div key={i} className="space-y-3">
-            <p className="text-base font-semibold">Ihr Unternehmen</p>
+            <p className="text-base font-semibold">{t('etappen.companyHeading')}</p>
             <CompanyBlock
               werte={company}
               ausAnzeige={{ company_name: built.company_name, industry: built.industry }}
@@ -822,7 +833,7 @@ export function EtappenAnsicht({
             <div className="border-t pt-4">
               <CatalogFields place="firma" known={katalogKnown} onSet={setKatalog} onConfirm={bestaetige} contract={type} gross />
             </div>
-            <p className="text-xs text-muted-foreground">Diese Angaben stehen später auf der Vereinbarung.</p>
+            <p className="text-xs text-muted-foreground">{t('etappen.companyNote')}</p>
           </div>
         );
     }
@@ -831,7 +842,8 @@ export function EtappenAnsicht({
   const etappeVon = schritt?.etappe ?? null;
   const inEtappe = etappeVon === null ? [] : schritte.filter((s) => s.etappe === etappeVon);
   const posInEtappe = schritt ? inEtappe.findIndex((s) => s.id === schritt.id) + 1 : 0;
-  const ortZeile = istPruefen ? 'Prüfen' : etappeVon !== null ? `${etappenName(etappeVon, isFreelance)} · Schritt ${posInEtappe} von ${inEtappe.length}` : '';
+  const ortZeile = istPruefen ? t('etappen.review')
+    : etappeVon !== null ? t('etappen.placeLine', { stage: etappenName(t, etappeVon, isFreelance), pos: posInEtappe, total: inEtappe.length }) : '';
 
   return (
     /* Gewaehlt = hell gefuellt, auf einen Blick (gilt fuer alle Knoepfe dieser Ansicht).
@@ -845,7 +857,7 @@ export function EtappenAnsicht({
       {/* ---- Kopf: eine Zeile mit fester Hoehe ---- */}
       <div className="flex h-10 shrink-0 items-center gap-3 overflow-hidden border-b pb-2">
         <div className="flex min-w-0 flex-1 items-baseline gap-2 overflow-hidden whitespace-nowrap">
-          <span className="min-w-0 truncate text-lg font-semibold">{built.title || 'Neue Position'}</span>
+          <span className="min-w-0 truncate text-lg font-semibold">{built.title || t('etappen.newPosition')}</span>
           {built.location?.trim() && <span className="shrink-0 text-sm text-muted-foreground">· {built.location.trim()}</span>}
         </div>
         <button
@@ -853,10 +865,10 @@ export function EtappenAnsicht({
           onClick={onVertragsart}
           className="hidden shrink-0 rounded-full border border-input px-2.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground lg:inline"
         >
-          {isFreelance ? 'Contracting' : 'Festanstellung'} · ändern
+          {t('etappen.changeKind', { kind: isFreelance ? t('shared.contracting') : t('shared.permanent') })}
         </button>
         {!istPruefen && sekundenOffen > 0 && (
-          <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">noch etwa {minuten} Min.</span>
+          <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">{t('etappen.minutesLeft', { minutes: minuten })}</span>
         )}
         <div className="h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-muted" title={`${fortschritt.pct} %`}>
           <div className="h-full rounded-full bg-foreground/70 transition-all" style={{ width: `${fortschritt.pct}%` }} />
@@ -866,7 +878,7 @@ export function EtappenAnsicht({
 
       <div className="grid flex-1 gap-5 md:grid-cols-[11.5rem_minmax(0,1fr)] md:items-start">
         {/* ---- Leiste links: nur wo man steht, ohne Farben und Zahlen ---- */}
-        <nav className="hidden space-y-0.5 md:sticky md:top-0 md:block" aria-label="Etappen der Aufnahme">
+        <nav className="hidden space-y-0.5 md:sticky md:top-0 md:block" aria-label={t('etappen.stagesAria')}>
           <div className="mb-2 px-2.5 text-[11px] leading-snug text-muted-foreground [&>*]:mt-0 [&_*]:text-[11px]">{firmaZeile}</div>
           {([0, 1, 2, 3] as Etappe[]).map((e) => {
             const erster = schritte.find((s) => s.etappe === e);
@@ -885,10 +897,10 @@ export function EtappenAnsicht({
                   )}
                 >
                   {fertig && !istAktiv ? <Check className="h-3.5 w-3.5 shrink-0" /> : <span className="w-3.5 shrink-0" />}
-                  {etappenName(e, isFreelance)}
+                  {etappenName(t, e, isFreelance)}
                 </button>
                 {istAktiv && (
-                  <p className="pb-1 pl-8 pt-0.5 text-xs text-muted-foreground">Schritt {posInEtappe} von {inEtappe.length}</p>
+                  <p className="pb-1 pl-8 pt-0.5 text-xs text-muted-foreground">{t('etappen.stepOf', { pos: posInEtappe, total: inEtappe.length })}</p>
                 )}
               </div>
             );
@@ -902,28 +914,28 @@ export function EtappenAnsicht({
             )}
           >
             <span className="w-3.5 shrink-0" />
-            Prüfen
+            {t('etappen.review')}
           </button>
           <button
             type="button"
             onClick={onZurAuswahl}
             className="mt-4 px-2.5 text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
           >
-            ‹ Zurück zur Auswahl
+            {t('etappen.backToChoice')}
           </button>
         </nav>
 
         {/* ---- Der Schritt ---- */}
         <div className="min-w-0 space-y-2">
           <p className="text-xs text-muted-foreground md:hidden">
-            {ortZeile}{!istPruefen && sekundenOffen > 0 && <> · noch etwa {minuten} Min.</>}
+            {ortZeile}{!istPruefen && sekundenOffen > 0 && <> · {t('etappen.minutesLeft', { minutes: minuten })}</>}
           </p>
           <div ref={inhalt} className="space-y-4 rounded-xl border bg-card p-4">
             {/* Die Nachfrage der KI zur letzten Antwort -- sichtbar als solche. */}
             {followUp && !istPruefen && (
               <div className="rounded-xl border border-primary/40 bg-primary/5 p-4">
                 <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
-                  <Sparkles className="h-3 w-3" /> Nachfrage zu Ihrer letzten Antwort
+                  <Sparkles className="h-3 w-3" /> {t('etappen.followUpHead')}
                 </p>
                 <p className="mb-2.5 text-sm font-medium leading-snug">{followUp.question}</p>
                 {followUp.chips.length > 0 && (
@@ -939,9 +951,9 @@ export function EtappenAnsicht({
                   </div>
                 )}
                 <div className="flex gap-2">
-                  <Input value={fuText} onChange={(e) => setFuText(e.target.value)} placeholder="Ergänzen …" className="h-7 text-xs" />
-                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => followUpAbsenden(true)}>Überspringen</Button>
-                  <Button size="sm" className="h-7 px-3 text-xs" onClick={() => followUpAbsenden()}>OK</Button>
+                  <Input value={fuText} onChange={(e) => setFuText(e.target.value)} placeholder={t('etappen.followUpPlaceholder')} className="h-7 text-xs" />
+                  <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => followUpAbsenden(true)}>{t('shared.skip')}</Button>
+                  <Button size="sm" className="h-7 px-3 text-xs" onClick={() => followUpAbsenden()}>{t('shared.ok')}</Button>
                 </div>
               </div>
             )}
@@ -949,7 +961,7 @@ export function EtappenAnsicht({
             {katalog.conflicts.map((c, i) => (
               <div key={`${c.slot}-${i}`} className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-2.5 text-xs">
                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
-                <span>{c.note || `Zu „${c.slot}“ steht schon „${c.existing}“ — jetzt „${c.neu}“.`}</span>
+                <span>{c.note || t('etappen.conflict', { slot: c.slot, existing: c.existing, neu: c.neu })}</span>
                 <button type="button" className="ml-auto shrink-0 text-muted-foreground hover:text-foreground"
                   onClick={() => setCatalog((p) => ({ ...p, conflicts: p.conflicts.filter((_, j) => j !== i) }))}>
                   <X className="h-3 w-3" />
@@ -987,21 +999,21 @@ export function EtappenAnsicht({
       {/* ---- Fussleiste: ein einziges "Weiter", immer unten ---- */}
       <div className="sticky -bottom-5 z-20 -mx-4 -mb-5 mt-auto flex shrink-0 items-center gap-3 border-t bg-background px-4 pb-8 pt-3 md:-mx-6 md:px-6">
         <Button variant="ghost" size="sm" className="gap-1.5" onClick={zurueck} disabled={index <= 0}>
-          <ArrowLeft className="h-4 w-4" /> Zurück
+          <ArrowLeft className="h-4 w-4" /> {t('shared.back')}
         </Button>
         <div className="flex min-w-0 flex-1 items-center gap-2 text-xs">
           {istPruefen && sperren.length > 0 && (
-            <span className="truncate text-muted-foreground">Erst die fehlenden Angaben ergänzen, dann geht es weiter.</span>
+            <span className="truncate text-muted-foreground">{t('etappen.fillFirst')}</span>
           )}
           {/* Erst nach einem Klick auf "Weiter": was fehlt, und der Ausweg. */}
           {!istPruefen && versucht && fehltEck.length > 0 && (
-            <span className="truncate text-amber-600">Es fehlt noch: {fehltEck.map((x) => x.label).join(', ')}</span>
+            <span className="truncate text-amber-600">{t('shared.stillMissing', { fields: fehltEck.map((x) => x.label).join(', ') })}</span>
           )}
           {!istPruefen && versucht && fehltEck.length === 0 && fehlend.length > 0 && (
             <>
-              <span className="truncate text-amber-600">Es fehlt noch: {fehlend.map((x) => slotLabel(x, type)).join(', ')}</span>
+              <span className="truncate text-amber-600">{t('shared.stillMissing', { fields: fehlend.map((x) => slotLabelT(x, type)).join(', ') })}</span>
               <Button size="sm" variant="outline" className="h-7 shrink-0 px-2 text-xs" onClick={() => { schrittAbschliessen(schritt, true); geheZu(schritte[index + 1]?.id ?? PRUEFEN); }}>
-                Weiß ich nicht
+                {t('shared.dontKnow')}
               </Button>
             </>
           )}
@@ -1011,7 +1023,7 @@ export function EtappenAnsicht({
           onClick={onResumeLater}
           className="shrink-0 text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
         >
-          Später fortsetzen
+          {t('shared.resumeLater')}
         </button>
         {istPruefen ? (
           <Button
@@ -1023,7 +1035,7 @@ export function EtappenAnsicht({
           </Button>
         ) : (
           <Button onClick={vor} className="shrink-0 gap-2">
-            Weiter <ArrowRight className="h-4 w-4" />
+            {t('shared.next')} <ArrowRight className="h-4 w-4" />
           </Button>
         )}
       </div>
@@ -1059,7 +1071,14 @@ function ChipWahl({ optionen, wert, onWahl }: { optionen: [string, string][]; we
  * Feld, mit x zum Entfernen; daneben eigene Worte. Gespeichert wird derselbe
  * Text wie bisher ("Baustein · Baustein · eigene Worte").
  */
-function BausteinFeld({ wert, angebote, onSet }: { wert: unknown; angebote: string[]; onSet: (v: string | undefined) => void }) {
+function BausteinFeld({ wert, angebote, onSet, anzeige }: {
+  wert: unknown;
+  angebote: string[];
+  onSet: (v: string | undefined) => void;
+  /** Beschriftung eines Bausteins in der Sprache des Lesers; gespeichert wird der Baustein selbst. */
+  anzeige: (baustein: string) => string;
+}) {
+  const { t } = useTranslation(['intake', 'intakeCatalog']);
   const text = Array.isArray(wert) ? wert.filter(Boolean).join(' · ') : String(wert ?? '');
   const teile = text ? text.split(' · ') : [];
   let n = 0;
@@ -1082,7 +1101,7 @@ function BausteinFeld({ wert, angebote, onSet }: { wert: unknown; angebote: stri
               onClick={() => schreibe([...bausteine, a], frei)}
               className="rounded-full border border-dashed border-input px-2.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
-              + {a}
+              + {anzeige(a)}
             </button>
           ))}
         </div>
@@ -1092,8 +1111,8 @@ function BausteinFeld({ wert, angebote, onSet }: { wert: unknown; angebote: stri
           <div className="mb-1 flex flex-wrap gap-1.5">
             {bausteine.map((b) => (
               <span key={b} className="inline-flex items-center gap-1 rounded-full bg-foreground px-2.5 py-0.5 text-xs text-background">
-                {b}
-                <button type="button" aria-label={`${b} entfernen`} onClick={() => schreibe(bausteine.filter((x) => x !== b), frei)}>
+                {anzeige(b)}
+                <button type="button" aria-label={t('etappen.block.remove', { name: anzeige(b) })} onClick={() => schreibe(bausteine.filter((x) => x !== b), frei)}>
                   <X className="h-3 w-3" />
                 </button>
               </span>
@@ -1104,7 +1123,7 @@ function BausteinFeld({ wert, angebote, onSet }: { wert: unknown; angebote: stri
           value={frei}
           rows={2}
           onChange={(e) => schreibe(bausteine, e.target.value)}
-          placeholder={bausteine.length ? 'und eigene Worte …' : angebote.length ? 'Anklicken oder selbst schreiben …' : 'In Ihren Worten …'}
+          placeholder={bausteine.length ? t('etappen.block.andOwn') : angebote.length ? t('etappen.block.clickOrWrite') : t('etappen.block.ownWords')}
           className="min-h-0 resize-none border-0 p-0 text-sm shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
         />
       </div>
@@ -1123,6 +1142,7 @@ function BenefitsTeil({ type, gewaehlt, automatisch, onChange }: {
   automatisch: string[];
   onChange: (v: string[]) => void;
 }) {
+  const { t } = useTranslation(['intake', 'intakeCatalog']);
   const [eigenes, setEigenes] = useState('');
   const gruppen = type === 'freelance' ? CONTRACTING_GRUPPEN : BENEFIT_GRUPPEN;
   const bekannt = gruppen.flatMap((g) => g.items);
@@ -1144,23 +1164,23 @@ function BenefitsTeil({ type, gewaehlt, automatisch, onChange }: {
       )}
     >
       {gewaehlt.includes(b) && <Check className="h-2.5 w-2.5" />}
-      {b}
-      {automatisch.includes(b) && <span className="ml-1 text-[10px] opacity-70">aus Ihren Angaben</span>}
+      {benefitAnzeige(b)}
+      {automatisch.includes(b) && <span className="ml-1 text-[10px] opacity-70">{t('etappen.benefits.fromYourDetails')}</span>}
     </button>
   );
   return (
     <div className="space-y-3">
-      <p className="text-base font-semibold">Benefits <span className="text-xs font-normal text-muted-foreground">(optional)</span></p>
+      <p className="text-base font-semibold">{t('etappen.benefits.heading')} <span className="text-xs font-normal text-muted-foreground">{t('shared.optional')}</span></p>
       <div className="space-y-2">
         {gruppen.map((g) => (
           <div key={g.titel} className="grid grid-cols-[6rem_minmax(0,1fr)] items-start gap-2">
-            <span className="pt-1 text-xs text-muted-foreground">{g.titel}</span>
+            <span className="pt-1 text-xs text-muted-foreground">{benefitGruppeAnzeige(g.titel, type)}</span>
             <div className="flex flex-wrap gap-1.5">{g.items.map(knopf)}</div>
           </div>
         ))}
         {eigene.length > 0 && (
           <div className="grid grid-cols-[6rem_minmax(0,1fr)] items-start gap-2">
-            <span className="pt-1 text-xs text-muted-foreground">Eigene</span>
+            <span className="pt-1 text-xs text-muted-foreground">{t('etappen.benefits.own')}</span>
             <div className="flex flex-wrap gap-1.5">{eigene.map(knopf)}</div>
           </div>
         )}
@@ -1170,25 +1190,23 @@ function BenefitsTeil({ type, gewaehlt, automatisch, onChange }: {
           value={eigenes}
           onChange={(e) => setEigenes(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); dazu(); } }}
-          placeholder="Weiteres Benefit …"
+          placeholder={t('etappen.benefits.morePlaceholder')}
           className="h-8 text-sm"
         />
         <Button type="button" size="sm" variant="outline" className="h-8 shrink-0" disabled={!eigenes.trim()} onClick={dazu}>
-          + Hinzufügen
+          {t('etappen.benefits.addButton')}
         </Button>
       </div>
     </div>
   );
 }
 
-const STUFEN: { wert: 'fix' | 'negotiable' | 'flexible'; label: string }[] = [
-  { wert: 'fix', label: 'unverzichtbar' },
-  { wert: 'negotiable', label: 'verhandelbar' },
-  { wert: 'flexible', label: 'lernbar' },
-];
+// Nur die Werte -- die Beschriftung steht unter intake: shared.flex.<wert>.
+const STUFEN = ['fix', 'negotiable', 'flexible'] as const;
 
 /** Die Kriterien -- dieselbe Liste und dieselben drei Stufen wie in ProfileSections. */
 function KriterienTeil({ state, onState }: { state: CaptureState; onState: Props['onState'] }) {
+  const { t } = useTranslation(['intake', 'intakeCatalog']);
   const built = state.built as BuiltJob;
   const flexibility = state.flexibility as FlexibilityMap;
   const set = (patch: Partial<BuiltJob>) => onState((s) => (s.built ? { ...s, built: { ...s.built, ...patch } } : s));
@@ -1214,10 +1232,10 @@ function KriterienTeil({ state, onState }: { state: CaptureState; onState: Props
     <div className="space-y-3 [&_input]:w-full sm:[&_input]:w-96" data-feld="kriterien" tabIndex={-1}>
       {/* Markos ganzer Satz steht immer da -- er verschwand vorher, sobald
           ein Kriterium eingetragen war (Durchklick 04.11.2026). */}
-      {q?.intro && <p className="text-xs italic text-muted-foreground">{q.intro}</p>}
-      <p className="text-base font-semibold leading-snug">{q ? frageText(q, state.type) : ''}</p>
+      {q?.intro && <p className="text-xs italic text-muted-foreground">{frageIntroT(q)}</p>}
+      <p className="text-base font-semibold leading-snug">{q ? frageTextT(q, state.type) : ''}</p>
       {kriterien.length > 0 && q && frageKurz(q, state.type) && (
-        <p className="-mt-1 text-xs text-muted-foreground">{frageKurz(q, state.type)}</p>
+        <p className="-mt-1 text-xs text-muted-foreground">{frageKurzT(q, state.type)}</p>
       )}
 
       {/* Voller Name, darunter EINE Auswahl je Zeile -- statt abgeschnittener
@@ -1232,7 +1250,7 @@ function KriterienTeil({ state, onState }: { state: CaptureState; onState: Props
               <p className="min-w-0 text-sm">{s}</p>
               <div className="flex flex-wrap items-center gap-3">
               <div className="inline-flex overflow-hidden rounded-md border text-xs">
-                {STUFEN.map(({ wert, label }) => (
+                {STUFEN.map((wert) => (
                   <button
                     key={wert}
                     type="button"
@@ -1242,7 +1260,7 @@ function KriterienTeil({ state, onState }: { state: CaptureState; onState: Props
                       flex === wert ? 'bg-foreground font-medium text-background' : 'text-muted-foreground hover:bg-accent hover:text-foreground',
                     )}
                   >
-                    {label}
+                    {t(`shared.flex.${wert}`)}
                   </button>
                 ))}
               </div>
@@ -1256,7 +1274,7 @@ function KriterienTeil({ state, onState }: { state: CaptureState; onState: Props
                   }}
                   className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
                 >
-                  entfernen
+                  {t('shared.remove')}
                 </button>
               </div>
             </div>
@@ -1265,7 +1283,7 @@ function KriterienTeil({ state, onState }: { state: CaptureState; onState: Props
       </div>
 
       <SkillList
-        label="Kriterium hinzufügen"
+        label={t('profile.addCriterion')}
         items={[]}
         onRemove={() => undefined}
         onAdd={(s) => set({ must_haves: [...built.must_haves, s] })}
@@ -1274,7 +1292,7 @@ function KriterienTeil({ state, onState }: { state: CaptureState; onState: Props
 
       {vorschlaege.length > 0 && (
         <div className="rounded-lg border border-dashed p-2.5">
-          <p className="mb-1.5 text-xs text-muted-foreground">Passt das auch? Ein Klick übernimmt es.</p>
+          <p className="mb-1.5 text-xs text-muted-foreground">{t('profile.suggestHint')}</p>
           <div className="flex flex-wrap gap-1.5">
             {vorschlaege.map((v) => (
               <button
@@ -1300,16 +1318,17 @@ function KriterienTeil({ state, onState }: { state: CaptureState; onState: Props
       {nach('fix').length >= 8 && (
         <p className="flex items-start gap-1.5 text-xs text-warning">
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          {nach('fix').length} unverzichtbare Kriterien — ab 8 schrumpft der erreichbare Markt erheblich. Welche zwei sind ehrlich verhandelbar?
+          {t('profile.tooManyFix', { n: nach('fix').length })}
         </p>
       )}
       <p className="text-xs text-muted-foreground">
-        {nach('fix').length} unverzichtbar · {nach('negotiable').length} verhandelbar · {nach('flexible').length} lernbar
-        {unmarkiert.length > 0 && ` · ${unmarkiert.length} nicht eingestuft`}
+        {unmarkiert.length > 0
+          ? t('profile.countsUnrated', { fix: nach('fix').length, negotiable: nach('negotiable').length, flexible: nach('flexible').length, unrated: unmarkiert.length })
+          : t('profile.counts', { fix: nach('fix').length, negotiable: nach('negotiable').length, flexible: nach('flexible').length })}
       </p>
       {q?.why && (
         <p className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
-          <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-primary/60" /> {q.why}
+          <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-primary/60" /> {frageWhyT(q)}
         </p>
       )}
     </div>
@@ -1326,30 +1345,31 @@ function Pruefen({
   /** Felder, die nur vorbelegt sind und niemand gewaehlt hat. */
   vorbelegt: string[];
 }) {
+  const { t, i18n } = useTranslation(['intake', 'intakeCatalog']);
   const built = state.built as BuiltJob;
   const f: FreelanceTerms = state.freelance;
   const isFreelance = state.type === 'freelance';
-  const euro = (n: number | null | undefined) => (n ? `${n.toLocaleString('de-DE')} €` : '');
+  const euro = (n: number | null | undefined) => (n ? `${n.toLocaleString(intlLocale(i18n.language))} €` : '');
   const muss = [...(built.must_haves ?? []), ...(built.nice_to_haves ?? [])].filter((k) => state.flexibility[k] === 'fix');
   const zeilen: [string, string][] = [
-    ['Position', built.title],
-    ['Standort', [
+    [t('etappen.pruefen.position'), built.title],
+    [t('shared.location'), [
       built.location,
-      vorbelegt.includes('remote_type') ? 'Arbeitsmodell nicht gewählt'
-        : { remote: 'Remote', hybrid: 'Hybrid', onsite: 'Vor Ort' }[built.remote_type || 'hybrid'],
+      vorbelegt.includes('remote_type') ? t('etappen.pruefen.workModelNotChosen')
+        : ['remote', 'hybrid', 'onsite'].includes(built.remote_type || 'hybrid') ? t(`shared.remote.${built.remote_type || 'hybrid'}`) : undefined,
     ].filter(Boolean).join(' · ')],
-    ['Erfahrung', vorbelegt.includes('experience_level') ? ''
-      : { junior: 'Junior', mid: 'Mid-Level', senior: 'Senior', lead: 'Lead' }[built.experience_level || 'mid'] ?? ''],
+    [t('shared.experience'), vorbelegt.includes('experience_level') ? ''
+      : ['junior', 'mid', 'senior', 'lead'].includes(built.experience_level || 'mid') ? t(`shared.level.${built.experience_level || 'mid'}`) : ''],
     isFreelance
-      ? ['Budget je Tag', [euro(f.dayRateMin), euro(f.dayRateMax)].filter(Boolean).join(' – ')]
-      : ['Gehaltsband', [euro(built.salary_min), euro(built.salary_max)].filter(Boolean).join(' – ')],
-    ['Unverzichtbar', muss.join(' · ')],
-    ['Vertragsart', isFreelance ? 'Contracting' : 'Festanstellung'],
+      ? [t('etappen.pruefen.budgetPerDay'), [euro(f.dayRateMin), euro(f.dayRateMax)].filter(Boolean).join(' – ')]
+      : [t('etappen.pruefen.salaryBand'), [euro(built.salary_min), euro(built.salary_max)].filter(Boolean).join(' – ')],
+    [t('etappen.pruefen.essential'), muss.join(' · ')],
+    [t('etappen.pruefen.contractKind'), isFreelance ? t('shared.contracting') : t('shared.permanent')],
   ];
   return (
     <div className="space-y-4">
-      <p className="text-base font-semibold">Prüfen und weiter</p>
-      <p className="text-xs text-muted-foreground">So sehen die Headhunter Ihre Position. Ihren Firmennamen erfahren sie erst später.</p>
+      <p className="text-base font-semibold">{t('etappen.pruefen.title')}</p>
+      <p className="text-xs text-muted-foreground">{t('etappen.pruefen.lead')}</p>
       <div className="rounded-lg border p-3">
         {zeilen.map(([l, v]) => (
           <p key={l} className="flex justify-between gap-3 py-0.5 text-sm">
@@ -1361,7 +1381,7 @@ function Pruefen({
       {sperren.length > 0 ? (
         <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-sm">
           <p className="mb-1.5 flex items-center gap-1.5 font-medium">
-            <AlertTriangle className="h-4 w-4 text-amber-600" /> Zum Weitermachen fehlt noch:
+            <AlertTriangle className="h-4 w-4 text-amber-600" /> {t('etappen.pruefen.missingHead')}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {sperren.map((x) => (
@@ -1374,7 +1394,7 @@ function Pruefen({
         </div>
       ) : (
         <p className="flex items-center gap-1.5 text-sm text-emerald-600">
-          <CheckCircle2 className="h-4 w-4" /> Alles Nötige steht. Weitere Angaben lassen sich später ergänzen.
+          <CheckCircle2 className="h-4 w-4" /> {t('etappen.pruefen.allSet')}
         </p>
       )}
     </div>

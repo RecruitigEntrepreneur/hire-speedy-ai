@@ -17,19 +17,28 @@ import { partnerSettings, partnerSignatureTest } from '../_shared/recruiter-part
 import { partnerCertificate, partnerQr } from '../_shared/recruiter-partner-pdf.ts';
 import { cleanExpertise, expertiseIssues } from '../_shared/recruiter-expertise.ts';
 import { cleanProfile, normalizeEmail, canOpenRecruiterSignature } from '../_shared/recruiter-contract-policy.ts';
+import { normLang, type Lang } from '../_shared/i18n.ts';
+import { localizeMessage } from '../_shared/recruiter-i18n.ts';
+import { openPublicLink } from '../_shared/recruiter-language.ts';
+import { checkLimits, LIMITS } from '../_shared/intake-limits.ts';
 import { must, verifiedUser, dbError, patchCase, publicCase, workflowFailure, type OnboardingCase, caseById, envelopeById, signatureConfig, syncEnvelope } from '../_shared/recruiter-onboarding-service.ts';
 
 serve(async req => {
   const pre = preflight(req); if (pre) return pre;
+  // Sprache der Person aus dem Aufruf: Meldungen kommen in dieser Sprache, ohne Angabe deutsch wie bisher.
+  let lang: Lang | null = null;
   try {
     must(req.method === 'POST', 'Bitte POST verwenden.');
     const body = await req.json();
+    lang = normLang(body.lang);
     const db = serviceClient();
     // Ohne Sitzung: Einladung oder persönlichen Anmeldelink ansehen, Code
     // anfordern, Code prüfen. Alles Weitere verlangt die bestätigte E-Mail-Adresse.
     if (body.action === 'peek') return json(body.link !== undefined ? await peekLoginLink(db, body.link) : await peekCase(db, body.token));
-    if (body.action === 'code') return json(await sendCode(db, { token: body.token, email: body.email, link: body.link, ip: clientIp(req), login: body.login === true }));
-    if (body.action === 'verify') return json(await verifyCode(db, { token: body.token, email: body.email, link: body.link, code: body.code, ip: clientIp(req), login: body.login === true }));
+    // Öffentlicher Headhunter-Link mit Kennung: gilt er, und in welcher Sprache begrüßt die Seite? Zählt einen Aufruf.
+    if (body.action === 'link') return json(await openPublicLink(db, body.via, clientIp(req), checkLimits, LIMITS.recruiterLink));
+    if (body.action === 'code') return json(await sendCode(db, { token: body.token, email: body.email, link: body.link, ip: clientIp(req), login: body.login === true, lang: body.lang, via: body.via }));
+    if (body.action === 'verify') return json(await verifyCode(db, { token: body.token, email: body.email, link: body.link, code: body.code, ip: clientIp(req), login: body.login === true, lang: body.lang, via: body.via }));
     const user = await verifiedUser(req);
     if (body.action === 'access') return json(await recruiterAccess(db,user));
     // Profilseite: Abrechnungsdaten speichern, Matchunt bekommt die Änderung per Mail.
@@ -43,7 +52,7 @@ serve(async req => {
     if (body.action === 'partner-qr') return json(await partnerQr(db, user));
     if (body.action === 'partner-signature-test') return json(await partnerSignatureTest(db, user, body));
     if (body.action === 'resume' || body.action === 'begin') {
-      const found = body.action === 'begin' ? await beginRecruiterCase(db,user,body.kind) : await resumeRecruiterCase(db,user);
+      const found = body.action === 'begin' ? await beginRecruiterCase(db,user,body.kind,{ lang: body.lang, via: body.via }) : await resumeRecruiterCase(db,user);
       return json({ onboarding: found ? await publicCase(db,found) : null });
     }
     let c: OnboardingCase;
@@ -65,7 +74,7 @@ serve(async req => {
       must(c.revision === body.revision, 'Der Vorgang wurde inzwischen geändert. Bitte neu laden.', 'conflict');
       must(c.state === 'draft', 'Die Angaben sind bereits zur Prüfung eingereicht.', 'conflict');
       const profile = cleanProfile(body.profile);
-      if (body.action === 'submit') { const issues=[...contractDataIssues(profile,c.kind), ...expertiseIssues(profile.expertise ?? cleanExpertise({}))]; must(!issues.length,issues.join(' ')); }
+      if (body.action === 'submit') { const issues=[...contractDataIssues(profile,c.kind), ...expertiseIssues(profile.expertise ?? cleanExpertise({}))]; must(!issues.length,issues.map(i => localizeMessage(lang, i)).join(' ')); }
       c = await patchCase(db, c, { profile, state: body.action === 'submit' ? 'review' : 'draft' });
     } else if (body.action === 'enrich') {
       // Impressum lesen und als Vorschlag zurückgeben; gespeichert wird erst mit „Stimmt so“.
@@ -98,5 +107,5 @@ serve(async req => {
       }
     } else must(body.action === 'load', 'Unbekannte Aktion.');
     return json(await publicCase(db, c));
-  } catch (e) { return workflowFailure(e); }
+  } catch (e) { return workflowFailure(e, lang); }
 });

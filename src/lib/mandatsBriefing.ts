@@ -3,6 +3,11 @@ import { kiInhalt, kiSatz } from './kiInhalt';
 import { nichtSchonGenannt, verguetung } from './jobPosting';
 import { briefingText, fieldValue, getRecruiterCriteria, INTAKE_FIELDS, list, narrativeAnswer, type BriefingJob } from './recruiterBriefing';
 import type { WorkspaceJob } from '@/components/recruiter/RecruiterJobWorkspace';
+import i18n from '@/i18n';
+import { intlLocale } from '@/i18n/languages';
+
+// Anzeige-Texte für den Headhunter, beim Aufruf gelesen (Namespace jobBriefing).
+const tb = (key: string, options?: Record<string, unknown>): string => i18n.t(`jobBriefing:${key}`, options) as string;
 
 /**
  * Das Mandatsbriefing auf einer Seite (Wireframe „Endfassung“, freigegeben 21.10.2026).
@@ -17,7 +22,8 @@ import type { WorkspaceJob } from '@/components/recruiter/RecruiterJobWorkspace'
 export type Herkunft = 'kunde' | 'ki';
 export type FaktId = 'gehalt' | 'vorort' | 'level' | 'sprache' | 'zeit' | 'vertrag' | 'team' | 'besetzung' | 'laufzeit' | 'umfang';
 export interface Fakt { id: FaktId; label: string; wert: string; zusatz?: string; tage?: number; dringend?: boolean }
-export interface Fehlt { id: string; label: string; frage: string }
+/** frage: Wortlaut der Aufnahme (deutsch, Schlüssel der Gruppe); frageKey: derselbe Text im Namespace intakeCatalog. */
+export interface Fehlt { id: string; label: string; frage: string; frageKey?: string }
 
 export interface MandatsBriefing {
   fakten: Fakt[];
@@ -42,7 +48,8 @@ export interface MandatsBriefing {
 }
 
 const LEVEL: Record<string, string> = { junior: 'Junior', mid: 'Mid-Level', 'mid-level': 'Mid-Level', senior: 'Senior', lead: 'Lead', principal: 'Principal', executive: 'Executive' };
-const SPRACHE: Record<string, string> = { de: 'Deutsch', en: 'Englisch', fr: 'Französisch', es: 'Spanisch', it: 'Italienisch', nl: 'Niederländisch', pl: 'Polnisch' };
+const SPRACHEN = new Set(['de', 'en', 'fr', 'es', 'it', 'nl', 'pl']);
+const sprache = (code: string) => (SPRACHEN.has(code) ? tb(`lang.${code}`) : '');
 const tausend = (n: number) => (n >= 1000 ? `${Math.round(n / 1000)}k` : String(n));
 const zahl = (v: unknown) => (typeof v === 'number' ? v : typeof v === 'string' && v.trim() !== '' && !Number.isNaN(Number(v)) ? Number(v) : null);
 /** „a · b · c“ aus Liste oder Text, ohne Leeres. */
@@ -55,7 +62,7 @@ function spracheListe(v: unknown): string[] {
     if (typeof item === 'string') return [item];
     if (!item || typeof item !== 'object') return [];
     const o = item as Record<string, unknown>;
-    const name = (typeof o.name === 'string' && o.name) || SPRACHE[String(o.code ?? '').toLowerCase()] || String(o.code ?? '');
+    const name = (typeof o.name === 'string' && o.name) || sprache(String(o.code ?? '').toLowerCase()) || String(o.code ?? '');
     return name ? [[name, o.minLevel ?? o.level].filter(Boolean).join(' ')] : [];
   });
 }
@@ -74,11 +81,11 @@ function fakten(job: Job): Fakt[] {
   const out: Fakt[] = [];
   if (freelance) {
     const satz = verguetung(job as unknown as WorkspaceJob);
-    if (satz) out.push({ id: 'gehalt', label: 'Tagessatz', wert: satz, zusatz: 'zzgl. USt' });
+    if (satz) out.push({ id: 'gehalt', label: tb('fakt.dayRate'), wert: satz, zusatz: tb('fakt.plusVat') });
     const laufzeit = zahl(job.contract_duration_months);
-    if (laufzeit) out.push({ id: 'laufzeit', label: 'Laufzeit', wert: `${laufzeit} Monate`, zusatz: job.extension_possible === true ? 'Verlängerung möglich' : undefined });
+    if (laufzeit) out.push({ id: 'laufzeit', label: tb('fakt.duration'), wert: tb('fakt.months', { n: laufzeit }), zusatz: job.extension_possible === true ? tb('fakt.extension') : undefined });
     const umfang = zahl(job.utilization_days_per_week);
-    if (umfang) out.push({ id: 'umfang', label: 'Umfang', wert: `${umfang} Tage / Woche` });
+    if (umfang) out.push({ id: 'umfang', label: tb('fakt.scope'), wert: tb('fakt.daysPerWeek', { n: umfang }) });
   }
   const min = zahl(job.salary_min), max = zahl(job.salary_max);
   if (!freelance && (min || max)) {
@@ -86,32 +93,32 @@ function fakten(job: Job): Fakt[] {
     const monate = briefingText(job.salary_months);
     const bonus = briefingText(job.bonus_structure);
     const ohneBonus = !bonus || /^(nein|kein|keiner|keine)\b/i.test(bonus);
-    out.push({ id: 'gehalt', label: 'Gehalt fix', wert: spanne, zusatz: [monate ? `× ${monate}` : null, bonus ? (ohneBonus ? 'kein Bonus' : `Bonus: ${bonus}`) : null].filter(Boolean).join(' · ') || undefined });
+    out.push({ id: 'gehalt', label: tb('fakt.salaryFixed'), wert: spanne, zusatz: [monate ? `× ${monate}` : null, bonus ? (ohneBonus ? tb('fakt.noBonus') : tb('fakt.bonus', { text: bonus })) : null].filter(Boolean).join(' · ') || undefined });
   }
   const tage = zahl(job.onsite_days_required);
-  if (job.remote_type === 'remote' || tage === 0) out.push({ id: 'vorort', label: 'Vor Ort', wert: 'remote', tage: 0 });
-  else if (tage != null && tage > 0) out.push({ id: 'vorort', label: 'Vor Ort', wert: `${tage} von 5 Tagen`, tage: Math.min(5, tage) });
+  if (job.remote_type === 'remote' || tage === 0) out.push({ id: 'vorort', label: tb('fakt.onsite'), wert: tb('fakt.remote'), tage: 0 });
+  else if (tage != null && tage > 0) out.push({ id: 'vorort', label: tb('fakt.onsite'), wert: tb('fakt.daysOf5', { n: tage }), tage: Math.min(5, tage) });
   const level = job.experience_level ? LEVEL[String(job.experience_level).toLowerCase()] ?? String(job.experience_level) : '';
   const jahre = getRecruiterCriteria(job).required.map(k => k.match(/(\d+)\s*(\+\s*)?Jahre/i)?.[1]).find(Boolean) ?? (zahl(job.experience_min) ? String(job.experience_min) : null);
-  if (level || jahre) out.push({ id: 'level', label: 'Level', wert: level || `${jahre}+ Jahre`, zusatz: level && jahre ? `${jahre}+ Jahre` : undefined });
+  if (level || jahre) out.push({ id: 'level', label: tb('fakt.level'), wert: level || tb('fakt.yearsPlus', { n: jahre }), zusatz: level && jahre ? tb('fakt.yearsPlus', { n: jahre }) : undefined });
   const sprachen = spracheListe(job.required_languages);
-  if (sprachen.length) out.push({ id: 'sprache', label: 'Sprache', wert: sprachen.join(', ') });
+  if (sprachen.length) out.push({ id: 'sprache', label: tb('fakt.language'), wert: sprachen.join(', ') });
   const zeit = briefingText(job.core_hours);
   if (zeit) {
     const [kopf, ...rest] = zeit.split(/\s+(?=ohne|mit)\b/);
     const detail = briefingText(job.core_hours_detail);
-    out.push({ id: 'zeit', label: 'Arbeitszeit', wert: kopf, zusatz: [rest.join(' '), detail].filter(Boolean).join(', ') || undefined });
+    out.push({ id: 'zeit', label: tb('fakt.hours'), wert: kopf, zusatz: [rest.join(' '), detail].filter(Boolean).join(', ') || undefined });
   }
   const vertrag = briefingText(job.contract_limitation);
-  if (vertrag) out.push({ id: 'vertrag', label: 'Vertrag', wert: vertrag.charAt(0).toLowerCase() + vertrag.slice(1) });
+  if (vertrag) out.push({ id: 'vertrag', label: tb('fakt.contract'), wert: vertrag.charAt(0).toLowerCase() + vertrag.slice(1) });
   const team = zahl(job.team_size);
-  if (team) out.push({ id: 'team', label: 'Team', wert: `${team} Personen` });
+  if (team) out.push({ id: 'team', label: tb('fakt.team'), wert: tb('fakt.persons', { n: team }) });
   const dringlichkeit = briefingText(job.hiring_urgency);
   const stand = zahl(job.candidates_in_pipeline);
   if (dringlichkeit || stand != null) {
     out.push({
-      id: 'besetzung', label: 'Besetzung', wert: dringlichkeit ? dringlichkeit.charAt(0).toLowerCase() + dringlichkeit.slice(1) : 'offen',
-      zusatz: stand != null ? `${stand} ${stand === 1 ? 'Kandidat' : 'Kandidaten'} bei Aufnahme` : undefined,
+      id: 'besetzung', label: tb('fakt.staffing'), wert: dringlichkeit ? dringlichkeit.charAt(0).toLowerCase() + dringlichkeit.slice(1) : tb('fakt.open'),
+      zusatz: stand != null ? tb('fakt.atIntake', { count: stand }) : undefined,
       dringend: ['urgent', 'hot'].includes(String(job.hiring_urgency)),
     });
   }
@@ -137,7 +144,8 @@ export function fehlendeAngaben(job: BriefingJob, revealed: boolean): Fehlt[] {
     if (fieldValue(job, feld.id)) continue;
     // Wortlaut der Aufnahme: die Zeile, wenn sie selbst eine Frage ist, sonst die ganze Frage.
     const frage = slot.label.trim().endsWith('?') ? slot.label.trim() : frageNach(slot.question)?.text ?? slot.label;
-    out.push({ id, label: feld.label, frage });
+    const frageKey = slot.label.trim().endsWith('?') ? `slot.${slot.key}.label` : frageNach(slot.question) ? `q.${slot.question}.text` : `slot.${slot.key}.label`;
+    out.push({ id, label: feld.label, frage, frageKey });
   }
   return out;
 }
@@ -162,22 +170,25 @@ export function buildMandatsBriefing(job: Job, revealed: boolean): MandatsBriefi
 
   // Knock-out: was im ersten Anruf geklärt sein muss, fest aus den Angaben.
   const knockout: { text: string; fehlt?: boolean }[] = [];
-  if (vorOrt && vorOrt.tage) knockout.push({ text: `${vorOrt.tage} ${vorOrt.tage === 1 ? 'Tag' : 'Tage'} pro Woche${job.location ? ` in ${job.location}` : ''}` });
-  for (const s of sprachen) knockout.push({ text: `${s.replace(/\s([A-C][12])$/, ' mindestens $1')}` });
+  if (vorOrt && vorOrt.tage) knockout.push({ text: job.location ? tb('knockout.onsiteIn', { count: vorOrt.tage, place: job.location }) : tb('knockout.onsite', { count: vorOrt.tage }) });
+  for (const s of sprachen) {
+    const stufe = s.match(/^(.*)\s([A-C][12])$/);
+    knockout.push({ text: stufe ? tb('knockout.atLeast', { lang: stufe[1], level: stufe[2] }) : s });
+  }
   if (gehalt) knockout.push({ text: [gehalt.wert, gehalt.zusatz].filter(Boolean).join(' ') });
   for (const t of punkte(job.contract_sensitive_topics)) knockout.push({ text: t });
   if (job.employment_type !== 'freelance') {
     const frist = briefingText(job.max_notice_period);
-    knockout.push(frist ? { text: `Kündigungsfrist höchstens ${frist}` } : { text: 'Kündigungsfrist: Grenze des Kunden fehlt', fehlt: true });
+    knockout.push(frist ? { text: tb('knockout.notice', { frist }) } : { text: tb('knockout.noticeMissing'), fehlt: true });
   }
 
   // Vorher wissen (Befund 10.09.2026): laufen schon Profile, arbeitet er auf Platz drei;
   // ein Gegenangebot muss er vorbereiten, BEVOR er anruft.
   const vorwissen: string[] = [];
   const imProzess = zahl(job.candidates_in_pipeline);
-  if (imProzess && imProzess > 0) vorwissen.push(`Beim Kunden ${imProzess === 1 ? 'ist schon 1 Kandidat' : `sind schon ${imProzess} Kandidaten`} im Prozess.`);
+  if (imProzess && imProzess > 0) vorwissen.push(tb('vorwissen.inProcess', { count: imProzess }));
   const absage = briefingText(job.candidates_dropped_reason);
-  if (absage) vorwissen.push(`Bisherige Absagegründe: ${absage}`);
+  if (absage) vorwissen.push(tb('vorwissen.dropped', { text: absage }));
 
   // Fachfragen der KI, mit dem Muss-Kriterium, auf das sie zielen.
   const fragen = (fc?.ansprache?.telefon?.fragen ?? []).map(frage => {
@@ -198,13 +209,13 @@ export function buildMandatsBriefing(job: Job, revealed: boolean): MandatsBriefi
   const besonders = ohneDoppelte(punkte(job.unique_selling_points));
 
   const branche = briefingText(job.industry);
-  const groesse = [zahl(job.company_headcount) ? `${zahl(job.company_headcount)!.toLocaleString('de-DE')} Mitarbeitende` : null, briefingText(job.company_size_band) || null].filter(Boolean);
+  const groesse = [zahl(job.company_headcount) ? tb('fakt.employees', { n: zahl(job.company_headcount)!.toLocaleString(intlLocale(i18n.language)) }) : null, briefingText(job.company_size_band) || null].filter(Boolean);
   const beschreibung = [branche, job.location, groesse.length ? groesse.join(' · ') : null].filter(Boolean).join(' · ');
 
   // Ablauf: die Antwort des Kunden; fehlt sie, die Schritte aus der Anzeige (KI).
   const ablaufKunde = punkte(job.interview_process);
   const ablaufKi = ablaufKunde.length ? [] : (fc?.anzeige?.ablauf ?? []).filter(Boolean);
-  const schritte = ['Gespräch mit dir', ...(ablaufKunde.length ? ablaufKunde : ablaufKi)];
+  const schritte = [tb('stepYou'), ...(ablaufKunde.length ? ablaufKunde : ablaufKi)];
   // Aufgaben: die Aufgabenverteilung des Kunden; sonst die Aufgaben, die die KI aus seiner Beschreibung gezogen hat.
   const verteilung = job.task_breakdown && typeof job.task_breakdown === 'object' && !Array.isArray(job.task_breakdown)
     ? Object.entries(job.task_breakdown as Record<string, unknown>) : [];
@@ -262,19 +273,19 @@ export function buildMandatsBriefing(job: Job, revealed: boolean): MandatsBriefi
       vertragTage: briefingText(job.contract_creation_days),
       digital: job.contract_sent_digitally === true,
       ablauf: briefingText(job.interview_process),
-      visum: typeof job.visa_sponsorship === 'boolean' ? (job.visa_sponsorship ? 'Visum unterstützt der Kunde' : 'Arbeitserlaubnis für Deutschland nötig') : '',
+      visum: typeof job.visa_sponsorship === 'boolean' ? tb(job.visa_sponsorship ? 'value.visaYes' : 'value.visaNo') : '',
       // Die Spalte steht ab Werk auf false, auch wenn nie gefragt -- nur „Ja“ sagt etwas.
-      betriebsrat: job.works_council === true ? ['Ja', briefingText(job.works_council_meeting_schedule)].filter(Boolean).join(', tagt ') : '',
+      betriebsrat: job.works_council === true ? (briefingText(job.works_council_meeting_schedule) ? tb('worksCouncilMeets', { when: briefingText(job.works_council_meeting_schedule) }) : tb('worksCouncilYes')) : '',
     },
     fehlt: fehlendeAngaben(job, revealed),
   };
 }
 
 /** Eine Frage an den Kunden je Wortlaut: Chancen und Herausforderungen der Branche sind eine Frage. */
-export function fragenAnKunden(fehlt: Fehlt[]): { frage: string; ids: string[]; labels: string[] }[] {
-  const map = new Map<string, { frage: string; ids: string[]; labels: string[] }>();
+export function fragenAnKunden(fehlt: Fehlt[]): { frage: string; frageKey?: string; ids: string[]; labels: string[] }[] {
+  const map = new Map<string, { frage: string; frageKey?: string; ids: string[]; labels: string[] }>();
   for (const f of fehlt) {
-    const g = map.get(f.frage) ?? { frage: f.frage, ids: [], labels: [] };
+    const g = map.get(f.frage) ?? { frage: f.frage, ...(f.frageKey ? { frageKey: f.frageKey } : {}), ids: [], labels: [] };
     g.ids.push(f.id);
     g.labels.push(f.label);
     map.set(f.frage, g);

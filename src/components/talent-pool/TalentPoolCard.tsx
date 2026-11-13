@@ -10,8 +10,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { formatDistanceToNow, format } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { formatDistanceToNow } from 'date-fns';
+import { useTranslation } from 'react-i18next';
+import { dfLocale, fmtDate } from '@/lib/localeFormat';
 import {
   MoreHorizontal,
   Phone,
@@ -31,22 +32,18 @@ interface TalentPoolCardProps {
   entry: TalentPoolEntry;
 }
 
+// Beschriftungen über t('type.…') und t('availability.…') beim Anzeigen
 const poolTypeConfig = {
-  general: { label: 'Allgemein', icon: Users, color: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200' },
-  silver_medalist: { label: 'Silber-Medaillist', icon: Star, color: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200' },
-  future_fit: { label: 'Zukunft', icon: Clock, color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' },
-  passive: { label: 'Passiv', icon: Coffee, color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' },
+  general: { icon: Users, color: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200' },
+  silver_medalist: { icon: Star, color: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200' },
+  future_fit: { icon: Clock, color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' },
+  passive: { icon: Coffee, color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' },
 };
 
-const availabilityLabels: Record<string, string> = {
-  immediate: 'Sofort verfügbar',
-  '2_weeks': '2 Wochen',
-  '1_month': '1 Monat',
-  '3_months': '3 Monate',
-  passive: 'Nicht aktiv suchend',
-};
+const AVAILABILITY_KEYS = ['immediate', '2_weeks', '1_month', '3_months', 'passive'];
 
 export function TalentPoolCard({ entry }: TalentPoolCardProps) {
+  const { t } = useTranslation('talentPool');
   const { markContacted, removeFromPool } = useTalentPool();
   const candidate = entry.candidates;
   const config = poolTypeConfig[entry.pool_type];
@@ -71,13 +68,13 @@ export function TalentPoolCard({ entry }: TalentPoolCardProps) {
 
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <h3 className="font-semibold">{candidate?.full_name || 'Unbekannt'}</h3>
+                <h3 className="font-semibold">{candidate?.full_name || t('card.unknown')}</h3>
                 <Badge variant="secondary" className={config.color}>
                   <Icon className="h-3 w-3 mr-1" />
-                  {config.label}
+                  {t(`type.${entry.pool_type}`)}
                 </Badge>
                 {isContactDue && (
-                  <Badge variant="destructive">Kontakt fällig</Badge>
+                  <Badge variant="destructive">{t('card.contactDue')}</Badge>
                 )}
               </div>
 
@@ -100,13 +97,13 @@ export function TalentPoolCard({ entry }: TalentPoolCardProps) {
                 {entry.experience_years && (
                   <Badge variant="outline">
                     <Briefcase className="h-3 w-3 mr-1" />
-                    {entry.experience_years} Jahre Erfahrung
+                    {t('card.experience', { count: entry.experience_years })}
                   </Badge>
                 )}
                 {entry.availability && (
                   <Badge variant="outline">
                     <Calendar className="h-3 w-3 mr-1" />
-                    {availabilityLabels[entry.availability] || entry.availability}
+                    {AVAILABILITY_KEYS.includes(entry.availability) ? t(`availability.${entry.availability}`) : entry.availability}
                   </Badge>
                 )}
                 {entry.preferred_locations?.length > 0 && (
@@ -144,17 +141,15 @@ export function TalentPoolCard({ entry }: TalentPoolCardProps) {
             <div className="text-right text-sm text-muted-foreground">
               {entry.last_contacted_at && (
                 <p>
-                  Letzter Kontakt:{' '}
-                  {formatDistanceToNow(new Date(entry.last_contacted_at), {
-                    locale: de,
+                  {t('card.lastContact', { when: formatDistanceToNow(new Date(entry.last_contacted_at), {
+                    locale: dfLocale(),
                     addSuffix: true,
-                  })}
+                  }) })}
                 </p>
               )}
               {entry.next_contact_at && (
                 <p className={isContactDue ? 'text-orange-600 font-medium' : ''}>
-                  Nächster Kontakt:{' '}
-                  {format(new Date(entry.next_contact_at), 'dd.MM.yyyy', { locale: de })}
+                  {t('card.nextContact', { date: fmtDate(entry.next_contact_at) })}
                 </p>
               )}
             </div>
@@ -168,19 +163,19 @@ export function TalentPoolCard({ entry }: TalentPoolCardProps) {
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => markContacted.mutate(entry.id)}>
                   <MessageSquare className="h-4 w-4 mr-2" />
-                  Als kontaktiert markieren
+                  {t('card.markContacted')}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => {
-                    if (confirm('Aus dem Talent Pool entfernen?')) {
+                    if (confirm(t('card.removeConfirm'))) {
                       removeFromPool.mutate(entry.id);
                     }
                   }}
                   className="text-destructive"
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
-                  Aus Pool entfernen
+                  {t('card.remove')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

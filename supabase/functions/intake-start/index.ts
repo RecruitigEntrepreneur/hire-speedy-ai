@@ -6,6 +6,7 @@ import {
   serviceClient, logEvent, publicDraft, contractState, publicLink, linkState, issueDraftToken,
   publicPackages, inDays, DRAFT_DAYS,
 } from '../_shared/intake-core.ts';
+import { callLanguage, rowLanguage, withIntakeLang, withLanguageColumn } from '../_shared/intake-language.ts';
 
 /**
  * intake-start — Einstieg ueber einen Jobaufnahme-Link. Ohne Login.
@@ -21,12 +22,13 @@ import {
  * ersten Sekunde auf dem Schirm, nicht als Ueberraschung am Ende. AGB
  * Paragraph 9 sagt genau das zu.
  */
-serve(async (req) => {
+serve(withIntakeLang(async (req) => {
   const pre = preflight(req);
   if (pre) return pre;
 
   try {
     const body = await req.json().catch(() => ({}));
+    const lang = callLanguage(body);
     const token = body?.token;
     const anonymousId: string | null =
       typeof body?.anonymous_id === 'string' ? body.anonymous_id.slice(0, 64) : null;
@@ -100,9 +102,16 @@ serve(async (req) => {
         ? 'freelance'
         : 'full-time';
 
-    const { data: draft, error: draftErr } = await supabase
+    // Sprache des Entwurfs: was der Kunde gewählt hat, sonst die des Links.
+    // Ohne beides bleibt die Spalte weg, und vor der Migration ebenso.
+    // Beim ersten Öffnen kennt die Seite die Link-Sprache noch nicht und meldet die
+    // Browser-Sprache. Hat der Link eine feste Sprache, gilt deshalb sie; wählt die
+    // Person im Menü etwas anderes, stellt der nächste Aufruf den Entwurf um.
+    const draftLanguage = rowLanguage(link) ?? lang;
+    const { data: draft, error: draftErr } = await withLanguageColumn((withLanguage) => supabase
       .from('intake_drafts')
       .insert({
+        ...(withLanguage && draftLanguage ? { language: draftLanguage } : {}),
         link_id: link.id,
         purge_after: inDays(DRAFT_DAYS),
         contract_type: contractType,
@@ -126,7 +135,7 @@ serve(async (req) => {
         user_agent: ua,
       })
       .select('*')
-      .single();
+      .single());
 
     if (draftErr || !draft) {
       console.error('[intake-start] Entwurf nicht angelegt:', draftErr?.message);
@@ -172,4 +181,4 @@ serve(async (req) => {
     console.error('[intake-start]', e);
     return fail('internal_error', 'Unerwarteter Fehler.');
   }
-});
+}));

@@ -1,6 +1,8 @@
 // Reine Hilfsfunktionen für das Kundenfenster „Interview anfragen“
 // (src/components/interview/request). Alles in deutscher Zeit, unabhängig
 // davon, in welcher Zeitzone der Browser steht.
+import i18n from '@/i18n';
+import { intlLocale } from '@/i18n/languages';
 import {
   WEEKDAY_LABELS,
   fmtTime,
@@ -12,6 +14,8 @@ import {
 } from './interviewScheduling';
 
 const TZ = 'Europe/Berlin';
+// Anzeige-Texte im Namespace clientInterviews, beim Aufruf gelesen (README Regel 7).
+const tx = (key: string, options?: Record<string, unknown>) => i18n.t(`clientInterviews:util.${key}`, options) as string;
 
 const wallClock = new Intl.DateTimeFormat('en-GB', {
   timeZone: TZ,
@@ -80,11 +84,11 @@ export function berlinWeekday(iso: string): number {
 /** „heute“, „morgen“, „übermorgen“, „in 5 Tagen“ – nach Kalendertagen in deutscher Zeit. */
 export function relativeDay(iso: string, nowIso: string = new Date().toISOString()): string {
   const days = Math.round((Date.parse(berlinDateKey(iso)) - Date.parse(berlinDateKey(nowIso))) / 86_400_000);
-  if (days < 0) return 'vorbei';
-  if (days === 0) return 'heute';
-  if (days === 1) return 'morgen';
-  if (days === 2) return 'übermorgen';
-  return `in ${days} Tagen`;
+  if (days < 0) return tx('past');
+  if (days === 0) return tx('today');
+  if (days === 1) return tx('tomorrow');
+  if (days === 2) return tx('dayAfter');
+  return tx('inDays', { count: days });
 }
 
 export function addDays(dateKey: string, days: number): string {
@@ -99,27 +103,27 @@ export function initialWeekStart(nowIso: string): string {
 
 const monthLong = (dateKey: string) => {
   const [y, m, d] = dateKey.split('-').map(Number);
-  return new Intl.DateTimeFormat('de-DE', { timeZone: 'UTC', month: 'long' }).format(new Date(Date.UTC(y, m - 1, d)));
+  return new Intl.DateTimeFormat(intlLocale(i18n.language), { timeZone: 'UTC', month: 'long' }).format(new Date(Date.UTC(y, m - 1, d)));
 };
 const dayNum = (dateKey: string) => Number(dateKey.slice(8, 10));
 
 /** „5.–9. Oktober“, über Monatsgrenzen „28. September – 2. Oktober“. */
 export function weekRangeLabel(fromKey: string, toKey: string): string {
   if (fromKey.slice(0, 7) === toKey.slice(0, 7)) {
-    return `${dayNum(fromKey)}.–${dayNum(toKey)}. ${monthLong(toKey)}`;
+    return tx('weekSameMonth', { from: dayNum(fromKey), to: dayNum(toKey), month: monthLong(toKey) });
   }
-  return `${dayNum(fromKey)}. ${monthLong(fromKey)} – ${dayNum(toKey)}. ${monthLong(toKey)}`;
+  return tx('weekTwoMonths', { from: dayNum(fromKey), fromMonth: monthLong(fromKey), to: dayNum(toKey), toMonth: monthLong(toKey) });
 }
 
 /** Spaltenkopf „Mo 5.10.“ für einen Kalendertag YYYY-MM-DD. */
 export function dayHeaderLabel(dateKey: string): string {
   const wd = String(weekdayOfKey(dateKey)) as Weekday;
-  return `${WEEKDAY_LABELS[wd]} ${dayNum(dateKey)}.${Number(dateKey.slice(5, 7))}.`;
+  return tx('dayHeader', { wd: WEEKDAY_LABELS[wd], d: dayNum(dateKey), m: Number(dateKey.slice(5, 7)) });
 }
 
 /** „1. Oktober“ in deutscher Zeit. */
 export function fmtDateDayMonth(iso: string): string {
-  return new Intl.DateTimeFormat('de-DE', { timeZone: TZ, day: 'numeric', month: 'long' }).format(new Date(iso));
+  return new Intl.DateTimeFormat(intlLocale(i18n.language), { timeZone: TZ, day: 'numeric', month: 'long' }).format(new Date(iso));
 }
 
 export function firstName(name: string): string {
@@ -129,12 +133,12 @@ export function firstName(name: string): string {
 /** Beschriftung einer Slot-Kachel. */
 export function slotText(slot: ScheduleSlot, peopleCount: number): string {
   const time = fmtTime(slot.start);
-  if (slot.status === 'busy') return `${time} · belegt`;
-  if (slot.status === 'booked') return `${time} · Interview`;
+  if (slot.status === 'busy') return tx('slotBusy', { time });
+  if (slot.status === 'booked') return tx('slotBooked', { time });
   if (slot.status === 'required') {
-    return slot.missing.length ? `${time} · ohne ${slot.missing.map(firstName).join(', ')}` : time;
+    return slot.missing.length ? tx('slotWithout', { time, names: slot.missing.map(firstName).join(', ') }) : time;
   }
-  return peopleCount > 1 ? `${time} · alle` : time;
+  return peopleCount > 1 ? tx('slotAll', { time }) : time;
 }
 
 /** Eindeutiger Schlüssel eines Teilnehmers (Nutzer-ID, sonst E-Mail). */
@@ -163,19 +167,17 @@ export function personFor(
   return byName.length === 1 ? byName[0] : null;
 }
 
-const ORDINALS = ['', '', 'Zweites', 'Drittes', 'Viertes', 'Fünftes'];
-
 /** „Interview anfragen“, ab Runde 2 „Zweites Interview anfragen“ usw. */
 export function roundTitle(round: number): string {
-  if (!round || round <= 1) return 'Interview anfragen';
-  return `${ORDINALS[round] ?? `${round}.`} Interview anfragen`;
+  if (!round || round <= 1) return tx('round1');
+  return round <= 5 ? tx(`round${round}`) : tx('roundN', { n: round });
 }
 
 /** „A“, „A und B“, „A, B und C“ */
 export function joinNames(names: string[]): string {
   const list = names.filter(Boolean);
   if (list.length <= 1) return list[0] ?? '';
-  return `${list.slice(0, -1).join(', ')} und ${list[list.length - 1]}`;
+  return tx('joinNames', { list: list.slice(0, -1).join(', '), last: list[list.length - 1] });
 }
 
 export function isValidEmail(value: string): boolean {

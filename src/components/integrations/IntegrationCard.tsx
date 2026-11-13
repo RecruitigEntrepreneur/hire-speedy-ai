@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Settings, RefreshCw, Unlink } from "lucide-react";
 import { SyncStatus } from "./SyncStatus";
+import { useTranslation } from "react-i18next";
 
 interface Integration {
   id: string;
@@ -39,6 +40,7 @@ export function IntegrationCard({
   onToggleSync,
   isSyncing 
 }: IntegrationCardProps) {
+  const { t } = useTranslation('clientSettings');
   const config = providerConfig[integration.provider] || {
     name: integration.provider,
     logo: "🔗",
@@ -61,7 +63,7 @@ export function IntegrationCard({
                 variant={isConnected ? "default" : "secondary"}
                 className="mt-1"
               >
-                {isConnected ? "Verbunden" : "Getrennt"}
+                {isConnected ? t('integrations.connected') : t('integrations.disconnectedBadge')}
               </Badge>
             </div>
           </div>
@@ -88,14 +90,14 @@ export function IntegrationCard({
         {isConnected && (
           <>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Kandidaten synchronisieren</span>
+              <span className="text-sm text-muted-foreground">{t('integrations.syncCandidates')}</span>
               <Switch
                 checked={integration.sync_candidates ?? false}
                 onCheckedChange={(checked) => onToggleSync(integration.id, 'sync_candidates', checked)}
               />
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Jobs synchronisieren</span>
+              <span className="text-sm text-muted-foreground">{t('integrations.syncJobs')}</span>
               <Switch
                 checked={integration.sync_jobs ?? false}
                 onCheckedChange={(checked) => onToggleSync(integration.id, 'sync_jobs', checked)}

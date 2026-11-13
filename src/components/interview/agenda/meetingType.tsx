@@ -1,14 +1,11 @@
 import { MapPin, Phone, Video, type LucideIcon } from 'lucide-react';
+import i18n from '@/i18n';
 
-const LABELS: Record<string, string> = {
-  video: 'Video-Call',
-  teams: 'Teams',
-  meet: 'Google Meet',
-  phone: 'Telefon',
-  onsite: 'Vor Ort',
-};
+// Gespeichert bleibt der Schlüssel (video, phone …); die Beschriftung kommt beim Aufruf aus dem Namespace interviews.
+const KNOWN = new Set(['video', 'teams', 'meet', 'phone', 'onsite']);
 
-export const meetingTypeLabel = (type: string | null): string => (type && LABELS[type]) || 'Interview';
+export const meetingTypeLabel = (type: string | null): string =>
+  i18n.t(`interviews:meeting.${type && KNOWN.has(type) ? type : 'fallback'}`);
 
 const iconFor = (type: string | null): LucideIcon =>
   type === 'phone' ? Phone : type === 'onsite' ? MapPin : Video;

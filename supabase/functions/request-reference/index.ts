@@ -2,6 +2,9 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getPublicAppUrl } from "../_shared/app-url.ts";
 import { mailFrom } from "../_shared/intake-mail.ts";
+import { normLang, tr, type Lang } from "../_shared/i18n.ts";
+import { candidateLanguage } from "../_shared/recipient-language.ts";
+import { withLang } from "../_shared/mail-i18n.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -48,6 +51,7 @@ serve(async (req) => {
       reference_company,
       reference_position,
       relationship,
+      lang: bodyLang,
     } = await req.json();
 
     if (!submission_id || !candidate_id || !reference_name || !reference_email) {
@@ -113,7 +117,10 @@ serve(async (req) => {
 
     // Send email to reference person
     if (resendApiKey) {
-      const referenceUrl = `${getPublicAppUrl()}/reference/${accessToken}`;
+      // Referenzgeber: Sprache, die der Headhunter mitschickt, sonst die des Kandidaten (= die seines Headhunters)
+      const lang: Lang = normLang(bodyLang) ?? await candidateLanguage(supabase, candidate.recruiter_id);
+      const L = (de: string, en: string, sv: string, nb: string, vars?: Record<string, string>) => tr(lang, { de, en, sv, nb }, vars);
+      const referenceUrl = withLang(`${getPublicAppUrl()}/reference/${accessToken}`, lang);
       
       try {
         await fetch('https://api.resend.com/emails', {
@@ -125,18 +132,18 @@ serve(async (req) => {
           body: JSON.stringify({
             from: mailFrom(),
             to: [reference_email],
-            subject: `Referenzanfrage für ${candidate.full_name}`,
+            subject: L('Referenzanfrage für {c}', 'Reference request for {c}', 'Referensförfrågan för {c}', 'Referanseforespørsel for {c}', { c: candidate.full_name }),
             html: `
               <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2>Referenzanfrage</h2>
-                <p>Sehr geehrte/r ${reference_name},</p>
-                <p>${candidate.full_name} hat Sie als Referenz angegeben. Wir würden uns freuen, wenn Sie uns ein kurzes Feedback zu Ihrer Zusammenarbeit geben könnten.</p>
-                <p>Das Ausfüllen des Formulars dauert etwa 5 Minuten.</p>
+                <h2>${L('Referenzanfrage', 'Reference request', 'Referensförfrågan', 'Referanseforespørsel')}</h2>
+                <p>${L('Sehr geehrte/r {n},', 'Dear {n},', 'Hej {n},', 'Hei {n},', { n: reference_name })}</p>
+                <p>${L('{c} hat Sie als Referenz angegeben. Wir würden uns freuen, wenn Sie uns ein kurzes Feedback zu Ihrer Zusammenarbeit geben könnten.', '{c} has named you as a reference. We would be grateful if you could give us brief feedback on your work together.', '{c} har angett dig som referens. Vi skulle uppskatta om du kunde ge oss en kort återkoppling om ert samarbete.', '{c} har oppgitt deg som referanse. Vi setter stor pris på om du kan gi oss en kort tilbakemelding om samarbeidet deres.', { c: candidate.full_name })}</p>
+                <p>${L('Das Ausfüllen des Formulars dauert etwa 5 Minuten.', 'Filling in the form takes about 5 minutes.', 'Det tar ungefär 5 minuter att fylla i formuläret.', 'Det tar omtrent 5 minutter å fylle ut skjemaet.')}</p>
                 <a href="${referenceUrl}" style="display: inline-block; padding: 12px 24px; background: #6366f1; color: white; text-decoration: none; border-radius: 6px; margin: 16px 0;">
-                  Referenz abgeben
+                  ${L('Referenz abgeben', 'Give a reference', 'Lämna referens', 'Gi referanse')}
                 </a>
                 <p style="color: #666; font-size: 14px;">
-                  Dieser Link ist 14 Tage gültig. Ihre Angaben werden vertraulich behandelt.
+                  ${L('Dieser Link ist 14 Tage gültig. Ihre Angaben werden vertraulich behandelt.', 'This link is valid for 14 days. Your answers will be treated confidentially.', 'Länken gäller i 14 dagar. Dina uppgifter behandlas konfidentiellt.', 'Lenken gjelder i 14 dager. Opplysningene dine behandles konfidensielt.')}
                 </p>
               </div>
             `,

@@ -12,6 +12,9 @@
  * gibt es im Code nicht.
  */
 
+import i18n from '@/i18n';
+import { fmtDayMonth, fmtTime } from '@/lib/localeFormat';
+
 export type SchrittKey = 'eingereicht' | 'team' | 'pruefung' | 'live' | 'kandidaten';
 export type Zustand = 'erledigt' | 'aktuell' | 'offen';
 
@@ -42,27 +45,11 @@ export interface VerlaufJob {
   paused_at?: string | null;
 }
 
-const LABEL: Record<SchrittKey, string> = {
-  eingereicht: 'Eingereicht',
-  team: 'Freigabe Ihres Teams',
-  pruefung: 'Prüfung durch Matchunt',
-  live: 'Live',
-  kandidaten: 'Erste Kandidaten',
-};
-
-const HINWEIS: Record<SchrittKey, string> = {
-  eingereicht: '',
-  team: 'wartet auf Admin/HR Ihres Teams',
-  pruefung: 'meist unter 24 Std.',
-  live: 'Headhunter suchen',
-  kandidaten: '',
-};
-
-const KURZ: Partial<Record<SchrittKey, string>> = {
-  team: 'Freigabe Ihres Teams',
-  pruefung: 'In Prüfung bei Matchunt',
-  live: 'Live · Headhunter suchen',
-};
+// Texte werden beim Aufruf gelesen (i18n), nicht beim Laden eingefroren.
+const tv = (key: string) => i18n.t(`clientDashboard:verlauf.${key}`) as string;
+const LABEL = (key: SchrittKey) => tv(`label.${key}`);
+const HINWEIS = (key: SchrittKey) => (key === 'eingereicht' || key === 'kandidaten' ? '' : tv(`hint.${key}`));
+const KURZ = (key: SchrittKey): string | undefined => (key === 'team' || key === 'pruefung' || key === 'live' ? tv(`short.${key}`) : undefined);
 
 /**
  * Der Verlauf einer Stelle -- oder null, wo er nichts zu sagen hat
@@ -102,15 +89,15 @@ export function stellenVerlauf(
   const aktuellIdx = aktuellKey ? keys.indexOf(aktuellKey) : keys.length;
   const schritte = keys.map((key, i): VerlaufSchritt => {
     const zustand: Zustand = i < aktuellIdx ? 'erledigt' : i === aktuellIdx ? 'aktuell' : 'offen';
-    let hinweis = zustand === 'aktuell' ? HINWEIS[key] || null : null;
-    if (key === 'live' && zustand === 'aktuell' && job.paused_at) hinweis = 'pausiert';
-    return { key, label: LABEL[key], zustand, datum: zustand === 'erledigt' ? datum[key] : null, hinweis };
+    let hinweis = zustand === 'aktuell' ? HINWEIS(key) || null : null;
+    if (key === 'live' && zustand === 'aktuell' && job.paused_at) hinweis = tv('paused');
+    return { key, label: LABEL(key), zustand, datum: zustand === 'erledigt' ? datum[key] : null, hinweis };
   });
 
   const aktuell = schritte.find((x) => x.zustand === 'aktuell') ?? null;
   const kurz = aktuell
-    ? (aktuell.key === 'live' && job.paused_at ? 'Live · pausiert' : KURZ[aktuell.key] ?? aktuell.label)
-    : 'Live';
+    ? (aktuell.key === 'live' && job.paused_at ? tv('shortPaused') : KURZ(aktuell.key) ?? aktuell.label)
+    : tv('label.live');
   return { schritte, aktuell, kurz };
 }
 
@@ -119,5 +106,5 @@ export function verlaufDatum(iso: string | null | undefined): string {
   if (!iso) return '';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
-  return `${d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}, ${d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`;
+  return `${fmtDayMonth(d)}, ${fmtTime(d)}`;
 }

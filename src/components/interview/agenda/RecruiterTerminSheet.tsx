@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { useNavigate } from 'react-router-dom';
 import {
   CalendarCheck,
@@ -21,6 +22,7 @@ import { useInterviewFeedback } from '@/hooks/useInterviewFeedback';
 import type { RecruiterInterview } from '@/hooks/useRecruiterInterviewAgenda';
 import { cn } from '@/lib/utils';
 import { Honorar } from '@/components/recruiter/Honorar';
+import { fmtDayMonth, fmtTime, fmtWeekdayDayMonth } from '@/lib/localeFormat';
 
 export type RecruiterTerminVariant =
   | 'agenda'
@@ -38,15 +40,20 @@ const PILL_CLASSES: Record<string, string> = {
 };
 
 
-const fmtSlot = (iso: string) =>
-  `${new Date(iso).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })}, ${new Date(iso).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr`;
+// Texte im Namespace recruiterInterviews (alle vier Sprachen), Schlüssel recruiterTermin.…
+const NS = 'recruiterInterviews';
+type T = TFunction<typeof NS>;
 
-const fmtTag = (iso: string) =>
-  new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+const fmtSlot = (t: T, iso: string) =>
+  t('recruiterTermin.slot', { date: fmtWeekdayDayMonth(iso), time: fmtTime(iso) });
 
-function waitingLabel(hours: number): string {
+const fmtTag = (iso: string) => fmtDayMonth(iso);
+
+function waitingLabel(t: T, hours: number): string {
   const days = Math.floor(hours / 24);
-  return days >= 1 ? `${days} ${days === 1 ? 'Tag' : 'Tagen'}` : `${Math.max(1, hours)} Std.`;
+  return days >= 1
+    ? t('recruiterTermin.waiting.days', { count: days })
+    : t('recruiterTermin.waiting.hours', { count: Math.max(1, hours) });
 }
 
 /**
@@ -64,13 +71,16 @@ function waitingLabel(hours: number): string {
  *     nach interviews.feedback — letzteres gehört dem Kunden.
  */
 /** Feedback des Kunden lesbar: Weg und Eindruck statt Rohdaten. */
-const FEEDBACK_WEG: Record<string, string> = { next_round: 'nächste Runde', proceed: 'nächste Runde', offer: 'Angebot', unsure: 'noch unsicher', maybe: 'noch unsicher', reject: 'Absage' };
-function clientFeedbackText(raw: string): string {
+const FEEDBACK_WEG: Record<string, string> = { next_round: 'next_round', proceed: 'next_round', offer: 'offer', unsure: 'unsure', maybe: 'unsure', reject: 'reject' };
+function clientFeedbackText(t: T, raw: string): string {
   try {
     const f = JSON.parse(raw);
     const weg = FEEDBACK_WEG[f?.recommendation];
     const text = String(f?.impression || f?.notes || '').trim();
-    return [weg ? `Weiter mit: ${weg}` : null, text ? `„${text}“` : null].filter(Boolean).join('\n') || 'Feedback gespeichert.';
+    return [
+      weg ? t('recruiterTermin.feedback.next_with', { way: t(`recruiterTermin.feedback.${weg}`) }) : null,
+      text ? `„${text}“` : null,
+    ].filter(Boolean).join('\n') || t('recruiterTermin.feedback.saved');
   } catch {
     return raw;
   }
@@ -90,7 +100,7 @@ export function RecruiterTerminSheet({
   /** Öffnet das Nachgespräch (20.10.2026, ersetzt das Debrief-Feld hier). */
   onNachgespraech?: (iv: RecruiterInterview) => void;
 }) {
-  const { t } = useTranslation();
+  const { t } = useTranslation(NS);
   const navigate = useNavigate();
   // Nur noch lesen: ein altes Debrief aus der Zeit vor dem Nachgespräch
   const { myFeedback } = useInterviewFeedback(interview?.id);
@@ -120,7 +130,7 @@ export function RecruiterTerminSheet({
       ? t('recruiterTermin.ctx.counter')
       : variant === 'awaiting'
         ? t(iv.slotsExpired ? 'recruiterTermin.ctx.expired' : 'recruiterTermin.ctx.awaiting', {
-            time: waitingLabel(iv.waitingHours),
+            time: waitingLabel(t, iv.waitingHours),
           })
         : variant === 'agenda'
           ? t(iv.confirmed ? 'recruiterTermin.ctx.scheduled' : 'recruiterTermin.ctx.unconfirmed')
@@ -204,7 +214,7 @@ export function RecruiterTerminSheet({
                   className="h-4 w-4 shrink-0 text-muted-foreground"
                   aria-hidden="true"
                 />
-                {fmtSlot(iv.scheduledAt!)}
+                {fmtSlot(t, iv.scheduledAt!)}
                 <span className="font-normal text-muted-foreground">
                   · {t('recruiterTermin.duration', { min: iv.durationMinutes })}
                 </span>
@@ -225,7 +235,7 @@ export function RecruiterTerminSheet({
                 >
                   {iv.onsiteAddress || t('recruiterTermin.no_address')}
                   {iv.onsiteNote && <><br />{iv.onsiteNote}</>}
-                  {iv.onsiteContact && <><br />Ansprechpartner vor Ort: {iv.onsiteContact}</>}
+                  {iv.onsiteContact && <><br />{t('recruiterTermin.onsite_contact', { name: iv.onsiteContact })}</>}
                 </p>
               )}
             </div>
@@ -248,7 +258,7 @@ export function RecruiterTerminSheet({
                       aria-hidden="true"
                     />
                     <span className={cn('flex-1', over && 'text-muted-foreground/60 line-through')}>
-                      {fmtSlot(s.datetime)}
+                      {fmtSlot(t, s.datetime)}
                     </span>
                     {over && (
                       <span className="text-[11px] text-muted-foreground/60">
@@ -268,7 +278,7 @@ export function RecruiterTerminSheet({
               </p>
               {iv.counterSlots.map((s) => (
                 <div key={s.datetime} className="py-1 text-sm font-medium">
-                  {fmtSlot(s.datetime)}
+                  {fmtSlot(t, s.datetime)}
                 </div>
               ))}
             </div>
@@ -313,7 +323,7 @@ export function RecruiterTerminSheet({
               <p className="mb-1 text-xs font-semibold text-muted-foreground">
                 {t('recruiterTermin.client_feedback')}
               </p>
-              <p className="whitespace-pre-line text-sm text-muted-foreground">{clientFeedbackText(iv.feedback)}</p>
+              <p className="whitespace-pre-line text-sm text-muted-foreground">{clientFeedbackText(t, iv.feedback)}</p>
             </div>
           )}
 

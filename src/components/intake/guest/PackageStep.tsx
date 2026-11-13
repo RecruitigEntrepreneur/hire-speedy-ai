@@ -1,4 +1,7 @@
 import { useEffect, useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
+import { intlLocale } from '@/i18n/languages';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -28,27 +31,26 @@ import { FileCheck2 } from 'lucide-react';
  * Texte stehen im Datenblatt des Rahmenvertrags.
  */
 
-/** K2: Kartentexte je Paket (gehen den Texten aus der Datenbank vor). */
-const CORE_BULLETS = [
-  'Geprüfte Headhunter suchen für Ihre Stelle',
-  'Anonyme Vorstellung: erst das Können, dann der Name',
-  'Ihr Headhunter begleitet bis zum ersten Arbeitstag',
-  'Honorar erst mit dem unterschriebenen Arbeitsvertrag',
+/**
+ * K2: Kartentexte je Paket (gehen den Texten aus der Datenbank vor). Die Texte
+ * stehen in den Sprachdateien (clientFunnel: packages.core1…, continuity1…),
+ * ebenso der Kasten unter den Karten (packages.replacementText).
+ */
+type CardText = { short: string; head: string; bullets: string[] };
+const coreBullets = (t: TFunction<'clientFunnel'>) => [
+  t('packages.core1'), t('packages.core2'), t('packages.core3'), t('packages.core4'),
 ];
-const continuityBullets = (days: number) => [
-  'Nachbesetzung inklusive, ohne neues Honorar',
-  `Geschützt ab Unterschrift bis ${days} Tage nach Arbeitsbeginn`,
-  'Wir suchen, bis die Stelle wieder besetzt ist',
-  'Ersatzsuche mit allen Headhuntern im Netzwerk',
+const continuityBullets = (t: TFunction<'clientFunnel'>, days: number) => [
+  t('packages.continuity1'), t('packages.continuity2', { days }), t('packages.continuity3'), t('packages.continuity4'),
 ];
-const PACKAGE_CARD: Record<IntakePackage['key'], { short: string; head: string; bullets: string[] }> = {
-  core: { short: 'Core', head: 'Das ist enthalten', bullets: CORE_BULLETS },
-  continuity_90: { short: 'Continuity 90', head: 'Alles aus Core, dazu', bullets: continuityBullets(90) },
-  continuity_180: { short: 'Continuity 180', head: 'Alles aus Core, dazu', bullets: continuityBullets(180) },
-};
-
-/** K2: Kasten unter den Karten. */
-const NACHBESETZUNG_WANN = 'Endet die Besetzung zwischen der Unterschrift des Arbeitsvertrags und dem 90. bzw. 180. Tag nach dem ersten Arbeitstag, schreiben wir Ihre Stelle ohne neues Honorar neu für alle Headhunter aus. Das gilt, wenn der Grund nicht bei Ihnen liegt, etwa wenn die Person selbst kündigt oder Sie sich wegen ihrer Leistung oder ihres Verhaltens trennen. Eine Nachbesetzung gibt es je eingestellter Person einmal. Melden Sie es binnen 14 Tagen. Die Suche startet, sobald die Rechnung bezahlt ist.';
+function packageCard(t: TFunction<'clientFunnel'>, key: IntakePackage['key']): CardText | null {
+  switch (key) {
+    case 'core': return { short: 'Core', head: t('packages.coreHead'), bullets: coreBullets(t) };
+    case 'continuity_90': return { short: 'Continuity 90', head: t('packages.continuityHead'), bullets: continuityBullets(t, 90) };
+    case 'continuity_180': return { short: 'Continuity 180', head: t('packages.continuityHead'), bullets: continuityBullets(t, 180) };
+    default: return null;
+  }
+}
 
 interface Props {
   load: () => Promise<IntakePackageOffer | IntakeFailure>;
@@ -60,8 +62,9 @@ interface Props {
 }
 
 export function PackageStep({ load, onSelect, onNext, onTerms }: Props) {
+  const { t, i18n } = useTranslation('clientFunnel');
   const [offer, setOffer] = useState<IntakePackageOffer | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
   const [chosen, setChosen] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -70,7 +73,7 @@ export function PackageStep({ load, onSelect, onNext, onTerms }: Props) {
     void load().then((res) => {
       if (!active) return;
       if (isFailure(res)) {
-        setLoadError('Die Pakete konnten nicht geladen werden. Bitte laden Sie die Seite neu.');
+        setLoadError(true);
         return;
       }
       setOffer(res);
@@ -91,12 +94,12 @@ export function PackageStep({ load, onSelect, onNext, onTerms }: Props) {
   };
 
   if (loadError) {
-    return <Alert variant="destructive"><AlertDescription>{loadError}</AlertDescription></Alert>;
+    return <Alert variant="destructive"><AlertDescription>{t('packages.loadError')}</AlertDescription></Alert>;
   }
   if (!offer) {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground">
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Pakete werden geladen …
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t('packages.loading')}
       </div>
     );
   }
@@ -109,10 +112,9 @@ export function PackageStep({ load, onSelect, onNext, onTerms }: Props) {
     return (
       <div className="space-y-6">
         <div className="space-y-2">
-          <h2 className="text-xl font-semibold">Ihre Konditionen stehen</h2>
+          <h2 className="text-xl font-semibold">{t('packages.frameworkTitle')}</h2>
           <p className="text-sm text-muted-foreground">
-            Sie haben mit uns einen Rahmenvertrag geschlossen. Diese Position wird darunter
-            beauftragt — ohne erneute Unterschrift.
+            {t('packages.frameworkLead')}
           </p>
         </div>
 
@@ -122,20 +124,24 @@ export function PackageStep({ load, onSelect, onNext, onTerms }: Props) {
               <FileCheck2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
               <div className="min-w-0 flex-1">
                 <p className="font-medium">
-                  {rv.name ?? 'Vereinbarte Kondition'}
+                  {rv.name ?? t('packages.agreedTerms')}
                   <Badge variant="secondary" className="ml-2">{rv.fee_percent} %</Badge>
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {rv.fee_percent} % des Bruttojahreszielgehalts, erst mit dem unterschriebenen Arbeitsvertrag
                   {rv.continuity_days
-                    ? `. Nachbesetzung inklusive, ohne neues Honorar: geschützt ab Unterschrift bis ${rv.continuity_days} Tage nach Arbeitsbeginn.`
-                    : '.'}
+                    ? t('packages.frameworkFeeContinuity', { percent: rv.fee_percent, days: rv.continuity_days })
+                    : t('packages.frameworkFee', { percent: rv.fee_percent })}
                 </p>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Rahmenvertrag <span className="font-medium text-foreground">{rv.agreement_number}</span>
-                  {rv.agreed_at
-                    ? ` · vereinbart am ${new Date(rv.agreed_at).toLocaleDateString('de-DE')}`
-                    : null}
+                  <Trans
+                    t={t}
+                    i18nKey={rv.agreed_at ? 'packages.frameworkRefDated' : 'packages.frameworkRef'}
+                    values={{
+                      number: rv.agreement_number,
+                      date: rv.agreed_at ? new Date(rv.agreed_at).toLocaleDateString(intlLocale(i18n.language)) : '',
+                    }}
+                    components={{ bold: <span className="font-medium text-foreground" /> }}
+                  />
                 </p>
               </div>
             </div>
@@ -151,7 +157,7 @@ export function PackageStep({ load, onSelect, onNext, onTerms }: Props) {
 
         <div className="flex justify-end">
           <Button onClick={onNext}>
-            Weiter zur Zusammenfassung <ArrowRight className="ml-2 h-4 w-4" />
+            {t('packages.toSummary')} <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </div>
       </div>
@@ -161,10 +167,9 @@ export function PackageStep({ load, onSelect, onNext, onTerms }: Props) {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h2 className="text-xl font-semibold">Wie möchten Sie zusammenarbeiten?</h2>
+        <h2 className="text-xl font-semibold">{t('packages.title')}</h2>
         <p className="text-sm text-muted-foreground">
-          Alle Pakete sind reine Erfolgshonorare: Sie zahlen erst, wenn der Arbeitsvertrag
-          unterschrieben ist. Kein Retainer, keine Fixkosten.
+          {t('packages.lead')}
         </p>
       </div>
 
@@ -183,8 +188,8 @@ export function PackageStep({ load, onSelect, onNext, onTerms }: Props) {
 
       {offer.packages.some((p) => p.key !== 'core') && (
         <div className="rounded-lg border bg-muted/30 p-4 text-sm">
-          <p className="font-medium">Wann greift die Nachbesetzung?</p>
-          <p className="mt-1 text-muted-foreground">{NACHBESETZUNG_WANN}</p>
+          <p className="font-medium">{t('packages.replacementTitle')}</p>
+          <p className="mt-1 text-muted-foreground">{t('packages.replacementText')}</p>
         </div>
       )}
 
@@ -198,7 +203,7 @@ export function PackageStep({ load, onSelect, onNext, onTerms }: Props) {
       {chosen && (
         <div className="flex justify-end">
           <Button onClick={onNext}>
-            Weiter zur Zusammenfassung <ArrowRight className="ml-2 h-4 w-4" />
+            {t('packages.toSummary')} <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         </div>
       )}
@@ -211,7 +216,8 @@ function PackageCard({
 }: {
   pkg: IntakePackage; selected: boolean; busy: boolean; anyBusy: boolean; onSelect: () => void;
 }) {
-  const card = PACKAGE_CARD[pkg.key] ?? null;
+  const { t } = useTranslation('clientFunnel');
+  const card = packageCard(t, pkg.key);
   const bullets = card?.bullets ?? pkg.bullets;
   return (
     <Card className={selected ? 'border-primary ring-1 ring-primary' : undefined}>
@@ -219,14 +225,14 @@ function PackageCard({
         <div className="space-y-1">
           <div className="flex items-start justify-between gap-2">
             <h3 className="font-semibold leading-tight">{card?.short ?? pkg.name}</h3>
-            {selected && <Badge className="shrink-0">Gewählt</Badge>}
+            {selected && <Badge className="shrink-0">{t('packages.chosenBadge')}</Badge>}
           </div>
           {!card && <p className="text-sm text-muted-foreground">{pkg.summary}</p>}
         </div>
 
         <div>
           <div className="text-3xl font-semibold tabular-nums">{pkg.fee_percent} %</div>
-          <p className="text-xs text-muted-foreground">vom Bruttojahreszielgehalt</p>
+          <p className="text-xs text-muted-foreground">{t('packages.feeBase')}</p>
         </div>
 
         <div className="flex-1 space-y-2">
@@ -247,8 +253,8 @@ function PackageCard({
           disabled={anyBusy}
           onClick={onSelect}
         >
-          {busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Wird gespeichert …</>
-                : selected ? 'Ausgewählt' : `${card?.short ?? pkg.name} wählen`}
+          {busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t('common.saving')}</>
+                : selected ? t('packages.selected') : t('packages.choose', { name: card?.short ?? pkg.name })}
         </Button>
       </CardContent>
     </Card>

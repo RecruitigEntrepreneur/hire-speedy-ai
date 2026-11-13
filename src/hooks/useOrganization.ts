@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { toast } from 'sonner';
+import i18n from '@/i18n';
 
 export interface Organization {
   id: string;
@@ -101,11 +102,11 @@ export function useOrganization() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['organizations'] });
       queryClient.invalidateQueries({ queryKey: ['organization-memberships'] });
-      toast.success('Organisation erstellt');
+      toast.success(i18n.t('clientTeam:toast.orgCreated'));
     },
     onError: (error) => {
       console.error('Error creating organization:', error);
-      toast.error('Fehler beim Erstellen der Organisation');
+      toast.error(i18n.t('clientTeam:toast.orgCreateError'));
     },
   });
 
@@ -122,11 +123,11 @@ export function useOrganization() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['organizations'] });
-      toast.success('Organisation aktualisiert');
+      toast.success(i18n.t('clientTeam:toast.orgUpdated'));
     },
     onError: (error) => {
       console.error('Error updating organization:', error);
-      toast.error('Fehler beim Aktualisieren');
+      toast.error(i18n.t('clientTeam:toast.updateError'));
     },
   });
 
@@ -224,7 +225,7 @@ export function useMyOrganization() {
     },
     onError: (error) => {
       console.error('Error creating organization:', error);
-      toast.error('Team konnte nicht aktiviert werden');
+      toast.error(i18n.t('clientTeam:toast.teamActivateError'));
     },
   });
 
@@ -268,11 +269,11 @@ export function useOrganizationMembers(organizationId: string | undefined) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['organization-members', organizationId] });
-      toast.success('Mitglied aktualisiert');
+      toast.success(i18n.t('clientTeam:toast.memberUpdated'));
     },
     onError: (error) => {
       console.error('Error updating member:', error);
-      toast.error('Fehler beim Aktualisieren');
+      toast.error(i18n.t('clientTeam:toast.updateError'));
     },
   });
 
@@ -287,11 +288,11 @@ export function useOrganizationMembers(organizationId: string | undefined) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['organization-members', organizationId] });
-      toast.success('Mitglied entfernt');
+      toast.success(i18n.t('clientTeam:toast.memberRemoved'));
     },
     onError: (error) => {
       console.error('Error removing member:', error);
-      toast.error('Fehler beim Entfernen');
+      toast.error(i18n.t('clientTeam:toast.removeError'));
     },
   });
 

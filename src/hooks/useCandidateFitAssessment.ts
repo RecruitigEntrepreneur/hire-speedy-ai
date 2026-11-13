@@ -1,3 +1,4 @@
+import i18n from '@/i18n';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -152,10 +153,10 @@ export function useCandidateFitAssessment(submissionId?: string) {
       if (error) {
         const errorMessage = error.message || '';
         if (errorMessage.includes('402') || errorMessage.includes('Payment required')) {
-          throw new Error('AI-Kredit-Limit erreicht. Bitte kontaktieren Sie den Support.');
+          throw new Error(i18n.t('errors:fitCredit'));
         }
         if (errorMessage.includes('429') || errorMessage.includes('Rate limit')) {
-          throw new Error('Zu viele Anfragen. Bitte warten Sie einen Moment.');
+          throw new Error(i18n.t('errors:fitRate'));
         }
         throw error;
       }
@@ -167,21 +168,21 @@ export function useCandidateFitAssessment(submissionId?: string) {
       if (data?.assessment) {
         if (!options?.silent) {
           toast({
-            title: 'Fit-Analyse erstellt',
-            description: 'Die intelligente Fit-Analyse wurde erfolgreich generiert.',
+            title: i18n.t('errors:fitCreated'),
+            description: i18n.t('errors:fitCreatedText'),
           });
         }
         await fetchAssessment();
         return data.assessment;
       } else {
-        throw new Error('Unbekannter Fehler bei der Generierung');
+        throw new Error(i18n.t('errors:fitUnknown'));
       }
     } catch (error) {
       console.error('Error generating fit assessment:', error);
       if (!options?.silent) {
         toast({
-          title: 'Fehler bei der Analyse',
-          description: error instanceof Error ? error.message : 'Ein Fehler ist aufgetreten',
+          title: i18n.t('errors:fitFailed'),
+          description: error instanceof Error ? error.message : i18n.t('errors:generic'),
           variant: 'destructive',
         });
       }

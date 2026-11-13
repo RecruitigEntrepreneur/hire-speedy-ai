@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { CalendarClock, Loader2, Save, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,7 @@ import { useCalendarStatus, useInterviewHours } from './useCalendarStatus';
  * Ziel von /dashboard/settings#kalender (Checkliste, Dashboard-Karte, Rücksprung).
  */
 export function CalendarSettingsSection() {
+  const { t } = useTranslation(['clientInterviews', 'interviews']);
   const hours = useInterviewHours();
   // Ohne Microsoft-App gibt es nichts zu verbinden: nur die Interview-Zeiten zeigen.
   const calendarReady = useCalendarStatus().status?.state !== 'not_configured';
@@ -28,9 +30,9 @@ export function CalendarSettingsSection() {
     hours.save.mutate(draft, {
       onSuccess: () => {
         setDraft(null);
-        toast.success('Ihre Interview-Zeiten sind gespeichert.');
+        toast.success(t('hours.saved'));
       },
-      onError: (e) => toast.error(e instanceof Error ? e.message : 'Die Interview-Zeiten konnten nicht gespeichert werden.'),
+      onError: (e) => toast.error(e instanceof Error ? e.message : t('interviews:error.hours')),
     });
   };
 
@@ -39,12 +41,12 @@ export function CalendarSettingsSection() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <CalendarClock className="h-5 w-5" />
-          Kalender und Interview-Zeiten
+          {t('hours.title')}
         </CardTitle>
         <CardDescription>
           {calendarReady
-            ? 'Wann Kandidaten Ihnen ein Interview vorschlagen dürfen, und woher Matchunt weiß, wann Sie belegt sind.'
-            : 'Wann Kandidaten Ihnen ein Interview vorschlagen dürfen.'}
+            ? t('hours.lead')
+            : t('hours.leadShort')}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -57,31 +59,30 @@ export function CalendarSettingsSection() {
 
         <div className="space-y-4">
           <div className="space-y-1">
-            <h3 className="text-base font-semibold">Ihre Interview-Zeiten</h3>
+            <h3 className="text-base font-semibold">{t('hours.yours')}</h3>
             <p className="text-sm text-muted-foreground">
-              Innerhalb dieser Zeiten darf ein Kandidat eine andere Zeit wählen, wenn Ihre Vorschläge nicht passen.
-              Belegte Zeiten aus Outlook sind immer ausgenommen.
+              {t('hours.yoursLead')}
             </p>
-            {current && <p className="text-xs text-muted-foreground">Kurz: {describeHours(current)}</p>}
+            {current && <p className="text-xs text-muted-foreground">{t('hours.short', { text: describeHours(current) })}</p>}
           </div>
 
           {!current ? (
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />Interview-Zeiten werden geladen …
+              <Loader2 className="h-4 w-4 animate-spin" />{t('hours.loading')}
             </p>
           ) : (
             <>
               <InterviewHoursEditor value={current} onChange={setDraft} />
               <div className="flex flex-wrap items-center justify-end gap-3">
-                {dirty && <span className="text-xs text-muted-foreground">Nicht gespeicherte Änderungen</span>}
+                {dirty && <span className="text-xs text-muted-foreground">{t('hours.unsaved')}</span>}
                 {dirty && (
                   <Button type="button" variant="ghost" size="sm" onClick={() => setDraft(null)} disabled={hours.save.isPending}>
-                    Verwerfen
+                    {t('hours.discard')}
                   </Button>
                 )}
                 <Button type="button" size="sm" onClick={save} disabled={!dirty || hours.save.isPending}>
                   {hours.save.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  Zeiten speichern
+                  {t('hours.save')}
                 </Button>
               </div>
             </>
@@ -92,7 +93,7 @@ export function CalendarSettingsSection() {
 
         <p className="flex items-center gap-2 text-sm">
           <Video className="h-4 w-4 text-muted-foreground" />
-          <span className="text-muted-foreground">Videolink:</span> Microsoft Teams über Matchunt
+          <span className="text-muted-foreground">{t('hours.videoLink')}</span> {t('hours.videoLinkValue')}
         </p>
       </CardContent>
     </Card>

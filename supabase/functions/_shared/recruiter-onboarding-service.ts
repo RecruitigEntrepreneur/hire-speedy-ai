@@ -5,12 +5,16 @@ import { type ContractDocument, type RecruiterProfile, signingEvidence } from '.
 import { accessToken, docusignConfig, type DocuSignConfig } from './docusign.ts';
 import { noticeRecruiterSigned } from './recruiter-signed-notice.ts';
 import { autoActivateRecruiter } from './recruiter-activation.ts';
+import { normLang, type Lang } from './i18n.ts';
+import { localizeMessage } from './recruiter-i18n.ts';
 
 export interface OnboardingCase {
   id: string; revision: number; created_by: string | null; contract_template_hash: string | null; kind: string; email: string; token_hash: string;
   expires_at: string; revoked_at: string | null; claimed_by: string | null;
   profile: RecruiterProfile; state: string; feedback: string;
   checks: Record<string, boolean>; reviewed_at: string | null;
+  /** Mehrsprachigkeit (Migration 20261112120000): fehlen, solange die Migration nicht angewandt ist. */
+  language?: string | null; source_key?: string | null;
 }
 export interface RecruiterEnvelope {
   id: string; case_id: string; revision: number; state: string; envelope_id: string | null;
@@ -34,10 +38,11 @@ export function dbError(error: { message: string; code?: string } | null) {
   console.error('[recruiter-onboarding] Database error', error.code);
   throw new WorkflowError('internal_error', 'Der Vorgang konnte nicht gespeichert werden.');
 }
-export function workflowFailure(e: unknown) {
-  if (e instanceof WorkflowError) return fail(e.reason, e.message);
+/** `lang`: Sprache der Person aus dem Aufruf. Ohne sie bleibt die Meldung deutsch wie bisher. */
+export function workflowFailure(e: unknown, lang: Lang | null = null) {
+  if (e instanceof WorkflowError) return fail(e.reason, localizeMessage(lang, e.message));
   console.error('[recruiter-onboarding] Operation failed', e instanceof Error ? e.name : 'unknown');
-  return fail('upstream_error', 'Die Anfrage konnte nicht abgeschlossen werden. Bitte den gespeicherten Stand neu laden.');
+  return fail('upstream_error', localizeMessage(lang, 'Die Anfrage konnte nicht abgeschlossen werden. Bitte den gespeicherten Stand neu laden.'));
 }
 export async function verifiedUser(req: Request): Promise<User> {
   const client = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
@@ -125,5 +130,5 @@ export async function publicCase(db: SupabaseClient, c: OnboardingCase) {
   // Explicit allowlist: never return token hash, internal notes or checks/evidence
   // about other contacts through the recruiter endpoint.
   return { id: c.id, revision: c.revision, kind: c.kind, email: c.email, profile: c.profile,
-    state: c.state, feedback: c.feedback, contracts: data ?? [], activated };
+    state: c.state, feedback: c.feedback, contracts: data ?? [], activated, language: normLang(c.language) };
 }

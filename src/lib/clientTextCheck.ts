@@ -6,6 +6,12 @@
 // den Angaben (veraltet).
 
 import { NOTICE_OPTIONS, optionLabel, parseMoney, type DossierForm } from '@/lib/candidateDossier';
+import i18n from '@/i18n';
+import { fmtDate, fmtNumber } from '@/lib/localeFormat';
+import { term } from '@/lib/candidateTerms';
+
+// Feste Meldungen laufen in der Anzeige über term(); Meldungen mit Werten werden hier übersetzt (candidateLogic).
+const tl = (key: string, options?: Record<string, unknown>): string => i18n.t(`candidateLogic:${key}`, options) as string;
 
 export type ClientTextField = 'summary_motivation' | 'summary_salary' | 'summary_notice' | 'summary_key_requirements' | 'summary_cultural_fit' | 'expose_summary' | 'expose_highlights';
 
@@ -48,7 +54,7 @@ export function clientTextIssues(f: DossierForm): ClientTextIssue[] {
       if (near(a, f.salary_minimum)) add('danger', 'Nennt die Schmerzgrenze. Die darf der Kunde nie sehen.');
       else if (near(a, f.current_salary)) add('danger', 'Nennt das aktuelle Gehalt. Das darf der Kunde nie sehen.');
       else if (field === 'summary_salary' && f.expected_salary && a < f.expected_salary) add('danger', 'Nennt einen Betrag unter dem Wunschgehalt.');
-      else if (f.expected_salary) add('warn', `Betrag passt nicht mehr zur Akte (Wunschgehalt ${f.expected_salary.toLocaleString('de-DE')} €).`);
+      else if (f.expected_salary) add('warn', tl('textCheck.amountMismatch', { amount: fmtNumber(f.expected_salary) }));
     }
     if (OTHER_APPS.test(text)) add('danger', 'Erwähnt andere Bewerbungen. Das bleibt beim Headhunter.');
     if (nameParts.some((p) => new RegExp(`\\b${p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text))) add('danger', 'Enthält den Namen der Person.');
@@ -56,7 +62,7 @@ export function clientTextIssues(f: DossierForm): ClientTextIssue[] {
     // Veraltet: Kündigungsfrist oder Starttermin im Text weichen von den Angaben ab.
     if (noticeNow) {
       const mentioned = [...text.matchAll(/(\d+)\s*(Wochen?|Monate?)/gi)].map((m) => `${m[1]} ${m[2].toLowerCase().startsWith('w') ? (m[1] === '1' ? 'Woche' : 'Wochen') : (m[1] === '1' ? 'Monat' : 'Monate')}`);
-      if (mentioned.length && !mentioned.some((m) => noticeNow.includes(m))) add('warn', `Kündigungsfrist passt nicht mehr zu den Angaben (jetzt ${noticeNow}).`);
+      if (mentioned.length && !mentioned.some((m) => noticeNow.includes(m))) add('warn', tl('textCheck.noticeMismatch', { notice: term(noticeNow) }));
     }
     if (f.availability_date) {
       const want = new Date(f.availability_date);
@@ -64,7 +70,7 @@ export function clientTextIssues(f: DossierForm): ClientTextIssue[] {
       const months = [...text.matchAll(/\b(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+(\d{4})\b/gi)]
         .map((m) => new Date(Number(m[2]), ['januar', 'februar', 'märz', 'april', 'mai', 'juni', 'juli', 'august', 'september', 'oktober', 'november', 'dezember'].indexOf(m[1].toLowerCase()), 1));
       const off = [...dates, ...months].some((d) => d.getFullYear() !== want.getFullYear() || d.getMonth() !== want.getMonth());
-      if (off) add('warn', `Starttermin passt nicht mehr zu den Angaben (verfügbar ab ${want.toLocaleDateString('de-DE')}).`);
+      if (off) add('warn', tl('textCheck.startMismatch', { date: fmtDate(want) }));
     }
   }
   return out;

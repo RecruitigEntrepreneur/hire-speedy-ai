@@ -5,6 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Brain, Sparkles, Loader2, CheckCircle, Lightbulb } from 'lucide-react';
 import { useIntakeBriefing, ExtractedIntakeData, IntakeExtractionResult } from '@/hooks/useIntakeBriefing';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 interface IntakeBriefingSectionProps {
   onDataExtracted: (data: ExtractedIntakeData, completeness: number) => void;
@@ -12,11 +13,12 @@ interface IntakeBriefingSectionProps {
   className?: string;
 }
 
+// Schlüssel des Namespace recruiterJobEdit
 const EXAMPLE_PROMPTS = [
-  "Team-Größe, Altersstruktur, Kernarbeitszeit",
-  "Unternehmenskultur, Karrierepfade",
-  "Must-Haves, Nice-to-Haves, Timeline",
-  "Remote-Policy, Überstunden-Regelung"
+  'smart.prompts.p1',
+  'smart.prompts.p2',
+  'smart.prompts.p3',
+  'smart.prompts.p4'
 ];
 
 export function IntakeBriefingSection({ 
@@ -24,6 +26,7 @@ export function IntakeBriefingSection({
   existingData,
   className 
 }: IntakeBriefingSectionProps) {
+  const { t } = useTranslation('recruiterJobEdit');
   const [briefingText, setBriefingText] = useState('');
   const [hasAnalyzed, setHasAnalyzed] = useState(false);
   const { analyzeBriefing, analyzing, lastResult } = useIntakeBriefing();
@@ -48,20 +51,18 @@ export function IntakeBriefingSection({
           {hasAnalyzed && lastResult && (
             <span className="ml-auto flex items-center gap-1 text-sm font-normal text-emerald-600">
               <CheckCircle className="h-4 w-4" />
-              {lastResult.fields_found} Felder erkannt
+              {t('smart.fieldsFound', { count: lastResult.fields_found })}
             </span>
           )}
         </CardTitle>
         <CardDescription>
-          Erzählen Sie uns alles über die Stelle – die KI extrahiert automatisch alle relevanten Details
+          {t('smart.description')}
         </CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-4">
         <Textarea
-          placeholder="Beschreiben Sie die Stelle, das Team, die Anforderungen und was sie besonders macht...
-
-Beispiel: Wir suchen für unser 12-köpfiges Entwicklerteam in München einen Senior React Developer. Das Team ist zwischen 28-40 Jahre alt, Kernarbeitszeit 10-16 Uhr, 2 Tage Home Office möglich. Budget 75-90k plus Bonus..."
+          placeholder={t('smart.placeholder')}
           value={briefingText}
           onChange={(e) => setBriefingText(e.target.value)}
           className="min-h-[140px] resize-y"
@@ -72,14 +73,14 @@ Beispiel: Wir suchen für unser 12-köpfiges Entwicklerteam in München einen Se
         <div className="flex flex-wrap gap-2">
           <span className="text-xs text-muted-foreground flex items-center gap-1">
             <Lightbulb className="h-3 w-3" />
-            Erwähnen Sie:
+            {t('smart.mention')}
           </span>
           {EXAMPLE_PROMPTS.map((prompt) => (
             <span
               key={prompt}
               className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground"
             >
-              {prompt}
+              {t(prompt)}
             </span>
           ))}
         </div>
@@ -93,24 +94,24 @@ Beispiel: Wir suchen für unser 12-köpfiges Entwicklerteam in München einen Se
             {analyzing ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Analysiere...
+                {t('smart.analyzing')}
               </>
             ) : hasAnalyzed ? (
               <>
                 <Sparkles className="h-4 w-4" />
-                Erneut analysieren
+                {t('smart.analyzeAgain')}
               </>
             ) : (
               <>
                 <Sparkles className="h-4 w-4" />
-                Analysieren & Ausfüllen
+                {t('smart.analyze')}
               </>
             )}
           </Button>
 
           {briefingText.length > 0 && briefingText.length < 20 && (
             <span className="text-xs text-muted-foreground">
-              Noch {20 - briefingText.length} Zeichen...
+              {t('smart.charsLeft', { count: 20 - briefingText.length })}
             </span>
           )}
         </div>
@@ -119,7 +120,7 @@ Beispiel: Wir suchen für unser 12-köpfiges Entwicklerteam in München einen Se
         {hasAnalyzed && lastResult && lastResult.fields_found > 0 && (
           <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm">
             <p className="font-medium text-emerald-800 mb-1">
-              ✓ Automatisch erkannt:
+              {t('smart.detected')}
             </p>
             <div className="flex flex-wrap gap-1">
               {Object.entries(lastResult.extracted_data)
@@ -132,7 +133,7 @@ Beispiel: Wir suchen für unser 12-köpfiges Entwicklerteam in München einen Se
                     key={key}
                     className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700"
                   >
-                    {formatFieldName(key)}
+                    {formatFieldName(key, t)}
                   </span>
                 ))}
             </div>
@@ -143,29 +144,8 @@ Beispiel: Wir suchen für unser 12-köpfiges Entwicklerteam in München einen Se
   );
 }
 
-function formatFieldName(key: string): string {
-  const labels: Record<string, string> = {
-    team_size: 'Team-Größe',
-    core_hours: 'Kernarbeitszeit',
-    company_culture: 'Kultur',
-    career_path: 'Karrierepfad',
-    vacancy_reason: 'Vakanzgrund',
-    hiring_urgency: 'Dringlichkeit',
-    must_have_criteria: 'Must-Haves',
-    nice_to_have_criteria: 'Nice-to-Haves',
-    decision_makers: 'Entscheider',
-    remote_days: 'Remote-Tage',
-    salary_min: 'Gehalt Min',
-    salary_max: 'Gehalt Max',
-    daily_routine: 'Arbeitsalltag',
-    reports_to: 'Berichtet an',
-    works_council: 'Betriebsrat',
-    bonus_structure: 'Bonus',
-    trainable_skills: 'Nachschulbar',
-    success_profile: 'Erfolgsprofil',
-    failure_profile: 'Passt nicht',
-    unique_selling_points: 'USPs',
-    position_advantages: 'Positionsvorteile'
-  };
-  return labels[key] || key.replace(/_/g, ' ');
+const FIELD_KEYS = ['team_size', 'core_hours', 'company_culture', 'career_path', 'vacancy_reason', 'hiring_urgency', 'must_have_criteria', 'nice_to_have_criteria', 'decision_makers', 'remote_days', 'salary_min', 'salary_max', 'daily_routine', 'reports_to', 'works_council', 'bonus_structure', 'trainable_skills', 'success_profile', 'failure_profile', 'unique_selling_points', 'position_advantages'];
+
+function formatFieldName(key: string, t: (k: string) => string): string {
+  return FIELD_KEYS.includes(key) ? t(`smart.field.${key}`) : key.replace(/_/g, ' ');
 }

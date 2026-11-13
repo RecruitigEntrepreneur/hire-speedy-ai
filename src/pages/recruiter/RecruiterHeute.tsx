@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,15 +10,15 @@ import { CreateTaskDialog } from '@/components/influence/CreateTaskDialog';
 import { useMinutenTakt, useUnifiedTaskInbox, type UnifiedTaskItem } from '@/hooks/useUnifiedTaskInbox';
 import { useRecruiterInterviewAgenda, type RecruiterInterview } from '@/hooks/useRecruiterInterviewAgenda';
 import { useRecruiterPipeline, PIPELINE_LABELS, type PipelineStageKey } from '@/hooks/useRecruiterPipeline';
+import { dayMonth, dayMonthBare, dfLocale } from '@/components/recruiter/tasks/sprache';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
-import { DAY_MS, buildGuide, dateDe, daysSince, euro, firstName, groupByPerson, useTaskHost, type Guide, type PersonGroup } from '@/components/recruiter/tasks/taskWindow';
+import { DAY_MS, buildGuide, dateShort, daysSince, euro, firstName, groupByPerson, useTaskHost, viewLabel, type Guide, type PersonGroup } from '@/components/recruiter/tasks/taskWindow';
 import { KundePrueftWindow } from '@/components/recruiter/tasks/KundePrueftWindow';
-import { bundleByJob, viewText, type StalledBundle } from '@/lib/kundePrueft';
+import { bundleByJob, type StalledBundle } from '@/lib/kundePrueft';
 import { handgriffOf, rowItem, rowItems, splitJetzt, type Handgriff, type JetztRow } from '@/components/recruiter/tasks/jetztRows';
 import { format, isToday, isTomorrow } from 'date-fns';
-import { de } from 'date-fns/locale';
 import { Bell, Check, CheckSquare, ChevronDown, ChevronRight, Lock, Mail, NotebookPen, Phone, Plus, Video } from 'lucide-react';
 import { Honorar } from '@/components/recruiter/Honorar';
 import { useVerdecke } from '@/lib/honorarVerdeckt';
@@ -31,7 +33,12 @@ import { istGleichDran, VORBEREITEN_TON } from '@/lib/kandidatVorbereiten';
 
 // ---------------------------------------------------------------------------
 
+const NS = 'recruiterTasks';
+/** Texte in der Sprache der Oberfläche; die Seite lädt den Namespace über useTranslation. */
+const tr = (key: string, options?: Record<string, unknown>): string => i18n.t(`${NS}:${key}`, options);
+
 export default function RecruiterHeute() {
+  useTranslation(NS);
   const navigate = useNavigate();
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -128,10 +135,10 @@ export default function RecruiterHeute() {
   const verdecke = useVerdecke();
   const dealCount = pipeline ? pipeline.stages.reduce((n, st) => n + st.count, 0) : 0;
   const headline = loading
-    ? 'Einen Moment …'
+    ? tr('heute.oneMoment')
     : rows.length === 0
-      ? `Nichts braucht dich gerade. ${upcoming.length + waitingItems.length + parkedItems.length} Deals laufen, ${stale.length} ohne Bewegung.`
-      : `${dealCount} Deals${pipeline && pipeline.totalFee > 0 ? `, ${Math.round(pipeline.totalFee / 1000)}.000 € im Spiel` : ''}. ${totalTasks} ${totalTasks === 1 ? 'Aufgabe' : 'Aufgaben'} in ${rows.length} ${rows.length === 1 ? 'Handgriff' : 'Handgriffen'}, als Nächstes: ${rowName(rows[0])}.`;
+      ? tr('heute.headlineIdle', { running: upcoming.length + waitingItems.length + parkedItems.length, stale: stale.length })
+      : `${pipeline && pipeline.totalFee > 0 ? tr('heute.dealsFee', { count: dealCount, fee: euro(pipeline.totalFee) }) : tr('heute.deals', { count: dealCount })} ${tr('heute.headlineNext', { tasks: tr('heute.tasksCount', { count: totalTasks }), moves: tr('heute.movesIn', { count: rows.length }), name: rowName(rows[0]) })}`;
 
   return (
     <DashboardLayout>
@@ -141,12 +148,12 @@ export default function RecruiterHeute() {
           <div>
             <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
               <CheckSquare className="h-6 w-6 text-primary" />
-              Aufgaben
+              {tr('heute.title')}
             </h1>
             <p className="mt-0.5 text-sm text-muted-foreground">{verdecke(headline)}</p>
           </div>
           <Button variant="outline" size="sm" className="gap-1" onClick={() => setCreateOpen(true)}>
-            <Plus className="h-3.5 w-3.5" /> Eigene Erinnerung
+            <Plus className="h-3.5 w-3.5" /> {tr('heute.ownReminder')}
           </Button>
         </div>
 
@@ -169,13 +176,13 @@ export default function RecruiterHeute() {
                 >
                   {(needs > 0 || deadlineSoon) && (
                     <span className={cn('absolute right-2 top-2 rounded-full px-1.5 text-[10px] font-semibold', deadlineSoon && needs === 0 ? 'bg-amber-500 text-black' : 'bg-foreground text-background')}>
-                      {needs > 0 ? needs : format(new Date(st.deadline!), 'EEE', { locale: de })}
+                      {needs > 0 ? needs : format(new Date(st.deadline!), 'EEE', { locale: dfLocale() })}
                     </span>
                   )}
-                  <div className="text-[11px] text-muted-foreground">{st.label}</div>
+                  <div className="text-[11px] text-muted-foreground">{tr(`heute.stages.${st.key}`)}</div>
                   <div className="text-xl font-semibold tabular-nums">{st.count}</div>
                   <div className="text-[11px] text-muted-foreground tabular-nums">
-                    {st.key === 'placed' && st.deadline ? `Garantie bis ${dateDe(st.deadline)}` : st.fee > 0 ? <Honorar>{`${Math.round(st.fee / 1000)}.000 €`}</Honorar> : '—'}
+                    {st.key === 'placed' && st.deadline ? tr('heute.guaranteeUntil', { date: dateShort(st.deadline) }) : st.fee > 0 ? <Honorar>{euro(st.fee)}</Honorar> : '—'}
                   </div>
                 </button>
               );
@@ -190,11 +197,11 @@ export default function RecruiterHeute() {
           )}
           {pipeline && (
             <div className="mt-2 flex flex-wrap gap-4 text-[11px] text-muted-foreground">
-              <span>Abgesagt diesen Monat · {pipeline.rejectedThisMonth}</span>
-              <span>Zurückgezogen · {pipeline.withdrawnThisMonth}</span>
-              <span>Ohne Bewegung seit 3 Wochen · {stale.length}</span>
-              <span>Heute erledigt · {doneToday.length}</span>
-              {prepCount > 0 && <span className="font-medium text-foreground">Vor der Einreichung · {prepCount}</span>}
+              <span>{tr('heute.stats.rejected', { count: pipeline.rejectedThisMonth })}</span>
+              <span>{tr('heute.stats.withdrawn', { count: pipeline.withdrawnThisMonth })}</span>
+              <span>{tr('heute.stats.stale', { count: stale.length })}</span>
+              <span>{tr('heute.stats.doneToday', { count: doneToday.length })}</span>
+              {prepCount > 0 && <span className="font-medium text-foreground">{tr('heute.stats.prep', { count: prepCount })}</span>}
             </div>
           )}
         </div>
@@ -202,26 +209,26 @@ export default function RecruiterHeute() {
         {since.length > 0 && (
           <div className="flex items-start gap-2 rounded-lg border border-border/60 bg-card px-3 py-2 text-xs text-muted-foreground">
             <Bell className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            <span><span className="font-medium text-foreground">Seit gestern:</span> {since.map(s => s.title).join(' · ')}</span>
+            <span><span className="font-medium text-foreground">{tr('heute.sinceYesterday')}</span> {since.map(s => s.title).join(' · ')}</span>
           </div>
         )}
 
         {/* Jetzt (Variante A, 28.10.2026): oben genau eine Sache, darunter nach Handgriff */}
         {loading ? (
-          <Card className="border-border/30 shadow-sm"><CardContent className="px-4 py-6 text-sm text-muted-foreground">Lädt …</CardContent></Card>
+          <Card className="border-border/30 shadow-sm"><CardContent className="px-4 py-6 text-sm text-muted-foreground">{tr('nach.loading')}</CardContent></Card>
         ) : filteredRows.length === 0 ? (
           <Card className="border-border/30 shadow-sm" data-tour="tasks.list">
             <CardContent className="px-4 py-6 text-sm text-muted-foreground">
-              {stageFilter ? 'In dieser Stufe braucht dich gerade nichts.' : 'Nichts braucht dich gerade. Sonst nichts.'}
-              {stageFilter && <button type="button" className="ml-2 text-xs text-muted-foreground underline hover:text-foreground" onClick={() => setStageFilter(null)}>Alle anzeigen</button>}
+              {stageFilter ? tr('heute.emptyStage') : tr('heute.empty')}
+              {stageFilter && <button type="button" className="ml-2 text-xs text-muted-foreground underline hover:text-foreground" onClick={() => setStageFilter(null)}>{tr('heute.showAll')}</button>}
             </CardContent>
           </Card>
         ) : (
           <>
             {stageFilter && (
               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">{PIPELINE_LABELS[stageFilter]} · {filteredRows.length} {filteredRows.length === 1 ? 'Deal' : 'Deals'}</span>
-                <button type="button" className="hover:text-foreground" onClick={() => setStageFilter(null)}>Filter von der Pipeline · Alle anzeigen</button>
+                <span className="font-medium text-foreground">{tr('heute.filterCount', { stage: tr(`heute.stages.${stageFilter}`), count: filteredRows.length })}</span>
+                <button type="button" className="hover:text-foreground" onClick={() => setStageFilter(null)}>{tr('heute.filterReset')}</button>
               </div>
             )}
             {filteredRows[0] && (
@@ -231,21 +238,21 @@ export default function RecruiterHeute() {
             {filteredRows.length > 1 && (
               <Card className="border-border/30 shadow-sm" data-tour="tasks.list">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-border/40 px-4 py-3">
-                  <CardTitle className="text-sm">Danach heute</CardTitle>
+                  <CardTitle className="text-sm">{tr('heute.afterwards')}</CardTitle>
                   <span className="text-xs text-muted-foreground">
-                    {restTasks} {restTasks === 1 ? 'Aufgabe' : 'Aufgaben'} · {filteredRows.length - 1} {filteredRows.length - 1 === 1 ? 'Handgriff' : 'Handgriffe'}
+                    {tr('heute.tasksCount', { count: restTasks })} · {tr('heute.movesCount', { count: filteredRows.length - 1 })}
                   </span>
                 </CardHeader>
                 <CardContent className="p-0">
                   {BLOCKS.map(b => {
-                    const list = filteredRows.slice(1).filter(r => handgriffOf(r) === b.key);
+                    const list = filteredRows.slice(1).filter(r => handgriffOf(r) === b);
                     if (!list.length) return null;
-                    const oneClient = b.key === 'kunde' && list.length === 1 && list[0].kind === 'bundle' && list[0].bundle.companyName;
+                    const oneClient = b === 'kunde' && list.length === 1 && list[0].kind === 'bundle' && list[0].bundle.companyName;
                     return (
-                      <div key={b.key}>
+                      <div key={b}>
                         <div className="flex items-center justify-between border-b border-border/40 bg-muted/40 px-4 py-1.5 text-[11px] font-medium text-muted-foreground">
-                          <span>{oneClient && list[0].kind === 'bundle' ? `Eine Mail an ${list[0].bundle.companyName}` : `${b.label} · ${list.length}`}</span>
-                          <span className="font-normal">{b.hint}</span>
+                          <span>{oneClient && list[0].kind === 'bundle' ? tr('heute.oneMailTo', { company: list[0].bundle.companyName }) : `${tr(`heute.blocks.${b}.label`)} · ${list.length}`}</span>
+                          <span className="font-normal">{b === 'kurz' ? '' : tr(`heute.blocks.${b}.hint`)}</span>
                         </div>
                         <div className="divide-y divide-border/40">
                           {list.map(r => r.kind === 'person' ? (
@@ -267,8 +274,8 @@ export default function RecruiterHeute() {
         {!loading && !stageFilter && soonGroups.length > 0 && (
           <Card className="border-border/30 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-border/40 px-4 py-3">
-              <CardTitle className="text-sm">Diese Woche · {soonGroups.length}</CardTitle>
-              <span className="text-xs text-muted-foreground">neu angelegt, noch kein Gespräch</span>
+              <CardTitle className="text-sm">{tr('heute.thisWeek', { count: soonGroups.length })}</CardTitle>
+              <span className="text-xs text-muted-foreground">{tr('heute.thisWeekHint')}</span>
             </CardHeader>
             <CardContent className="divide-y divide-border/40 p-0">
               {soonGroups.map(g => (
@@ -290,12 +297,12 @@ export default function RecruiterHeute() {
         <div className="grid gap-4 md:grid-cols-2">
           <Card className="border-border/30 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-border/40 px-4 py-3">
-              <CardTitle className="text-sm">Termine</CardTitle>
-              <button type="button" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => navigate('/recruiter/interviews')}>Interviews →</button>
+              <CardTitle className="text-sm">{tr('heute.appointments')}</CardTitle>
+              <button type="button" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => navigate('/recruiter/interviews')}>{tr('heute.toInterviews')}</button>
             </CardHeader>
             <CardContent className="p-0">
               {weekInterviews.length === 0 ? (
-                <p className="px-4 py-4 text-sm text-muted-foreground">Keine Termine in den nächsten sieben Tagen.</p>
+                <p className="px-4 py-4 text-sm text-muted-foreground">{tr('heute.noAppointments')}</p>
               ) : (
                 <div className="divide-y divide-border/40">
                   {weekInterviews.slice(0, 5).map(iv => (
@@ -305,10 +312,10 @@ export default function RecruiterHeute() {
                       <span className="min-w-0 flex-1 truncate">{iv.candidateName} · {iv.jobTitle}</span>
                       {iv.joinUrl ? (
                         <Button size="sm" variant="outline" className="h-7 text-xs" asChild>
-                          <a href={iv.joinUrl} target="_blank" rel="noopener noreferrer">Beitreten</a>
+                          <a href={iv.joinUrl} target="_blank" rel="noopener noreferrer">{tr('pw.join')}</a>
                         </Button>
                       ) : (
-                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => navigate(`/recruiter/interviews?interview=${iv.id}`)}>Öffnen</Button>
+                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => navigate(`/recruiter/interviews?interview=${iv.id}`)}>{tr('guide.open')}</Button>
                       )}
                     </div>
                   ))}
@@ -319,12 +326,12 @@ export default function RecruiterHeute() {
 
           <Card className="border-border/30 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-border/40 px-4 py-3">
-              <CardTitle className="text-sm">Wartet auf andere</CardTitle>
-              <span className="text-xs text-muted-foreground">nichts zu tun</span>
+              <CardTitle className="text-sm">{tr('heute.waiting')}</CardTitle>
+              <span className="text-xs text-muted-foreground">{tr('heute.waitingHint')}</span>
             </CardHeader>
             <CardContent className="p-0">
               {upcoming.length + waitingBundles.length + parkedItems.length === 0 ? (
-                <p className="px-4 py-4 text-sm text-muted-foreground">Nichts liegt bei Kunden oder Kandidaten.</p>
+                <p className="px-4 py-4 text-sm text-muted-foreground">{tr('heute.waitingEmpty')}</p>
               ) : (
                 <div className="divide-y divide-border/40">
                   {waitingBundles.map(b => {
@@ -335,18 +342,18 @@ export default function RecruiterHeute() {
                     return (
                       <div key={`w-${b.key}`} className="px-4 py-2.5 text-sm">
                         <div className="flex items-center gap-3">
-                          <Badge variant="secondary" className="h-4 shrink-0 px-1.5 text-[10px]">{matchunt ? 'Matchunt' : b.kind === 'feedback' ? 'Feedback' : 'Kunde'}</Badge>
+                          <Badge variant="secondary" className="h-4 shrink-0 px-1.5 text-[10px]">{matchunt ? 'Matchunt' : b.kind === 'feedback' ? tr('guide.feedbackDue.pill') : tr('fallback.client')}</Badge>
                           <span className="min-w-0 flex-1 truncate">{b.items.map(i => i.candidateName).join(', ')} · {b.jobTitle}</span>
                         </div>
                         <div className="mt-0.5 flex flex-wrap items-center justify-between gap-2 pl-[3.25rem] text-xs text-muted-foreground">
                           <span>
                             {matchunt
-                              ? `2 Erinnerungen ohne Antwort. Matchunt kümmert sich seit ${dateDe(next)}.`
-                              : `${b.kind === 'feedback' ? 'Kunde gefragt' : 'Kunde erinnert'} am ${dateDe(last)} · ${zweite ? 'Matchunt übernimmt' : b.kind === 'feedback' ? '2. Nachfrage' : '2. Erinnerung'} ab ${dateDe(next)}`}
+                              ? tr('heute.wait.matchunt', { date: next ? dayMonthBare(next) : '' })
+                              : tr(`heute.wait.${b.kind === 'feedback' ? 'asked' : 'reminded'}Then${zweite ? 'Matchunt' : 'Second'}`, { last: dateShort(last), next: dateShort(next) })}
                           </span>
                           {!matchunt && last && (
                             <button type="button" className="text-primary hover:underline" onClick={() => setOpenState({ bundle: b, sameClient: [], startSent: { at: last } })}>
-                              Kandidaten Bescheid geben
+                              {tr('heute.tellCandidates')}
                             </button>
                           )}
                         </div>
@@ -357,7 +364,7 @@ export default function RecruiterHeute() {
                   {parkedItems.map(i => (
                     <div key={i.itemId} className="px-4 py-2.5 text-sm">
                       <div className="flex items-center gap-3">
-                        <Badge variant="secondary" className="h-4 shrink-0 px-1.5 text-[10px]">{i.parkKind === 'contract' ? 'Vertrag' : i.parkKind === 'counter' ? 'Gegenwunsch' : 'Pausiert'}</Badge>
+                        <Badge variant="secondary" className="h-4 shrink-0 px-1.5 text-[10px]">{i.parkKind === 'contract' ? tr('guide.contract.pill') : i.parkKind === 'counter' ? tr('guide.counter.pill') : tr('heute.paused')}</Badge>
                         <span className="min-w-0 flex-1 truncate">{i.candidateName}{i.jobTitle ? ` · ${i.jobTitle}` : ''}</span>
                       </div>
                       <div className="mt-0.5 flex flex-wrap items-center justify-between gap-2 pl-[3.25rem] text-xs text-muted-foreground">
@@ -370,14 +377,14 @@ export default function RecruiterHeute() {
                             else if (i.candidateId) navigate(`/recruiter/candidates/${i.candidateId}`);
                           }}
                         >
-                          Öffnen
+                          {tr('guide.open')}
                         </button>
                       </div>
                     </div>
                   ))}
                   {upcoming.slice(0, 5).map(iv => (
                     <div key={iv.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-                      <Badge variant="secondary" className="h-4 shrink-0 px-1.5 text-[10px]">Termin</Badge>
+                      <Badge variant="secondary" className="h-4 shrink-0 px-1.5 text-[10px]">{tr('prep.termin.pill')}</Badge>
                       <span className="min-w-0 flex-1 truncate">{iv.candidateName} · {iv.jobTitle}</span>
                       <span className="shrink-0 text-xs text-muted-foreground">{relativeTime(iv.scheduledAt!)}</span>
                     </div>
@@ -390,32 +397,32 @@ export default function RecruiterHeute() {
 
         {/* Ohne Bewegung */}
         {stale.length > 0 && (
-          <FoldCard label="Ohne Bewegung seit über 3 Wochen" count={stale.length} open={staleOpen} onToggle={() => setStaleOpen(o => !o)}>
+          <FoldCard label={tr('heute.staleTitle')} count={stale.length} open={staleOpen} onToggle={() => setStaleOpen(o => !o)}>
             {stale.map(i => (
               <div key={i.itemId} className="flex items-center gap-3 px-4 py-2.5 text-sm text-muted-foreground">
-                <span className="min-w-0 flex-1 truncate"><span className="text-foreground">{i.candidateName || i.title}</span> · {i.jobTitle ?? i.candidateRole} · {daysSince(i.createdAt)} Tage</span>
-                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { if (i.prep) task.openPrep(i); else task.openDetail(i); }}>Öffnen</Button>
-                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => task.later(i, new Date(Date.now() + 14 * DAY_MS))}>14 Tage ruhen</Button>
+                <span className="min-w-0 flex-1 truncate"><span className="text-foreground">{i.candidateName || i.title}</span> · {i.jobTitle ?? i.candidateRole} · {tr('heute.days', { count: daysSince(i.createdAt) })}</span>
+                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { if (i.prep) task.openPrep(i); else task.openDetail(i); }}>{tr('guide.open')}</Button>
+                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => task.later(i, new Date(Date.now() + 14 * DAY_MS))}>{tr('heute.rest14')}</Button>
               </div>
             ))}
-            <p className="px-4 py-2 text-xs text-muted-foreground">„Zurückziehen“ mit Grund kommt in der nächsten Stufe.</p>
+            <p className="px-4 py-2 text-xs text-muted-foreground">{tr('heute.withdrawLater')}</p>
           </FoldCard>
         )}
 
         {/* Erledigt */}
         {completedItems.length > 0 && (
-          <FoldCard label="Erledigt · letzte 7 Tage" count={completedItems.length} open={doneOpen} onToggle={() => setDoneOpen(o => !o)}>
+          <FoldCard label={tr('heute.doneTitle')} count={completedItems.length} open={doneOpen} onToggle={() => setDoneOpen(o => !o)}>
             {completedItems.map(i => (
               <div key={`${i.itemType}-${i.itemId}`} className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground">
                 <Check className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
-                <span className="w-24 shrink-0 tabular-nums">{i.completedAt ? format(new Date(i.completedAt), 'dd.MM. HH:mm', { locale: de }) : ''}</span>
+                <span className="w-24 shrink-0 tabular-nums">{i.completedAt ? `${dayMonth(i.completedAt)} ${format(new Date(i.completedAt), 'HH:mm')}` : ''}</span>
                 <span className="truncate"><span className="text-foreground">{i.title}</span>{i.candidateName ? ` · ${i.candidateName}` : ''}{i.jobTitle ? ` · ${i.jobTitle}` : ''}</span>
               </div>
             ))}
           </FoldCard>
         )}
 
-        <p className="text-xs text-muted-foreground">Sonst nichts.</p>
+        <p className="text-xs text-muted-foreground">{tr('heute.nothingElse')}</p>
       </div>
 
       <CreateTaskDialog open={createOpen} onOpenChange={o => { setCreateOpen(o); if (!o) refetch(); }} />
@@ -430,10 +437,10 @@ export default function RecruiterHeute() {
 function relativeTime(iso: string) {
   const d = new Date(iso);
   const diffH = Math.round((d.getTime() - Date.now()) / 3_600_000);
-  if (isToday(d) && diffH >= 0 && diffH <= 6) return diffH === 0 ? 'jetzt' : `in ${diffH} Std.`;
-  if (isToday(d)) return format(d, 'HH:mm', { locale: de });
-  if (isTomorrow(d)) return `morgen ${format(d, 'HH:mm', { locale: de })}`;
-  return format(d, 'EEE dd.MM. HH:mm', { locale: de });
+  if (isToday(d) && diffH >= 0 && diffH <= 6) return diffH === 0 ? tr('heute.time.now') : tr('heute.time.inHours', { hours: diffH });
+  if (isToday(d)) return format(d, 'HH:mm');
+  if (isTomorrow(d)) return tr('heute.time.tomorrow', { time: format(d, 'HH:mm') });
+  return `${format(d, 'EEE', { locale: dfLocale() })} ${dayMonth(d)} ${format(d, 'HH:mm')}`;
 }
 
 function FoldCard({ label, count, open, onToggle, children }: { label: string; count: number; open: boolean; onToggle: () => void; children: React.ReactNode }) {
@@ -452,20 +459,16 @@ function FoldCard({ label, count, open, onToggle, children }: { label: string; c
 /** Diese Knöpfe würden sofort wählen bzw. abhaken – in der Liste öffnen sie stattdessen das Fenster. */
 const DIRECT_KINDS = new Set(['call', 'followup', 'done']);
 
-const BLOCKS: { key: Handgriff; label: string; hint: string }[] = [
-  { key: 'anruf', label: 'Anrufe', hint: 'Kandidaten anrufen' },
-  { key: 'kunde', label: 'Mails an Kunden', hint: 'eine Bitte für alle Kandidaten' },
-  { key: 'vorbereiten', label: 'Kandidaten vorbereiten', hint: 'bevor du sie einreichen kannst' },
-  { key: 'kurz', label: 'Kurz erledigen', hint: '' },
-];
+// Überschrift und Hinweis: heute.blocks.<key>.label / .hint („kurz“ hat keinen Hinweis)
+const BLOCKS: Handgriff[] = ['anruf', 'kunde', 'vorbereiten', 'kurz'];
 
 const rowName = (r: JetztRow) => (r.kind === 'person'
-  ? r.group.primary.prep && istGleichDran(r.group.primary.prep) ? `Gespräch mit ${firstName(r.group.primary.candidateName)}`
+  ? r.group.primary.prep && istGleichDran(r.group.primary.prep) ? tr('heute.talkWith', { first: firstName(r.group.primary.candidateName) })
     : (r.group.primary.candidateName ? firstName(r.group.primary.candidateName) : r.group.primary.title)
-  : (r.more.length && r.bundle.companyName ? r.bundle.companyName : r.bundle.jobTitle ?? 'Stelle'));
+  : (r.more.length && r.bundle.companyName ? r.bundle.companyName : r.bundle.jobTitle ?? tr('fallback.job')));
 
 /** Linke Spalte (Vorschlag 6, 28.10.2026): Phase der Einreichung als vier Striche, darunter das Wort. */
-const PHASES = ['Eingereicht', 'Interview', 'Angebot', 'Vertrag'];
+const PHASES = ['submitted', 'interview', 'offer', 'contract'] as const;
 const phaseIndex = (stage: PipelineStageKey | null) =>
   stage === 'placed' ? 3 : stage === 'offer' ? 2 : stage === 'interview_1' || stage === 'interview_2' ? 1 : stage ? 0 : null;
 /** Mindest-Phase aus der Aufgabe selbst (die Pipeline-Stufe hinkt manchmal hinterher) */
@@ -477,19 +480,19 @@ function ViewState({ bundle }: { bundle: StalledBundle }) {
   const items = bundle.items;
   if (items.length === 1) {
     const it = items[0];
-    return <span className={it.clientViewCount ? 'text-emerald-600' : 'text-amber-600'}>{viewText(it.clientViewCount, it.clientLastViewedAt)}</span>;
+    return <span className={it.clientViewCount ? 'text-emerald-600' : 'text-amber-600'}>{viewLabel(it.clientViewCount, it.clientLastViewedAt)}</span>;
   }
   const seen = items.filter(i => (i.clientViewCount ?? 0) > 0).length;
-  return <span className={seen ? 'text-emerald-600' : 'text-amber-600'}>{seen === 0 ? 'noch keins geöffnet' : `${seen} von ${items.length} angesehen`}</span>;
+  return <span className={seen ? 'text-emerald-600' : 'text-amber-600'}>{seen === 0 ? tr('heute.noneOpened') : tr('heute.seenOf', { seen, total: items.length })}</span>;
 }
 
 function PhaseCell({ stage, items }: { stage: PipelineStageKey | null; items: UnifiedTaskItem[] }) {
   const fromStage = phaseIndex(stage);
   const vorher = items.length > 0 && items.every(i => i.prep);
   const idx = vorher ? -1 : Math.max(fromStage ?? -1, ...items.map(i => impliedPhase(i.taskCategory)));
-  const label = vorher ? 'Vorher' : idx < 0 ? '–' : stage === 'placed' && idx === 3 ? 'Platziert' : stage === 'in_review' && idx === 0 ? 'In Prüfung' : PHASES[idx];
+  const label = vorher ? tr('heute.phases.before') : idx < 0 ? '–' : stage === 'placed' && idx === 3 ? tr('heute.stages.placed') : stage === 'in_review' && idx === 0 ? tr('heute.stages.in_review') : tr(`heute.phases.${PHASES[idx]}`);
   return (
-    <div className="flex w-[5.5rem] shrink-0 flex-col items-center gap-1" title={idx < 0 ? undefined : `Phase: ${label}`}>
+    <div className="flex w-[5.5rem] shrink-0 flex-col items-center gap-1" title={idx < 0 ? undefined : tr('heute.phaseTitle', { label })}>
       <div className="flex gap-0.5" aria-hidden="true">
         {PHASES.map((_, i) => (
           <span key={i} className={cn('h-3.5 w-1.5 rounded-sm', i <= idx ? 'bg-emerald-500' : 'bg-muted-foreground/25')} />
@@ -518,7 +521,7 @@ function NextCard({ row, stage, onOpen, onOpenItem }: {
     <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/[0.04] px-4 py-3">
       <PhaseCell stage={stage} items={rowItems(row)} />
       <button type="button" className="min-w-0 flex-1 text-left" onClick={onOpen}>
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-destructive">Als Nächstes</p>
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-destructive">{tr('heute.next')}</p>
         <div className="flex flex-wrap items-center gap-x-2">
           <span className="text-base font-semibold">{title}</span>
           {item.jobTitle && row.kind === 'person' && <span className="text-sm text-muted-foreground">· {item.jobTitle}</span>}
@@ -534,18 +537,18 @@ function NextCard({ row, stage, onOpen, onOpenItem }: {
         {termin ? (
           <div className="flex items-center gap-1.5">
             {termin.joinUrl ? (
-              <Button size="sm" className="h-8 gap-1 text-xs" asChild><a href={termin.joinUrl} target="_blank" rel="noreferrer"><Video className="h-3.5 w-3.5" />Beitreten</a></Button>
+              <Button size="sm" className="h-8 gap-1 text-xs" asChild><a href={termin.joinUrl} target="_blank" rel="noreferrer"><Video className="h-3.5 w-3.5" />{tr('pw.join')}</a></Button>
             ) : item.candidatePhone ? (
-              <Button size="sm" className="h-8 gap-1 text-xs" asChild><a href={`tel:${item.candidatePhone.replace(/[^\d+]/g, '')}`}><Phone className="h-3.5 w-3.5" />Anrufen</a></Button>
+              <Button size="sm" className="h-8 gap-1 text-xs" asChild><a href={`tel:${item.candidatePhone.replace(/[^\d+]/g, '')}`}><Phone className="h-3.5 w-3.5" />{tr('guide.call')}</a></Button>
             ) : null}
-            <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => navigate(`/recruiter/candidates/${item.candidateId}?interview=live`)}>Interview öffnen</Button>
+            <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => navigate(`/recruiter/candidates/${item.candidateId}?interview=live`)}>{tr('pw.openInterview')}</Button>
           </div>
         ) : (
-          <Button size="sm" className="h-8 text-xs" onClick={onOpen}>Aufgabe öffnen</Button>
+          <Button size="sm" className="h-8 text-xs" onClick={onOpen}>{tr('heute.openTask')}</Button>
         )}
         {all.length > 1 && (
           <div className="flex flex-wrap justify-end gap-1 text-[11px] text-muted-foreground">
-            <span>{all.length} Aufgaben:</span>
+            <span>{tr('heute.tasksColon', { count: all.length })}</span>
             {all.map((o, k) => (
               <span key={o.itemId} className="inline-flex gap-1">
                 {k > 0 && <span aria-hidden="true">·</span>}
@@ -565,7 +568,7 @@ function NextCard({ row, stage, onOpen, onOpenItem }: {
 function bundleLine(bundle: StalledBundle, more: StalledBundle[]): string {
   const feedback = bundle.kind === 'feedback';
   const parts = [bundle, ...more].flatMap(b => b.items.map(i => `${i.candidateName}${more.length ? ` (${b.jobTitle})` : ''}`));
-  return `${parts.join(', ')} ${feedback ? 'warten auf den Eindruck des Kunden' : 'liegen beim Kunden'}, am längsten seit ${Math.max(bundle.days, ...more.map(b => b.days))} Tagen.`;
+  return tr(feedback ? 'heute.bundleLineFeedback' : 'heute.bundleLineReview', { names: parts.join(', '), days: Math.max(bundle.days, ...more.map(b => b.days)) });
 }
 
 function BundleRow({ row, bundle, more, stage, sameClientCount, onOpen }: {
@@ -583,8 +586,8 @@ function BundleRow({ row, bundle, more, stage, sameClientCount, onOpen }: {
   const lastNudge = bundle.items.map(i => i.lastNudgeAt ?? '').sort().pop() || null;
   // „1. Erinnerung“ las sich wie „schon erinnert“ (Durchklick 27.10.2026)
   const stand = bundle.erinnerung === 2
-    ? `${lastNudge ? `${feedback ? 'gefragt' : 'erinnert'} am ${dateDe(lastNudge)} · ` : ''}${feedback ? '2. Nachfrage' : '2. Erinnerung'}`
-    : feedback ? 'noch nicht gefragt' : 'noch nicht erinnert';
+    ? tr(`heute.stand.${feedback ? 'secondAsk' : 'secondReminder'}${lastNudge ? 'After' : ''}`, { date: dateShort(lastNudge) })
+    : feedback ? tr('heute.stand.notAsked') : tr('heute.stand.notReminded');
   const interviewAt = bundle.items[0]?.interviewAt ?? null;
   // Mehrere Stellen desselben Kunden: eine Zeile, eine Mail (28.10.2026)
   if (more.length > 0) {
@@ -595,23 +598,23 @@ function BundleRow({ row, bundle, more, stage, sameClientCount, onOpen }: {
         <PhaseCell stage={stage} items={rowItems(row)} />
         <button type="button" className="min-w-0 flex-1 text-left" onClick={onOpen}>
           <div className="flex flex-wrap items-center gap-x-2 text-sm">
-            <Badge variant="secondary" className="h-4 px-1.5 text-[10px] font-medium">{feedback ? 'Feedback' : 'Prüfung'}</Badge>
+            <Badge variant="secondary" className="h-4 px-1.5 text-[10px] font-medium">{feedback ? tr('guide.feedbackDue.pill') : tr('guide.reviewStalled.pill')}</Badge>
             <span className="font-medium">{bundle.companyName}</span>
-            <span className="text-muted-foreground">· {all.length} Stellen</span>
+            <span className="text-muted-foreground">· {tr('heute.jobs', { count: all.length })}</span>
             {total && <span className="font-medium text-emerald-500 tabular-nums"><Honorar>{total}</Honorar></span>}
           </div>
           {all.map(b => (
             <div key={b.key} className="text-sm text-muted-foreground">
-              {b.items.map(i => i.candidateName).join(', ')} · {b.jobTitle} · {feedback ? `ohne Eindruck seit ${b.days} Tagen` : `beim Kunden seit ${b.days} Tagen`}
+              {b.items.map(i => i.candidateName).join(', ')} · {b.jobTitle} · {feedback ? tr('heute.noImpressionSince', { days: b.days }) : tr('heute.withClientSince', { days: b.days })}
               {!feedback && <> · <ViewState bundle={b} /></>}
             </div>
           ))}
           <div className="text-sm text-muted-foreground">{stand}</div>
         </button>
         <Button size="sm" className="h-7 shrink-0 gap-1 text-xs" onClick={onOpen}>
-          <Mail className="h-3 w-3" />{feedback ? 'Kunden fragen' : 'Kunden erinnern'}
+          <Mail className="h-3 w-3" />{feedback ? tr('guide.askClient') : tr('guide.remindClient')}
         </Button>
-        <button type="button" className="shrink-0 text-muted-foreground hover:text-foreground" onClick={onOpen} aria-label="Aufgabe öffnen">
+        <button type="button" className="shrink-0 text-muted-foreground hover:text-foreground" onClick={onOpen} aria-label={tr('heute.openTask')}>
           <ChevronRight className="h-4 w-4" />
         </button>
       </div>
@@ -622,24 +625,24 @@ function BundleRow({ row, bundle, more, stage, sameClientCount, onOpen }: {
       <PhaseCell stage={stage} items={rowItems(row)} />
       <button type="button" className="min-w-0 flex-1 text-left" onClick={onOpen}>
         <div className="flex flex-wrap items-center gap-x-2 text-sm">
-          <Badge variant="secondary" className="h-4 px-1.5 text-[10px] font-medium">{feedback ? 'Feedback' : 'Prüfung'}</Badge>
+          <Badge variant="secondary" className="h-4 px-1.5 text-[10px] font-medium">{feedback ? tr('guide.feedbackDue.pill') : tr('guide.reviewStalled.pill')}</Badge>
           <span className="font-medium">{bundle.jobTitle}</span>
           {bundle.companyName && <span className="text-muted-foreground">· {bundle.companyName}</span>}
           {!bundle.items[0]?.companyRevealed && <Lock className="h-3 w-3 text-muted-foreground" />}
           {fee && <span className="font-medium text-emerald-500 tabular-nums"><Honorar>{fee}</Honorar></span>}
         </div>
         <div className="text-sm text-muted-foreground">
-          {n === 1 ? names : `${n} Kandidaten (${names})`}
+          {n === 1 ? names : tr('heute.candidatesNames', { count: n, names })}
           {feedback
-            ? <> · {n === 1 && interviewAt ? `Interview ${dateDe(interviewAt)} · ` : ''}Kunde ohne Eindruck seit {bundle.days} Tagen · {stand}</>
-            : <> · beim Kunden seit {bundle.days} Tagen · <ViewState bundle={bundle} /> · {stand}</>}
-          {sameClientCount > 0 && <span> · geht mit {sameClientCount} weiteren Stelle{sameClientCount === 1 ? '' : 'n'} in eine Mail</span>}
+            ? <> · {n === 1 && interviewAt ? `${tr('heute.interviewOn', { date: dateShort(interviewAt) })} · ` : ''}{tr('heute.clientNoImpressionSince', { days: bundle.days })} · {stand}</>
+            : <> · {tr('heute.withClientSince', { days: bundle.days })} · <ViewState bundle={bundle} /> · {stand}</>}
+          {sameClientCount > 0 && <span> · {tr('heute.goesWith', { count: sameClientCount })}</span>}
         </div>
       </button>
       <Button size="sm" className="h-7 shrink-0 gap-1 text-xs" onClick={onOpen}>
-        <Mail className="h-3 w-3" />{feedback ? 'Kunden fragen' : 'Kunden erinnern'}
+        <Mail className="h-3 w-3" />{feedback ? tr('guide.askClient') : tr('guide.remindClient')}
       </Button>
-      <button type="button" className="shrink-0 text-muted-foreground hover:text-foreground" onClick={onOpen} aria-label="Aufgabe öffnen">
+      <button type="button" className="shrink-0 text-muted-foreground hover:text-foreground" onClick={onOpen} aria-label={tr('heute.openTask')}>
         <ChevronRight className="h-4 w-4" />
       </button>
     </div>
@@ -677,13 +680,13 @@ function PersonRow({ row, group, stage, quiet, onOpen, onAct }: {
           {item.companyName && <span className="text-muted-foreground">· {item.companyName}</span>}
           {!item.companyName && item.jobTitle && <Lock className="h-3 w-3 text-muted-foreground" />}
           {fee && <span className="font-medium text-emerald-500 tabular-nums"><Honorar>{fee}</Honorar></span>}
-          {group.others.length > 0 && <span className="text-xs text-muted-foreground">+{group.others.length} {group.others.length === 1 ? 'Aufgabe' : 'Aufgaben'}</span>}
+          {group.others.length > 0 && <span className="text-xs text-muted-foreground">+{tr('heute.tasksCount', { count: group.others.length })}</span>}
         </div>
         <div className="text-sm text-muted-foreground">{guide.advice}</div>
       </button>
       {/* Erst die Aufgabe öffnen, angerufen oder gesendet wird im Fenster (28.10.2026) */}
       {DIRECT_KINDS.has(guide.primary.kind) ? (
-        <Button size="sm" className="h-7 shrink-0 text-xs" onClick={onOpen}>Aufgabe öffnen</Button>
+        <Button size="sm" className="h-7 shrink-0 text-xs" onClick={onOpen}>{tr('heute.openTask')}</Button>
       ) : (
         <Button size="sm" variant={quiet ? 'outline' : 'default'} className="h-7 shrink-0 gap-1 text-xs" onClick={() => onAct(item, guide)}>
           {guide.primary.kind === 'debrief' && <NotebookPen className="h-3 w-3" />}
@@ -691,7 +694,7 @@ function PersonRow({ row, group, stage, quiet, onOpen, onAct }: {
           {guide.primary.label}
         </Button>
       )}
-      <button type="button" className="shrink-0 text-muted-foreground hover:text-foreground" onClick={onOpen} aria-label="Aufgabe öffnen">
+      <button type="button" className="shrink-0 text-muted-foreground hover:text-foreground" onClick={onOpen} aria-label={tr('heute.openTask')}>
         <ChevronRight className="h-4 w-4" />
       </button>
     </div>

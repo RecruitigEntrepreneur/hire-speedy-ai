@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, FileText, Linkedin, Loader2, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,7 @@ export function LigaAwardDialog() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { toast } = useToast();
+  const { t } = useTranslation('recruiterLiga');
   const me = useQuery({ queryKey: ['liga', 'me', null], queryFn: () => ligaMe(null), staleTime: 60_000 });
   const hall = useQuery({ queryKey: ['liga', 'hall'], queryFn: ligaHallOfFame, staleTime: 60_000, enabled: !!me.data?.participant });
   const [open, setOpen] = useState(false);
@@ -48,7 +50,7 @@ export function LigaAwardDialog() {
   };
   const post = () => {
     const text = awardPostText({ award, season: latest.season_label, rank: latest.rank, participants: latest.participants, number: partner.data });
-    void copyText(text).then(() => toast({ title: 'Text kopiert', description: 'LinkedIn öffnet sich; dort einfügen.' }));
+    void copyText(text).then(() => toast({ title: t('dialog.copied'), description: t('dialog.copiedText') }));
     if (partner.data) window.open(linkedinShareUrl(partner.data), '_blank', 'noopener');
   };
   const certificate = async () => {
@@ -57,31 +59,31 @@ export function LigaAwardDialog() {
       const r = await onboardingApi<{ file_name: string; base64: string }>(false, { action: 'partner-certificate' });
       downloadBase64(r.base64, r.file_name, 'application/pdf');
     } catch (e) {
-      toast({ title: e instanceof Error ? e.message : 'Die Urkunde konnte nicht erstellt werden.', variant: 'destructive' });
+      toast({ title: e instanceof Error ? e.message : t('dialog.certificateFailed'), variant: 'destructive' });
     } finally { setBusy(''); }
   };
 
   return <Dialog open={open} onOpenChange={o => { if (!o) close(); }}>
     <DialogContent className="max-w-md text-center">
       <div className="mx-auto text-4xl text-[#C8A24A]" aria-hidden>✦</div>
-      <DialogTitle className="text-xl">Du bist {AWARD_LABEL[award]} {latest.season_label}</DialogTitle>
+      <DialogTitle className="text-xl">{t('dialog.title', { award: t(`award.${award}`, { defaultValue: AWARD_LABEL[award] }), season: latest.season_label })}</DialogTitle>
       <DialogDescription>
-        Platz {latest.rank} von {latest.participants} · {latest.points} Punkte · {latest.placements} {latest.placements === 1 ? 'Einstellung' : 'Einstellungen'}
+        {t('rankOf', { rank: latest.rank, total: latest.participants })} · {latest.points} {t('table.points')} · {t('placements', { count: latest.placements })}
       </DialogDescription>
       <div className="flex justify-center py-2"><LigaAwardCard award={award} season={latest.season_label} size="lg"/></div>
-      <p className="text-xs text-muted-foreground">Dein Abzeichen steht ab jetzt auf deiner Prüfseite und im Signatur-Baustein, immer mit Saison.</p>
+      <p className="text-xs text-muted-foreground">{t('dialog.badgeNote')}</p>
       <div className="grid gap-2 sm:grid-cols-2">
-        <Button onClick={() => { close(); navigate('/recruiter/profile/partnerstatus?panel=signature'); }}><Mail className="mr-2 h-4 w-4"/>Signatur aktualisieren</Button>
-        <Button variant="outline" onClick={post}><Linkedin className="mr-2 h-4 w-4"/>LinkedIn-Beitrag</Button>
+        <Button onClick={() => { close(); navigate('/recruiter/profile/partnerstatus?panel=signature'); }}><Mail className="mr-2 h-4 w-4"/>{t('dialog.signature')}</Button>
+        <Button variant="outline" onClick={post}><Linkedin className="mr-2 h-4 w-4"/>{t('dialog.linkedin')}</Button>
         <Button variant="outline" disabled={busy === 'certificate'} onClick={() => void certificate()}>
-          {busy === 'certificate' ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <FileText className="mr-2 h-4 w-4"/>}Urkunde (PDF)
+          {busy === 'certificate' ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <FileText className="mr-2 h-4 w-4"/>}{t('dialog.certificate')}
         </Button>
         <Button variant="outline" onClick={() => downloadRueckblick({
           season: latest.season_label, placements: latest.placements, interviews: latest.interviews ?? 0, quote: latest.quote,
           rank: latest.rank, participants: latest.participants, award, name: me.data?.name ?? '',
-        })}><Download className="mr-2 h-4 w-4"/>Rückblick-Bild</Button>
+        })}><Download className="mr-2 h-4 w-4"/>{t('hall.image')}</Button>
       </div>
-      <Button variant="ghost" size="sm" onClick={close}>Später</Button>
+      <Button variant="ghost" size="sm" onClick={close}>{t('dialog.later')}</Button>
     </DialogContent>
   </Dialog>;
 }

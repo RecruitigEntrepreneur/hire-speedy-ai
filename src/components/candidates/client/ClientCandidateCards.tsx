@@ -4,8 +4,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { CandidateFitAssessment, useCandidateFitAssessment } from '@/hooks/useCandidateFitAssessment';
 import { readGaps } from '@/lib/clientQuestions';
-import { fmtDatum, fuehrung, GESPRAECH, verfuegbarAus, type EducationEntry, type InterviewInsights } from './useCandidateInsights';
-import { TAGESSATZ_ABSTIMMUNG } from '@/lib/contractingKunde';
+import { useTranslation } from 'react-i18next';
+import { fmtDatum, fuehrung, gespraechLabel, verfuegbarAus, type EducationEntry, type InterviewInsights } from './useCandidateInsights';
+import { term } from '@/lib/candidateTerms';
 
 // Ersetzte Namen („der Kandidat“) stehen oft am Satzanfang.
 const satz = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
@@ -34,34 +35,35 @@ function Zeile({ label, children }: { label: string; children: ReactNode }) {
  * gesperrte Firmen und interne Einschätzungen bleiben beim Headhunter.
  */
 export function InterviewInsightsCard({ interview, recruiterNotes, recruiterName = null, contracting = false }: { interview: InterviewInsights | null; recruiterNotes: string | null; recruiterName?: string | null; contracting?: boolean }) {
+  const { t } = useTranslation(['clientCandidates', 'candidateTerms']);
   const i = interview;
   const verfuegbar = verfuegbarAus(i);
   const wichtig = (i?.offer_requirements ?? []).filter(Boolean);
   const rows = i ? [
-    i.change_motivation?.trim() && { label: 'Warum wechseln', value: satz(i.change_motivation.trim()) },
-    i.why_now?.trim() && { label: 'Warum jetzt', value: satz(i.why_now.trim()) },
-    wichtig.length > 0 && { label: 'Wichtig ist', value: <span className="flex flex-wrap gap-1.5">{wichtig.map((w) => <Badge key={w} variant="secondary" className="font-normal">{w}</Badge>)}</span> },
+    i.change_motivation?.trim() && { label: t('cards.whyChange'), value: satz(i.change_motivation.trim()) },
+    i.why_now?.trim() && { label: t('cards.whyNow'), value: satz(i.why_now.trim()) },
+    wichtig.length > 0 && { label: t('cards.important'), value: <span className="flex flex-wrap gap-1.5">{wichtig.map((w) => <Badge key={w} variant="secondary" className="font-normal">{term(w)}</Badge>)}</span> },
     // Contracting: nie der Satz des Kandidaten, der Kunde sieht seinen Preis (lib/contractingKunde)
-    contracting ? { label: 'Tagessatz', value: TAGESSATZ_ABSTIMMUNG } : i.salary_wish && { label: 'Gehaltswunsch', value: i.salary_wish },
-    verfuegbar && { label: 'Verfügbar', value: verfuegbar },
-    fuehrung(i) && { label: 'Führung', value: fuehrung(i) },
+    contracting ? { label: t('cards.dayRate'), value: t('cards.dayRateValue') } : i.salary_wish && { label: t('cards.salaryWish'), value: i.salary_wish },
+    verfuegbar && { label: t('cards.available'), value: verfuegbar },
+    fuehrung(i) && { label: t('cards.leadership'), value: fuehrung(i) },
   ].filter(Boolean) as { label: string; value: ReactNode }[] : [];
 
   return (
     <Card>
       <CardContent className="p-5">
-        <Kopf aside={i?.interview_date && <span className="text-xs text-muted-foreground">{[i.interview_type && GESPRAECH[i.interview_type], fmtDatum(i.interview_date)].filter(Boolean).join(', ')}</span>}>
-          Aus dem Gespräch mit {recruiterName || 'dem Headhunter'}
+        <Kopf aside={i?.interview_date && <span className="text-xs text-muted-foreground">{[gespraechLabel(i.interview_type), fmtDatum(i.interview_date)].filter(Boolean).join(', ')}</span>}>
+          {recruiterName ? t('cards.fromTalkWith', { name: recruiterName }) : t('cards.fromTalk')}
         </Kopf>
         {rows.length === 0 && !recruiterNotes ? (
-          <p className="text-sm text-muted-foreground">Zu diesem Kandidaten liegen noch keine Angaben aus dem Gespräch vor. Fragen Sie gern über „Frage stellen“ nach.</p>
+          <p className="text-sm text-muted-foreground">{t('cards.noTalk')}</p>
         ) : (
           <dl className="divide-y divide-border/60">
             {rows.map((r) => <Zeile key={r.label} label={r.label}>{r.value}</Zeile>)}
-            {recruiterNotes && <Zeile label="Notiz"><span className="text-muted-foreground">„{recruiterNotes}“</span></Zeile>}
+            {recruiterNotes && <Zeile label={t('cards.note')}><span className="text-muted-foreground">{t('preview.quote', { text: recruiterNotes })}</span></Zeile>}
           </dl>
         )}
-        <p className="mt-3 text-[11px] text-muted-foreground">Der Kandidat hat der Vorstellung zugestimmt. Namen und Firmen sind entfernt, bis Sie ein Interview vereinbaren.</p>
+        <p className="mt-3 text-[11px] text-muted-foreground">{t('cards.consentHint')}</p>
       </CardContent>
     </Card>
   );
@@ -72,6 +74,7 @@ export function InterviewInsightsCard({ interview, recruiterNotes, recruiterName
  * Fehlt er, wird er still erstellt -- der Kunde muss nichts anklicken.
  */
 export function FitTextCard({ fit }: { fit: ReturnType<typeof useCandidateFitAssessment> }) {
+  const { t: tc } = useTranslation('clientCandidates');
   const { assessment, loading, generating, generateAssessment, refetch } = fit;
   const tried = useRef(false);
 
@@ -97,25 +100,25 @@ export function FitTextCard({ fit }: { fit: ReturnType<typeof useCandidateFitAss
   return (
     <Card>
       <CardContent className="p-5">
-        <Kopf aside={<Badge variant="outline" className="text-[10px] font-normal">KI-Text</Badge>}>Einschätzung zur Stelle</Kopf>
+        <Kopf aside={<Badge variant="outline" className="text-[10px] font-normal">{tc('preview.aiBadge')}</Badge>}>{tc('preview.fitTitle')}</Kopf>
         {!assessment ? (
           <div className="flex items-start gap-3 text-sm text-muted-foreground">
             <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin" />
-            <p>Die Einschätzung wird erstellt. Das dauert meist unter einer Minute, die Seite aktualisiert sich von selbst.</p>
+            <p>{tc('cards.fitGenerating')}</p>
           </div>
         ) : (
           <div className="space-y-3 text-sm leading-6">
             {assessment.executive_summary && <p>{satz(assessment.executive_summary)}</p>}
-            {fuer.length > 0 && <p><span className="font-medium">Für die Stelle spricht:</span> {fuer.join(' · ')}</p>}
+            {fuer.length > 0 && <p><span className="font-medium">{tc('cards.fitFor')}</span> {fuer.join(' · ')}</p>}
             {klaeren.length > 0 && (
               <div>
-                <p className="font-medium">Im Interview klären:</p>
+                <p className="font-medium">{tc('cards.fitClarify')}</p>
                 <ul className="mt-1 space-y-1">{klaeren.map((k) => <li key={k} className="flex gap-2"><span className="text-muted-foreground">·</span><span className="min-w-0">{k}</span></li>)}</ul>
               </div>
             )}
           </div>
         )}
-        <p className="mt-3 text-[11px] text-muted-foreground">Von einer KI aus Lebenslauf und Gespräch mit dem Headhunter erstellt, ohne Gehalt. Keine Bewertung der Person. Die Entscheidung liegt bei Ihnen.</p>
+        <p className="mt-3 text-[11px] text-muted-foreground">{tc('cards.fitDisclaimer')}</p>
       </CardContent>
     </Card>
   );
@@ -123,13 +126,14 @@ export function FitTextCard({ fit }: { fit: ReturnType<typeof useCandidateFitAss
 
 /** „Ihre Muss-Kriterien · was dazu vorliegt“: je Kriterium ein Satz, ohne Haken oder Zahl. */
 export function MussKriterienCard({ assessment }: { assessment: CandidateFitAssessment | null }) {
+  const { t } = useTranslation('clientCandidates');
   const alle = assessment?.requirement_assessments ?? [];
   const muss = alle.some((r) => r.requirement_type) ? alle.filter((r) => r.requirement_type === 'must_have') : alle;
   if (muss.length === 0) return null;
   return (
     <Card>
       <CardContent className="p-5">
-        <Kopf>Ihre Muss-Kriterien · was dazu vorliegt</Kopf>
+        <Kopf>{t('cards.mustTitle')}</Kopf>
         <ul className="divide-y divide-border/60">
           {muss.map((r) => (
             <li key={r.requirement} className="py-2 first:pt-0">
@@ -138,25 +142,26 @@ export function MussKriterienCard({ assessment }: { assessment: CandidateFitAsse
             </li>
           ))}
         </ul>
-        <p className="mt-3 text-[11px] text-muted-foreground">Zusammengefasst aus Lebenslauf und Gespräch. Die Bewertung treffen Sie.</p>
+        <p className="mt-3 text-[11px] text-muted-foreground">{t('cards.mustHint')}</p>
       </CardContent>
     </Card>
   );
 }
 
 export function EducationCard({ education }: { education: EducationEntry[] }) {
+  const { t } = useTranslation('clientCandidates');
   if (education.length === 0) return null;
   return (
     <Card>
       <CardContent className="p-5">
-        <Kopf>Ausbildung</Kopf>
+        <Kopf>{t('cards.education')}</Kopf>
         <ul className="space-y-3">
           {education.map((e) => (
             <li key={e.id} className="flex gap-3">
               <GraduationCap className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
               <div className="min-w-0">
-                <p className="text-sm font-medium">{[e.degree, e.field_of_study].filter(Boolean).join(' · ') || 'Abschluss'}</p>
-                <p className="text-xs text-muted-foreground">{[e.institution || 'Hochschule nach Interview-Zusage', e.graduation_year].filter(Boolean).join(' · ')}</p>
+                <p className="text-sm font-medium">{[e.degree, e.field_of_study].filter(Boolean).join(' · ') || t('cards.degree')}</p>
+                <p className="text-xs text-muted-foreground">{[e.institution || t('cards.institutionLocked'), e.graduation_year].filter(Boolean).join(' · ')}</p>
               </div>
             </li>
           ))}

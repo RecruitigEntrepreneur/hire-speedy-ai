@@ -4,6 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { setHonorarVerdeckt, useHonorarVerdeckt, VERDECKT, verdeckeBetraege } from '@/lib/honorarVerdeckt';
+import { useTranslation } from 'react-i18next';
+
+// Ohne Suspense: das Bauteil steht auf vielen Seiten (auch in der Kopfleiste) und soll sie
+// nicht anhalten, bis der Namespace geladen ist. Bis dahin bleiben Titel und Etikett leer.
+const useFeeText = () => {
+  const { t, ready } = useTranslation('recruiterJobs', { useSuspense: false });
+  return (key: string) => (ready ? t(key) : '');
+};
 
 /**
  * Ein Betrag, der das eigene Geld des Headhunters zeigt. Mit dem Auge in der
@@ -12,20 +20,22 @@ import { setHonorarVerdeckt, useHonorarVerdeckt, VERDECKT, verdeckeBetraege } fr
  */
 export function Honorar({ children, className }: { children: ReactNode; className?: string }) {
   const verdeckt = useHonorarVerdeckt();
+  const text_ = useFeeText();
   if (!verdeckt) return <>{children}</>;
   const text = typeof children === 'string' || typeof children === 'number' ? String(children) : null;
   const ersatz = text != null ? verdeckeBetraege(text) : `${VERDECKT} €`;
   // Nur die Punkte grau und gesperrt; umgebender Text („Honorar bei Abschluss:“) bleibt normal.
-  return <span className={className} title="Beträge verborgen, Auge oben in der Kopfleiste">
+  return <span className={className} title={text_('fee.hiddenTitle')}>
     <span aria-hidden="true">{ersatz.split(/(•+(?:\s?[€%])?)/).map((teil, i) => (teil.startsWith('•') ? <span key={i} className="tracking-wider text-muted-foreground">{teil}</span> : teil))}</span>
-    <span className="sr-only">Betrag verborgen</span>
+    <span className="sr-only">{text_('fee.hidden')}</span>
   </span>;
 }
 
 /** Das Auge in der Kopfleiste: ein Schalter für alle Beträge, gemerkt auf diesem Gerät. */
 export function HonorarSchalter() {
   const verdeckt = useHonorarVerdeckt();
-  const label = verdeckt ? 'Beträge zeigen' : 'Beträge verbergen';
+  const text_ = useFeeText();
+  const label = verdeckt ? text_('fee.show') : text_('fee.hide');
   return <Tooltip>
     <TooltipTrigger asChild>
       <Button variant="ghost" size="icon" aria-label={label} aria-pressed={verdeckt} onClick={() => setHonorarVerdeckt(!verdeckt)} className={cn(verdeckt && 'bg-muted')}>

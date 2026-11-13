@@ -1,10 +1,5 @@
-import { kontaktZeile, type Herkunft, type Posting } from '@/lib/jobPosting';
-
-const HERKUNFT: Record<Herkunft, string> = {
-  kunde: 'Angaben des Kunden',
-  ki: 'KI formuliert',
-  system: 'Matchunt',
-};
+import { kontaktZeile, type Posting } from '@/lib/jobPosting';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Die Anzeige, wie der Headhunter sie sieht -- auf seiner Seite „Anzeige &
@@ -22,6 +17,7 @@ export function AnzeigeAnsicht({ posting, herkunftZeigen = true, kompakt = false
   ohneTitel?: boolean;
 }) {
   const kontakt = kontaktZeile(posting.kontakt);
+  const { t } = useTranslation('recruiterJobDetail');
   return (
     <div className="space-y-8">
       {!ohneKopf && (!ohneTitel || posting.subtitle) && <header className="space-y-3">
@@ -47,7 +43,7 @@ export function AnzeigeAnsicht({ posting, herkunftZeigen = true, kompakt = false
             {herkunftZeigen && block.herkunft && (
               <span className="flex flex-wrap gap-1">
                 {block.herkunft.map(h => (
-                  <span key={h} className="rounded border border-border px-1.5 text-[10px] text-muted-foreground">{HERKUNFT[h]}</span>
+                  <span key={h} className="rounded border border-border px-1.5 text-[10px] text-muted-foreground">{t(`ad.origin.${h}`)}</span>
                 ))}
               </span>
             )}

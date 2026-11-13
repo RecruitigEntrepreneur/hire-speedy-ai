@@ -21,6 +21,9 @@ import {
   optionLabel,
 } from './candidateDossier';
 import type { CaptureSuggestion } from './quickExtract';
+import i18n from '@/i18n';
+import { intlLocale } from '@/i18n/languages';
+import { isGermanUi, term } from '@/lib/candidateTerms';
 
 export type CapturePhase = 'situation' | 'ziele' | 'rahmen' | 'markt' | 'kundenprofil';
 
@@ -93,12 +96,13 @@ export function formatValue(key: keyof DossierForm, value: unknown): string {
   const meta = KEY_META[key];
   if (value == null || value === '' || (Array.isArray(value) && value.length === 0)) return '–';
   switch (meta?.kind) {
-    case 'money': return typeof value === 'number' ? formatEuro(value) : String(value);
-    case 'enum': return optionLabel(meta.options ?? [], String(value)) ?? String(value);
-    case 'bool': return value ? 'Ja' : 'Nein';
-    case 'languages': return (value as DossierLanguage[]).map((l) => (l.proficiency ? `${l.language} (${l.proficiency})` : l.language)).join(', ');
-    case 'list': return (value as string[]).join(', ');
-    case 'date': return new Date(String(value)).toLocaleDateString('de-DE');
+    // Auf Deutsch unverändert; sonst Anzeige in der Sprache der Oberfläche (term lässt Deutsch, wie es ist).
+    case 'money': return typeof value === 'number' ? (isGermanUi() ? formatEuro(value) : `${value.toLocaleString(intlLocale(i18n.language))} €`) : String(value);
+    case 'enum': return term(optionLabel(meta.options ?? [], String(value)) ?? String(value));
+    case 'bool': return term(value ? 'Ja' : 'Nein');
+    case 'languages': return (value as DossierLanguage[]).map((l) => (l.proficiency ? `${term(l.language)} (${term(l.proficiency)})` : term(l.language))).join(', ');
+    case 'list': return (value as string[]).map((x) => term(x)).join(', ');
+    case 'date': return new Date(String(value)).toLocaleDateString(intlLocale(i18n.language));
     default: return String(value);
   }
 }

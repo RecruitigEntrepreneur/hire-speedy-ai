@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,9 +8,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { CircleCheck, FileText, Loader2, Send, ShieldCheck, TriangleAlert, Users } from 'lucide-react';
-import { CONSENT_TEXT } from './consentText';
 import { isFailure, type GuestDraft, type PackageSummary } from '@/hooks/useGuestIntake';
-import { FIRMA_LABEL, fehlendeFirmenangaben, firmierungAus } from '../../../../supabase/functions/_shared/firma-pflicht';
+import { fehlendeFirmenangaben, firmierungAus } from '../../../../supabase/functions/_shared/firma-pflicht';
 import {
   CONTRACTING_BUDGET_HINWEIS, CONTRACTING_EINLEITUNG, CONTRACTING_OHNE_BUDGET, CONTRACTING_PUNKTE,
   CONTRACTING_SCHLUSS, CONTRACTING_ZUSTIMMUNG, budgetZeile,
@@ -45,6 +45,9 @@ interface Props {
 }
 
 export function SummaryStep({ draft, packages, framework, contracting, summary, openQuestions, onSubmit, onForward, onBack, onRecheckCompany, onRefreshDraft }: Props) {
+  const { t } = useTranslation('clientFunnel');
+  // Wortlaut der Zustimmung in der Sprache des Kunden; deutsch zeichengleich mit consentText.ts.
+  const consentLines = [t('summary.consent1'), t('summary.consent2'), t('summary.consent3')];
   const chosenPackage = packages?.find((p) => p.key === draft.selected_package_key) ?? null;
   const [signer, setSigner] = useState(draft.contact_name ?? '');
   const [consent, setConsent] = useState(false);
@@ -115,9 +118,9 @@ export function SummaryStep({ draft, packages, framework, contracting, summary, 
   return (
     <div className="mx-auto max-w-2xl space-y-5">
       <div>
-        <h2 className="text-xl font-bold tracking-tight">{contracting ? 'Prüfen und anfragen' : 'Prüfen und beauftragen'}</h2>
+        <h2 className="text-xl font-bold tracking-tight">{contracting ? t('summary.titleRequest') : t('summary.titleOrder')}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Das ist der Stand, den unsere Recruiter bekommen — ohne Ihren Firmennamen.
+          {t('summary.lead')}
         </p>
       </div>
 
@@ -138,9 +141,9 @@ export function SummaryStep({ draft, packages, framework, contracting, summary, 
         <Alert>
           <Loader2 className="h-4 w-4 animate-spin" />
           <AlertDescription className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-            Wir prüfen gerade Ihre Firmenangaben — das dauert meist nur wenige Sekunden.
+            {t('summary.companyChecking')}
             {versuche.current >= 15 && onRecheckCompany && (
-              <button type="button" onClick={neuPruefen} className="underline underline-offset-2">Jetzt prüfen</button>
+              <button type="button" onClick={neuPruefen} className="underline underline-offset-2">{t('summary.checkNow')}</button>
             )}
           </AlertDescription>
         </Alert>
@@ -150,18 +153,17 @@ export function SummaryStep({ draft, packages, framework, contracting, summary, 
         <Card className="border-amber-500/50 bg-amber-500/5">
           <CardContent className="space-y-3 p-5">
             <div>
-              <p className="text-sm font-semibold">Für die Vereinbarung fehlt noch etwas zu Ihrer Firma</p>
+              <p className="text-sm font-semibold">{t('summary.companyMissingTitle')}</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Ohne vollständige Firmierung und Anschrift können wir keinen Vertrag ausstellen.
-                Ergänzen Sie die Angaben hier, dann geht es gleich weiter.
+                {t('summary.companyMissingText')}
               </p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               {([
-                ['company_legal_name', 'Vollständige Firmierung', true],
-                ['company_street', 'Straße und Hausnummer', true],
-                ['company_postal_code', 'PLZ', false],
-                ['company_city', 'Ort', false],
+                ['company_legal_name', t('contact.legalName'), true],
+                ['company_street', t('contact.street'), true],
+                ['company_postal_code', t('contact.postalCode'), false],
+                ['company_city', t('contact.city'), false],
               ] as const).map(([key, label, span]) => (
                 <div key={key} className={span ? 'sm:col-span-2' : undefined}>
                   <Label htmlFor={`firma-${key}`} className="text-xs text-muted-foreground">
@@ -177,30 +179,32 @@ export function SummaryStep({ draft, packages, framework, contracting, summary, 
                 </div>
               ))}
               <div className="sm:col-span-2">
-                <Label htmlFor="firma-company_vat_id" className="text-xs text-muted-foreground">USt-IdNr. (optional)</Label>
+                <Label htmlFor="firma-company_vat_id" className="text-xs text-muted-foreground">{t('summary.vatOptional')}</Label>
                 <Input
                   id="firma-company_vat_id"
                   value={firma.company_vat_id}
                   onChange={(e) => setFirma((f) => ({ ...f, company_vat_id: e.target.value }))}
                   aria-invalid={ustFalsch || undefined}
-                  placeholder="z. B. DE123456789"
+                  placeholder={t('summary.vatPlaceholder')}
                   className="mt-1 bg-background"
                 />
                 {ustFalsch && (
                   <p className="mt-1 text-[11px] text-destructive">
-                    Die USt-IdNr. passt nicht zum üblichen Format. Korrigieren Sie sie oder lassen Sie das Feld leer.
+                    {t('summary.vatInvalid')}
                   </p>
                 )}
               </div>
             </div>
             {kritisch.filter((k) => k !== 'company_vat_id').length > 0 && (
               <p className="text-xs text-destructive">
-                Es fehlt noch: {kritisch.filter((k) => k !== 'company_vat_id').map((k) => FIRMA_LABEL[k] ?? k).join(', ')}
+                {t('common.missing', {
+                  fields: kritisch.filter((k) => k !== 'company_vat_id').map((k) => t(`fieldLabel.${k}`, { defaultValue: k })).join(', '),
+                })}
               </p>
             )}
             {firmaFehler && <p className="text-xs text-destructive">{firmaFehler}</p>}
             <Button onClick={neuPruefen} disabled={pruefe || !onRecheckCompany} className="gap-2">
-              {pruefe && <Loader2 className="h-4 w-4 animate-spin" />} Speichern und neu prüfen
+              {pruefe && <Loader2 className="h-4 w-4 animate-spin" />} {t('summary.saveAndRecheck')}
             </Button>
           </CardContent>
         </Card>
@@ -210,10 +214,9 @@ export function SummaryStep({ draft, packages, framework, contracting, summary, 
         <Alert>
           <TriangleAlert className="h-4 w-4" />
           <AlertDescription className="text-xs">
-            {openQuestions === 1 ? 'Eine Frage ist' : `${openQuestions} Fragen sind`} noch offen. Sie können
-            trotzdem einreichen — je vollständiger das Briefing, desto gezielter suchen unsere Recruiter.{' '}
+            {t('summary.openQuestions', { count: openQuestions })}{' '}
             <button type="button" onClick={onBack} className="underline underline-offset-2">
-              Zurück zur Aufnahme
+              {t('summary.backToCapture')}
             </button>
           </AlertDescription>
         </Alert>
@@ -228,13 +231,12 @@ export function SummaryStep({ draft, packages, framework, contracting, summary, 
           <CardContent className="flex flex-wrap items-center gap-x-4 gap-y-2 p-4 text-sm">
             <Badge variant="secondary" className="gap-1.5 font-normal">
               <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-              {chosenPackage.name} · {chosenPackage.fee_percent} % Erfolgshonorar
+              {t('summary.packageBadge', { name: chosenPackage.name, percent: chosenPackage.fee_percent })}
             </Badge>
             <span className="text-muted-foreground">
-              fällig erst bei Einstellung · {chosenPackage.payment_terms_days} Tage netto
               {chosenPackage.continuity_days
-                ? ` · erneuter Suchlauf in den ersten ${chosenPackage.continuity_days} Tagen`
-                : ''}
+                ? t('summary.packageTermsContinuity', { days: chosenPackage.payment_terms_days, continuity: chosenPackage.continuity_days })
+                : t('summary.packageTerms', { days: chosenPackage.payment_terms_days })}
             </span>
           </CardContent>
         </Card>
@@ -244,17 +246,17 @@ export function SummaryStep({ draft, packages, framework, contracting, summary, 
         <CardContent className="space-y-4 p-5">
           <div>
             <Label htmlFor="signer" className="text-xs text-muted-foreground">
-              Ihr Name <span className="text-destructive">*</span>
+              {t('summary.signerLabel')} <span className="text-destructive">*</span>
             </Label>
             <Input
               id="signer"
               value={signer}
               onChange={(e) => setSigner(e.target.value)}
-              placeholder="Vor- und Nachname"
+              placeholder={t('common.namePlaceholder')}
               className="mt-1"
             />
             <p className="mt-1 text-[11px] text-muted-foreground">
-              Wird zusammen mit Zeitpunkt und AGB-Fassung als Nachweis Ihrer Bestätigung gespeichert.
+              {t('summary.signerHint')}
             </p>
           </div>
 
@@ -269,7 +271,7 @@ export function SummaryStep({ draft, packages, framework, contracting, summary, 
               <span id="consent-text" className="space-y-1.5 text-xs leading-relaxed text-foreground/90">
                 {contracting
                   ? <span className="block">{CONTRACTING_ZUSTIMMUNG}</span>
-                  : CONSENT_TEXT.map((line) => <span key={line} className="block">{line}</span>)}
+                  : consentLines.map((line) => <span key={line} className="block">{line}</span>)}
               </span>
             </label>
           </div>
@@ -291,21 +293,19 @@ export function SummaryStep({ draft, packages, framework, contracting, summary, 
           <div className="flex flex-wrap items-center gap-3">
             <Button onClick={submit} disabled={!canSubmit} className="gap-2" variant="hero">
               {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              {framework && !contracting ? 'Position beauftragen' : 'Beauftragung anfragen'}
+              {framework && !contracting ? t('summary.order') : t('summary.request')}
             </Button>
             <Button variant="outline" onClick={onForward} className="gap-2">
-              <Users className="h-4 w-4" /> An Entscheider weiterleiten
+              <Users className="h-4 w-4" /> {t('summary.forward')}
             </Button>
           </div>
 
           <p className="text-[11px] text-muted-foreground">
             {contracting
-              ? 'Mit dem Absenden kommt noch kein Vertrag zustande. Besteht noch kein Rahmenvertrag, '
-                + 'unterschreiben Sie ihn im nächsten Schritt digital; erst danach starten wir die Suche.'
+              ? t('summary.noteContracting')
               : framework
-              ? `Der Auftrag läuft unter Ihrem Rahmenvertrag ${framework.agreement_number} `
-                + `zu ${framework.fee_percent} % — keine erneute Unterschrift nötig.`
-              : 'Mit dem Absenden kommt noch kein Vertrag zustande. Wir prüfen Ihre Anfrage und melden uns.'}
+              ? t('summary.noteFramework', { number: framework.agreement_number, percent: framework.fee_percent })
+              : t('summary.noteRequest')}
           </p>
         </CardContent>
       </Card>
@@ -317,13 +317,16 @@ export function SummaryStep({ draft, packages, framework, contracting, summary, 
  *  damit Seite, Eingangsbestätigung und Nachweis dasselbe sagen. Die Aufteilung
  *  des Tagessatzes steht hier bewusst NICHT (Entscheidung 25.09.2026). */
 export function ContractingKarte({ budget }: { budget: { dayRateMin: number | null; dayRateMax: number | null } }) {
+  const { t } = useTranslation('clientFunnel');
+  // Die Texte darunter (CONTRACTING_*) kommen aus _shared/contracting-konditionen.ts: derselbe
+  // Wortlaut wie Eingangsbestätigung und Nachweis, deshalb vorerst nur deutsch.
   const zeile = budgetZeile(budget.dayRateMin, budget.dayRateMax);
   return (
     <Card className="border-primary/25">
       <CardContent className="space-y-4 p-5">
         <div className="flex items-center gap-2">
           <FileText className="h-4 w-4 text-primary" />
-          <p className="text-sm font-semibold">Konditionen Contracting</p>
+          <p className="text-sm font-semibold">{t('summary.contractingTitle')}</p>
         </div>
         <p className="text-sm text-muted-foreground">{CONTRACTING_EINLEITUNG}</p>
 

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { HelpCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -9,6 +10,7 @@ import { answerDirectPosition, errorText, getDirectPositionRequests, type Direct
  * Matchunt direkt bekommen zu haben. Bestätigt ist erst, wenn Belege und Kunde passen.
  */
 export function DirectPositionBanner({ jobId, jobTitle, canAnswer }: { jobId: string; jobTitle: string; canAnswer: boolean }) {
+  const { t } = useTranslation('clientJobs');
   const [rows, setRows] = useState<DirectPositionRequest[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -30,8 +32,8 @@ export function DirectPositionBanner({ jobId, jobTitle, canAnswer }: { jobId: st
       await answerDirectPosition(id, a);
       toast.success(
         a === 'yes'
-          ? 'Danke. Bei Matchunt suchen die anderen Headhunter weiter. Über „Stelle verwalten“ können Sie jederzeit pausieren oder schließen.'
-          : 'Danke für die Rückmeldung. Matchunt klärt das.',
+          ? t('direct.yesDone')
+          : t('direct.noDone'),
       );
       await load();
     } catch (err) {
@@ -50,23 +52,23 @@ export function DirectPositionBanner({ jobId, jobTitle, canAnswer }: { jobId: st
         <div key={r.declaration_id} className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm">
           <p className="flex items-center gap-2 font-semibold">
             <HelpCircle className="h-4 w-4 text-amber-600" aria-hidden="true" />
-            Kurze Rückfrage zu Ihrer Stelle „{jobTitle}“
+            {t('direct.title', { title: jobTitle })}
           </p>
           <p className="mt-1 text-muted-foreground">
-            {r.recruiter_name} gibt an, dass Sie ihm diese Stelle schon vor Ihrer Beauftragung von Matchunt direkt übertragen haben. Stimmt das?
+            {t('direct.question', { name: r.recruiter_name })}
           </p>
           {canAnswer ? (
             <div className="mt-3 flex gap-2">
               <Button size="sm" variant="outline" disabled={busy === r.declaration_id} onClick={() => answer(r.declaration_id, 'yes')}>
                 {busy === r.declaration_id && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                Ja, das stimmt
+                {t('direct.yes')}
               </Button>
               <Button size="sm" variant="outline" disabled={busy === r.declaration_id} onClick={() => answer(r.declaration_id, 'no')}>
-                Nein
+                {t('direct.no')}
               </Button>
             </div>
           ) : (
-            <p className="mt-2 text-xs text-muted-foreground">Antworten können Owner, Admin und HR.</p>
+            <p className="mt-2 text-xs text-muted-foreground">{t('direct.noRights')}</p>
           )}
         </div>
       ))}

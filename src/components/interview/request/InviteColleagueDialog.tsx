@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,7 +10,6 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import {
   FUNCTION_DEFAULT_ACCESS,
-  FUNCTION_LABELS,
   interviewApi,
   type AttendeeDraft,
   type FunctionKey,
@@ -30,6 +30,7 @@ const FUNCTIONS: FunctionKey[] = ['fachbereich', 'fuehrungskraft', 'geschaeftsfu
 
 /** Kollegen aus dem Anfrage-Fenster ins Team einladen: Funktion zuerst, Zugriff folgt daraus. */
 export function InviteColleagueDialog({ open, onOpenChange, submissionId, jobTitle, initial, onInvited }: Props) {
+  const { t } = useTranslation('clientInterviews');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [fn, setFn] = useState<FunctionKey>('fachbereich');
@@ -60,9 +61,9 @@ export function InviteColleagueDialog({ open, onOpenChange, submissionId, jobTit
   };
 
   const error = name.trim().length < 2
-    ? 'Bitte den Namen angeben.'
+    ? t('invite.nameNeeded')
     : !isValidEmail(email)
-      ? 'Bitte eine gültige E-Mail-Adresse angeben.'
+      ? t('invite.emailInvalid')
       : null;
 
   const submit = async () => {
@@ -81,10 +82,10 @@ export function InviteColleagueDialog({ open, onOpenChange, submissionId, jobTit
       });
       onInvited(result.attendee);
       if (result.note) toast.message(result.note);
-      else toast.success(`Einladung an ${result.attendee.name} gesendet. ${result.attendee.name.split(' ')[0]} ist beim Interview dabei.`);
+      else toast.success(t('invite.sent', { name: result.attendee.name, first: result.attendee.name.split(' ')[0] }));
       onOpenChange(false);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Die Einladung hat nicht geklappt.');
+      toast.error(e instanceof Error ? e.message : t('invite.failed'));
     } finally {
       setBusy(false);
     }
@@ -94,9 +95,9 @@ export function InviteColleagueDialog({ open, onOpenChange, submissionId, jobTit
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Kollegen ins Team einladen</DialogTitle>
+          <DialogTitle>{t('people.invite')}</DialogTitle>
           <DialogDescription>
-            Die Person bekommt eine Einladung zu Matchunt und ist beim Interview dabei.
+            {t('invite.lead')}
           </DialogDescription>
         </DialogHeader>
         <form
@@ -108,17 +109,17 @@ export function InviteColleagueDialog({ open, onOpenChange, submissionId, jobTit
         >
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
-              <Label htmlFor="inv-name" className="text-xs">Name</Label>
+              <Label htmlFor="inv-name" className="text-xs">{t('people.name')}</Label>
               <Input id="inv-name" value={name} onChange={(e) => setName(e.target.value)} className="h-9" autoFocus={!name} />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="inv-email" className="text-xs">E-Mail</Label>
+              <Label htmlFor="inv-email" className="text-xs">{t('people.email')}</Label>
               <Input id="inv-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="h-9" autoFocus={!!name} />
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <p className="text-xs font-medium">Funktion im Gespräch</p>
+            <p className="text-xs font-medium">{t('invite.function')}</p>
             <div className="flex flex-wrap gap-1.5">
               {FUNCTIONS.map((key) => (
                 <button
@@ -131,24 +132,24 @@ export function InviteColleagueDialog({ open, onOpenChange, submissionId, jobTit
                     fn === key ? 'border-foreground bg-foreground text-background' : 'hover:bg-accent',
                   )}
                 >
-                  {key === 'andere' ? 'Andere …' : FUNCTION_LABELS[key]}
+                  {key === 'andere' ? t('invite.otherMore') : t(`invite.fn.${key}`)}
                 </button>
               ))}
             </div>
             {fn === 'andere' && (
-              <Input value={otherLabel} onChange={(e) => setOtherLabel(e.target.value)} maxLength={60} placeholder="z. B. Betriebsrat" className="h-9" />
+              <Input value={otherLabel} onChange={(e) => setOtherLabel(e.target.value)} maxLength={60} placeholder={t('invite.otherPh')} className="h-9" />
             )}
             <label className="flex items-center gap-2 pt-1 text-sm">
               <Checkbox checked={decisionMaker} onCheckedChange={(v) => setDecisionMaker(v === true)} />
-              Entscheidet über die Einstellung
+              {t('people.decidesHint')}
             </label>
           </div>
 
           <div className="space-y-1.5">
-            <p className="text-xs font-medium">Zugriff in Matchunt</p>
+            <p className="text-xs font-medium">{t('invite.access')}</p>
             {([
-              { v: 'all', title: 'Alle Stellen und Bewerber', hint: 'vorgeschlagen für Geschäftsführung und HR' },
-              { v: 'job', title: `Nur „${jobTitle}“`, hint: 'vorgeschlagen für Fachbereich und Führungskraft' },
+              { v: 'all', title: t('invite.accessAll'), hint: t('invite.accessAllHint') },
+              { v: 'job', title: t('invite.accessJob', { title: jobTitle }), hint: t('invite.accessJobHint') },
             ] as const).map((o) => (
               <button
                 key={o.v}
@@ -169,10 +170,10 @@ export function InviteColleagueDialog({ open, onOpenChange, submissionId, jobTit
           {touched && error && <p className="text-sm text-destructive">{error}</p>}
 
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>Abbrechen</Button>
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>{t('common.cancel')}</Button>
             <Button type="submit" disabled={busy} className="gap-1.5">
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-              Einladen und hinzufügen
+              {t('invite.submit')}
             </Button>
           </div>
         </form>

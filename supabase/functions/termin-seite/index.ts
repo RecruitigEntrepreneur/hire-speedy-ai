@@ -43,6 +43,9 @@ import { headhunterAbgesagt, headhunterNeu, kandidatAbgesagt, kandidatBestaetigt
 import { pdfToText, PdfTextError } from '../_shared/pdf-text.ts';
 import { buildCvSystemPrompt, buildCvUserPrompt, CV_TOOL, prepareCvText, splitContactHeader, validateCv } from '../_shared/cv-extraction.ts';
 import { aiChat } from '../_shared/ai.ts';
+import { normLang, tr, type Lang } from '../_shared/i18n.ts';
+import { candidateLanguage, recruiterLanguage } from '../_shared/recipient-language.ts';
+import { viaMatchunt, withLang } from '../_shared/mail-i18n.ts';
 
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 const imHintergrund = (p: Promise<unknown>) => {
@@ -145,7 +148,7 @@ const headhunterOeffentlich = (s: Seite) => ({ name: s.name, initialen: initiale
 async function seiteZeigen(db: SupabaseClient, body: any) {
   const seite = await ladeSeite(db, body.slug);
   const stelle = await ladeStelle(db, seite, body.stelle);
-  const sb = stelle ? steckbrief(stelle.job, await gehaltZeigen(db, seite.recruiter_id, stelle.job.id)) : null;
+  const sb = stelle ? steckbrief(stelle.job, await gehaltZeigen(db, seite.recruiter_id, stelle.job.id), normLang(body.lang)) : null;
   const buchbar = seite.active && (!body.stelle || stelle?.offen === true);
   const z = buchbar ? await zeitenFuer(db, seite) : { verbunden: true, tage: [] };
   return json({
@@ -459,15 +462,23 @@ async function akteVorbefuellen(db: SupabaseClient, candidateId: string, roh: st
   if (!sp && cv.languages.length) await db.from('candidate_languages').insert(cv.languages.map((l) => ({ candidate_id: candidateId, language: l.language, proficiency: l.level || null })));
 }
 
-function icsFuer(o: { bookingId: string; sequence: number; method: 'REQUEST' | 'CANCEL'; startIso: string; dauer: number; seite: Seite; stelle: string | null; mode: Gespraechsart; joinUrl: string | null; email: string; name: string; verwaltenUrl: string }) {
+function icsFuer(o: { bookingId: string; sequence: number; method: 'REQUEST' | 'CANCEL'; startIso: string; dauer: number; seite: Seite; stelle: string | null; mode: Gespraechsart; joinUrl: string | null; email: string; name: string; verwaltenUrl: string; lang?: Lang | null }) {
+  // Kalendertext in der Sprache des Kandidaten (ohne Angabe Deutsch wie bisher)
+  const verwaltenUrl = withLang(o.verwaltenUrl, o.lang);
   return buildIcs({
-    method: o.method, uid: `termin-${o.bookingId}@matchunt.ai`, sequence: o.sequence, startIso: o.startIso, durationMinutes: o.dauer,
-    summary: `Gespräch mit ${o.seite.name}${o.stelle ? ` · ${o.stelle}` : ''}`,
-    description: `${o.mode === 'teams' ? `Microsoft Teams: ${o.joinUrl ?? 'Link folgt per Mail'}` : `${o.seite.vorname} ruft dich an.`}\nVerschieben oder absagen: ${o.verwaltenUrl}`,
-    location: o.mode === 'teams' ? 'Microsoft Teams' : 'Telefon', url: o.verwaltenUrl,
+    method: o.method, uid: `termin-${o.bookingId}@matchunt.ai`, sequence: o.sequence, startIso: o.startIso, durationMinutes: o.dauer, lang: o.lang,
+    summary: `${tr(o.lang, { de: 'Gespräch mit {name}', en: 'Call with {name}', sv: 'Samtal med {name}', nb: 'Samtale med {name}' }, { name: o.seite.name })}${o.stelle ? ` · ${o.stelle}` : ''}`,
+    description: `${o.mode === 'teams'
+      ? `Microsoft Teams: ${o.joinUrl ?? tr(o.lang, { de: 'Link folgt per Mail', en: 'Link to follow by email', sv: 'Länken kommer via mejl', nb: 'Lenken kommer på e-post' })}`
+      : tr(o.lang, { de: '{name} ruft dich an.', en: '{name} will call you.', sv: '{name} ringer dig.', nb: '{name} ringer deg.' }, { name: o.seite.vorname })}\n${tr(o.lang, { de: 'Verschieben oder absagen', en: 'Reschedule or cancel', sv: 'Flytta eller avboka', nb: 'Flytt eller avlys' })}: ${verwaltenUrl}`,
+    location: o.mode === 'teams' ? 'Microsoft Teams' : tr(o.lang, { de: 'Telefon', en: 'Phone', sv: 'Telefon', nb: 'Telefon' }), url: verwaltenUrl,
     organizerEmail: FROM_EMAIL(), organizerName: `${o.seite.name} über Matchunt`, attendeeEmail: o.email, attendeeName: o.name,
   });
 }
+
+/** Sprache des Kandidaten: die Sprache, in der er die Seite offen hat, sonst die seines Headhunters. */
+const kandidatSprache = async (db: SupabaseClient, body: any, recruiterId: string): Promise<Lang> =>
+  normLang(body?.lang) ?? await candidateLanguage(db, recruiterId);
 
 async function ereignisAnlegen(token: string, o: { bookingId: string; startMs: number; endMs: number; name: string; stelle: string | null; mode: Gespraechsart; phone: string | null; akteUrl: string; herkunft: string }) {
   if (!token) return { eventId: null as unknown as string, joinUrl: o.mode === 'teams' ? 'https://teams.microsoft.com/l/meetup-join/test-matchunt' : null }; // Testkalender
@@ -491,8 +502,8 @@ async function buchen(db: SupabaseClient, body: any, ip: string | null) {
   // Einladung: Name, E-Mail und Telefon kommen aus der Akte, angeboten wird nur, was der Headhunter gewählt hat.
   const aktePhone = einl && (String(einl.kand.phone ?? '').match(/\d/g) ?? []).length >= 6 ? einl.kand.phone : '';
   const p = einl
-    ? pruefeBuchung({ ...body, ...zerlegeName(einl.kand.full_name ?? ''), email: einl.kand.email || body.email, phone: body.phone || aktePhone }, { ...seite.e, arten: einl.inv.arten }, { nameAusAkte: true })
-    : pruefeBuchung(body, seite.e);
+    ? pruefeBuchung({ ...body, ...zerlegeName(einl.kand.full_name ?? ''), email: einl.kand.email || body.email, phone: body.phone || aktePhone }, { ...seite.e, arten: einl.inv.arten }, { nameAusAkte: true, lang: normLang(body.lang) })
+    : pruefeBuchung(body, seite.e, { lang: normLang(body.lang) });
   if (!p.ok) {
     if (p.bot) return json({ ok: true, termin: null }); // Bots bekommen kein Signal
     throw new Fehler('invalid_request', p.meldung, { feld: p.feld });
@@ -561,16 +572,18 @@ async function buchen(db: SupabaseClient, body: any, ip: string | null) {
   // Mit der Einladung angefragt: Lebenslauf oder LinkedIn erledigen die Anfrage, sonst Link zum Nachreichen in der Mail.
   if (einl && (upload || b.linkedin_url)) await lebenslaufEingegangen(db, { recruiterId: seite.recruiter_id, candidateId: kandidat.id, name, upload: upload && b.upload_id ? { id: b.upload_id, raw_text: upload.raw_text, hints: upload.hints } : null, linkedin: upload ? null : b.linkedin_url, vorbefuellen: false });
   const nachreichen = einl && !upload && (await lebenslaufStand(db, kandidat.id)) === 'angefragt' ? `${app}/t/einladung/${body.einladung}` : null;
-  const anKandidat = kandidatBestaetigt({ vorname: b.first_name, hhName: seite.name, stelle: stellenTitel, startIso: b.start, dauer: seite.e.dauer, mode: b.mode, joinUrl, verwaltenUrl, mitLebenslauf: !!upload, lebenslaufUrl: nachreichen });
+  const kLang = await kandidatSprache(db, body, seite.recruiter_id);
+  const hhLang = await recruiterLanguage(db, seite.recruiter_id);
+  const anKandidat = kandidatBestaetigt({ vorname: b.first_name, hhName: seite.name, stelle: stellenTitel, startIso: b.start, dauer: seite.e.dauer, mode: b.mode, joinUrl, verwaltenUrl, mitLebenslauf: !!upload, lebenslaufUrl: nachreichen, lang: kLang });
   await sendInterviewMail({
-    fromEmail: FROM_EMAIL(), fromName: `${seite.name} über Matchunt`, to: b.email, subject: anKandidat.subject, html: anKandidat.html, text: anKandidat.text,
+    fromEmail: FROM_EMAIL(), fromName: viaMatchunt(seite.name, kLang), to: b.email, subject: anKandidat.subject, html: anKandidat.html, text: anKandidat.text,
     replyTo: seite.email ?? undefined,
-    ics: { method: 'REQUEST', content: icsFuer({ bookingId: row.id, sequence: 0, method: 'REQUEST', startIso: b.start, dauer: seite.e.dauer, seite, stelle: stellenTitel, mode: b.mode, joinUrl, email: b.email, name, verwaltenUrl }) },
+    ics: { method: 'REQUEST', content: icsFuer({ bookingId: row.id, sequence: 0, method: 'REQUEST', startIso: b.start, dauer: seite.e.dauer, seite, stelle: stellenTitel, mode: b.mode, joinUrl, email: b.email, name, verwaltenUrl, lang: kLang }) },
   }).catch((e) => console.error('termin-seite mail kandidat', e));
   if (seite.email) {
     const anHH = headhunterNeu({
       hhVorname: seite.vorname, kandidat: { name, email: b.email, phone: b.phone, linkedin: b.linkedin_url, note: b.note }, stelle: stellenTitel,
-      startIso: b.start, dauer: seite.e.dauer, mode: b.mode, joinUrl, imOutlook: !!eventId, akteUrl, herkunft, lebenslauf: !!upload,
+      startIso: b.start, dauer: seite.e.dauer, mode: b.mode, joinUrl, imOutlook: !!eventId, akteUrl, herkunft, lebenslauf: !!upload, lang: hhLang,
     });
     await sendInterviewMail({ fromEmail: FROM_EMAIL(), fromName: 'Matchunt', to: seite.email, subject: anHH.subject, html: anHH.html, text: anHH.text, replyTo: b.email })
       .catch((e) => console.error('termin-seite mail headhunter', e));
@@ -637,15 +650,17 @@ async function verschieben(db: SupabaseClient, body: any) {
   const { error } = await db.from('recruiter_bookings').update({ starts_at: start, ends_at: new Date(endMs).toISOString(), outlook_event_id: eventId, join_url: joinUrl }).eq('id', t.id);
   muss(!error, error?.code === '23505' ? 'conflict' : 'internal_error', error?.code === '23505' ? 'Diese Zeit wurde eben vergeben.' : 'Der Termin konnte nicht verschoben werden.');
   const verwaltenUrl = `${app}/t/termin/${body.token}`;
-  const anKandidat = kandidatBestaetigt({ vorname: t.first_name, hhName: seite.name, stelle, startIso: start, dauer: seite.e.dauer, mode: t.mode, joinUrl, verwaltenUrl, mitLebenslauf: false, verschoben: true });
+  const kLang = await kandidatSprache(db, body, seite.recruiter_id);
+  const anKandidat = kandidatBestaetigt({ vorname: t.first_name, hhName: seite.name, stelle, startIso: start, dauer: seite.e.dauer, mode: t.mode, joinUrl, verwaltenUrl, mitLebenslauf: false, verschoben: true, lang: kLang });
   await sendInterviewMail({
-    fromEmail: FROM_EMAIL(), fromName: `${seite.name} über Matchunt`, to: t.email, subject: anKandidat.subject, html: anKandidat.html, text: anKandidat.text, replyTo: seite.email ?? undefined,
-    ics: { method: 'REQUEST', content: icsFuer({ bookingId: t.id, sequence: Math.floor(Date.now() / 1000), method: 'REQUEST', startIso: start, dauer: seite.e.dauer, seite, stelle, mode: t.mode, joinUrl, email: t.email, name, verwaltenUrl }) },
+    fromEmail: FROM_EMAIL(), fromName: viaMatchunt(seite.name, kLang), to: t.email, subject: anKandidat.subject, html: anKandidat.html, text: anKandidat.text, replyTo: seite.email ?? undefined,
+    ics: { method: 'REQUEST', content: icsFuer({ bookingId: t.id, sequence: Math.floor(Date.now() / 1000), method: 'REQUEST', startIso: start, dauer: seite.e.dauer, seite, stelle, mode: t.mode, joinUrl, email: t.email, name, verwaltenUrl, lang: kLang }) },
   }).catch((e) => console.error('termin-seite mail kandidat', e));
   if (seite.email) {
     const anHH = headhunterNeu({
       hhVorname: seite.vorname, kandidat: { name, email: t.email, phone: t.phone, linkedin: t.linkedin_url, note: null }, stelle, startIso: start, dauer: seite.e.dauer,
       mode: t.mode, joinUrl, imOutlook: !!eventId, akteUrl, herkunft: t.source, lebenslauf: false, verschoben: { vonIso: t.starts_at },
+      lang: await recruiterLanguage(db, seite.recruiter_id),
     });
     await sendInterviewMail({ fromEmail: FROM_EMAIL(), fromName: 'Matchunt', to: seite.email, subject: anHH.subject, html: anHH.html, text: anHH.text, replyTo: t.email }).catch(() => undefined);
   }
@@ -667,13 +682,14 @@ async function absagen(db: SupabaseClient, body: any) {
   const { data: job } = t.job_id ? await db.from('jobs').select('id, title').eq('id', t.job_id).maybeSingle() : { data: null };
   const neu = `${app}/t/${seite.slug}${job ? `/${jobTeil(job)}` : ''}`;
   const name = `${t.first_name} ${t.last_name}`;
-  const anKandidat = kandidatAbgesagt({ vorname: t.first_name, hhName: seite.name, startIso: t.starts_at, dauer: seite.e.dauer, neuBuchenUrl: seite.active ? neu : null });
+  const kLang = await kandidatSprache(db, body, seite.recruiter_id);
+  const anKandidat = kandidatAbgesagt({ vorname: t.first_name, hhName: seite.name, startIso: t.starts_at, dauer: seite.e.dauer, neuBuchenUrl: seite.active ? neu : null, lang: kLang });
   await sendInterviewMail({
-    fromEmail: FROM_EMAIL(), fromName: `${seite.name} über Matchunt`, to: t.email, subject: anKandidat.subject, html: anKandidat.html, text: anKandidat.text,
-    ics: { method: 'CANCEL', content: icsFuer({ bookingId: t.id, sequence: Math.floor(Date.now() / 1000), method: 'CANCEL', startIso: t.starts_at, dauer: seite.e.dauer, seite, stelle, mode: t.mode, joinUrl: t.join_url, email: t.email, name, verwaltenUrl: `${app}/t/termin/${body.token}` }) },
+    fromEmail: FROM_EMAIL(), fromName: viaMatchunt(seite.name, kLang), to: t.email, subject: anKandidat.subject, html: anKandidat.html, text: anKandidat.text,
+    ics: { method: 'CANCEL', content: icsFuer({ bookingId: t.id, sequence: Math.floor(Date.now() / 1000), method: 'CANCEL', startIso: t.starts_at, dauer: seite.e.dauer, seite, stelle, mode: t.mode, joinUrl: t.join_url, email: t.email, name, verwaltenUrl: `${app}/t/termin/${body.token}`, lang: kLang }) },
   }).catch(() => undefined);
   if (seite.email) {
-    const anHH = headhunterAbgesagt({ hhVorname: seite.vorname, kandidat: name, stelle, startIso: t.starts_at, dauer: seite.e.dauer, grund, akteUrl: t.candidate_id ? `${app}/recruiter/candidates/${t.candidate_id}` : `${app}/recruiter/interviews` });
+    const anHH = headhunterAbgesagt({ hhVorname: seite.vorname, kandidat: name, stelle, startIso: t.starts_at, dauer: seite.e.dauer, grund, akteUrl: t.candidate_id ? `${app}/recruiter/candidates/${t.candidate_id}` : `${app}/recruiter/interviews`, lang: await recruiterLanguage(db, seite.recruiter_id) });
     await sendInterviewMail({ fromEmail: FROM_EMAIL(), fromName: 'Matchunt', to: seite.email, subject: anHH.subject, html: anHH.html, text: anHH.text }).catch(() => undefined);
   }
   await db.from('notifications').insert({ user_id: seite.recruiter_id, type: 'booking_cancelled', title: `Abgesagt: ${name}`, message: `${terminText(t.starts_at)} ist wieder frei · ${grund ? `„${grund}“` : 'ohne Grund'}`, related_type: 'candidate', related_id: t.candidate_id });

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { interviewApi } from '@/lib/interviewScheduling';
@@ -17,7 +18,7 @@ import { CounterProposalDialog } from '@/components/interview/agenda/CounterProp
 import { CancelInterviewDialog } from '@/components/interview/agenda/CancelInterviewDialog';
 import { InterviewWindow, type WindowTab, type WindowVariant } from '@/components/interview/window/InterviewWindow';
 import { InterviewRequestDialog } from '@/components/interview/request/InterviewRequestDialog';
-import { useClientInterviewAgenda, type AgendaInterview } from '@/hooks/useClientInterviewAgenda';
+import { dayLabel, useClientInterviewAgenda, type AgendaInterview } from '@/hooks/useClientInterviewAgenda';
 import { useInterviewKeyboardShortcuts } from '@/hooks/useInterviewKeyboardShortcuts';
 import { usePageViewTracking } from '@/hooks/useEventTracking';
 import { toast } from 'sonner';
@@ -48,6 +49,7 @@ const toLegacyShape = (iv: AgendaInterview) => ({
 });
 
 export default function ClientInterviews() {
+  const { t } = useTranslation(['clientInterviews', 'interviews']);
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
@@ -89,9 +91,9 @@ export default function ClientInterviews() {
     const q = searchQuery.trim().toLowerCase();
     return (iv: AgendaInterview) => {
       if (meetingTypeFilter !== 'all') {
-        const t = iv.meetingType;
-        const isVideo = t === 'video' || t === 'teams' || t === 'meet';
-        if (meetingTypeFilter === 'video' ? !isVideo : t !== meetingTypeFilter) return false;
+        const type = iv.meetingType;
+        const isVideo = type === 'video' || type === 'teams' || type === 'meet';
+        if (meetingTypeFilter === 'video' ? !isVideo : type !== meetingTypeFilter) return false;
       }
       if (q) {
         const hay = `${iv.candidateName} ${iv.jobTitle} ${iv.candidateRole || ''}`.toLowerCase();
@@ -152,11 +154,11 @@ export default function ClientInterviews() {
     setConfirmingId(iv.id);
     try {
       await interviewApi.confirmAlternative(iv.id);
-      toast.success('Termin steht. Die Einladungen sind unterwegs.');
+      toast.success(t('page.confirmed'));
       setWindowFor(null);
       queryClient.invalidateQueries({ queryKey: ['client-interview-agenda'] });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Der Termin konnte nicht bestätigt werden.');
+      toast.error(e instanceof Error ? e.message : t('page.confirmFailed'));
     } finally {
       setConfirmingId(null);
     }
@@ -179,6 +181,8 @@ export default function ClientInterviews() {
     }
   };
 
+  // Benachrichtigungen an den Headhunter werden gespeichert und in dessen Glocke gelesen;
+  // seine Sprache ist hier nicht bekannt, deshalb bleiben Titel und Text deutsch.
   const handleRemind = async (iv: AgendaInterview) => {
     try {
       await notifyRecruiter(
@@ -187,10 +191,10 @@ export default function ClientInterviews() {
         'Kunde bittet um Erinnerung',
         `Der Kandidat ${iv.candidateName} hat auf die Interview-Anfrage für "${iv.jobTitle}" seit ${Math.floor(iv.waitingHours / 24) || iv.waitingHours} ${iv.waitingHours >= 48 ? 'Tagen' : 'Stunden'} nicht geantwortet. Bitte nachfassen.`,
       );
-      toast.success('Der Recruiter wurde gebeten, beim Kandidaten nachzufassen.');
+      toast.success(t('page.reminded'));
     } catch (e) {
       console.error('Erinnern-Fehler:', e);
-      toast.error('Erinnerung konnte nicht gesendet werden.');
+      toast.error(t('page.remindFailed'));
     }
   };
 
@@ -207,11 +211,11 @@ export default function ClientInterviews() {
       .eq('id', iv.id);
     setProcessing(false);
     if (e) {
-      toast.error('No-Show konnte nicht gemeldet werden.');
+      toast.error(t('page.noShowFailed'));
       return;
     }
     await notifyRecruiter(iv, 'interview_no_show', 'No-Show gemeldet', `Der Kandidat ist zum Interview für "${iv.jobTitle}" nicht erschienen.`);
-    toast.success('No-Show gemeldet.');
+    toast.success(t('page.noShowDone'));
     refetch();
   };
 
@@ -221,9 +225,9 @@ export default function ClientInterviews() {
     return (
       <DashboardLayout>
         <div className="flex flex-col items-center justify-center gap-3 py-16">
-          <p className="text-muted-foreground">Interviews konnten nicht geladen werden.</p>
+          <p className="text-muted-foreground">{t('page.loadError')}</p>
           <Button variant="outline" onClick={() => refetch()}>
-            <RefreshCw className="mr-2 h-4 w-4" /> Erneut versuchen
+            <RefreshCw className="mr-2 h-4 w-4" /> {t('page.retry')}
           </Button>
         </div>
       </DashboardLayout>
@@ -238,8 +242,8 @@ export default function ClientInterviews() {
         {/* Header */}
         <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
           <div>
-            <h1 className="text-2xl font-bold">Interviews</h1>
-            <p className="text-sm text-muted-foreground">Chronologisch — was heute zählt, steht oben.</p>
+            <h1 className="text-2xl font-bold">{t('page.title')}</h1>
+            <p className="text-sm text-muted-foreground">{t('page.subtitle')}</p>
           </div>
           <div className="flex items-center gap-1 rounded-lg border p-1">
             <Button
@@ -248,7 +252,7 @@ export default function ClientInterviews() {
               className="gap-1.5"
               onClick={() => setViewMode('agenda')}
             >
-              <List className="h-4 w-4" /> Agenda
+              <List className="h-4 w-4" /> {t('page.agenda')}
             </Button>
             <Button
               variant={viewMode === 'calendar' ? 'secondary' : 'ghost'}
@@ -256,7 +260,7 @@ export default function ClientInterviews() {
               className="gap-1.5"
               onClick={() => setViewMode('calendar')}
             >
-              <LayoutGrid className="h-4 w-4" /> Kalender
+              <LayoutGrid className="h-4 w-4" /> {t('page.calendar')}
             </Button>
           </div>
         </div>
@@ -282,12 +286,12 @@ export default function ClientInterviews() {
         ) : !hasAny ? (
           <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed py-16 text-center">
             <CalendarDays className="h-8 w-8 text-muted-foreground/50" />
-            <p className="font-medium">Noch keine Interviews</p>
+            <p className="font-medium">{t('page.empty')}</p>
             <p className="max-w-sm text-sm text-muted-foreground">
-              Interviews entstehen aus Bewerbungen: Kandidaten prüfen und direkt eine Interview-Anfrage senden.
+              {t('page.emptyLead')}
             </p>
             <Button variant="outline" size="sm" className="mt-2" onClick={() => navigate('/dashboard/candidates')}>
-              Zu den Bewerbungen
+              {t('page.toApplications')}
             </Button>
           </div>
         ) : (
@@ -302,10 +306,10 @@ export default function ClientInterviews() {
               <div className="flex items-center gap-1 rounded-lg border p-1">
                 {(
                   [
-                    { key: 'all', label: 'Alle', icon: null },
-                    { key: 'video', label: 'Video', icon: Video },
-                    { key: 'phone', label: 'Telefon', icon: Phone },
-                    { key: 'onsite', label: 'Vor Ort', icon: MapPin },
+                    { key: 'all', label: t('page.filter.all'), icon: null },
+                    { key: 'video', label: t('page.filter.video'), icon: Video },
+                    { key: 'phone', label: t('interviews:meeting.phone'), icon: Phone },
+                    { key: 'onsite', label: t('interviews:meeting.onsite'), icon: MapPin },
                   ] as const
                 ).map(({ key, label, icon: Icon }) => (
                   <Button
@@ -329,7 +333,7 @@ export default function ClientInterviews() {
                       setSearchQuery('');
                     }}
                   >
-                    <X className="h-3 w-3" /> Zurücksetzen
+                    <X className="h-3 w-3" /> {t('page.reset')}
                   </Button>
                 )}
               </div>
@@ -337,7 +341,7 @@ export default function ClientInterviews() {
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   ref={searchInputRef}
-                  placeholder="Kandidat oder Position …"
+                  placeholder={t('page.searchPh')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="h-9 pl-9"
@@ -363,7 +367,7 @@ export default function ClientInterviews() {
                 {sectionVisible('counter') && counter.length > 0 && (
                   <section>
                     <h2 className="mb-1 px-2.5 text-sm font-semibold">
-                      Sie sind am Zug <span className="font-normal text-muted-foreground">· {counter.length}</span>
+                      {t('page.yourTurn')} <span className="font-normal text-muted-foreground">· {counter.length}</span>
                     </h2>
                     <div className="space-y-0.5">
                       {counter.map((iv) => (
@@ -389,12 +393,12 @@ export default function ClientInterviews() {
                   <section>
                     {agendaDays.length === 0 ? (
                       <p className="px-2.5 py-4 text-sm text-muted-foreground">
-                        Keine bestätigten Termine{hasActiveFilters ? ' für diesen Filter' : ''}.
+                        {hasActiveFilters ? t('page.noConfirmedFilter') : t('page.noConfirmed')}
                       </p>
                     ) : (
                       agendaDays.map((day) => (
                         <div key={day.key} className="mb-2">
-                          <p className="mb-0.5 px-2.5 pt-2 text-xs text-muted-foreground">{day.label}</p>
+                          <p className="mb-0.5 px-2.5 pt-2 text-xs text-muted-foreground">{day.items[0]?.scheduledAt ? dayLabel(new Date(day.items[0].scheduledAt)) : day.label}</p>
                           <div className="space-y-0.5">
                             {day.items.map((iv) => (
                               <AgendaRow
@@ -418,7 +422,7 @@ export default function ClientInterviews() {
                 {sectionVisible('awaiting') && awaiting.length > 0 && (
                   <section>
                     <h2 className="mb-1 px-2.5 text-sm font-semibold">
-                      Wartet auf den Kandidaten{' '}
+                      {t('page.awaiting')}{' '}
                       <span className="font-normal text-muted-foreground">· {awaiting.length}</span>
                     </h2>
                     <div className="space-y-0.5">
@@ -441,7 +445,7 @@ export default function ClientInterviews() {
                 {sectionVisible('feedback') && feedbackDue.length > 0 && (
                   <section>
                     <h2 className="mb-1 px-2.5 text-sm font-semibold">
-                      Feedback fällig <span className="font-normal text-muted-foreground">· {feedbackDue.length}</span>
+                      {t('page.feedbackDue')} <span className="font-normal text-muted-foreground">· {feedbackDue.length}</span>
                     </h2>
                     <div className="space-y-0.5">
                       {feedbackDue.map((iv) => (
@@ -468,7 +472,7 @@ export default function ClientInterviews() {
                       aria-expanded={showPast}
                     >
                       <ChevronDown className={cn('h-4 w-4 transition-transform', !showPast && '-rotate-90')} />
-                      Vergangen · {past.length}
+                      {t('page.past', { count: past.length })}
                     </button>
                     {showPast && (
                       <div className="mt-1 space-y-0.5">
@@ -486,7 +490,7 @@ export default function ClientInterviews() {
 
         {processing && (
           <div className="fixed bottom-4 right-4 flex items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm shadow-lg">
-            <Loader2 className="h-4 w-4 animate-spin text-primary" /> Wird gespeichert …
+            <Loader2 className="h-4 w-4 animate-spin text-primary" /> {t('page.saving')}
           </div>
         )}
       </div>

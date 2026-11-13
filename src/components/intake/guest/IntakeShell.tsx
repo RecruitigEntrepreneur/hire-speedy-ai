@@ -1,4 +1,7 @@
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+import { LanguageMenu } from '@/components/language/LanguageMenu';
+import { LanguageHint } from '@/components/language/LanguageHint';
 import { MatchuntWordmark } from '@/components/ui/MatchuntWordmark';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -45,6 +48,7 @@ export function IntakeShell({
   steps, activeStep, reachable, onStep, packages, contracting, ownerName,
   saving, saveError, lastSavedAt, onResumeLater, children,
 }: Props) {
+  const { t } = useTranslation('clientFunnel');
   const activeIndex = Math.max(0, steps.findIndex((s) => s.key === activeStep));
 
   return (
@@ -64,14 +68,14 @@ export function IntakeShell({
               <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
               {/* Keine Prozentzahl hier: „78 %“ allein liest sich wie eine Gebühr.
                   Die Aufteilung steht mit Erklärung auf der Seite „Anfragen“. */}
-              Contracting · Abrechnung nach Einsatztagen
-              <span className="hidden sm:inline">· keine Fixkosten</span>
+              {t('shell.contractingBadge')}
+              <span className="hidden sm:inline">{t('shell.noFixedCosts')}</span>
             </Badge>
           ) : packages && packages.length > 0 && (
             <Badge variant="secondary" className="gap-1.5 whitespace-nowrap font-normal">
               <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
-              ab {Math.min(...packages.map((p) => p.fee_percent))} % Erfolgshonorar
-              <span className="hidden sm:inline">· keine Fixkosten</span>
+              {t('shell.feeBadge', { percent: Math.min(...packages.map((p) => p.fee_percent)) })}
+              <span className="hidden sm:inline">{t('shell.noFixedCosts')}</span>
             </Badge>
           )}
 
@@ -79,9 +83,10 @@ export function IntakeShell({
             <SaveState saving={saving} error={saveError} at={lastSavedAt} />
             {onResumeLater && (
               <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={onResumeLater}>
-                Später fortsetzen
+                {t('shell.resumeLater')}
               </Button>
             )}
+            <LanguageMenu />
           </div>
         </div>
 
@@ -124,26 +129,28 @@ export function IntakeShell({
             })}
           </ol>
         </div>
+
+        {/* Der Link startet in einer anderen Sprache als der Browser: einmalige Hinweiszeile. */}
+        <LanguageHint className="border-b-0 border-t" />
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">{children}</main>
 
       <footer className="mx-auto max-w-5xl px-4 pb-10 md:px-6">
         <div className="border-t border-border/60 pt-4 text-xs text-muted-foreground">
-          {ownerName && <p className="mb-1">Ihr Ansprechpartner bei Matchunt: {ownerName}</p>}
+          {ownerName && <p className="mb-1">{t('shell.contactPerson', { name: ownerName })}</p>}
           <p>
-            Ihre Angaben werden fortlaufend gespeichert. Ohne Aktivität löschen wir eine begonnene
-            Aufnahme 30 Tage nach der letzten Änderung.{' '}
+            {t('shell.footerNote')}{' '}
             <a href="/datenschutz" className="underline hover:text-foreground" target="_blank" rel="noreferrer">
-              Datenschutz
+              {t('shell.privacy')}
             </a>
             {' · '}
             <a href="/agb" className="underline hover:text-foreground" target="_blank" rel="noreferrer">
-              AGB
+              {t('shell.terms')}
             </a>
             {' · '}
             <a href="/impressum" className="underline hover:text-foreground" target="_blank" rel="noreferrer">
-              Impressum
+              {t('shell.imprint')}
             </a>
           </p>
         </div>
@@ -161,28 +168,38 @@ export function IntakeShell({
  * wirklich passiert ist.
  */
 function SaveState({ saving, error, at }: { saving?: boolean; error?: string | null; at?: Date | null }) {
+  const { t } = useTranslation('clientFunnel');
   if (error) {
     return (
       <span className="flex items-center gap-1.5 text-xs text-destructive" role="status">
-        <CloudOff className="h-3.5 w-3.5" /> Nicht gespeichert
+        <CloudOff className="h-3.5 w-3.5" /> {t('shell.notSaved')}
       </span>
     );
   }
   if (saving) {
     return (
       <span className="flex items-center gap-1.5 text-xs text-muted-foreground" role="status">
-        <Loader2 className="h-3.5 w-3.5 animate-spin" /> Speichert
+        <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t('shell.saving')}
       </span>
     );
   }
   if (at) {
     return (
       <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex" role="status">
-        <Check className="h-3.5 w-3.5 text-emerald-600" /> Gespeichert
+        <Check className="h-3.5 w-3.5 text-emerald-600" /> {t('shell.saved')}
       </span>
     );
   }
   return null;
+}
+
+/** Sprachmenü oben rechts auf den ganzseitigen Zuständen (ohne Kopfzeile). Der Rahmen braucht `relative`. */
+export function PageLanguageMenu() {
+  return (
+    <div className="absolute right-4 top-3 z-10">
+      <LanguageMenu />
+    </div>
+  );
 }
 
 /** Ganzseitige Absage: ungültiger, abgelaufener oder widerrufener Link. */
@@ -190,7 +207,8 @@ export function IntakeFailurePage({
   title, message, action,
 }: { title: string; message: string; action?: ReactNode }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4 text-foreground">
+    <div className="relative flex min-h-screen items-center justify-center bg-background px-4 text-foreground">
+      <PageLanguageMenu />
       <div className="w-full max-w-md text-center">
         <MatchuntWordmark size="sm" className="mb-8 justify-center" />
         <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-muted">

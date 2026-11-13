@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { FileText, Mic, Send, Calendar, FileEdit, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 interface CandidateActionBarProps {
   onViewExpose: () => void;
@@ -22,6 +23,7 @@ export function CandidateActionBar({
   currentStatus = 'new',
   className 
 }: CandidateActionBarProps) {
+  const { t } = useTranslation('candidateDetail');
   if (currentStatus === 'placed') {
     return (
       <div className={cn(
@@ -32,7 +34,7 @@ export function CandidateActionBar({
         <div className="container max-w-7xl mx-auto px-4 py-3 flex justify-center">
           <Badge className="bg-green-500/10 text-green-600 border-green-500/20 text-sm py-1.5 px-4">
             <CheckCircle className="h-4 w-4 mr-2" />
-            Erfolgreich platziert
+            {t('actionBar.placed')}
           </Badge>
         </div>
       </div>
@@ -56,7 +58,7 @@ export function CandidateActionBar({
             className="gap-2"
           >
             <FileText className="h-4 w-4" />
-            <span className="hidden sm:inline">Exposé</span>
+            <span className="hidden sm:inline">{t('actionBar.expose')}</span>
           </Button>
 
           {/* Context-dependent primary action */}
@@ -67,8 +69,8 @@ export function CandidateActionBar({
               className="gap-2"
             >
               <Send className="h-4 w-4" />
-              <span className="hidden sm:inline">Auf Job einreichen</span>
-              <span className="sm:hidden">Einreichen</span>
+              <span className="hidden sm:inline">{t('actionBar.submitToJob')}</span>
+              <span className="sm:hidden">{t('actionBar.submit')}</span>
             </Button>
           )}
 
@@ -80,7 +82,7 @@ export function CandidateActionBar({
               className="gap-2"
             >
               <Mic className="h-4 w-4" />
-              <span className="hidden sm:inline">Interview</span>
+              <span className="hidden sm:inline">{t('actionBar.interview')}</span>
             </Button>
           )}
 
@@ -92,8 +94,8 @@ export function CandidateActionBar({
               className="gap-2"
             >
               <Calendar className="h-4 w-4" />
-              <span className="hidden sm:inline">Interview planen</span>
-              <span className="sm:hidden">Interview</span>
+              <span className="hidden sm:inline">{t('actionBar.planInterview')}</span>
+              <span className="sm:hidden">{t('actionBar.interview')}</span>
             </Button>
           )}
 
@@ -105,8 +107,8 @@ export function CandidateActionBar({
                 className="gap-2"
               >
                 <FileEdit className="h-4 w-4" />
-                <span className="hidden sm:inline">Notizen eintragen</span>
-                <span className="sm:hidden">Notizen</span>
+                <span className="hidden sm:inline">{t('actionBar.enterNotes')}</span>
+                <span className="sm:hidden">{t('actionBar.notes')}</span>
               </Button>
               <Button
                 variant="outline"
@@ -115,7 +117,7 @@ export function CandidateActionBar({
                 className="gap-2"
               >
                 <Mic className="h-4 w-4" />
-                <span className="hidden sm:inline">Interview</span>
+                <span className="hidden sm:inline">{t('actionBar.interview')}</span>
               </Button>
             </>
           )}
@@ -128,7 +130,7 @@ export function CandidateActionBar({
               className="gap-2"
             >
               <Send className="h-4 w-4" />
-              <span className="hidden sm:inline">Angebot verfolgen</span>
+              <span className="hidden sm:inline">{t('actionBar.trackOffer')}</span>
             </Button>
           )}
         </div>

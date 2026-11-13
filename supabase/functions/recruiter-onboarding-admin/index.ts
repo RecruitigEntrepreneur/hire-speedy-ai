@@ -17,6 +17,9 @@ import { grantRecruiterAccess, sendWelcomeMail } from '../_shared/recruiter-acti
 import { cleanProfile, normalizeEmail, validEmail, profileIssues, packageIssues, requiredReviewChecks, type ContractDocument } from '../_shared/recruiter-contract-policy.ts';
 import { reviewEvidence } from '../_shared/recruiter-evidence-service.ts';
 import { grantPartnerStatus, setPartnerActive } from '../_shared/recruiter-partner-service.ts';
+import { normLang } from '../_shared/i18n.ts';
+import { invitationMailTexts } from '../_shared/recruiter-i18n.ts';
+import { caseLanguage, createLink, listLinks, revokeLink } from '../_shared/recruiter-language.ts';
 import { must, dbError, caseById, patchCase, envelopeById, patchEnvelope, signatureConfig, providerRequest, sha256, syncEnvelope, workflowFailure, type RecruiterEnvelope, type OnboardingCase } from '../_shared/recruiter-onboarding-service.ts';
 
 /**
@@ -26,14 +29,18 @@ import { must, dbError, caseById, patchCase, envelopeById, patchEnvelope, signat
  */
 async function sendInvitation(db: ReturnType<typeof serviceClient>, c: OnboardingCase, token: string, note: string, replyTo: string | undefined) {
   const url = `${getPublicAppUrl()}/recruiter/invitation#${token}`;
+  // Sprache des Vorgangs, sonst Deutsch. Die Antwortadresse und die Notiz des Admins bleiben, wie sie sind.
+  const lang = caseLanguage(c);
+  const t = invitationMailTexts(lang, { expiresAt: c.expires_at });
+  const name = t.firstNameOnly ? String(c.profile.name ?? '').trim().split(/\s+/)[0] ?? '' : c.profile.name;
   const result = await sendIntakeMail(db, {
-    to: c.email, subject: 'Ihre Einladung zum Matchunt Recruiter-Netzwerk',
+    to: c.email, subject: t.subject,
     template: 'recruiter_onboarding_invitation', replyTo,
     idempotencyKey: `recruiter-invitation/${c.id}`,
-    html: layout({ preheader: 'Ihr persönlicher Einstieg bei Matchunt', heading: 'Willkommen bei Matchunt',
-          body: `<p>Guten Tag ${esc(c.profile.name)},</p><p>wir freuen uns, die Zusammenarbeit mit Ihnen vorzubereiten.</p>${note ? `<p>${esc(note).replace(/\n/g, '<br>')}</p>` : ''}<p>Über Ihren persönlichen Link können Sie Ihre bereits hinterlegten Angaben prüfen, ergänzen und den Vertragsprozess starten. Bitte verwenden Sie dafür die E-Mail-Adresse, an die diese Einladung gesendet wurde.</p><p>Nach Bestätigung Ihrer Angaben wird Ihr persönliches Vertragspaket erstellt. Sie können es direkt mit DocuSign prüfen und unterschreiben. Anschließend prüft Matchunt Ihre Unterlagen und zeichnet ausdrücklich gegen. Danach informieren wir Sie über die Freischaltung.</p><p>Bei Fragen antworten Sie gern direkt auf diese Nachricht.</p><p>Mit freundlichen Grüßen<br>Ihr Matchunt-Team</p>`,
-          cta: { label: 'Persönliches Onboarding starten', url },
-          footnote: `Dieser persönliche Link ist bis ${esc(new Date(c.expires_at).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' }))} gültig. Bitte nicht weiterleiten. <a href="${esc(getPublicAppUrl())}/impressum">Impressum</a> · <a href="${esc(getPublicAppUrl())}/datenschutz">Datenschutz</a>`,
+    html: layout({ lang, preheader: t.preheader, heading: t.heading,
+          body: `<p>${t.hello} ${esc(name)},</p><p>${t.lead}</p>${note ? `<p>${esc(note).replace(/\n/g, '<br>')}</p>` : ''}<p>${t.link}</p><p>${t.process}</p><p>${t.questions}</p><p>${t.regards}</p>`,
+          cta: { label: t.cta, url },
+          footnote: `${esc(t.validUntil)} <a href="${esc(getPublicAppUrl())}/impressum">${t.imprint}</a> · <a href="${esc(getPublicAppUrl())}/datenschutz">${t.privacy}</a>`,
         }), meta: { case_id: c.id },
   });
   must(result.sent, 'Die Einladung wurde angelegt, die E-Mail konnte aber nicht versendet werden.', 'upstream_error');
@@ -53,10 +60,14 @@ serve(async req => {
     // Partnerstatus beenden oder wiederherstellen (Akte › Übersicht).
     if (body.action === 'partner-status') return json(await setPartnerActive(db, body));
     if (body.action === 'list') {
-      const { data: cases, error } = await db.from('recruiter_onboarding_cases')
-        .select('id,revision,entry_source,kind,email,profile,state,feedback,internal_note,expires_at,revoked_at,claimed_at,claimed_by,checks,reviewed_at,created_at')
-        .order('created_at', { ascending: false }).limit(100);
+      const columns = 'id,revision,entry_source,kind,email,profile,state,feedback,internal_note,expires_at,revoked_at,claimed_at,claimed_by,checks,reviewed_at,created_at';
+      const load = (cols: string) => db.from('recruiter_onboarding_cases').select(cols).order('created_at', { ascending: false }).limit(100);
+      // Sprache und Kennung kommen mit der Migration 20261112120000; fehlen die Spalten noch, lädt die Liste ohne sie.
+      let { data: rows, error } = await load(`${columns},language,source_key`);
+      if (error) ({ data: rows, error } = await load(columns));
       dbError(error);
+      type Row = Record<string, unknown> & { id: string; claimed_by: string | null };
+      const cases = ((rows ?? []) as unknown as Row[]).map(r => ({ ...r, language: (r.language as string | null | undefined) ?? null, source_key: (r.source_key as string | null | undefined) ?? null }));
       const ids = (cases ?? []).map(c => c.id);
       const { data: contracts, error: ce } = await db.from('recruiter_contract_envelopes').select('*').in('case_id', ids);
       dbError(ce);
@@ -86,14 +97,23 @@ serve(async req => {
       const days = Number(body.days ?? 7);
       must(Number.isInteger(days) && days >= 1 && days <= 30, 'Linklaufzeit muss zwischen 1 und 30 Tagen liegen.');
       const token = generateToken();
-      const { data, error } = await db.from('recruiter_onboarding_cases').insert({
+      const row: Record<string, unknown> = {
         kind: body.kind, email, profile, contract_template_hash: TEMPLATE_HASH, token_hash: await hashToken(token),
         expires_at: new Date(Date.now() + days * 86400000).toISOString(),
         internal_note: String(body.internal_note ?? '').trim().slice(0, 2000), created_by: admin.userId,
-      }).select('id').single();
+      };
+      // Sprache der Einladung: in ihr gehen Einladungsmail, Code-Mail und Willkommensmail raus.
+      const language = normLang(body.language);
+      let { data, error } = await db.from('recruiter_onboarding_cases').insert(language ? { ...row, language } : row).select('id').single();
+      // Spalte fehlt noch (Migration nicht angewandt): Einladung trotzdem anlegen, dann auf Deutsch.
+      if (error && language && error.code !== '23505') ({ data, error } = await db.from('recruiter_onboarding_cases').insert(row).select('id').single());
       dbError(error);
       return json({ id: data!.id, token, url: `${getPublicAppUrl()}/recruiter/invitation#${token}` });
     }
+    // Öffentliche Headhunter-Links mit Kennung (Mehrsprachigkeit, 12.11.2026); hängen an keinem Vorgang.
+    if (body.action === 'links-list') return json(await listLinks(db));
+    if (body.action === 'link-create') return json(await createLink(db, admin.userId, body));
+    if (body.action === 'link-revoke') return json(await revokeLink(db, body.id));
     const c = await caseById(db, body.case_id);
     // Mails dieses Vorgangs mit Zustellung, Öffnungen und Klicks für die Admin-Karte.
     if (body.action === 'mails') return json({ mails: await caseMails(db, c.id, { fetch: (input, init) => fetch(input, init), apiKey: Deno.env.get('RESEND_API_KEY') }) });
@@ -120,10 +140,13 @@ serve(async req => {
       const days = Number(body.days ?? 7);
       must(Number.isInteger(days) && days >= 1 && days <= 30, 'Linklaufzeit muss zwischen 1 und 30 Tagen liegen.');
       const token = generateToken();
+      // Die Sprache der alten Einladung geht mit; die Spalte gibt es erst nach der Migration.
+      const language = caseLanguage(c);
       const { data: fresh, error } = await db.from('recruiter_onboarding_cases').insert({
         kind: c.kind, email: c.email, profile: c.profile, contract_template_hash: TEMPLATE_HASH, token_hash: await hashToken(token),
         expires_at: new Date(Date.now() + days * 86400000).toISOString(),
         internal_note: String((c as OnboardingCase & { internal_note?: string }).internal_note ?? '').slice(0, 2000), created_by: admin.userId,
+        ...(language ? { language } : {}),
       }).select('*').single();
       dbError(error);
       const next = fresh as OnboardingCase;

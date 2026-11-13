@@ -15,6 +15,7 @@
 //     doch einer an, ist Vorstellen gesperrt (Ausnahme: „Trotzdem vorschlagen“ im Profil).
 
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CheckCircle2, Loader2, Lock, Shield, UserPlus, XCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
@@ -29,7 +30,7 @@ import { fetchDossier } from '@/hooks/useCandidateDossier';
 import { DossierForm, NOTICE_OPTIONS, formatEuro, isMissingColumnError, optionLabel, redactIdentity } from '@/lib/candidateDossier';
 import { FitCandidate, computeFitCheck, toOverridesPayload } from '@/lib/fitCheck';
 import { fetchMatchV41, type MatchRequirementRow } from '@/lib/matchV41';
-import { FIT_LABEL, byFit, fitOf, isFitting, type Fit } from '@/lib/matchFit';
+import { byFit, fitOf, isFitting, type Fit } from '@/lib/matchFit';
 import { usePoolFit } from '@/hooks/usePoolFit';
 import { notifyClientAboutSubmission } from '@/lib/submissionNotify';
 import { SubmitCvCheck } from './SubmitCvCheck';
@@ -50,9 +51,12 @@ interface CandidateSubmitFormProps {
 
 type Load = 'loading' | 'ready' | 'failed';
 
+// Wird mit der Einreichung gespeichert (fit_overrides) und bleibt deshalb deutsch.
 const CONFIRMED = 'per Klick bestätigt';
 
 export function CandidateSubmitForm({ jobId, jobTitle, initialCandidateId, job = null, onSuccess }: CandidateSubmitFormProps) {
+  // recruiterJobs: Texte des Passungs-Checks (lib/fitCheck) in der Sprache der Oberfläche.
+  const { t } = useTranslation(['recruiterSubmissions', 'recruiterJobs']);
   const { user } = useAuth();
   const { toast } = useToast();
   const [options, setOptions] = useState<Array<{ id: string; full_name: string; job_title: string | null }>>([]);
@@ -130,8 +134,8 @@ export function CandidateSubmitForm({ jobId, jobTitle, initialCandidateId, job =
   const salary = fit.items.find((i) => i.key === 'gehalt');
   const notMet = musts.filter((m) => m.status === 'not_met').map((m) => m.text);
   const problems = [
-    ...(salary?.status === 'hint' && salary.message.startsWith('Wunschgehalt über') ? [`Wunschgehalt über dem Budget (${salary.detail}).`] : []),
-    ...(notMet.length ? [`Nicht belegt: ${notMet.join(' · ')}`] : []),
+    ...(salary?.status === 'hint' && [t('recruiterJobs:fitCheck.salary.wishOverBudget'), t('recruiterJobs:fitCheck.salary.wishOverBudgetUnknown')].includes(salary.message) ? [t('submit.salaryOver', { detail: salary.detail })] : []),
+    ...(notMet.length ? [t('submit.notMet', { list: notMet.join(' · ') })] : []),
   ];
   const excluded = !!matchFit && !isFitting(matchFit.fit);
 
@@ -161,33 +165,34 @@ export function CandidateSubmitForm({ jobId, jobTitle, initialCandidateId, job =
     }
     if (error) {
       setBusy(false);
-      toast({ title: 'Vorstellen hat nicht geklappt', description: submissionErrorText(error, error.message), variant: 'destructive' });
+      toast({ title: t('submit.failTitle'), description: submissionErrorText(error, error.message), variant: 'destructive' });
       return;
     }
     const id = (data as { id?: string } | null)?.id;
     if (id) void notifyClientAboutSubmission(id);
-    toast({ title: 'Vorgestellt', description: `${dossier.full_name} für „${jobTitle}“. Der Kunde sieht das Profil jetzt anonym und bekommt eine Mail.` });
+    toast({ title: t('submit.doneTitle'), description: t('submit.doneText', { name: dossier.full_name, job: jobTitle }) });
     setBusy(false);
     onSuccess();
   };
 
   const notice = dossier?.notice_period ? optionLabel(NOTICE_OPTIONS, dossier.notice_period) ?? null : null;
+  const firstName = dossier ? dossier.full_name.split(' ')[0] || dossier.full_name : null;
   const initials = (dossier?.full_name ?? '').split(/\s+/).map((p) => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
 
   return (
     <div className="space-y-4">
       {!initialCandidateId && (
         <div className="space-y-2">
-          <Label>Kandidat</Label>
+          <Label>{t('submit.candidate')}</Label>
           {fittingOptions.length > 0 ? (
             <Select value={candidateId ?? ''} onValueChange={setCandidateId}>
-              <SelectTrigger><SelectValue placeholder="Passenden Kandidaten wählen …" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={t('submit.choose')} /></SelectTrigger>
               <SelectContent>
                 {fittingOptions.map((c) => {
                   const f = pool.fit.get(c.id);
                   return (
                     <SelectItem key={c.id} value={c.id}>
-                      {c.full_name}{c.job_title ? ` · ${c.job_title}` : ''}{isFitting(f) ? ` · ${FIT_LABEL[f]}` : ''}
+                      {c.full_name}{c.job_title ? ` · ${c.job_title}` : ''}{isFitting(f) ? ` · ${t(`submit.fit.${f}`)}` : ''}
                     </SelectItem>
                   );
                 })}
@@ -195,21 +200,21 @@ export function CandidateSubmitForm({ jobId, jobTitle, initialCandidateId, job =
             </Select>
           ) : (
             <p className="flex items-center gap-2 rounded-md border border-dashed border-border px-3 py-2.5 text-sm text-muted-foreground">
-              {pool.checking ? <><Loader2 className="h-4 w-4 animate-spin" /> Passende Kandidaten werden gesucht …</> : 'Noch kein passender Kandidat in deinem Pool.'}
+              {pool.checking ? <><Loader2 className="h-4 w-4 animate-spin" /> {t('submit.searching')}</> : t('submit.noneFitting')}
             </p>
           )}
           {fittingOptions.length > 0 && pool.checking && (
-            <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> Weitere Kandidaten werden geprüft …</p>
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> {t('submit.checkingMore')}</p>
           )}
           <Button type="button" variant="ghost" size="sm" className="gap-1.5 px-0 text-muted-foreground hover:bg-transparent hover:text-foreground" onClick={() => setNewOpen(true)}>
-            <UserPlus className="h-4 w-4" /> Neuen Kandidaten anlegen (danach Interview, dann vorstellen)
+            <UserPlus className="h-4 w-4" /> {t('submit.createNew')}
           </Button>
           <CvUploadDialog open={newOpen} onOpenChange={setNewOpen} />
         </div>
       )}
 
       {candidateId && !dossier && (
-        <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Akte wird geladen …</div>
+        <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> {t('submit.loadingDossier')}</div>
       )}
 
       {dossier && (
@@ -218,7 +223,7 @@ export function CandidateSubmitForm({ jobId, jobTitle, initialCandidateId, job =
           <div className="min-w-0 text-sm">
             <p className="font-medium">{dossier.full_name}</p>
             <p className="truncate text-xs text-muted-foreground">
-              {[dossier.job_title, dossier.experience_years ? `${dossier.experience_years} J.` : null, dossier.city || null,
+              {[dossier.job_title, dossier.experience_years ? t('submit.years', { count: dossier.experience_years }) : null, dossier.city || null,
                 dossier.expected_salary ? formatEuro(dossier.expected_salary) : null, notice].filter(Boolean).join(' · ')}
             </p>
           </div>
@@ -226,12 +231,12 @@ export function CandidateSubmitForm({ jobId, jobTitle, initialCandidateId, job =
       )}
 
       {duplicate && (
-        <Alert variant="destructive"><XCircle className="h-4 w-4" /><AlertDescription>Dieser Kandidat ist für diese Stelle schon vorgestellt.</AlertDescription></Alert>
+        <Alert variant="destructive"><XCircle className="h-4 w-4" /><AlertDescription>{t('submit.duplicate')}</AlertDescription></Alert>
       )}
 
       {dossier && candidateId && (readiness?.isReady || cv || (readiness?.missing.length === 1 && readiness.missing[0] === 'Lebenslauf')) && (
         <SubmitCvCheck cv={cv} loading={false} mismatches={cv ? compareCvWithDossier(cv.extracted, dossier, [], new Date(cv.created_at)) : []} onUpload={() => setCvUploadOpen(true)}
-          anfrage={{ label: `Bei ${dossier.full_name.split(' ')[0] || dossier.full_name} anfragen`, onClick: () => setAnfragenOpen(true) }} />
+          anfrage={{ label: t('submit.askCv', { name: dossier.full_name.split(' ')[0] || dossier.full_name }), onClick: () => setAnfragenOpen(true) }} />
       )}
       {candidateId && (
         <CvUploadDialog open={cvUploadOpen} onOpenChange={setCvUploadOpen} existingCandidateId={candidateId} onCandidateCreated={() => setReload((n) => n + 1)} />
@@ -245,11 +250,11 @@ export function CandidateSubmitForm({ jobId, jobTitle, initialCandidateId, job =
         <Alert className="border-warning/40 bg-warning/10">
           <Lock className="h-4 w-4 text-warning" />
           <AlertDescription className="space-y-1.5">
-            <p className="font-medium text-warning">Noch nicht bereit ({readiness.done} von {readiness.total})</p>
+            <p className="font-medium text-warning">{t('submit.notReady', { done: readiness.done, total: readiness.total })}</p>
             <p className="text-sm text-foreground">
               {readiness.missing.length === 1 && readiness.missing[0] === 'Interview abgeschlossen'
-                ? 'Das Interview ist noch nicht abgeschlossen. Der Kunde entscheidet vor allem nach deinem Gespräch.'
-                : `Es fehlt noch: ${readiness.missing.join(', ')}. Du trägst es im Kandidatenprofil ein.`}
+                ? t('submit.interviewOpen')
+                : t('submit.missing', { list: readiness.missing.join(', ') })}
             </p>
           </AlertDescription>
         </Alert>
@@ -259,8 +264,10 @@ export function CandidateSubmitForm({ jobId, jobTitle, initialCandidateId, job =
         <Alert variant="destructive">
           <XCircle className="h-4 w-4" />
           <AlertDescription>
-            <p className="font-medium">{dossier?.full_name.split(' ')[0] ?? 'Der Kandidat'} passt laut Matching nicht zu dieser Stelle{matchFit?.reason ? `: ${matchFit.reason}` : ''}.</p>
-            <p className="mt-0.5 text-sm">Vorstellen ist deshalb gesperrt. Wenn du es besser weißt: im Profil unter „Passende Stellen“ → „ausgeschlossen“ → „Trotzdem vorschlagen“.</p>
+            <p className="font-medium">{firstName
+              ? (matchFit?.reason ? t('submit.excludedNamedReason', { name: firstName, reason: matchFit.reason }) : t('submit.excludedNamed', { name: firstName }))
+              : (matchFit?.reason ? t('submit.excludedAnonReason', { reason: matchFit.reason }) : t('submit.excludedAnon'))}</p>
+            <p className="mt-0.5 text-sm">{t('submit.excludedHint')}</p>
           </AlertDescription>
         </Alert>
       )}
@@ -274,25 +281,25 @@ export function CandidateSubmitForm({ jobId, jobTitle, initialCandidateId, job =
               {fit.warnings.map((w) => (
                 <label key={w.rule} className="flex cursor-pointer items-start gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
                   <Checkbox className="mt-0.5" checked={confirmed.has(w.rule)} onCheckedChange={(v) => setConfirmed((prev) => { const n = new Set(prev); if (v === true) n.add(w.rule); else n.delete(w.rule); return n; })} />
-                  <span>{w.message} Trotzdem vorstellen.</span>
+                  <span>{t('submit.anyway', { message: w.message })}</span>
                 </label>
               ))}
             </div>
           )}
 
           {mustLoad === 'failed' && (
-            <p className="text-xs text-muted-foreground">Die Passung konnte gerade nicht geprüft werden.</p>
+            <p className="text-xs text-muted-foreground">{t('submit.fitFailed')}</p>
           )}
 
           <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2.5 text-sm">
             <Checkbox className="mt-0.5" checked={consent} onCheckedChange={(v) => setConsent(v === true)} />
-            <span className="flex items-start gap-1.5"><Shield className="mt-0.5 h-4 w-4 shrink-0 text-primary" /> Ich habe die ausdrückliche Einwilligung des Kandidaten zur Weitergabe seiner Daten (DSGVO Art. 6).</span>
+            <span className="flex items-start gap-1.5"><Shield className="mt-0.5 h-4 w-4 shrink-0 text-primary" /> {t('submit.consent')}</span>
           </label>
 
           <div className="flex justify-end">
             <Button type="button" onClick={() => void submit()} disabled={!canSubmit} className="gap-1.5">
               {busy || checkingFit ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-              {checkingFit ? 'Passung wird geprüft …' : 'Jetzt vorstellen'}
+              {checkingFit ? t('submit.checkingFit') : t('submit.submitNow')}
             </Button>
           </div>
         </>

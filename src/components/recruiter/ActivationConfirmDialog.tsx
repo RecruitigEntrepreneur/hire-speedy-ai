@@ -21,6 +21,8 @@ import { ClientQuestionFlow } from './search/ClientQuestionFlow';
 import { Honorar } from './Honorar';
 import { useQuery } from '@tanstack/react-query';
 import { useJobEarning, euroKurz } from './verdienste/useJobEarning';
+import { useTranslation, Trans } from 'react-i18next';
+import { intlLocale } from '@/i18n/languages';
 
 interface MiniCandidate {
   id: string;
@@ -77,6 +79,8 @@ export function ActivationConfirmDialog({
   onGoToJob,
 }: ActivationConfirmDialogProps) {
   const { user } = useAuth();
+  const { t, i18n } = useTranslation('recruiterJobs');
+  const locale = intlLocale(i18n.language);
   const [step, setStep] = useState<'confirm' | 'question' | 'success'>('confirm');
   const [confirmed, setConfirmed] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -128,20 +132,21 @@ export function ActivationConfirmDialog({
       .then(async (rows) => {
         const s = (rows ?? []).find((r) => r.job_id === jobId);
         if (!s?.client_declaration) return setClientInfo(null);
-        const label = s.client_declaration.startsWith('no') ? 'kein Bestandskunde'
-          : s.client_declaration === 'client:confirmed' ? 'Bestandskunde (bestätigt)'
-          : s.client_declaration === 'client:rejected' ? 'kein Bestandskunde (nicht bestätigt)'
-          : 'Bestandskunde (wird geprüft)';
-        let since = '';
+        const label = s.client_declaration.startsWith('no') ? t('activation.client.none')
+          : s.client_declaration === 'client:confirmed' ? t('activation.client.confirmed')
+          : s.client_declaration === 'client:rejected' ? t('activation.client.rejected')
+          : t('activation.client.pending');
+        let at: string | undefined;
         if (s.client_declaration_id) {
           const { data } = await supabase.from('recruiter_client_declarations' as never).select('created_at').eq('id', s.client_declaration_id).maybeSingle();
-          const at = (data as { created_at?: string } | null)?.created_at;
-          if (at) since = ` (deine Angabe vom ${new Date(at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })})`;
+          at = (data as { created_at?: string } | null)?.created_at;
         }
-        setClientInfo(`Kunde: ${label}${since}`);
+        setClientInfo(at
+          ? t('activation.client.lineSince', { label, date: new Date(at).toLocaleDateString(locale, { day: '2-digit', month: '2-digit' }) })
+          : t('activation.client.line', { label }));
       })
       .catch(() => setClientInfo(null));
-  }, [step, jobId]);
+  }, [step, jobId, t, locale]);
 
   const afterQuestion = () => {
     if (forSubmission) {
@@ -190,7 +195,7 @@ export function ActivationConfirmDialog({
             <AlertDialogHeader>
               <AlertDialogTitle className="flex items-center gap-2">
                 <Search className="h-5 w-5" />
-                {forSubmission ? 'Suche starten und einreichen' : 'Aktiv suchen'}
+                {forSubmission ? t('activation.titleSubmit') : t('activation.title')}
               </AlertDialogTitle>
               <AlertDialogDescription asChild>
                 <div className="space-y-4">
@@ -198,7 +203,7 @@ export function ActivationConfirmDialog({
                   <div className="flex items-start justify-between gap-3 p-3 rounded-lg bg-muted/30 border border-border/30">
                     <div className="min-w-0">
                       <p className="flex items-center gap-1.5 font-medium text-foreground text-sm">
-                        {isUrgent && <Flame className="h-3.5 w-3.5 shrink-0 text-destructive" aria-label="Dringend" />}
+                        {isUrgent && <Flame className="h-3.5 w-3.5 shrink-0 text-destructive" aria-label={t('card.urgent')} />}
                         {jobTitle}
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5">{anonymousLabel}</p>
@@ -213,9 +218,9 @@ export function ActivationConfirmDialog({
                     ) : (earningPerDay || earning !== null) && (
                       <div className="shrink-0 text-right">
                         <p className="text-sm font-bold tabular-nums text-emerald-500">
-                          <Honorar>{earningPerDay ?? `≈ €${earning!.toLocaleString('de-DE')}`}</Honorar>
+                          <Honorar>{earningPerDay ?? `≈ €${earning!.toLocaleString(locale)}`}</Honorar>
                         </p>
-                        <p className="text-[10px] text-muted-foreground">{earningPerDay ? 'je Einsatztag' : 'dein Verdienst'}</p>
+                        <p className="text-[10px] text-muted-foreground">{earningPerDay ? t('card.perDay') : t('activation.yourEarning')}</p>
                       </div>
                     )}
                   </div>
@@ -223,33 +228,33 @@ export function ActivationConfirmDialog({
                   <div className="space-y-2 rounded-lg border border-border/40 bg-muted/20 p-3 text-xs text-foreground">
                     <p className="flex items-start gap-2">
                       <Eye className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                      <span><b className="font-medium">Der Kunde sieht, dass du für ihn suchst:</b> Foto, Name, Unternehmen und Partnerstufe.</span>
+                      <span><Trans t={t} i18nKey="activation.noteSeen" components={{ b: <b className="font-medium" /> }} /></span>
                     </p>
                     <p className="flex items-start gap-2">
                       <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                      <span>Kontakt zum Kunden nur über Matchunt. Der Kunde meldet uns Direktkontakte.</span>
+                      <span>{t('activation.noteContact')}</span>
                     </p>
                     <p className="flex items-start gap-2">
                       <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                      <span>Du hast 30 Tage für deine erste Einreichung, danach belegst du keinen Platz mehr. Beenden geht jederzeit.</span>
+                      <span>{t('activation.note30Days')}</span>
                     </p>
                     <p className="flex items-start gap-2">
                       <Building2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                      <span>Danach siehst du den Firmennamen.</span>
+                      <span>{t('activation.noteCompany')}</span>
                     </p>
                   </div>
 
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Offene Suchen ohne Einreichung</span>
+                    <span className="text-muted-foreground">{t('activation.openSearches')}</span>
                     <span className="font-medium tabular-nums">
-                      {activeCount} von {maxSlots}
+                      {t('activation.countOf', { used: activeCount, max: maxSlots })}
                     </span>
                   </div>
 
                   <label className="flex items-start gap-2.5 cursor-pointer">
                     <Checkbox checked={confirmed} onCheckedChange={(v) => setConfirmed(v === true)} className="mt-0.5" />
                     <span className="text-xs text-muted-foreground leading-relaxed">
-                      Ich suche aktiv passende Kandidaten für diese Stelle.
+                      {t('activation.confirmCheck')}
                     </span>
                   </label>
 
@@ -259,9 +264,9 @@ export function ActivationConfirmDialog({
             </AlertDialogHeader>
 
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={loading}>Abbrechen</AlertDialogCancel>
+              <AlertDialogCancel disabled={loading}>{t('activation.cancel')}</AlertDialogCancel>
               <Button onClick={handleConfirm} disabled={!confirmed || loading} className="gap-1.5">
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>Ich suche aktiv</>}
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>{t('activation.confirmButton')}</>}
               </Button>
             </AlertDialogFooter>
           </>
@@ -272,7 +277,7 @@ export function ActivationConfirmDialog({
             <AlertDialogHeader>
               <AlertDialogTitle className="flex items-center gap-2">
                 <Lock className="h-5 w-5" />
-                Du suchst jetzt für {company || 'diesen Kunden'}
+                {company ? t('activation.searchingFor', { company }) : t('activation.searchingForThis')}
               </AlertDialogTitle>
               <AlertDialogDescription asChild>
                 <div className="pt-1 text-foreground">
@@ -293,7 +298,7 @@ export function ActivationConfirmDialog({
             <AlertDialogHeader className="min-w-0">
               <AlertDialogTitle className="flex items-center gap-2 text-green-600 dark:text-green-500">
                 <Search className="h-5 w-5" />
-                Du suchst jetzt
+                {t('activation.searchingNow')}
               </AlertDialogTitle>
               <AlertDialogDescription asChild>
                 <div className="space-y-4">
@@ -311,7 +316,7 @@ export function ActivationConfirmDialog({
                   {clientInfo && <p className="-mt-2 text-xs text-muted-foreground">{clientInfo}</p>}
 
                   <div className="space-y-1.5">
-                    <p className="text-xs font-medium text-muted-foreground">Passend aus deinem Pool:</p>
+                    <p className="text-xs font-medium text-muted-foreground">{t('activation.fromPool')}</p>
                     {fitting.length > 0 ? (
                       <div className="space-y-1.5">
                         {fitting.map((c) => {
@@ -324,7 +329,7 @@ export function ActivationConfirmDialog({
                               </div>
                               {isFitting(f) && <Badge variant="outline" className="shrink-0 text-[10px]">{FIT_LABEL[f]}</Badge>}
                               <Button size="sm" variant="outline" className="h-7 text-xs shrink-0" onClick={() => onSubmitCandidate(c.id)}>
-                                Einreichen
+                                {t('activation.submit')}
                               </Button>
                             </div>
                           );
@@ -332,14 +337,14 @@ export function ActivationConfirmDialog({
                       </div>
                     ) : candidatesLoading || pool.checking ? (
                       <div className="flex items-center justify-center gap-2 py-3 text-xs text-muted-foreground">
-                        <Loader2 className="h-4 w-4 animate-spin" /> Passende Kandidaten werden gesucht …
+                        <Loader2 className="h-4 w-4 animate-spin" /> {t('activation.searchingPool')}
                       </div>
                     ) : (
                       <div className="p-3 rounded-lg border border-dashed border-border/50 text-center">
-                        <p className="text-xs text-muted-foreground">{candidates.length ? 'Noch kein passender Kandidat in deinem Pool.' : 'Noch keine Kandidaten angelegt.'}</p>
+                        <p className="text-xs text-muted-foreground">{candidates.length ? t('activation.noFit') : t('activation.noCandidates')}</p>
                         <Button size="sm" variant="outline" className="mt-2 h-7 text-xs gap-1" onClick={() => onSubmitCandidate()}>
                           <UserPlus className="h-3 w-3" />
-                          Kandidat anlegen &amp; einreichen
+                          {t('activation.createAndSubmit')}
                         </Button>
                       </div>
                     )}
@@ -350,10 +355,10 @@ export function ActivationConfirmDialog({
 
             <AlertDialogFooter>
               <Button variant="ghost" onClick={() => handleOpenChange(false)}>
-                Später einreichen
+                {t('activation.later')}
               </Button>
               <Button onClick={onGoToJob} className="gap-1.5">
-                Zur Stelle
+                {t('activation.toJob')}
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </AlertDialogFooter>
@@ -374,27 +379,28 @@ interface SlotLimitDialogProps {
 
 /** Alle Plätze belegt: was hilft, ohne Stufen-Tabelle. */
 export function SlotLimitDialog({ open, onOpenChange, activeCount, maxSlots, onShowMine }: SlotLimitDialogProps) {
+  const { t } = useTranslation('recruiterJobs');
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent className="max-w-sm">
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <Lock className="h-5 w-5" />
-            Alle {maxSlots} Plätze belegt
+            {t('activation.slots.title', { count: maxSlots })}
           </AlertDialogTitle>
           <AlertDialogDescription asChild>
             <div className="space-y-2 text-sm">
               <p>
-                Du hast {activeCount} offene Suchen ohne Einreichung. Reiche bei einer davon ein, dann ist der Platz sofort wieder frei.
+                {t('activation.slots.text', { count: activeCount })}
               </p>
               <p className="text-xs text-muted-foreground">
-                Ohne Einreichung wird ein Platz 30 Tage nach „Ich suche“ frei. Einen passenden Kandidaten aus der Akte kannst du trotzdem einreichen.
+                {t('activation.slots.hint')}
               </p>
             </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Schließen</AlertDialogCancel>
+          <AlertDialogCancel>{t('activation.slots.close')}</AlertDialogCancel>
           {onShowMine && (
             <Button
               onClick={() => {
@@ -402,7 +408,7 @@ export function SlotLimitDialog({ open, onOpenChange, activeCount, maxSlots, onS
                 onShowMine();
               }}
             >
-              Meine Suchen
+              {t('list.tabs.mine')}
             </Button>
           )}
         </AlertDialogFooter>

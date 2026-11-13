@@ -13,6 +13,8 @@ import { serviceClient } from '../_shared/intake-core.ts';
 import { canUserActOnJob } from '../_shared/team-access.ts';
 import { getPublicAppUrl } from '../_shared/app-url.ts';
 import { esc, layout, sendIntakeMail } from '../_shared/intake-mail.ts';
+import { m, tx } from '../_shared/notify-i18n.ts';
+import { clientLanguage, recruiterLanguage } from '../_shared/recipient-language.ts';
 
 // deno-lint-ignore-file no-explicit-any
 
@@ -116,11 +118,13 @@ serve(async (req) => {
       if (error) throw error;
 
       const asker = await profile(db, userId);
-      const firm = job.company_name || 'Der Kunde';
+      // Glocke und Mail an den Headhunter in seiner Profilsprache (du); Deutsch wortgleich
+      const l = await recruiterLanguage(db, sub.recruiter_id);
+      const firm = job.company_name || tx(l, 'Der Kunde', 'The client', 'Kunden', 'Kunden');
       await db.from('notifications').insert({
         user_id: sub.recruiter_id,
         type: 'client_question',
-        title: `${firm} hat eine Frage zu deinem Kandidaten`,
+        title: tx(l, m`${firm} hat eine Frage zu deinem Kandidaten`, m`${firm} has a question about your candidate`, m`${firm} har en fråga om din kandidat`, m`${firm} har et spørsmål om kandidaten din`),
         message: `${code} · ${job.title}: „${raw.slice(0, 140)}${raw.length > 140 ? '…' : ''}“`,
         related_type: 'conversation',
         related_id: conversationId,
@@ -132,16 +136,21 @@ serve(async (req) => {
         const link = `${appUrl}/recruiter/messages?c=${conversationId}`;
         const res = await sendIntakeMail(db, {
           to: hh.email,
-          subject: `${firm} fragt zu ${(sub as any).candidates?.job_title || 'deinem Kandidaten'} (${code})`,
+          subject: tx(l, m`${firm} fragt zu ${(sub as any).candidates?.job_title || 'deinem Kandidaten'} (${code})`, m`${firm} asks about ${(sub as any).candidates?.job_title || 'your candidate'} (${code})`, m`${firm} frågar om ${(sub as any).candidates?.job_title || 'din kandidat'} (${code})`, m`${firm} spør om ${(sub as any).candidates?.job_title || 'kandidaten din'} (${code})`),
           html: layout({
-            preheader: `Frage zu ${code} · ${job.title}`,
-            heading: 'Der Kunde hat eine Frage',
-            body: `<p style="margin:0 0 12px">Hallo ${esc(hh.name ?? '')},</p>
-<p style="margin:0 0 12px">${esc(asker.name ?? 'Der Kunde')} von <strong>${esc(firm)}</strong> fragt zu deinem Kandidaten <strong>${esc(code)}</strong> für „${esc(job.title)}“:</p>
+            ...(l === 'de' ? {} : { lang: l }),
+            preheader: tx(l, m`Frage zu ${code} · ${job.title}`, m`Question about ${code} · ${job.title}`, m`Fråga om ${code} · ${job.title}`, m`Spørsmål om ${code} · ${job.title}`),
+            heading: tx(l, 'Der Kunde hat eine Frage', 'The client has a question', 'Kunden har en fråga', 'Kunden har et spørsmål'),
+            body: `<p style="margin:0 0 12px">${tx(l, 'Hallo', 'Hi', 'Hej', 'Hei')} ${esc(hh.name ?? '')},</p>
+<p style="margin:0 0 12px">${tx(l,
+  m`${esc(asker.name ?? 'Der Kunde')} von <strong>${esc(firm)}</strong> fragt zu deinem Kandidaten <strong>${esc(code)}</strong> für „${esc(job.title)}“:`,
+  m`${esc(asker.name ?? 'The client')} from <strong>${esc(firm)}</strong> asks about your candidate <strong>${esc(code)}</strong> for “${esc(job.title)}”:`,
+  m`${esc(asker.name ?? 'Kunden')} från <strong>${esc(firm)}</strong> frågar om din kandidat <strong>${esc(code)}</strong> för ”${esc(job.title)}”:`,
+  m`${esc(asker.name ?? 'Kunden')} fra <strong>${esc(firm)}</strong> spør om kandidaten din <strong>${esc(code)}</strong> til «${esc(job.title)}»:`)}</p>
 <blockquote style="margin:12px 0;padding:10px 14px;background:#f8fafc;border-left:3px solid #111827;color:#334155;">${paragraphs(raw)}</blockquote>`,
-            cta: { label: 'Antworten', url: link },
-            after: 'Je schneller du antwortest, desto schneller entscheidet der Kunde.',
-            footnote: 'Bitte nenne in der Antwort keinen Namen und keinen Arbeitgeber des Kandidaten, solange er nicht zugestimmt hat.',
+            cta: { label: tx(l, 'Antworten', 'Reply', 'Svara', 'Svar'), url: link },
+            after: tx(l, 'Je schneller du antwortest, desto schneller entscheidet der Kunde.', 'The faster you reply, the faster the client decides.', 'Ju snabbare du svarar, desto snabbare bestämmer sig kunden.', 'Jo raskere du svarer, desto raskere bestemmer kunden seg.'),
+            footnote: tx(l, 'Bitte nenne in der Antwort keinen Namen und keinen Arbeitgeber des Kandidaten, solange er nicht zugestimmt hat.', 'Please do not mention the candidate’s name or employer in your answer until they have agreed.', 'Nämn inte kandidatens namn eller arbetsgivare i svaret förrän kandidaten har gett sitt samtycke.', 'Ikke nevn kandidatens navn eller arbeidsgiver i svaret før kandidaten har samtykket.'),
           }),
           template: 'client_question',
           replyTo: asker.email ?? undefined,
@@ -167,11 +176,14 @@ serve(async (req) => {
     if (error) throw error;
 
     const hh = await profile(db, userId);
-    const hhName = hh.name || 'Ihr Headhunter';
+    // Glocke und Mail an den Kunden in seiner Sprache (Profil, sonst Deutsch); Deutsch wortgleich
+    const cl = await clientLanguage(db, { userId: clientId });
+    const hhName = hh.name || tx(cl, 'Ihr Headhunter', 'Your headhunter', 'Din headhunter', 'Din headhunter');
+    const answered = tx(cl, m`${hhName} hat Ihre Frage beantwortet`, m`${hhName} has answered your question`, m`${hhName} har svarat på din fråga`, m`${hhName} har svart på spørsmålet ditt`);
     await db.from('notifications').insert({
       user_id: clientId,
       type: 'recruiter_answer',
-      title: `${hhName} hat Ihre Frage beantwortet`,
+      title: answered,
       message: `${code} · ${job.title}: „${text.slice(0, 140)}${text.length > 140 ? '…' : ''}“`,
       related_type: 'submission',
       related_id: sub.id,
@@ -182,14 +194,19 @@ serve(async (req) => {
     if (client.email) {
       const res = await sendIntakeMail(db, {
         to: client.email,
-        subject: `${hhName} hat Ihre Frage beantwortet`,
+        subject: answered,
         html: layout({
-          preheader: `Antwort zu ${code} · ${job.title}`,
-          heading: 'Antwort auf Ihre Frage',
-          body: `<p style="margin:0 0 12px">Guten Tag${client.name ? ` ${esc(client.name)}` : ''},</p>
-<p style="margin:0 0 12px"><strong>${esc(hhName)}</strong> hat Ihre Frage zu <strong>${esc(code)}</strong> für „${esc(job.title)}“ beantwortet:</p>
+          ...(cl === 'de' ? {} : { lang: cl }),
+          preheader: tx(cl, m`Antwort zu ${code} · ${job.title}`, m`Answer about ${code} · ${job.title}`, m`Svar om ${code} · ${job.title}`, m`Svar om ${code} · ${job.title}`),
+          heading: tx(cl, 'Antwort auf Ihre Frage', 'Answer to your question', 'Svar på din fråga', 'Svar på spørsmålet ditt'),
+          body: `<p style="margin:0 0 12px">${tx(cl, 'Guten Tag', 'Hello', 'Hej', 'Hei')}${client.name ? ` ${esc(client.name)}` : ''},</p>
+<p style="margin:0 0 12px">${tx(cl,
+  m`<strong>${esc(hhName)}</strong> hat Ihre Frage zu <strong>${esc(code)}</strong> für „${esc(job.title)}“ beantwortet:`,
+  m`<strong>${esc(hhName)}</strong> has answered your question about <strong>${esc(code)}</strong> for “${esc(job.title)}”:`,
+  m`<strong>${esc(hhName)}</strong> har svarat på din fråga om <strong>${esc(code)}</strong> för ”${esc(job.title)}”:`,
+  m`<strong>${esc(hhName)}</strong> har svart på spørsmålet ditt om <strong>${esc(code)}</strong> til «${esc(job.title)}»:`)}</p>
 <blockquote style="margin:12px 0;padding:10px 14px;background:#f8fafc;border-left:3px solid #111827;color:#334155;">${paragraphs(text)}</blockquote>`,
-          cta: { label: 'Zum Bewerberprofil', url: `${appUrl}/dashboard/candidates/${sub.id}` },
+          cta: { label: tx(cl, 'Zum Bewerberprofil', 'Go to candidate profile', 'Till kandidatprofilen', 'Til kandidatprofilen'), url: `${appUrl}/dashboard/candidates/${sub.id}` },
         }),
         template: 'recruiter_answer',
         meta: { message_id: msg.id, submission_id: sub.id },

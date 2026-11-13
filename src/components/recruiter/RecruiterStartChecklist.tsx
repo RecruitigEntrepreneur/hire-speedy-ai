@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ArrowRight, Check, CheckCircle2, Circle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,10 +12,11 @@ import { tourSeen } from '@/lib/recruiterGuide';
 import { START_HIDDEN_KEY, openSummary, startPercent, startSteps, type StartProfile, type StartStepId } from '@/lib/recruiterStart';
 
 const browserStorage = () => { try { return window.localStorage; } catch { return null; } };
-const ACTION: Record<StartStepId, string> = { contract: '', tour: 'Rundgang starten', company: 'Firmendaten ergänzen', bank: 'Bankverbindung eintragen' };
 
 /** „Dein Start bei Matchunt“: was nach der Freischaltung noch fehlt, mit direktem Weg dorthin. */
 export function RecruiterStartChecklist() {
+  // Lädt auch die Texte für startSteps und openSummary (lib/recruiterStart.ts)
+  const { t } = useTranslation('recruiterDashboard');
   const { user } = useAuth();
   const guide = useRecruiterGuide();
   const navigate = useNavigate();
@@ -50,8 +52,8 @@ export function RecruiterStartChecklist() {
       });
     };
     return <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/30 px-4 py-2.5 text-sm">
-      <span className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-success"/>Dein Start ist abgeschlossen · 100 %</span>
-      <button type="button" onClick={hide} className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground">Ausblenden</button>
+      <span className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-success"/>{t('start.complete')}</span>
+      <button type="button" onClick={hide} className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground">{t('start.hide')}</button>
     </div>;
   }
 
@@ -59,17 +61,17 @@ export function RecruiterStartChecklist() {
   return <Card className="border-border/30 shadow-sm">
     <CardContent className="space-y-3 p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-base font-semibold">Dein Start bei Matchunt</h2>
-        <span className="text-sm text-muted-foreground">{done} von {steps.length} erledigt</span>
+        <h2 className="text-base font-semibold">{t('start.title')}</h2>
+        <span className="text-sm text-muted-foreground">{t('start.progress', { done, total: steps.length })}</span>
       </div>
-      <Progress value={startPercent(steps)} className="h-1.5" aria-label={`${startPercent(steps)} Prozent erledigt`}/>
+      <Progress value={startPercent(steps)} className="h-1.5" aria-label={t('start.percentAria', { percent: startPercent(steps) })}/>
       <div className="flex flex-wrap gap-2">
         {steps.map(s => s.done
           ? <span key={s.id} className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2.5 py-1 text-xs text-success"><Check className="h-3 w-3"/>{s.label}</span>
           : <button key={s.id} type="button" onClick={() => act(s.id)} className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-xs text-foreground hover:bg-muted"><Circle className="h-3 w-3"/>{s.label}</button>)}
       </div>
       <p className="text-sm text-muted-foreground">{openSummary(steps)}</p>
-      <Button size="sm" onClick={() => act(next.id)}>{ACTION[next.id]}<ArrowRight className="ml-1 h-4 w-4"/></Button>
+      <Button size="sm" onClick={() => act(next.id)}>{next.id === 'contract' ? '' : t(`start.actions.${next.id}`)}<ArrowRight className="ml-1 h-4 w-4"/></Button>
     </CardContent>
   </Card>;
 }

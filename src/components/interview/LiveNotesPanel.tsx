@@ -1,3 +1,6 @@
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
+import { intlLocale } from '@/i18n/languages';
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   Star, 
@@ -29,11 +32,12 @@ interface LiveNotesPanelProps {
   onDeleteNote: (noteId: string) => void;
 }
 
+/** label = Schlüssel unter clientInterviews:notes.type.<label>. */
 const NOTE_TYPE_CONFIG: Record<NoteType, { icon: React.ElementType; label: string; color: string; bgColor: string }> = {
-  general: { icon: MessageSquare, label: 'Allgemein', color: 'text-muted-foreground', bgColor: 'bg-muted' },
-  strength: { icon: Star, label: 'Stärke', color: 'text-amber-500', bgColor: 'bg-amber-500/10' },
-  concern: { icon: AlertTriangle, label: 'Bedenken', color: 'text-orange-500', bgColor: 'bg-orange-500/10' },
-  question: { icon: HelpCircle, label: 'Nachfrage', color: 'text-blue-500', bgColor: 'bg-blue-500/10' },
+  general: { icon: MessageSquare, label: 'general', color: 'text-muted-foreground', bgColor: 'bg-muted' },
+  strength: { icon: Star, label: 'strength', color: 'text-amber-500', bgColor: 'bg-amber-500/10' },
+  concern: { icon: AlertTriangle, label: 'concern', color: 'text-orange-500', bgColor: 'bg-orange-500/10' },
+  question: { icon: HelpCircle, label: 'question', color: 'text-blue-500', bgColor: 'bg-blue-500/10' },
 };
 
 export function LiveNotesPanel({
@@ -44,6 +48,7 @@ export function LiveNotesPanel({
   onTogglePin,
   onDeleteNote,
 }: LiveNotesPanelProps) {
+  const { t } = useTranslation('clientInterviews');
   const [input, setInput] = useState('');
   const [selectedType, setSelectedType] = useState<NoteType>('general');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -73,7 +78,7 @@ export function LiveNotesPanel({
   };
 
   const formatCreatedAt = (dateStr: string): string => {
-    return new Date(dateStr).toLocaleTimeString('de-DE', {
+    return new Date(dateStr).toLocaleTimeString(intlLocale(i18n.language), {
       hour: '2-digit',
       minute: '2-digit',
     });
@@ -151,9 +156,9 @@ export function LiveNotesPanel({
           {notes.filter(n => !n.is_pinned).length === 0 ? (
             <div className="text-center py-8 text-muted-foreground text-sm">
               <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-30" />
-              <p>Noch keine Notizen</p>
+              <p>{t('notes.empty')}</p>
               <p className="text-xs mt-1">
-                Taste <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">N</kbd> für eine neue Notiz
+                {t('notes.keyBefore')}<kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">N</kbd>{t('notes.keyAfter')}
               </p>
             </div>
           ) : (
@@ -188,7 +193,7 @@ export function LiveNotesPanel({
                             <Pin className="h-3 w-3" />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Anheften</TooltipContent>
+                        <TooltipContent>{t('notes.pin')}</TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
                     <TooltipProvider>
@@ -203,7 +208,7 @@ export function LiveNotesPanel({
                             <Trash2 className="h-3 w-3" />
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Löschen</TooltipContent>
+                        <TooltipContent>{t('notes.delete')}</TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
                   </div>
@@ -237,7 +242,7 @@ export function LiveNotesPanel({
                       <Icon className={cn("h-4 w-4", selectedType === type && config.color)} />
                     </Button>
                   </TooltipTrigger>
-                  <TooltipContent>{config.label}</TooltipContent>
+                  <TooltipContent>{t(`notes.type.${config.label}`)}</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             );
@@ -250,7 +255,7 @@ export function LiveNotesPanel({
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Notiz hinzufügen..."
+            placeholder={t('notes.addPh')}
             className="flex-1"
           />
           <Button type="submit" size="icon" disabled={!input.trim()}>

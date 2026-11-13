@@ -1,3 +1,4 @@
+import i18n from '@/i18n';
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
@@ -80,7 +81,7 @@ export function useLiveInterviewNotes(interviewId: string | null) {
       return typedNote;
     } catch (error) {
       console.error('Error adding note:', error);
-      toast.error('Notiz konnte nicht gespeichert werden');
+      toast.error(i18n.t('clientInterviews:notes.saveFailed'));
       return null;
     }
   }, [interviewId, user?.id]);
@@ -97,7 +98,7 @@ export function useLiveInterviewNotes(interviewId: string | null) {
       setNotes(prev => prev.map(n => n.id === noteId ? { ...n, ...updates } : n));
     } catch (error) {
       console.error('Error updating note:', error);
-      toast.error('Notiz konnte nicht aktualisiert werden');
+      toast.error(i18n.t('clientInterviews:notes.updateFailed'));
     }
   }, []);
 
@@ -113,7 +114,7 @@ export function useLiveInterviewNotes(interviewId: string | null) {
       setNotes(prev => prev.filter(n => n.id !== noteId));
     } catch (error) {
       console.error('Error deleting note:', error);
-      toast.error('Notiz konnte nicht gelöscht werden');
+      toast.error(i18n.t('clientInterviews:notes.deleteFailed'));
     }
   }, []);
 

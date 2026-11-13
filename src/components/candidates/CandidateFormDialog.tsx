@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -112,46 +113,20 @@ const initialFormData: FormData = {
   summary: '',
 };
 
-const seniorityOptions = [
-  { value: 'junior', label: 'Junior (0-2 Jahre)' },
-  { value: 'mid', label: 'Mid-Level (3-5 Jahre)' },
-  { value: 'senior', label: 'Senior (6-10 Jahre)' },
-  { value: 'lead', label: 'Lead / Principal (10+ Jahre)' },
-  { value: 'director', label: 'Director / C-Level' },
-];
+// Beschriftung: candidates:form.seniority.<wert>
+const seniorityOptions = ['junior', 'mid', 'senior', 'lead', 'director'];
 
-const workModelOptions = [
-  { value: 'fulltime', label: 'Vollzeit' },
-  { value: 'parttime', label: 'Teilzeit' },
-  { value: 'freelance', label: 'Freiberuflich' },
-  { value: 'contract', label: 'Befristet' },
-];
+// Beschriftung: candidates:form.workModel.<wert>
+const workModelOptions = ['fulltime', 'parttime', 'freelance', 'contract'];
 
-const remoteOptions = [
-  { value: 'remote', label: 'Remote' },
-  { value: 'hybrid', label: 'Hybrid' },
-  { value: 'onsite', label: 'Vor Ort' },
-  { value: 'flexible', label: 'Flexibel' },
-];
+// Beschriftung: candidates:form.remoteOption.<wert>
+const remoteOptions = ['remote', 'hybrid', 'onsite', 'flexible'];
 
-const residenceStatusOptions = [
-  { value: 'citizen', label: 'Staatsangehöriger' },
-  { value: 'permanent', label: 'Unbefristete Aufenthaltsgenehmigung' },
-  { value: 'work_visa', label: 'Arbeitsvisum' },
-  { value: 'student_visa', label: 'Studentenvisum' },
-  { value: 'pending', label: 'In Bearbeitung' },
-];
+// Beschriftung: candidates:form.residenceStatus.<wert>
+const residenceStatusOptions = ['citizen', 'permanent', 'work_visa', 'student_visa', 'pending'];
 
-const noticePeriodOptions = [
-  { value: 'immediate', label: 'Sofort verfügbar' },
-  { value: '2_weeks', label: '2 Wochen' },
-  { value: '1_month', label: '1 Monat' },
-  { value: '6_weeks', label: '6 Wochen' },
-  { value: '2_months', label: '2 Monate' },
-  { value: '3_months', label: '3 Monate' },
-  { value: '3_months_eoq', label: '3 Monate zum Quartalsende' },
-  { value: '6_months', label: '6 Monate' },
-];
+// Beschriftung: candidates:form.noticePeriod.<wert>
+const noticePeriodOptions = ['immediate', '2_weeks', '1_month', '6_weeks', '2_months', '3_months', '3_months_eoq', '6_months'];
 
 function TagInput({ 
   label, 
@@ -214,6 +189,7 @@ export function CandidateFormDialog({
   onSave, 
   processing = false 
 }: CandidateFormDialogProps) {
+  const { t } = useTranslation('candidates');
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [activeTab, setActiveTab] = useState('personal');
   const [gdprLegalBasis, setGdprLegalBasis] = useState(false);
@@ -363,10 +339,10 @@ export function CandidateFormDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <User className="h-5 w-5" />
-            {candidate ? 'Kandidat bearbeiten' : 'Neuen Kandidaten hinzufügen'}
+            {candidate ? t('form.titleEdit') : t('form.titleNew')}
           </DialogTitle>
           <DialogDescription>
-            Erfassen Sie alle relevanten Informationen zum Kandidaten
+            {t('form.description')}
           </DialogDescription>
         </DialogHeader>
         
@@ -374,19 +350,19 @@ export function CandidateFormDialog({
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="personal" className="gap-2">
               <User className="h-4 w-4" />
-              <span className="hidden sm:inline">Stammdaten</span>
+              <span className="hidden sm:inline">{t('form.tabs.personal')}</span>
             </TabsTrigger>
             <TabsTrigger value="professional" className="gap-2">
               <Briefcase className="h-4 w-4" />
-              <span className="hidden sm:inline">Beruf & Skills</span>
+              <span className="hidden sm:inline">{t('form.tabs.professional')}</span>
             </TabsTrigger>
             <TabsTrigger value="availability" className="gap-2">
               <Euro className="h-4 w-4" />
-              <span className="hidden sm:inline">Verfügbarkeit</span>
+              <span className="hidden sm:inline">{t('form.tabs.availability')}</span>
             </TabsTrigger>
             <TabsTrigger value="expose" className="gap-2">
               <FileText className="h-4 w-4" />
-              <span className="hidden sm:inline">Exposé</span>
+              <span className="hidden sm:inline">{t('form.tabs.expose')}</span>
             </TabsTrigger>
           </TabsList>
           
@@ -397,26 +373,26 @@ export function CandidateFormDialog({
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <Mail className="h-4 w-4" />
-                    Kontaktdaten
+                    {t('form.contact.title')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Name *</Label>
+                      <Label>{t('form.contact.name')}</Label>
                       <Input 
                         value={formData.full_name} 
                         onChange={e => updateField('full_name', e.target.value)}
-                        placeholder="Max Mustermann"
+                        placeholder={t('form.contact.namePlaceholder')}
                       />
                     </div>
                     <div>
-                      <Label>E-Mail *</Label>
+                      <Label>{t('form.contact.email')}</Label>
                       <Input 
                         type="email"
                         value={formData.email} 
                         onChange={e => updateField('email', e.target.value)}
-                        placeholder="max@beispiel.de"
+                        placeholder={t('form.contact.emailPlaceholder')}
                       />
                     </div>
                   </div>
@@ -424,23 +400,23 @@ export function CandidateFormDialog({
                     <div>
                       <Label className="flex items-center gap-1">
                         <Phone className="h-3 w-3" />
-                        Telefon
+                        {t('form.contact.phone')}
                       </Label>
                       <Input 
                         value={formData.phone} 
                         onChange={e => updateField('phone', e.target.value)}
-                        placeholder="+49 123 456789"
+                        placeholder={t('form.contact.phonePlaceholder')}
                       />
                     </div>
                     <div>
                       <Label className="flex items-center gap-1">
                         <MapPin className="h-3 w-3" />
-                        Stadt
+                        {t('form.contact.city')}
                       </Label>
                       <Input 
                         value={formData.city} 
                         onChange={e => updateField('city', e.target.value)}
-                        placeholder="Berlin"
+                        placeholder={t('form.contact.cityPlaceholder')}
                       />
                     </div>
                   </div>
@@ -474,35 +450,35 @@ export function CandidateFormDialog({
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <Globe className="h-4 w-4" />
-                    Herkunft & Aufenthalt
+                    {t('form.origin.title')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Nationalität</Label>
+                      <Label>{t('form.origin.nationality')}</Label>
                       <Input 
                         value={formData.nationality} 
                         onChange={e => updateField('nationality', e.target.value)}
-                        placeholder="Deutsch"
+                        placeholder={t('form.origin.nationalityPlaceholder')}
                       />
                     </div>
                     <div>
-                      <Label>Aufenthaltsstatus</Label>
+                      <Label>{t('form.origin.residenceStatus')}</Label>
                       <Select value={formData.residence_status} onValueChange={v => updateField('residence_status', v)}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Status wählen" />
+                          <SelectValue placeholder={t('form.origin.chooseStatus')} />
                         </SelectTrigger>
                         <SelectContent>
                           {residenceStatusOptions.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                            <SelectItem key={opt} value={opt}>{t(`form.residenceStatus.${opt}`)}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
                   <div className="flex items-center justify-between">
-                    <Label>Arbeitsvisum erforderlich</Label>
+                    <Label>{t('form.origin.visaRequired')}</Label>
                     <Switch 
                       checked={formData.visa_required} 
                       onCheckedChange={v => updateField('visa_required', v)}
@@ -510,11 +486,11 @@ export function CandidateFormDialog({
                   </div>
                   {formData.visa_required && (
                     <div>
-                      <Label>Arbeitsrechtliche Hinweise</Label>
+                      <Label>{t('form.origin.workPermitNotes')}</Label>
                       <Textarea 
                         value={formData.work_permit_notes} 
                         onChange={e => updateField('work_permit_notes', e.target.value)}
-                        placeholder="Details zum Visum oder zur Arbeitserlaubnis..."
+                        placeholder={t('form.origin.workPermitPlaceholder')}
                         rows={2}
                       />
                     </div>
@@ -526,7 +502,7 @@ export function CandidateFormDialog({
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <ExternalLink className="h-4 w-4" />
-                    Online-Profile
+                    {t('form.online.title')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -556,19 +532,19 @@ export function CandidateFormDialog({
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Portfolio</Label>
+                      <Label>{t('form.online.portfolio')}</Label>
                       <Input 
                         value={formData.portfolio_url} 
                         onChange={e => updateField('portfolio_url', e.target.value)}
-                        placeholder="https://portfolio.de"
+                        placeholder={t('form.online.portfolioPlaceholder')}
                       />
                     </div>
                     <div>
-                      <Label>Website</Label>
+                      <Label>{t('form.online.website')}</Label>
                       <Input 
                         value={formData.website_url} 
                         onChange={e => updateField('website_url', e.target.value)}
-                        placeholder="https://www.beispiel.de"
+                        placeholder={t('form.online.websitePlaceholder')}
                       />
                     </div>
                   </div>
@@ -582,57 +558,57 @@ export function CandidateFormDialog({
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <Building2 className="h-4 w-4" />
-                    Aktuelle Position
+                    {t('form.position.title')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Aktuelle Rolle</Label>
+                      <Label>{t('form.position.role')}</Label>
                       <Input 
                         value={formData.job_title} 
                         onChange={e => updateField('job_title', e.target.value)}
-                        placeholder="Senior IT-Projektmanager"
+                        placeholder={t('form.position.rolePlaceholder')}
                       />
                     </div>
                     <div>
-                      <Label>Firma</Label>
+                      <Label>{t('form.position.company')}</Label>
                       <Input 
                         value={formData.company} 
                         onChange={e => updateField('company', e.target.value)}
-                        placeholder="Beispiel GmbH"
+                        placeholder={t('form.position.companyPlaceholder')}
                       />
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <Label>Seniorität</Label>
+                      <Label>{t('form.position.seniority')}</Label>
                       <Select value={formData.seniority} onValueChange={v => updateField('seniority', v)}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Wählen" />
+                          <SelectValue placeholder={t('form.choose')} />
                         </SelectTrigger>
                         <SelectContent>
                           {seniorityOptions.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                            <SelectItem key={opt} value={opt}>{t(`form.seniority.${opt}`)}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
                     <div>
-                      <Label>Arbeitsmodell</Label>
+                      <Label>{t('form.position.workModel')}</Label>
                       <Select value={formData.work_model} onValueChange={v => updateField('work_model', v)}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Wählen" />
+                          <SelectValue placeholder={t('form.choose')} />
                         </SelectTrigger>
                         <SelectContent>
                           {workModelOptions.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                            <SelectItem key={opt} value={opt}>{t(`form.workModel.${opt}`)}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
                     <div>
-                      <Label>Erfahrung (Jahre)</Label>
+                      <Label>{t('form.position.experienceYears')}</Label>
                       <Input 
                         type="number"
                         value={formData.experience_years} 
@@ -648,41 +624,41 @@ export function CandidateFormDialog({
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <Target className="h-4 w-4" />
-                    Fachkenntnisse
+                    {t('form.expertise.title')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label>Hard Skills (kommagetrennt)</Label>
+                    <Label>{t('form.expertise.hardSkills')}</Label>
                     <Input 
                       value={formData.skills} 
                       onChange={e => updateField('skills', e.target.value)}
-                      placeholder="SAP, Jira, Scrum, MS Project, SQL"
+                      placeholder={t('form.expertise.hardSkillsPlaceholder')}
                     />
                   </div>
                   <TagInput 
-                    label="Spezialisierungen"
+                    label={t('form.expertise.specializations')}
                     values={formData.specializations}
                     onChange={v => updateField('specializations', v)}
-                    placeholder="z.B. SAP S/4HANA, Agile Transformation"
+                    placeholder={t('form.expertise.specializationsPlaceholder')}
                   />
                   <TagInput 
-                    label="Soft Skills"
+                    label={t('form.expertise.softSkills')}
                     values={formData.soft_skills}
                     onChange={v => updateField('soft_skills', v)}
-                    placeholder="z.B. Führungskompetenz, Kommunikation"
+                    placeholder={t('form.expertise.softSkillsPlaceholder')}
                   />
                   <TagInput 
-                    label="Branchenerfahrung"
+                    label={t('form.expertise.industries')}
                     values={formData.industry_experience}
                     onChange={v => updateField('industry_experience', v)}
-                    placeholder="z.B. Automotive, Pharma, Finance"
+                    placeholder={t('form.expertise.industriesPlaceholder')}
                   />
                   <TagInput 
-                    label="Zertifikate"
+                    label={t('form.expertise.certificates')}
                     values={formData.certificates}
                     onChange={v => updateField('certificates', v)}
-                    placeholder="z.B. PMP, PRINCE2, AWS Solutions Architect"
+                    placeholder={t('form.expertise.certificatesPlaceholder')}
                   />
                 </CardContent>
               </Card>
@@ -691,13 +667,13 @@ export function CandidateFormDialog({
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <Award className="h-4 w-4" />
-                    Projektmetriken
+                    {t('form.metrics.title')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Max. Teamgröße</Label>
+                      <Label>{t('form.metrics.teamSize')}</Label>
                       <Input 
                         type="number"
                         value={formData.project_metrics.max_team_size} 
@@ -706,15 +682,15 @@ export function CandidateFormDialog({
                       />
                     </div>
                     <div>
-                      <Label>Max. Projektbudget</Label>
+                      <Label>{t('form.metrics.budget')}</Label>
                       <Input 
                         value={formData.project_metrics.max_budget} 
                         onChange={e => updateField('project_metrics', { ...formData.project_metrics, max_budget: e.target.value })}
-                        placeholder="5 Mio. €"
+                        placeholder={t('form.metrics.budgetPlaceholder')}
                       />
                     </div>
                     <div>
-                      <Label>Verwaltete Standorte</Label>
+                      <Label>{t('form.metrics.locations')}</Label>
                       <Input 
                         type="number"
                         value={formData.project_metrics.locations_managed} 
@@ -723,11 +699,11 @@ export function CandidateFormDialog({
                       />
                     </div>
                     <div>
-                      <Label>Rollout-Einheiten</Label>
+                      <Label>{t('form.metrics.units')}</Label>
                       <Input 
                         value={formData.project_metrics.units_delivered} 
                         onChange={e => updateField('project_metrics', { ...formData.project_metrics, units_delivered: e.target.value })}
-                        placeholder="460.000 Endnutzer"
+                        placeholder={t('form.metrics.unitsPlaceholder')}
                       />
                     </div>
                   </div>
@@ -741,13 +717,13 @@ export function CandidateFormDialog({
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <Calendar className="h-4 w-4" />
-                    Verfügbarkeit
+                    {t('form.availability.title')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Verfügbar ab</Label>
+                      <Label>{t('form.availability.availableFrom')}</Label>
                       <Input 
                         type="date"
                         value={formData.availability_date} 
@@ -757,15 +733,15 @@ export function CandidateFormDialog({
                     <div>
                       <Label className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        Kündigungsfrist
+                        {t('form.availability.noticePeriod')}
                       </Label>
                       <Select value={formData.notice_period} onValueChange={v => updateField('notice_period', v)}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Wählen" />
+                          <SelectValue placeholder={t('form.choose')} />
                         </SelectTrigger>
                         <SelectContent>
                           {noticePeriodOptions.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                            <SelectItem key={opt} value={opt}>{t(`form.noticePeriod.${opt}`)}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -773,20 +749,20 @@ export function CandidateFormDialog({
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Remote-Präferenz</Label>
+                      <Label>{t('form.availability.remotePreference')}</Label>
                       <Select value={formData.remote_preference} onValueChange={v => updateField('remote_preference', v)}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Wählen" />
+                          <SelectValue placeholder={t('form.choose')} />
                         </SelectTrigger>
                         <SelectContent>
                           {remoteOptions.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                            <SelectItem key={opt} value={opt}>{t(`form.remoteOption.${opt}`)}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
                     <div className="flex items-center justify-between pt-6">
-                      <Label>Umzugsbereitschaft</Label>
+                      <Label>{t('form.availability.relocation')}</Label>
                       <Switch 
                         checked={formData.relocation_willing} 
                         onCheckedChange={v => updateField('relocation_willing', v)}
@@ -800,13 +776,13 @@ export function CandidateFormDialog({
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <Euro className="h-4 w-4" />
-                    Gehaltsvorstellungen
+                    {t('form.salary.title')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Wunschgehalt Fix (€)</Label>
+                      <Label>{t('form.salary.fix')}</Label>
                       <Input 
                         type="number"
                         value={formData.salary_fix} 
@@ -815,7 +791,7 @@ export function CandidateFormDialog({
                       />
                     </div>
                     <div>
-                      <Label>Wunschgehalt Bonus (€)</Label>
+                      <Label>{t('form.salary.bonus')}</Label>
                       <Input 
                         type="number"
                         value={formData.salary_bonus} 
@@ -827,7 +803,7 @@ export function CandidateFormDialog({
                   <Separator />
                   <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <Label>Gehalt Min (€)</Label>
+                      <Label>{t('form.salary.min')}</Label>
                       <Input 
                         type="number"
                         value={formData.salary_expectation_min} 
@@ -836,7 +812,7 @@ export function CandidateFormDialog({
                       />
                     </div>
                     <div>
-                      <Label>Gehalt Max (€)</Label>
+                      <Label>{t('form.salary.max')}</Label>
                       <Input 
                         type="number"
                         value={formData.salary_expectation_max} 
@@ -845,7 +821,7 @@ export function CandidateFormDialog({
                       />
                     </div>
                     <div>
-                      <Label>Aktuelles Gehalt (€)</Label>
+                      <Label>{t('form.salary.current')}</Label>
                       <Input 
                         type="number"
                         value={formData.current_salary} 
@@ -861,40 +837,40 @@ export function CandidateFormDialog({
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <Target className="h-4 w-4" />
-                    Präferenzen
+                    {t('form.preferences.title')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label>Beschäftigungsart</Label>
+                    <Label>{t('form.preferences.employmentType')}</Label>
                     <Select value={formData.target_employment_type} onValueChange={v => updateField('target_employment_type', v)}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Wählen" />
+                        <SelectValue placeholder={t('form.choose')} />
                       </SelectTrigger>
                       <SelectContent>
                         {workModelOptions.map(opt => (
-                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          <SelectItem key={opt} value={opt}>{t(`form.workModel.${opt}`)}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
                   <TagInput 
-                    label="Zielstandorte"
+                    label={t('form.preferences.locations')}
                     values={formData.target_locations}
                     onChange={v => updateField('target_locations', v)}
-                    placeholder="z.B. Berlin, München, Remote"
+                    placeholder={t('form.preferences.locationsPlaceholder')}
                   />
                   <TagInput 
-                    label="Zielbranchen"
+                    label={t('form.preferences.industries')}
                     values={formData.target_industries}
                     onChange={v => updateField('target_industries', v)}
-                    placeholder="z.B. Tech, Finance, Consulting"
+                    placeholder={t('form.preferences.industriesPlaceholder')}
                   />
                   <TagInput 
-                    label="Zielrollen"
+                    label={t('form.preferences.roles')}
                     values={formData.target_roles}
                     onChange={v => updateField('target_roles', v)}
-                    placeholder="z.B. IT-Projektleiter, Programm Manager"
+                    placeholder={t('form.preferences.rolesPlaceholder')}
                   />
                 </CardContent>
               </Card>
@@ -906,44 +882,44 @@ export function CandidateFormDialog({
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-primary" />
-                    Exposé-Bausteine für Kundenexport
+                    {t('form.expose.title')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label>Exposé-Titel</Label>
+                    <Label>{t('form.expose.exposeTitle')}</Label>
                     <Input 
                       value={formData.expose_title} 
                       onChange={e => updateField('expose_title', e.target.value)}
-                      placeholder="Senior IT-Projektmanager | PMI-zertifiziert | 12+ Jahre Erfahrung"
+                      placeholder={t('form.expose.exposeTitlePlaceholder')}
                     />
                   </div>
                   <div>
-                    <Label>Kurzprofil</Label>
+                    <Label>{t('form.expose.summary')}</Label>
                     <Textarea 
                       value={formData.expose_summary} 
                       onChange={e => updateField('expose_summary', e.target.value)}
-                      placeholder="Erfahrener Projektmanager mit nachweislicher Expertise in großen SAP-Transformationsprojekten..."
+                      placeholder={t('form.expose.summaryPlaceholder')}
                       rows={4}
                     />
                   </div>
                   <TagInput 
-                    label="Qualifikations-Highlights"
+                    label={t('form.expose.highlights')}
                     values={formData.expose_highlights}
                     onChange={v => updateField('expose_highlights', v)}
-                    placeholder="z.B. PMI-PMP & PRINCE2 Practitioner zertifiziert"
+                    placeholder={t('form.expose.highlightsPlaceholder')}
                   />
                   <TagInput 
-                    label="Projekt-Highlights"
+                    label={t('form.expose.projectHighlights')}
                     values={formData.expose_project_highlights}
                     onChange={v => updateField('expose_project_highlights', v)}
-                    placeholder="z.B. SAP S/4HANA Rollout für 460.000 Endnutzer"
+                    placeholder={t('form.expose.projectHighlightsPlaceholder')}
                   />
                   <TagInput 
-                    label="Wichtige Zertifizierungen"
+                    label={t('form.expose.certifications')}
                     values={formData.expose_certifications}
                     onChange={v => updateField('expose_certifications', v)}
-                    placeholder="z.B. PMP, AWS, ITIL"
+                    placeholder={t('form.expose.certificationsPlaceholder')}
                   />
                 </CardContent>
               </Card>
@@ -952,16 +928,16 @@ export function CandidateFormDialog({
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <FileText className="h-4 w-4" />
-                    Zusammenfassung
+                    {t('form.summary.title')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div>
-                    <Label>Interne Zusammenfassung</Label>
+                    <Label>{t('form.summary.internal')}</Label>
                     <Textarea 
                       value={formData.summary} 
                       onChange={e => updateField('summary', e.target.value)}
-                      placeholder="Interne Notizen zum Kandidaten..."
+                      placeholder={t('form.summary.internalPlaceholder')}
                       rows={4}
                     />
                   </div>
@@ -969,7 +945,7 @@ export function CandidateFormDialog({
                     <div className="mt-4 p-4 bg-muted rounded-lg">
                       <Label className="flex items-center gap-2 mb-2">
                         <Sparkles className="h-4 w-4 text-primary" />
-                        AI-Summary (aus CV)
+                        {t('form.summary.aiSummary')}
                       </Label>
                       <p className="text-sm text-muted-foreground">{(candidate as any).cv_ai_summary}</p>
                     </div>
@@ -978,7 +954,7 @@ export function CandidateFormDialog({
                     <div className="mt-4 p-4 bg-muted rounded-lg">
                       <Label className="flex items-center gap-2 mb-2">
                         <Sparkles className="h-4 w-4 text-primary" />
-                        AI-Bullets (aus CV)
+                        {t('form.summary.aiBullets')}
                       </Label>
                       <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
                         {((candidate as any).cv_ai_bullets as string[]).map((bullet: string, i: number) => (
@@ -1001,21 +977,20 @@ export function CandidateFormDialog({
                 <Shield className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground">
-                    Sie sind verantwortlich für die rechtmäßige Verarbeitung dieser Kandidatendaten (DSGVO).
-                    Matchunt verarbeitet die Daten in Ihrem Auftrag.
+                    {t('gdpr.responsibility')}
                   </p>
                   <button
                     type="button"
                     className="text-xs text-primary hover:underline flex items-center gap-1"
                     onClick={() => setGdprInfoExpanded(!gdprInfoExpanded)}
                   >
-                    Mehr erfahren
+                    {t('gdpr.learnMore')}
                     {gdprInfoExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                   </button>
                   {gdprInfoExpanded && (
                     <ul className="text-xs text-muted-foreground space-y-1 pt-2 border-t mt-2">
-                      <li>• Daten abgelehnter Kandidaten werden nach 6 Monaten automatisch zur Löschung vorgeschlagen.</li>
-                      <li>• Für den Talent-Pool wird eine gesonderte Einwilligung des Kandidaten benötigt.</li>
+                      <li>{t('gdpr.deletionHint')}</li>
+                      <li>{t('gdpr.talentPoolHint')}</li>
                     </ul>
                   )}
                 </div>
@@ -1026,19 +1001,19 @@ export function CandidateFormDialog({
               <label className="flex items-start gap-2.5 cursor-pointer">
                 <Checkbox checked={gdprLegalBasis} onCheckedChange={(v) => setGdprLegalBasis(v === true)} className="mt-0.5" />
                 <span className="text-xs leading-snug">
-                  Eine gültige Rechtsgrundlage für die Verarbeitung liegt vor (z.B. Einwilligung, Bewerbung oder berechtigtes Interesse gem. Art. 6 DSGVO).
+                  {t('gdpr.legalBasis')}
                 </span>
               </label>
               <label className="flex items-start gap-2.5 cursor-pointer">
                 <Checkbox checked={gdprCandidateInformed} onCheckedChange={(v) => setGdprCandidateInformed(v === true)} className="mt-0.5" />
                 <span className="text-xs leading-snug">
-                  Der Kandidat wurde bzw. wird über die Verarbeitung seiner Daten informiert.
+                  {t('gdpr.informed')}
                 </span>
               </label>
               <label className="flex items-start gap-2.5 cursor-pointer">
                 <Checkbox checked={gdprDataRelevant} onCheckedChange={(v) => setGdprDataRelevant(v === true)} className="mt-0.5" />
                 <span className="text-xs leading-snug">
-                  Die Daten enthalten nur bewerbungsrelevante Informationen.
+                  {t('gdpr.relevant')}
                 </span>
               </label>
             </div>
@@ -1051,7 +1026,7 @@ export function CandidateFormDialog({
           </Button>
           <Button onClick={handleSave} disabled={processing || !formData.full_name || !formData.email || (isNewCandidate && !gdprAllChecked)}>
             {processing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {candidate ? 'Speichern' : 'Hinzufügen'}
+            {candidate ? t('form.save') : t('form.add')}
           </Button>
         </DialogFooter>
       </DialogContent>

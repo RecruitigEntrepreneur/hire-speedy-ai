@@ -1,0 +1,55 @@
+import type de from './de';
+import type { Messages } from '../../types';
+
+const sv: Messages<typeof de> = {
+  notifications: {
+    title: 'Aviseringar',
+    unread_one: '{{count}} oläst meddelande',
+    unread_other: '{{count}} olästa meddelanden',
+    allRead: 'Alla meddelanden lästa',
+    markAll: 'Markera alla som lästa',
+    markedAll: 'Alla markerade som lästa',
+    all: 'Alla',
+    unreadTab: 'Olästa',
+    emptyTitle: 'Inga aviseringar',
+    emptyUnread: 'Alla meddelanden har lästs',
+    emptyAll: 'Du har inte fått några aviseringar än',
+    optInNote: 'Bara kandidaten själv kan tacka ja, med ett klick i inbjudan.',
+  },
+  time: {
+    justNow: 'Alldeles nyss',
+    minutes: 'För {{count}} min sedan',
+    hours: 'För {{count}} tim sedan',
+    yesterday: 'I går',
+  },
+  messages: {
+    title: 'Meddelanden',
+    unread_one: '{{count}} oläst meddelande',
+    unread_other: '{{count}} olästa meddelanden',
+    subtitle: 'Kommunikation med kunder',
+    unknown: 'Okänd',
+    client: 'Kund',
+    clientOf: 'Kund · {{company}}',
+    sent: 'Skickat',
+    scrubbed: 'Kandidatens namn eller arbetsgivare togs bort eftersom hen inte har samtyckt än.',
+    error: 'Fel',
+    sendFailed: 'Meddelandet kunde inte skickas.',
+    search: 'Sök...',
+    none: 'Inga konversationer',
+    candidate: 'Kandidat',
+    questionAbout: 'Fråga om <link>{{name}}</link> · {{job}}',
+    yourCandidate: 'din kandidat',
+    replyNote: 'Svaret går till kunden (klocka och e-post). Kandidatens namn och arbetsgivare tas bort så länge hen inte har samtyckt.',
+    write: 'Skriv ett meddelande...',
+    pickTitle: 'Välj en konversation',
+    pickText: 'Klicka på en konversation till vänster för att visa meddelanden',
+  },
+  privacy: {
+    title: 'Dataskydd',
+    subtitle: 'Hantera dina personuppgifter och samtycken',
+    consents: 'Samtycken',
+    export: 'Dataexport',
+    delete: 'Radera konto',
+  },
+};
+export default sv;

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { generateAnonymousId } from '@/lib/anonymization';
@@ -138,13 +139,14 @@ export function GlobalSearch() {
     }
   };
 
+  const { t } = useTranslation('common');
   const quickActions = [
-    { label: 'Neuen Job erstellen', icon: <Plus className="h-4 w-4" />, href: '/dashboard/jobs/new' },
-    { label: 'Alle Jobs', icon: <Briefcase className="h-4 w-4" />, href: '/dashboard/jobs' },
-    { label: 'Bewerber', icon: <Users className="h-4 w-4" />, href: '/dashboard/candidates' },
-    { label: 'Interviews', icon: <Calendar className="h-4 w-4" />, href: '/dashboard/interviews' },
-    { label: 'Analytics', icon: <BarChart3 className="h-4 w-4" />, href: '/dashboard/analytics' },
-    { label: 'Einstellungen', icon: <Settings className="h-4 w-4" />, href: '/dashboard/settings' },
+    { label: t('search.newJob'), icon: <Plus className="h-4 w-4" />, href: '/dashboard/jobs/new' },
+    { label: t('search.allJobs'), icon: <Briefcase className="h-4 w-4" />, href: '/dashboard/jobs' },
+    { label: t('search.applicants'), icon: <Users className="h-4 w-4" />, href: '/dashboard/candidates' },
+    { label: t('search.interviews'), icon: <Calendar className="h-4 w-4" />, href: '/dashboard/interviews' },
+    { label: t('search.analytics'), icon: <BarChart3 className="h-4 w-4" />, href: '/dashboard/analytics' },
+    { label: t('search.settings'), icon: <Settings className="h-4 w-4" />, href: '/dashboard/settings' },
   ];
 
   return (
@@ -155,7 +157,7 @@ export function GlobalSearch() {
         onClick={() => setOpen(true)}
       >
         <Search className="h-4 w-4 md:mr-2" />
-        <span className="hidden md:inline-flex text-muted-foreground">Suchen...</span>
+        <span className="hidden md:inline-flex text-muted-foreground">{t('search.open')}</span>
         <kbd className="pointer-events-none absolute right-1.5 top-1.5 hidden h-6 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-xs font-medium opacity-100 md:flex">
           <span className="text-xs">⌘</span>K
         </kbd>
@@ -163,18 +165,18 @@ export function GlobalSearch() {
 
       <CommandDialog open={open} onOpenChange={setOpen}>
         <CommandInput 
-          placeholder="Jobs, Kandidaten oder Aktionen suchen..." 
+          placeholder={t('search.ph')} 
           value={query}
           onValueChange={setQuery}
         />
         <CommandList>
           <CommandEmpty>
-            {loading ? 'Suche...' : 'Keine Ergebnisse gefunden.'}
+            {loading ? t('search.loading') : t('search.empty')}
           </CommandEmpty>
           
           {results.length > 0 && (
             <>
-              <CommandGroup heading="Suchergebnisse">
+              <CommandGroup heading={t('search.results')}>
                 {results.map((result) => (
                   <CommandItem
                     key={`${result.type}-${result.id}`}
@@ -197,7 +199,7 @@ export function GlobalSearch() {
             </>
           )}
 
-          <CommandGroup heading="Schnellaktionen">
+          <CommandGroup heading={t('search.quick')}>
             {quickActions.map((action) => (
               <CommandItem
                 key={action.href}

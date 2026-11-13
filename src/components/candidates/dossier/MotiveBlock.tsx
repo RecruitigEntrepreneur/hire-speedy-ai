@@ -1,4 +1,6 @@
 import { ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { isGermanUi, term } from '@/lib/candidateTerms';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -52,6 +54,7 @@ const FIELD: Record<MotiveSide, 'current_positive' | 'current_negative'> = { pos
 
 /** Knöpfe mit Reihenfolge: die ersten 3 zählen für die Sätze, weitere sind blasser. */
 function MotiveChips({ options, selected, onToggle }: { options: string[]; selected: string[]; onToggle: (label: string) => void }) {
+  useTranslation('candidateTerms');
   return (
     <div className="flex flex-wrap gap-1.5">
       {options.map((o) => {
@@ -71,7 +74,7 @@ function MotiveChips({ options, selected, onToggle }: { options: string[]; selec
             )}
           >
             {active && <span className={cn('inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-semibold', i < 3 ? 'bg-primary-foreground text-primary' : 'bg-background')}>{i + 1}</span>}
-            {o}
+            {term(o)}
           </button>
         );
       })}
@@ -81,13 +84,14 @@ function MotiveChips({ options, selected, onToggle }: { options: string[]; selec
 
 /** Eigene Worte neben den Knöpfen. Lokal gehalten, damit beim Tippen nichts springt. */
 function OwnWords({ side, text, onChange, placeholder, collapsible = false }: { side: MotiveSide; text: string; onChange: (text: string) => void; placeholder: string; collapsible?: boolean }) {
+  const { t } = useTranslation('candidateDossier');
   const external = motiveOwnWords(text, side);
   const [value, setValue] = useState(external);
   const [opened, setOpened] = useState(false);
   const focused = useRef(false);
   useEffect(() => { if (!focused.current) setValue(external); }, [external]);
   if (collapsible && !opened && !value) {
-    return <button type="button" className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => setOpened(true)}>+ eigene Worte</button>;
+    return <button type="button" className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => setOpened(true)}>{t('fields.ownWords')}</button>;
   }
   return (
     <Input
@@ -118,57 +122,58 @@ const Sentence = ({ lines, own, empty }: { lines: string[]; own?: string; empty:
 
 /** Alter Knopf, der zwei Dinge vermischt: genau nachfragen, bis dahin nicht im Kundentext. */
 function AmbiguousPrompt({ choices, onResolve }: { choices: AmbiguousChoice[]; onResolve: (legacy: string, chosen: string[]) => void }) {
+  const { t } = useTranslation(['candidateInterview', 'candidateTerms']);
   return (
     <>
       {choices.map((a) => (
         <div key={a.label} className="space-y-1 rounded-md bg-warning/10 px-2.5 py-1.5 text-xs text-warning">
-          <p>„{a.label}“ ist ungenau. Was trifft zu?</p>
+          <p>{t('mot.unclear', { label: term(a.label) })}</p>
           <div className="flex flex-wrap gap-1.5">
             {a.options.map((o) => (
-              <button key={o} type="button" onClick={() => onResolve(a.label, [o])} className="rounded-md border border-warning/50 bg-background px-2 py-0.5 text-foreground hover:bg-muted">{o}</button>
+              <button key={o} type="button" onClick={() => onResolve(a.label, [o])} className="rounded-md border border-warning/50 bg-background px-2 py-0.5 text-foreground hover:bg-muted">{term(o)}</button>
             ))}
-            <button type="button" onClick={() => onResolve(a.label, a.options)} className="rounded-md border border-warning/50 bg-background px-2 py-0.5 text-foreground hover:bg-muted">Beides</button>
+            <button type="button" onClick={() => onResolve(a.label, a.options)} className="rounded-md border border-warning/50 bg-background px-2 py-0.5 text-foreground hover:bg-muted">{t('mot.both')}</button>
           </div>
-          <p>Bis du es klärst, steht dieser Punkt nicht im Kundentext.</p>
+          <p>{t('mot.unclearNote')}</p>
         </div>
       ))}
     </>
   );
 }
 
-/** Beispiele im leeren Feld: so reden Kandidaten am Telefon. */
-const OWN_EXAMPLES: Record<MotiveSide, string> = {
-  pos: 'In eigenen Worten, z. B. „tolles Team“ · „kurzer Arbeitsweg“ · „kann viel selbst entscheiden“',
-  neg: 'In eigenen Worten, z. B. „Chef mischt sich überall ein“ · „ständig Überstunden“ · „seit der Übernahme alles anders“',
-};
+// Beispiele im leeren Feld (so reden Kandidaten am Telefon): candidateInterview:mot.ownExamplesPos / ownExamplesNeg.
 
 const catalogOf = (side: MotiveSide) => (side === 'pos' ? MOTIVE_POS : MOTIVE_NEG);
 /** „Führungskraft mischt sich überall ein“ → „mischt sich überall ein“ (unter „Wie genau?“). */
 const shortDetail = (label: string) => {
+  // Die Kürzung hängt an der deutschen Formulierung; in anderen Sprachen steht der ganze Knopf.
+  if (!isGermanUi()) return term(label);
   const t = label.replace(/^Führungskraft /, '');
   return t === label ? `${t.charAt(0).toLowerCase()}${t.slice(1)}` : t;
 };
 
-const SOURCE_TAG: Record<Understood['source'], string | null> = { wort: null, gelernt: 'gelernt', ki: 'KI' };
+// Herkunft eines Vorschlags: candidateInterview:mot.learned / mot.ai
+const SOURCE_TAG: Record<Understood['source'], 'mot.learned' | 'mot.ai' | null> = { wort: null, gelernt: 'mot.learned', ki: 'mot.ai' };
 
 /** Vorschläge aus den eigenen Worten: „Satzteil“ → Knopf, bei ungenauen Knöpfen gleich „Wie genau?“. */
 function Understanding({ side, hits, loading, onPick }: { side: MotiveSide; hits: Understood[]; loading: boolean; onPick: (label: string, hit: Understood) => void }) {
+  const { t } = useTranslation(['candidateInterview', 'candidateTerms']);
   if (!hits.length && !loading) return null;
   return (
     <div className="space-y-1 text-xs">
-      <p className="font-medium text-muted-foreground">{hits.length ? 'Verstanden, mit einem Klick übernehmen:' : 'Wird verstanden …'}</p>
+      <p className="font-medium text-muted-foreground">{hits.length ? t('mot.understood') : t('mot.understanding')}</p>
       {hits.map((h) => {
         const details = catalogOf(side)[h.label]?.details;
         const tag = SOURCE_TAG[h.source];
         return (
           <div key={h.label} className="flex flex-wrap items-center gap-1.5">
             <button type="button" onClick={() => onPick(h.label, h)} className="inline-flex items-center gap-1 rounded-md border border-dashed border-primary px-2 py-0.5 text-left text-primary hover:bg-primary/10">
-              „{h.quote}“ → {h.label}
-              {tag && <span className="rounded bg-primary/10 px-1 text-[10px]">{tag}</span>}
+              „{h.quote}“ → {term(h.label)}
+              {tag && <span className="rounded bg-primary/10 px-1 text-[10px]">{t(tag)}</span>}
             </button>
             {details && (
               <>
-                <span className="text-muted-foreground">Wie genau?</span>
+                <span className="text-muted-foreground">{t('mot.howExactly')}</span>
                 {details.map((d) => (
                   <button
                     key={d}
@@ -190,11 +195,12 @@ function Understanding({ side, hits, loading, onPick }: { side: MotiveSide; hits
 
 /** Angetippter ungenauer Knopf: „Wie genau?“ ersetzt ihn durch den genauen. */
 function DetailChoices({ choices, onPick }: { choices: Array<{ label: string; options: string[] }>; onPick: (from: string, to: string) => void }) {
+  const { t } = useTranslation(['candidateInterview', 'candidateTerms']);
   return (
     <>
       {choices.map((c) => (
         <div key={c.label} className="flex flex-wrap items-center gap-1.5 text-xs">
-          <span className="text-muted-foreground">„{c.label}“ · Wie genau?</span>
+          <span className="text-muted-foreground">{t('mot.detailOf', { label: term(c.label) })}</span>
           {c.options.map((o) => (
             <button key={o} type="button" onClick={() => onPick(c.label, o)} className="rounded-md border border-border px-2 py-0.5 text-foreground hover:bg-muted">{shortDetail(o)}</button>
           ))}
@@ -280,6 +286,7 @@ function kiLabels(side: MotiveSide, family: RoleFamily): string[] {
  * eigene Worte erst auf Klick (Schritt-für-Schritt-Ansicht des Interviews).
  */
 export function MotiveBlock({ form, set, family, candidateId, stacked = false }: { form: DossierForm; set: SetFn; family: RoleFamily; candidateId?: string; stacked?: boolean }) {
+  const { t } = useTranslation(['candidateInterview', 'candidateTerms']);
   const [lastNeg, setLastNeg] = useState<string | null>(null);
   const pos = motiveLabels(form.current_positive, 'pos');
   const neg = motiveLabels(form.current_negative, 'neg');
@@ -310,31 +317,38 @@ export function MotiveBlock({ form, set, family, candidateId, stacked = false }:
   };
 
   const live = lastNeg && neg.includes(lastNeg) ? MOTIVE_NEG[lastNeg] : neg.length ? MOTIVE_NEG[neg[0]] : null;
+  // Die deutschen Sätze baut situationMotives.ts aus festen Bausteinen (Fälle, Artikel). In den
+  // anderen Sprachen steht dieselbe Aussage als Aufzählung der ersten drei Knöpfe.
+  const satz = (side: MotiveSide): string[] => {
+    if (isGermanUi()) return side === 'pos' ? ev.satzPos : ev.satzNeg;
+    const top = (side === 'pos' ? pos : neg).slice(0, 3);
+    return top.length ? [t(side === 'pos' ? 'mot.posLine' : 'mot.negLine', { list: top.map((l) => term(l)).join(', ') })] : [];
+  };
 
   return (
     <div className="space-y-3">
       <div className={stacked ? 'space-y-5' : 'grid gap-3 sm:grid-cols-2'}>
-        <Field label="Was gefällt Ihnen heute besonders gut?" field="current_positive">
-          <p className="-mt-1 text-xs text-muted-foreground">Das muss der neue Job auch bieten, sonst bleibt die Person lieber.</p>
+        <Field label={t('mot.qPositive')} field="current_positive">
+          <p className="-mt-1 text-xs text-muted-foreground">{t('mot.whyPositive')}</p>
           <MotiveChips options={motiveChipsFor(family, 'pos', form.current_positive)} selected={pos} onToggle={togglePos} />
-          <Sentence lines={ev.satzPos} own={ownWordsSentence(motiveOwnWords(form.current_positive, 'pos'))} empty="Der Satz entsteht aus deinen Klicks." />
-          <OwnWords side="pos" text={form.current_positive} onChange={(t) => set({ current_positive: t })} placeholder={OWN_EXAMPLES.pos} collapsible={stacked} />
+          <Sentence lines={satz('pos')} own={ownWordsSentence(motiveOwnWords(form.current_positive, 'pos'))} empty={t('mot.sentenceEmpty')} />
+          <OwnWords side="pos" text={form.current_positive} onChange={(t) => set({ current_positive: t })} placeholder={t('mot.ownExamplesPos')} collapsible={stacked} />
           <Understanding side="pos" hits={[...posHits, ...posKi.hits]} loading={posKi.loading} onPick={(l, h) => pick('pos', l, h)} />
         </Field>
-        <Field label="Was gefällt Ihnen weniger? Was stört Sie?" field="current_negative">
-          <p className="-mt-1 text-xs text-muted-foreground">Der eigentliche Wechselgrund. Das muss die neue Stelle lösen.</p>
+        <Field label={t('mot.qNegative')} field="current_negative">
+          <p className="-mt-1 text-xs text-muted-foreground">{t('mot.whyNegative')}</p>
           <MotiveChips options={motiveChipsFor(family, 'neg', form.current_negative)} selected={neg} onToggle={toggleNeg} />
           <DetailChoices choices={motiveDetailChoices(form.current_negative, 'neg')} onPick={(from, to) => { set({ current_negative: replaceMotive(form.current_negative, from, to, 'neg') }); setLastNeg(to); }} />
           <AmbiguousPrompt choices={ambiguousMotives(form.current_negative, 'neg')} onResolve={(legacy, chosen) => set({ current_negative: resolveAmbiguous(form.current_negative, 'neg', legacy, chosen) })} />
-          <Sentence lines={ev.satzNeg} own={ownWordsSentence(motiveOwnWords(form.current_negative, 'neg'))} empty="Der Satz entsteht aus deinen Klicks." />
-          <OwnWords side="neg" text={form.current_negative} onChange={(t) => set({ current_negative: t })} placeholder={OWN_EXAMPLES.neg} collapsible={stacked} />
+          <Sentence lines={satz('neg')} own={ownWordsSentence(motiveOwnWords(form.current_negative, 'neg'))} empty={t('mot.sentenceEmpty')} />
+          <OwnWords side="neg" text={form.current_negative} onChange={(t) => set({ current_negative: t })} placeholder={t('mot.ownExamplesNeg')} collapsible={stacked} />
           <Understanding side="neg" hits={[...negHits, ...negKi.hits]} loading={negKi.loading} onPick={(l, h) => pick('neg', l, h)} />
         </Field>
       </div>
       {(live?.ask || ev.zuViele) && (
         <div className="space-y-0.5 text-xs text-muted-foreground">
-          {live?.ask && <p><span className="font-medium text-foreground">Nachhaken:</span> {live.ask}</p>}
-          {ev.zuViele && <p>Nur die ersten 3 kommen in die Sätze. Zum Umsortieren abwählen und neu antippen.</p>}
+          {live?.ask && <p><span className="font-medium text-foreground">{t('mot.followUp')}</span> {term(live.ask)}</p>}
+          {ev.zuViele && <p>{t('mot.tooMany')}</p>}
         </div>
       )}
     </div>
@@ -343,6 +357,7 @@ export function MotiveBlock({ form, set, family, candidateId, stacked = false }:
 
 /** Ergänzungsfeld: lokal gehalten, damit beim Tippen nichts springt. */
 function AdditionInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const { t } = useTranslation('candidateInterview');
   const [v, setV] = useState(value);
   const focused = useRef(false);
   useEffect(() => { if (!focused.current) setV(value); }, [value]);
@@ -350,7 +365,7 @@ function AdditionInput({ value, onChange }: { value: string; onChange: (v: strin
     <Input
       id={fieldId('change_motivation')}
       value={v}
-      placeholder="Ergänzen (optional), in eigenen Worten"
+      placeholder={t('mot.additionPlaceholder')}
       className="h-8 text-xs"
       onFocus={() => { focused.current = true; }}
       onBlur={() => { focused.current = false; setV(value); }}
@@ -372,6 +387,7 @@ export function ClientMotivationField({ form, set, motivation, onRegenerate, chi
   onRegenerate: () => void;
   children?: ReactNode;
 }) {
+  const { t } = useTranslation(['candidateInterview', 'candidateTerms']);
   const [selfWrite, setSelfWrite] = useState(false);
   const text = form.change_motivation.trim();
   const gen = motivation.text;
@@ -383,18 +399,18 @@ export function ClientMotivationField({ form, set, motivation, onRegenerate, chi
   const quote = motivationQuote(form.current_negative);
   const issues = text ? clientTextIssues({ ...form, summary_motivation: form.change_motivation }).filter((i) => i.field === 'summary_motivation') : [];
   const kunde = form.summary_motivation.trim();
-  const weg = motivation.weggelassen.map((l) => `„${l}“`);
+  const weg = motivation.weggelassen.map((l) => `„${term(l)}“`);
   return (
-    <Field label="Woher kommt Ihre Wechselmotivation konkret?" field="change_motivation">
-      <p className="-mt-1 text-xs text-muted-foreground">Steht so anonym beim Kunden unter „Warum wechseln“.</p>
+    <Field label={t('mot.qMotivation')} field="change_motivation">
+      <p className="-mt-1 text-xs text-muted-foreground">{t('mot.whyMotivation')}</p>
       {children}
       {frei ? (
         <>
-          <AreaField field="change_motivation" value={form.change_motivation} onChange={(v) => set({ change_motivation: v })} rows={3} placeholder="Warum will die Person wechseln?" />
+          <AreaField field="change_motivation" value={form.change_motivation} onChange={(v) => set({ change_motivation: v })} rows={3} placeholder={t('mot.motivationPlaceholder')} />
           {gen && (
             <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              {split.auto ? 'Frei bearbeitbar. Sobald du änderst, zieht nichts mehr mit.' : 'Von dir geschrieben, zieht nicht mehr mit.'}
-              <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs" onClick={() => { setSelfWrite(false); onRegenerate(); }}>Neu formulieren</Button>
+              {split.auto ? t('mot.freeAuto') : t('mot.freeOwn')}
+              <Button type="button" variant="outline" size="sm" className="h-6 px-2 text-xs" onClick={() => { setSelfWrite(false); onRegenerate(); }}>{t('mot.rephrase')}</Button>
             </p>
           )}
         </>
@@ -405,46 +421,46 @@ export function ClientMotivationField({ form, set, motivation, onRegenerate, chi
               <>
                 {motivation.parts.map((p) => (
                   <p key={p.text}>
-                    {p.text} <span className="whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 align-middle text-[10px] text-primary">{p.src}</span>
+                    {p.text} <span className="whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 align-middle text-[10px] text-primary">{term(p.src)}</span>
                   </p>
                 ))}
-                {addition && <p className="text-primary">{addition} <span className="whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 align-middle text-[10px]">deine Ergänzung</span></p>}
+                {addition && <p className="text-primary">{addition} <span className="whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 align-middle text-[10px]">{t('mot.yourAddition')}</span></p>}
               </>
             ) : (
-              <p className="text-muted-foreground">Entsteht aus deinen Klicks oben.</p>
+              <p className="text-muted-foreground">{t('mot.fromClicks')}</p>
             )}
           </div>
-          {gen && <p className="text-xs text-muted-foreground">Zieht weiter mit. Die blauen Herkunfts-Hinweise siehst nur du, nicht der Kunde.</p>}
+          {gen && <p className="text-xs text-muted-foreground">{t('mot.follows')}</p>}
           <AdditionInput value={addition} onChange={setAddition} />
           {quote && !addition.includes(quote) && (
             <div className="flex flex-wrap gap-1.5">
               <button type="button" onClick={() => setAddition(joinMotivation(addition, quote))} className="rounded-md border border-dashed border-primary px-2.5 py-1 text-xs text-primary">
-                Zitat übernehmen: „{quote.replace(/\.$/, '')}“
+                {t('mot.quoteApply', { quote: quote.replace(/\.$/, '') })}
               </button>
             </div>
           )}
         </>
       )}
       <div className="space-y-0.5 text-xs text-muted-foreground">
-        {weg.length > 0 && <p>Bewusst nicht drin: {weg.join(', ')}. Kritik an Personen und Gehalt gehen nie zum Kunden.</p>}
-        {motivation.ungenau.length > 0 && <p className="text-warning">Noch ungenau, deshalb nicht drin: {motivation.ungenau.map((l) => `„${l}“`).join(', ')}. Oben bei „stört“ klären.</p>}
-        {text && !issues.length && <p>✓ Geprüft{addition ? ', auch deine Ergänzung' : ''}: kein Name, kein Arbeitgeber, kein Gehalt</p>}
-        {issues.map((i) => <p key={i.message} className={i.level === 'danger' ? 'text-destructive' : 'text-warning'}>{i.message}</p>)}
+        {weg.length > 0 && <p>{t('mot.leftOut', { list: weg.join(', ') })}</p>}
+        {motivation.ungenau.length > 0 && <p className="text-warning">{t('mot.leftUnclear', { list: motivation.ungenau.map((l) => `„${term(l)}“`).join(', ') })}</p>}
+        {text && !issues.length && <p>{addition ? t('mot.checkedAddition') : t('mot.checked')}</p>}
+        {issues.map((i) => <p key={i.message} className={i.level === 'danger' ? 'text-destructive' : 'text-warning'}>{term(i.message)}</p>)}
         {!frei && gen && (
-          <button type="button" className="underline underline-offset-2 hover:text-foreground" onClick={() => setSelfWrite(true)}>Ganz selbst schreiben</button>
+          <button type="button" className="underline underline-offset-2 hover:text-foreground" onClick={() => setSelfWrite(true)}>{t('mot.writeSelf')}</button>
         )}
       </div>
       {motivation.fehltGrund && !addition && (!text || !frei) && (
         <p className="rounded-md bg-warning/10 px-2.5 py-1.5 text-xs text-warning">
           {motivation.ohneGrund && weg.length
-            ? `${weg.join(', ')} ${weg.length > 1 ? 'stehen' : 'steht'} bewusst nicht im Kundentext. Frag nach dem Grund dahinter oder tippe den Auslöser an, sonst fehlt dem Kunden das Warum.`
-            : 'Noch kein Wechselgrund. Frag: „Was gefällt Ihnen weniger? Was stört Sie?“ oder tippe den Auslöser an. Erst dann entsteht der Kundentext.'}
+            ? t('mot.noReasonLeftOut', { count: weg.length, list: weg.join(', ') })
+            : t('mot.noReason')}
         </p>
       )}
       {kunde && kunde !== text && (
         <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
-          <p className="text-xs font-medium text-muted-foreground">Der Kunde sieht einen anderen Text (eigener Text, siehe Abschluss)</p>
-          <p><span className="text-muted-foreground">Warum wechseln:</span> {kunde}</p>
+          <p className="text-xs font-medium text-muted-foreground">{t('mot.clientOther')}</p>
+          <p><span className="text-muted-foreground">{t('mot.clientWhy')}</span> {kunde}</p>
         </div>
       )}
     </Field>
@@ -490,15 +506,20 @@ export function IncidentBlock({ form, set, family, suggestions, whyNowNote, chil
   whyNowNote?: string;
   children?: ReactNode;
 }) {
+  const { t: td } = useTranslation('candidateDossier');
+  const { t } = useTranslation(['candidateInterview', 'candidateTerms']);
   const [last, setLast] = useState<string | null>(null);
   const [ownOpen, setOwnOpen] = useState(false);
   const text = form.specific_incident;
   const parts = incidentParts(text);
   const times = incidentTimeOptions();
-  const fremdeZeit = parts.time && !times.some((t) => t.value === parts.time) ? parts.time : null;
+  const fremdeZeit = parts.time && !times.some((x) => x.value === parts.time) ? parts.time : null;
   // „Wann“ und „Wie oft“ nur bei einem echten Anlass; bei „Kein einzelner Anlass“ erübrigen sie sich.
   const hasEvent = incidentHasEvent(text);
-  const satz = incidentSentence(text, hasEvent ? form.frequency_of_issues : null);
+  // Der deutsche Satz kommt aus situationMotives.ts; sonst dieselben Angaben als Aufzählung.
+  const satz = isGermanUi()
+    ? incidentSentence(text, hasEvent ? form.frequency_of_issues : null)
+    : [parts.events.map((e) => term(e)).join(', '), hasEvent && parts.time ? term(times.find((x) => x.value === parts.time)?.label ?? parts.time) : '', hasEvent && form.frequency_of_issues ? term(form.frequency_of_issues) : ''].filter(Boolean).join(' · ');
   const own = ownWordsSentence(parts.own);
   const ask = incidentAsk(last && parts.events.includes(last) ? last : parts.events[0] ?? null);
   const toggle = (label: string) => {
@@ -507,27 +528,27 @@ export function IncidentBlock({ form, set, family, suggestions, whyNowNote, chil
     if (incidentParts(next).events.includes(label)) setLast(label);
   };
   return (
-    <Field label="Gab es einen konkreten Auslöser? Warum gerade jetzt?" field="specific_incident">
+    <Field label={t('mot.qIncident')} field="specific_incident">
       {children}
       <div className="flex flex-wrap gap-1.5">
         {incidentChipsFor(family, suggestions, text).map((l) => {
           const active = parts.events.includes(l);
           const suggested = suggestions.includes(l);
-          return <button key={l} type="button" aria-pressed={active} title={suggested ? 'Passt zu deinen Angaben' : undefined} className={chip(active, suggested)} onClick={() => toggle(l)}>{l}</button>;
+          return <button key={l} type="button" aria-pressed={active} title={suggested ? t('mot.incidentFits') : undefined} className={chip(active, suggested)} onClick={() => toggle(l)}>{term(l)}</button>;
         })}
       </div>
       <AmbiguousPrompt choices={ambiguousIncidents(text)} onResolve={(legacy, chosen) => set({ specific_incident: resolveAmbiguousIncident(text, legacy, chosen) })} />
       {hasEvent && (
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1">
-            <p className="text-xs font-medium">Wann?</p>
+            <p className="text-xs font-medium">{t('mot.when')}</p>
             <div className="flex flex-wrap gap-1.5">
-              {times.map((t) => {
-                const active = parts.time === t.value;
+              {times.map((zeit) => {
+                const active = parts.time === zeit.value;
                 return (
-                  <button key={t.value} type="button" aria-pressed={active} className={chip(active)} onClick={() => set({ specific_incident: setIncidentTime(text, t.value) })}>
-                    {t.label}
-                    {t.month && <span className={cn('text-[10px]', active ? 'text-primary-foreground/70' : 'text-muted-foreground')}>{t.month}</span>}
+                  <button key={zeit.value} type="button" aria-pressed={active} className={chip(active)} onClick={() => set({ specific_incident: setIncidentTime(text, zeit.value) })}>
+                    {term(zeit.label)}
+                    {zeit.month && <span className={cn('text-[10px]', active ? 'text-primary-foreground/70' : 'text-muted-foreground')}>{zeit.month}</span>}
                   </button>
                 );
               })}
@@ -535,11 +556,11 @@ export function IncidentBlock({ form, set, family, suggestions, whyNowNote, chil
             </div>
           </div>
           <div className="space-y-1">
-            <p className="text-xs font-medium">Wie oft?</p>
+            <p className="text-xs font-medium">{t('mot.howOften')}</p>
             <div className="flex flex-wrap gap-1.5">
               {FREQUENCY_OPTIONS.map((o) => {
                 const active = form.frequency_of_issues === o.value;
-                return <button key={o.value} type="button" aria-pressed={active} className={chip(active)} onClick={() => set({ frequency_of_issues: active ? null : o.value })}>{o.label}</button>;
+                return <button key={o.value} type="button" aria-pressed={active} className={chip(active)} onClick={() => set({ frequency_of_issues: active ? null : o.value })}>{term(o.label)}</button>;
               })}
             </div>
           </div>
@@ -551,12 +572,12 @@ export function IncidentBlock({ form, set, family, suggestions, whyNowNote, chil
         </p>
       )}
       {ownOpen || parts.own ? (
-        <LocalInput id={fieldId('specific_incident')} value={parts.own} onChange={(v) => set({ specific_incident: setIncidentOwn(text, v) })} placeholder="In eigenen Worten (optional)" />
+        <LocalInput id={fieldId('specific_incident')} value={parts.own} onChange={(v) => set({ specific_incident: setIncidentOwn(text, v) })} placeholder={t('mot.ownOptional')} />
       ) : (
-        <button type="button" className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => setOwnOpen(true)}>+ eigene Worte</button>
+        <button type="button" className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => setOwnOpen(true)}>{td('fields.ownWords')}</button>
       )}
-      {whyNowNote?.trim() && <p className="text-xs text-muted-foreground">Früher bei „Warum gerade jetzt?“ notiert: {whyNowNote}</p>}
-      {ask && <p className="text-xs text-muted-foreground"><span className="font-medium text-foreground">Nachhaken:</span> {ask}</p>}
+      {whyNowNote?.trim() && <p className="text-xs text-muted-foreground">{t('mot.incidentEarlier', { note: whyNowNote })}</p>}
+      {ask && <p className="text-xs text-muted-foreground"><span className="font-medium text-foreground">{t('mot.followUp')}</span> {term(ask)}</p>}
     </Field>
   );
 }
@@ -575,6 +596,8 @@ export function CareerGoalBlock({ form, set, suggestions, legacy = [], candidate
   candidateId?: string;
   family: RoleFamily;
 }) {
+  const { t: td } = useTranslation('candidateDossier');
+  const { t } = useTranslation(['candidateInterview', 'candidateTerms']);
   const [ownOpen, setOwnOpen] = useState(false);
   const text = form.career_ultimate_goal;
   const chosen = phrasesOf(text);
@@ -613,9 +636,9 @@ export function CareerGoalBlock({ form, set, suggestions, legacy = [], candidate
         {items.map((g) => {
           const active = isOn(g.label);
           return (
-            <button key={g.label} type="button" aria-pressed={active} title={g.reason} className={chip(active, g.top)} onClick={() => toggle(g.label)}>
-              {g.label}
-              {g.top && g.reason && <span className={cn('text-[10px]', active ? 'text-primary-foreground/70' : 'text-muted-foreground')}>{g.reason}</span>}
+            <button key={g.label} type="button" aria-pressed={active} title={term(g.reason) || undefined} className={chip(active, g.top)} onClick={() => toggle(g.label)}>
+              {term(g.label)}
+              {g.top && g.reason && <span className={cn('text-[10px]', active ? 'text-primary-foreground/70' : 'text-muted-foreground')}>{term(g.reason)}</span>}
             </button>
           );
         })}
@@ -623,28 +646,28 @@ export function CareerGoalBlock({ form, set, suggestions, legacy = [], candidate
     </div>
   );
   const rows = [
-    row('Beruflich', [...suggestions.beruflich, ...extra('beruflich')]),
-    row('Persönlich', [...suggestions.persoenlich, ...extra('persoenlich')]),
+    row(t('mot.professional'), [...suggestions.beruflich, ...extra('beruflich')]),
+    row(t('mot.personal'), [...suggestions.persoenlich, ...extra('persoenlich')]),
   ];
   return (
     <>
       {/* Immer erst „Beruflich“, dann „Persönlich“ (Wunsch 19.10.). */}
       {rows}
       {ownOpen || own ? (
-        <LocalInput id={fieldId('career_ultimate_goal')} value={own} onChange={setOwn} placeholder="In eigenen Worten, z. B. „irgendwann eine Abteilung leiten“ · „bis zur Rente ankommen“ · „Head of Data“" />
+        <LocalInput id={fieldId('career_ultimate_goal')} value={own} onChange={setOwn} placeholder={t('mot.goalOwnPlaceholder')} />
       ) : (
-        <button type="button" className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => setOwnOpen(true)}>+ eigene Worte</button>
+        <button type="button" className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => setOwnOpen(true)}>{td('fields.ownWords')}</button>
       )}
       {(allHits.length > 0 || ki.loading) && (
         <div className="space-y-1 text-xs">
-          <p className="font-medium text-muted-foreground">{allHits.length ? 'Verstanden, mit einem Klick übernehmen:' : 'Wird verstanden …'}</p>
+          <p className="font-medium text-muted-foreground">{allHits.length ? t('mot.understood') : t('mot.understanding')}</p>
           <div className="flex flex-wrap gap-1.5">
             {allHits.map((h) => (
               <button key={h.label} type="button" onClick={() => pick(h)} className="inline-flex items-center gap-1 rounded-md border border-dashed border-primary px-2 py-0.5 text-left text-primary hover:bg-primary/10">
-                „{h.quote}“ → {h.isNew ? <>{h.label} als Ziel übernehmen</> : h.label}
-                {h.isNew && <span className="rounded bg-success/15 px-1 text-[10px] text-success">neuer Knopf</span>}
-                {h.source !== 'wort' && <span className="rounded bg-primary/10 px-1 text-[10px]">{h.source === 'ki' ? 'KI' : 'gelernt'}</span>}
-                {ALL_GOALS[h.label]?.client === null && <span className="rounded bg-warning/15 px-1 text-[10px] text-warning">nie zum Kunden</span>}
+                „{h.quote}“ → {h.isNew ? t('mot.takeAsGoal', { label: h.label }) : term(h.label)}
+                {h.isNew && <span className="rounded bg-success/15 px-1 text-[10px] text-success">{t('mot.newButton')}</span>}
+                {h.source !== 'wort' && <span className="rounded bg-primary/10 px-1 text-[10px]">{h.source === 'ki' ? t('mot.ai') : t('mot.learned')}</span>}
+                {ALL_GOALS[h.label]?.client === null && <span className="rounded bg-warning/15 px-1 text-[10px] text-warning">{t('mot.neverClient')}</span>}
               </button>
             ))}
           </div>

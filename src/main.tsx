@@ -4,7 +4,8 @@ import "./lib/feedback/install";
 import { createRoot } from "react-dom/client";
 import { Suspense, lazy } from "react";
 import "./index.css";
-import "./i18n";
+import { i18nReady } from "./i18n";
+import "./i18n/profileSync";
 
 // Host-/Port-basierter App-Split: akademie.* (Prod) oder Dev-Port :8081 -> AcademyApp,
 // sonst Matchunt. Beide teilen Supabase, Typen & i18n. Lazy geladen -> getrennte Bundles.
@@ -38,8 +39,11 @@ function isGuestIntakePath(): boolean {
 
 const Root = isAcademyHost() ? AcademyApp : isGuestIntakePath() ? IntakeApp : App;
 
-createRoot(document.getElementById("root")!).render(
-  <Suspense fallback={<div className="min-h-screen bg-background" />}>
-    <Root />
-  </Suspense>,
-);
+// Erst starten, wenn die Texte der gewählten Sprache da sind (siehe i18n/index.ts).
+void i18nReady.then(() => {
+  createRoot(document.getElementById("root")!).render(
+    <Suspense fallback={<div className="min-h-screen bg-background" />}>
+      <Root />
+    </Suspense>,
+  );
+});

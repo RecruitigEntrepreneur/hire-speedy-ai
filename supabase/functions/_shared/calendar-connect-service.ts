@@ -6,6 +6,7 @@ import { generateToken } from './tokens.ts';
 import { adminConsentUrl, authorizeUrl, exchangeCode, pkcePair, saveConnection, type MsConfig } from './msgraph-calendar.ts';
 import { calendarStatusFor, must, type ServiceCtx } from './interview-service.ts';
 import * as mails from './interview-mails.ts';
+import { languageOfEmail, languageOfUser } from './recipient-language.ts';
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -62,7 +63,10 @@ export async function itRequest(ctx: ServiceCtx, user: User, body: any) {
   });
   const link = adminConsentUrl(ctx.ms!, state);
   const { data: prof } = await ctx.db.from('profiles').select('full_name').eq('user_id', user.id).maybeSingle();
+  // IT des Kunden: Profil zur Adresse, sonst die Sprache dessen, der fragt (Mehrsprachigkeit)
+  const lang = (await languageOfEmail(ctx.db, itEmail)) ?? (await languageOfUser(ctx.db, user.id)) ?? 'de';
   const content = mails.itConsentRequest({
+    lang,
     requesterName: prof?.full_name || user.email || 'Ein Kollege',
     companyName: org?.name ?? null,
     consentUrl: link,
@@ -90,7 +94,7 @@ export async function handleCallback(ctx: ServiceCtx, params: URLSearchParams): 
     if (req?.requested_by) {
       const { data: prof } = await ctx.db.from('profiles').select('full_name, email').eq('user_id', req.requested_by).maybeSingle();
       if (prof?.email) {
-        const content = mails.itApproved({ name: prof.full_name ?? '', connectUrl: `${app}/dashboard/settings#kalender` });
+        const content = mails.itApproved({ name: prof.full_name ?? '', connectUrl: `${app}/dashboard/settings#kalender`, lang: (await languageOfUser(ctx.db, req.requested_by)) ?? 'de' });
         await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: prof.email, ...content }, { template: 'calendar_it_approved', meta: { it_request_id: state.it_request_id } });
       }
     }

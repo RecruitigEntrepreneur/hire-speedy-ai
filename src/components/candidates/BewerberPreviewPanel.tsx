@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { TAGESSATZ_ABSTIMMUNG } from '@/lib/contractingKunde';
 import { useCandidateFitAssessment } from '@/hooks/useCandidateFitAssessment';
 import { useCandidateInsights, verfuegbarAus } from '@/components/candidates/client/useCandidateInsights';
 import { Button } from '@/components/ui/button';
@@ -12,6 +11,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { FrageSheet, initialsOf } from '@/components/candidates/client/FrageSheet';
 import { submitterName, useSubmitter } from '@/components/candidates/client/useSubmitter';
 import { NOTICE_OPTIONS, optionLabel } from '@/lib/candidateDossier';
+import { term } from '@/lib/candidateTerms';
+import { fmtDate } from '@/lib/localeFormat';
+import {
+  availableFromLabel, careerRangeLabel, durationLabel, experienceBandLabel, immediatelyLabel, regionLabel, remoteLabel,
+} from '@/lib/clientCandidateLabels';
 import {
   Calendar,
   X,
@@ -84,51 +88,9 @@ export function primaryActionFor(stateKey: string): PrimaryAction {
   return { labelKey: 'bewerber.actions.request_interview', icon: Calendar, run: 'wizard' };
 }
 
-function formatSalary(min: number | null, max: number | null): string {
-  if (!min && !max) return '—';
-  const fmt = (v: number) =>
-    new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v);
-  if (min && max) return `${fmt(min)} – ${fmt(max)}`;
-  if (min) return `ab ${fmt(min)}`;
-  return `bis ${fmt(max!)}`;
-}
-
-function formatRemote(pref: string | null): string {
-  const map: Record<string, string> = {
-    remote: 'Remote',
-    hybrid: 'Hybrid',
-    onsite: 'Vor Ort',
-    flexible: 'Flexibel',
-  };
-  return pref ? map[pref] || pref : '—';
-}
-
-function formatCareerDate(dateStr: string | null): string {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  return d.getFullYear().toString();
-}
-
-function formatCareerRange(entry: CareerEntry): string {
-  if (entry.isCurrent) {
-    const start = formatCareerDate(entry.startDate);
-    return start ? `Seit ${start}` : 'Aktuell';
-  }
-  const start = formatCareerDate(entry.startDate);
-  const end = formatCareerDate(entry.endDate);
-  if (start && end) return `${start} – ${end}`;
-  if (start) return `Ab ${start}`;
-  return '';
-}
-
-function formatDuration(years: number | null): string {
-  if (!years) return '';
-  if (years === 1) return '1 Jahr';
-  return `${years} Jahre`;
-}
-
 export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: BewerberPreviewPanelProps) {
   const { t } = useTranslation();
+  const { t: tc } = useTranslation(['clientCandidates', 'candidateTerms']);
   const navigate = useNavigate();
   const fitRoh = useCandidateFitAssessment(item.submissionId).assessment?.executive_summary ?? null;
   const fitText = fitRoh ? fitRoh.charAt(0).toUpperCase() + fitRoh.slice(1) : null;
@@ -160,9 +122,9 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
   // Nie den Rohwert („3_months_eoq“) zeigen
   const verfuegbar =
     verfuegbarAus(gespraech) ||
-    (item.noticePeriod ? optionLabel(NOTICE_OPTIONS, item.noticePeriod) : null) ||
-    (item.availabilityDate ? `ab ${new Date(item.availabilityDate).toLocaleDateString('de-DE')}` : null) ||
-    'Sofort';
+    (item.noticePeriod ? term(optionLabel(NOTICE_OPTIONS, item.noticePeriod)) : null) ||
+    (item.availabilityDate ? availableFromLabel(item.availabilityDate) : null) ||
+    immediatelyLabel();
 
   useEffect(() => {
     setAiExpanded(false);
@@ -206,7 +168,7 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
               <p className="text-sm text-muted-foreground">{item.currentRole}</p>
             )}
             <p className="text-xs text-muted-foreground/70 mt-0.5">
-              Für: <span className="font-medium text-muted-foreground">{item.jobTitle}</span>
+              {tc('preview.for')} <span className="font-medium text-muted-foreground">{item.jobTitle}</span>
               <span className="ml-2 font-mono text-muted-foreground/50">{item.anonymizedName}</span>
             </p>
           </div>
@@ -216,21 +178,21 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
         <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground mb-4">
           <span className="flex items-center gap-1">
             <Briefcase className="h-3 w-3" />
-            {item.experienceBand}
+            {experienceBandLabel(item.experienceBand)}
           </span>
           <span className="flex items-center gap-1">
             <MapPin className="h-3 w-3" />
-            {item.region}
+            {regionLabel(item.region)}
           </span>
           <span className="flex items-center gap-1">
             <Banknote className="h-3 w-3" />
             {vertragsart === 'freelance'
-              ? `Tagessatz: ${TAGESSATZ_ABSTIMMUNG}`
+              ? tc('preview.dayRate')
               : gespraech?.salary_wish || item.salaryBand || t('bewerber.chips.salary_locked')}
           </span>
           <span className="flex items-center gap-1">
             <Laptop className="h-3 w-3" />
-            {formatRemote(item.remotePreference)}
+            {remoteLabel(item.remotePreference)}
           </span>
           <span className="flex items-center gap-1">
             <Clock className="h-3 w-3" />
@@ -252,10 +214,10 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
               <AvatarFallback className="bg-primary/10 text-[9px] text-primary">{initialsOf(hhName)}</AvatarFallback>
             </Avatar>
             <span>
-              Eingereicht von {submitter.partnerNumber ? (
-                <a href={`/partner/${submitter.partnerNumber}`} target="_blank" rel="noreferrer" title="Partner-Prüfseite öffnen" className="font-medium text-foreground hover:underline">{hhName}</a>
+              {tc('preview.submittedBy')} {submitter.partnerNumber ? (
+                <a href={`/partner/${submitter.partnerNumber}`} target="_blank" rel="noreferrer" title={tc('preview.partnerPage')} className="font-medium text-foreground hover:underline">{hhName}</a>
               ) : <span className="font-medium text-foreground">{hhName}</span>}
-              {` · ${new Date(item.submittedAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}`}
+              {` · ${fmtDate(item.submittedAt)}`}
             </span>
           </div>
         )}
@@ -299,7 +261,7 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
               onClick={() => setShowFrage(true)}
             >
               <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
-              Frage an {hhName}
+              {tc('preview.askHh', { name: hhName })}
             </Button>
           </div>
         )}
@@ -315,7 +277,7 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
             {item.skills && item.skills.length > 0 && (
               <div className="bg-card border rounded-lg p-3">
                 <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                  Skills
+                  {tc('preview.skills')}
                 </h4>
                 <div className="flex flex-wrap gap-1.5">
                   {(skillsExpanded ? item.skills : item.skills.slice(0, 8)).map((skill, idx) => (
@@ -347,10 +309,10 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
               <div className="flex items-center justify-between mb-2">
                 <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                   <Sparkles className="h-3 w-3" />
-                  Einschätzung zur Stelle
+                  {tc('preview.fitTitle')}
                 </h4>
                 <Badge variant="outline" className="text-[10px] font-normal px-1.5 py-0">
-                  KI-Text
+                  {tc('preview.aiBadge')}
                 </Badge>
               </div>
 
@@ -373,7 +335,7 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
 
               {/* Disclaimer */}
               <p className="text-[10px] text-muted-foreground/50 leading-tight">
-                Passung zur Stelle, nicht Bewertung der Person. Die Entscheidung liegt bei Ihnen.
+                {tc('preview.fitDisclaimer')}
               </p>
             </div>
 
@@ -381,9 +343,9 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
             {item.recruiterNotes?.trim() && (
               <div className="bg-card border rounded-lg p-3">
                 <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                  Empfehlung von {hhName}
+                  {tc('preview.recommendation', { name: hhName })}
                 </h4>
-                <p className="text-xs text-muted-foreground leading-relaxed">„{item.recruiterNotes.trim()}“</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">{tc('preview.quote', { text: item.recruiterNotes.trim() })}</p>
               </div>
             )}
 
@@ -392,7 +354,7 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
           {/* ─── RIGHT: Werdegang ─── */}
           <div className="p-4">
             <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-              Letzte Stationen
+              {tc('preview.lastStations')}
             </h4>
 
             {item.career.length > 0 ? (
@@ -421,11 +383,11 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
                           {entry.companyAnonymized}
                         </p>
                         <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground/70">
-                          <span>{formatCareerRange(entry)}</span>
+                          <span>{careerRangeLabel(entry)}</span>
                           {entry.durationYears && (
                             <>
                               <span>·</span>
-                              <span>{formatDuration(entry.durationYears)}</span>
+                              <span>{durationLabel(entry.durationYears)}</span>
                             </>
                           )}
                         </div>
@@ -436,7 +398,7 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
               </div>
             ) : (
               <div className="text-xs text-muted-foreground/50 py-6 text-center">
-                Keine Stationen verfügbar
+                {tc('preview.noStations')}
               </div>
             )}
           </div>
@@ -450,7 +412,7 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
       <div className="p-3 border-t">
         <Button variant="outline" size="sm" className="w-full" asChild>
           <Link to={`/dashboard/candidates/${item.submissionId}`}>
-            Vollständiges Profil
+            {tc('preview.fullProfile')}
             <ChevronRight className="h-3.5 w-3.5 ml-1" />
           </Link>
         </Button>

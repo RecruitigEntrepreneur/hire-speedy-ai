@@ -25,7 +25,7 @@ serve(async (req) => {
     const ctx = abrechnungCtx(placementCtx(defaultCtx(serviceClient())));
     switch (body.action) {
       // H8–H10, J5
-      case 'overview': return json(await overview(ctx, user));
+      case 'overview': return json(await overview(ctx, user, body));
       case 'placement': return json(await placementView(ctx, user, body));
       // H7
       case 'report_start': return json(await reportStart(ctx, user, body));
@@ -34,10 +34,10 @@ serve(async (req) => {
       // H3–H6
       case 'job_terms': return json(await jobTerms(ctx, user, body));
       // H1/H2
-      case 'conditions': return json(await conditions(ctx, user));
-      case 'consent': return json(await consent(ctx, user));
+      case 'conditions': return json(await conditions(ctx, user, body));
+      case 'consent': return json(await consent(ctx, user, body));
       // H11
-      case 'credit_notes': return json(await creditNotes(ctx, user));
+      case 'credit_notes': return json(await creditNotes(ctx, user, body));
       case 'credit_note_file': return json(await creditNoteFile(ctx, user, body));
       case 'credit_notes_export': return json(await creditNotesExport(ctx, user, body));
       case 'objection': return json(await objection(ctx, user, body));

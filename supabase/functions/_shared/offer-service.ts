@@ -12,6 +12,9 @@ import { canUserActOnJob } from './team-access.ts';
 import { dbFail, must, type ServiceCtx } from './interview-service.ts';
 import * as mails from './offer-mails.ts';
 import { budgetZeile } from './contracting-konditionen.ts';
+import { intlLocale, tr, type Lang } from './i18n.ts';
+import { clientLanguage, recruiterLanguage } from './recipient-language.ts';
+import { euroIn, quoteMarks } from './mail-i18n.ts';
 import { DECLINE_REASONS, cancelCandidateMails, candidateState, reportAccept, revokeCandidateLinks, scheduleCandidateMail, tellCandidateExtended, whenLabel } from './offer-candidate.ts';
 
 // accept_reported: Headhunter hat eine Zusage gemeldet, der Kandidat bestätigt noch (G + H, 25.10.2026)
@@ -24,6 +27,8 @@ interface Bundle { submission: any; job: any; candidate: any; recruiter: { name:
 
 const firstName = (full: string | null | undefined) => (full ? full.trim().split(/\s+/)[0] : null);
 const euro = (n: number) => `${new Intl.NumberFormat('de-DE').format(n)} €`;
+/** „Ihr Headhunter“, wenn kein Name im Profil steht. */
+const yourHeadhunter = (lang: Lang) => tr(lang, { de: 'Ihr Headhunter', en: 'Your headhunter', sv: 'Din headhunter', nb: 'Headhunteren din' });
 
 async function profile(db: SupabaseClient, userId: string | null | undefined) {
   if (!userId) return null;
@@ -310,9 +315,11 @@ export async function createOffer(ctx: ServiceCtx, user: User, body: any, opts: 
       : `${euro(salary)}${variable ? ` + ${euro(variable)}` : ''} · Bitte anrufen, Mail an ${firstName(b.candidate.full_name)} ${mailAt}`,
     'candidate', b.candidate.id);
   if (b.recruiter?.email) {
+    // Mail in der Sprache des Headhunters (Mehrsprachigkeit, 13.11.2026)
+    const lang = await recruiterLanguage(ctx.db, b.submission.recruiter_id);
     const content = mails.recruiterOfferReceived({
       recruiterFirstName: firstName(b.recruiter.name), candidateName: b.candidate.full_name, companyName: company, jobTitle: b.job.title,
-      offer: factsOf(offer), message, adjusted: !!previous, mailAt, wishAccepted: !!opts.immediate, offerUrl: offerUrl(ctx, b),
+      offer: factsOf(offer), message, adjusted: !!previous, mailAt: opts.immediate ? null : whenLabel(Date.parse(planned.dueAt), ctx.now(), lang), wishAccepted: !!opts.immediate, offerUrl: offerUrl(ctx, b), lang,
     });
     await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: b.recruiter.email, ...content }, { template: 'offer_received_recruiter', meta: { offer_id: (offer as any).id } });
   }
@@ -361,6 +368,7 @@ export async function requestEngagement(ctx: ServiceCtx, user: User, body: any) 
   if (b.recruiter?.email) {
     const content = mails.recruiterEinsatzAngefragt({
       recruiterFirstName: firstName(b.recruiter.name), candidateName: candidate, companyName: company, jobTitle: b.job.title, einsatz, akteUrl: offerUrl(ctx, b),
+      lang: await recruiterLanguage(ctx.db, b.submission.recruiter_id),
     });
     await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: b.recruiter.email, ...content }, { template: 'engagement_requested_recruiter', meta: { submission_id: b.submission.id } });
   }
@@ -448,8 +456,10 @@ export async function respondOffer(ctx: ServiceCtx, user: User, body: any) {
     await notify(ctx, uid, 'offer_answer', title, message, 'submission', b.submission.id);
     const prof = await profile(ctx.db, uid);
     if (!prof?.email) continue;
+    const lang = await clientLanguage(ctx.db, { userId: uid, email: prof.email });
     const content = mails.clientOfferAnswer({
-      name: prof.name, candidateName: b.candidate.full_name, recruiterName, jobTitle: b.job.title, way,
+      lang,
+      name: prof.name, candidateName: b.candidate.full_name, recruiterName: b.recruiter?.name || yourHeadhunter(lang), jobTitle: b.job.title, way,
       until: (response.until as string) ?? null, note, wish: wish ?? null, reason: way === 'declined' ? String((updated as any).rejection_reason ?? '') : (response.reason as string) ?? null,
       profileUrl: `${ctx.appUrl()}/dashboard/candidates/${b.submission.id}`,
     });
@@ -468,10 +478,13 @@ async function clientOffer(ctx: ServiceCtx, user: User, offerId: unknown) {
   return { offer, b };
 }
 
-async function tellRecruiter(ctx: ServiceCtx, b: Bundle, offerId: string, text: string) {
-  await notify(ctx, b.submission.recruiter_id, 'offer_update', `${companyFor(b)}: ${text}`, b.candidate.full_name, 'candidate', b.candidate.id);
+/** text: fester deutscher Text oder Text je Sprache des Headhunters (Mehrsprachigkeit). */
+async function tellRecruiter(ctx: ServiceCtx, b: Bundle, offerId: string, text: string | ((lang: Lang) => string)) {
+  const textIn = (l: Lang) => (typeof text === 'function' ? text(l) : text);
+  await notify(ctx, b.submission.recruiter_id, 'offer_update', `${companyFor(b)}: ${textIn('de')}`, b.candidate.full_name, 'candidate', b.candidate.id);
   if (b.recruiter?.email) {
-    const content = mails.recruiterOfferUpdate({ recruiterFirstName: firstName(b.recruiter.name), candidateName: b.candidate.full_name, companyName: companyFor(b), text, akteUrl: `${ctx.appUrl()}/recruiter/candidates/${b.candidate.id}` });
+    const lang = await recruiterLanguage(ctx.db, b.submission.recruiter_id);
+    const content = mails.recruiterOfferUpdate({ recruiterFirstName: firstName(b.recruiter.name), candidateName: b.candidate.full_name, companyName: companyFor(b), text: textIn(lang), akteUrl: `${ctx.appUrl()}/recruiter/candidates/${b.candidate.id}`, lang });
     await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: b.recruiter.email, ...content }, { template: 'offer_update_recruiter', meta: { offer_id: offerId } });
   }
 }
@@ -486,7 +499,15 @@ export async function keepOffer(ctx: ServiceCtx, user: User, body: any) {
   // Wie ein neues Angebot: Der Kandidat hört es zuerst vom Headhunter, spätestens nach 2 Std. per Mail (02.11.2026)
   const planned = await scheduleCandidateMail(ctx, offer.id);
   const first = firstName(b.candidate.full_name);
-  await tellRecruiter(ctx, b, offer.id, `bleibt bei ${euro(offer.salary_offered)}${note ? ` („${note}“)` : ''}. Bitte ruf ${first} an, spätestens ${whenLabel(Date.parse(planned.dueAt), ctx.now())} bekommt ${first} das Angebot wieder per Mail.`);
+  await tellRecruiter(ctx, b, offer.id, (l) => {
+    const [qa, qb] = quoteMarks(l);
+    return tr(l, {
+      de: 'bleibt bei {s}{n}. Bitte ruf {f} an, spätestens {w} bekommt {f} das Angebot wieder per Mail.',
+      en: 'is staying at {s}{n}. Please call {f}; {f} will receive the offer again by email {w} at the latest.',
+      sv: 'står fast vid {s}{n}. Ring {f}; senast {w} får {f} erbjudandet igen via mejl.',
+      nb: 'holder fast ved {s}{n}. Ring {f}; senest {w} får {f} tilbudet igjen på e-post.',
+    }, { s: euroIn(l, offer.salary_offered), n: note ? ` (${qa}${note}${qb})` : '', f: first ?? '', w: whenLabel(Date.parse(planned.dueAt), ctx.now(), l) });
+  });
   return { ok: true };
 }
 
@@ -532,7 +553,7 @@ export async function withdrawOffer(ctx: ServiceCtx, user: User, body: any) {
   await cancelCandidateMails(ctx, offer);
   await revokeCandidateLinks(ctx, offer.id);
   await event(ctx, offer.id, 'withdrawn', 'client', user.id);
-  await tellRecruiter(ctx, b, offer.id, 'hat das Angebot zurückgezogen');
+  await tellRecruiter(ctx, b, offer.id, (l) => tr(l, { de: 'hat das Angebot zurückgezogen', en: 'has withdrawn the offer', sv: 'har dragit tillbaka erbjudandet', nb: 'har trukket tilbake tilbudet' }));
   return { ok: true };
 }
 
@@ -544,7 +565,7 @@ export async function extendOffer(ctx: ServiceCtx, user: User, body: any) {
   await ctx.db.from('offers').update({ response_due: due, expires_at: `${due}T23:59:59+01:00`, updated_at: new Date(ctx.now()).toISOString() }).eq('id', offer.id);
   await event(ctx, offer.id, 'extended', 'client', user.id, { responseDue: due });
   await tellCandidateExtended(ctx, offer.id);
-  await tellRecruiter(ctx, b, offer.id, `hat die Antwortfrist bis ${new Date(`${due}T12:00:00Z`).toLocaleDateString('de-DE')} verlängert`);
+  await tellRecruiter(ctx, b, offer.id, (l) => tr(l, { de: 'hat die Antwortfrist bis {d} verlängert', en: 'has extended the reply deadline to {d}', sv: 'har förlängt svarsfristen till {d}', nb: 'har forlenget svarfristen til {d}' }, { d: new Date(`${due}T12:00:00Z`).toLocaleDateString(intlLocale(l)) }));
   // Bitte des Headhunters um mehr Zeit ist damit beantwortet
   if (offer.candidate_response?.extension_asked) {
     const { extension_asked: _done, ...rest } = offer.candidate_response;
@@ -568,7 +589,8 @@ export async function askExtension(ctx: ServiceCtx, user: User, body: any) {
     await notify(ctx, uid, 'offer_answer', `${recruiterName} bittet um mehr Zeit für ${b.candidate.full_name}`, 'Die Frist verlängern Sie im Angebot mit einem Klick.', 'submission', b.submission.id);
     const prof = await profile(ctx.db, uid);
     if (!prof?.email) continue;
-    const content = mails.clientExtensionAsked({ name: prof.name, candidateName: b.candidate.full_name, recruiterName, jobTitle: b.job.title, responseDue: offer.response_due ?? null, profileUrl: `${ctx.appUrl()}/dashboard/candidates/${b.submission.id}` });
+    const lang = await clientLanguage(ctx.db, { userId: uid, email: prof.email });
+    const content = mails.clientExtensionAsked({ name: prof.name, candidateName: b.candidate.full_name, recruiterName: b.recruiter?.name || yourHeadhunter(lang), jobTitle: b.job.title, responseDue: offer.response_due ?? null, profileUrl: `${ctx.appUrl()}/dashboard/candidates/${b.submission.id}`, lang });
     await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: prof.email, ...content }, { template: 'offer_extension_asked', meta: { offer_id: offer.id } });
   }
   return { ok: true };
@@ -609,7 +631,8 @@ export async function recommend(ctx: ServiceCtx, user: User, body: any) {
     await notify(ctx, uid, 'offer_recommendation', `Empfehlung von ${recruiterName} zu ${b.candidate.full_name}`, intro ?? items.map((i: any) => `${i.label}: ${i.value}`).join(' · ').slice(0, 200), 'submission', b.submission.id);
     const prof = await profile(ctx.db, uid);
     if (!prof?.email) continue;
-    const content = mails.clientRecommendation({ name: prof.name, candidateName: b.candidate.full_name, recruiterName, jobTitle: b.job.title, intro, items, profileUrl: `${ctx.appUrl()}/dashboard/candidates/${b.submission.id}` });
+    const lang = await clientLanguage(ctx.db, { userId: uid, email: prof.email });
+    const content = mails.clientRecommendation({ name: prof.name, candidateName: b.candidate.full_name, recruiterName: b.recruiter?.name || yourHeadhunter(lang), jobTitle: b.job.title, intro, items, profileUrl: `${ctx.appUrl()}/dashboard/candidates/${b.submission.id}`, lang });
     await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: prof.email, ...content }, { template: 'offer_recommendation_client', meta: { submission_id: b.submission.id } });
   }
   return { ok: true };

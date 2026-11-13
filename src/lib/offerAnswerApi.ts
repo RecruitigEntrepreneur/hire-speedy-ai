@@ -1,4 +1,7 @@
+import i18n from '@/i18n';
 import { callFunction } from '@/lib/interviewScheduling';
+import { intlLocale } from '@/i18n/languages';
+import { fmtMoney } from '@/lib/localeFormat';
 
 /**
  * Antwortseite des Kandidaten (G + H, 25.10.2026): /angebot/:token ohne Anmeldung.
@@ -28,23 +31,24 @@ export interface OfferPageView {
 
 export type AnswerWay = 'accepted' | 'declined' | 'callback' | 'confirmed' | 'not_confirmed';
 
-export const DECLINE_OPTIONS: { key: string; label: string }[] = [
-  { key: 'salary', label: 'Gehalt passt nicht' },
-  { key: 'counter_offer', label: 'Gegenangebot meines Arbeitgebers' },
-  { key: 'other_job', label: 'andere Stelle' },
-  { key: 'personal', label: 'persönliche Gründe' },
-  { key: 'other', label: 'anderer Grund' },
-];
+/** Absagegründe: der Schlüssel geht an die Function, die Anzeige kommt aus offerAnswer:decline.<key>. */
+export const DECLINE_KEYS = ['salary', 'counter_offer', 'other_job', 'personal', 'other'] as const;
+export const declineLabel = (key: string) => i18n.t(`offerAnswer:decline.${key}`);
 
 const call = <T,>(action: string, token: string, extra: Record<string, unknown> = {}, fallback?: string) =>
   callFunction<T>('offer-answer', { action, token, ...extra }, fallback);
 
 export const offerAnswerApi = {
-  peek: (token: string) => call<OfferPageView>('peek', token, {}, 'Das Angebot konnte nicht geladen werden.'),
+  peek: (token: string) => call<OfferPageView>('peek', token, {}, i18n.t('offerAnswer:page.loadFailed')),
   answer: (token: string, input: { way: AnswerWay; reasonCategory?: string; note?: string; topic?: string }) =>
-    call<{ ok: true; state: string; answer?: string; recruiterName?: string | null }>('answer', token, input, 'Ihre Antwort konnte nicht gespeichert werden.'),
+    call<{ ok: true; state: string; answer?: string; recruiterName?: string | null }>('answer', token, input, i18n.t('offerAnswer:page.saveFailed')),
 };
 
-export const euro = (n: number | null | undefined) => (n == null ? '–' : `${new Intl.NumberFormat('de-DE').format(n)} €`);
-export const dayDe = (iso: string | null | undefined) => (iso ? new Date(`${iso.slice(0, 10)}T12:00:00Z`).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }) : '–');
-export const dateTimeDe = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }).replace(',', ' um') : '');
+// Anzeige in der Sprache der Seite; Uhrzeiten in deutscher Zeit.
+export const euro = (n: number | null | undefined) => (n == null ? '–' : fmtMoney(n));
+export const dayDe = (iso: string | null | undefined) => (iso ? new Date(`${iso.slice(0, 10)}T12:00:00Z`).toLocaleDateString(intlLocale(i18n.language), { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }) : '–');
+/** Tag und Uhrzeit getrennt, damit der Satz („am … um … Uhr“) in der Übersetzung steht. */
+export const dateTimeParts = (iso: string) => ({
+  date: new Date(iso).toLocaleDateString(intlLocale(i18n.language), { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' }),
+  time: new Date(iso).toLocaleTimeString(intlLocale(i18n.language), { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }),
+});

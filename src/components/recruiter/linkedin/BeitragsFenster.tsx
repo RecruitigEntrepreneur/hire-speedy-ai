@@ -18,9 +18,13 @@ import { baueBeitrag, BEITRAG_MAX, TOENE, type Ton } from '@/lib/linkedinBeitrag
 import { beitragsBildPng, FORMATE, VORLAGEN, zeichneBeitragsBild, type Format, type Vorlage } from '@/lib/beitragsBild';
 import { kopfFakten } from '@/lib/stellenKopf';
 import { FunktionsFehler, linkedinApi } from '@/lib/terminApi';
-import { anonymFunde, ersetzeFunde, GRUND_TEXT } from '../../../../supabase/functions/_shared/linkedin-anonym';
+import { anonymFunde, ersetzeFunde, grundText } from '../../../../supabase/functions/_shared/linkedin-anonym';
+import { normLang } from '../../../../supabase/functions/_shared/i18n';
+import { candidateLanguage, tFor } from '@/lib/localeFormat';
 import { useLinkedin, useTerminseite } from '@/components/recruiter/termin/useTerminseite';
 import type { WorkspaceJob } from '@/components/recruiter/RecruiterJobWorkspace';
+import { useTranslation } from 'react-i18next';
+import { intlLocale } from '@/i18n/languages';
 
 /**
  * Beitragsfenster (21.10.2026): die Stelle anonym auf LinkedIn posten.
@@ -44,6 +48,8 @@ const zuBase64 = (blob: Blob) => new Promise<string>((resolve, reject) => {
 
 export function BeitragsFenster({ open, onOpenChange, job }: { open: boolean; onOpenChange: (o: boolean) => void; job: WorkspaceJob }) {
   const { user } = useAuth();
+  const { t: tr, i18n } = useTranslation('recruiterJobDetail');
+  const locale = intlLocale(i18n.language);
   const qc = useQueryClient();
   const kontakt = useRecruiterKontakt();
   const { zeile: seite } = useTerminseite();
@@ -78,12 +84,13 @@ export function BeitragsFenster({ open, onOpenChange, job }: { open: boolean; on
   const funde = useMemo(() => anonymFunde(text, {
     firma: job.company_name, redList: (roh.reveal_envelope as { red_list?: unknown } | null)?.red_list,
     domains: [roh.company_website as string | null], region: beitrag.region, mitarbeitende: Number(roh.company_headcount) || null,
+    lang: normLang(candidateLanguage()),
   }), [text, job.company_name, roh.reveal_envelope, roh.company_website, roh.company_headcount, beitrag.region]);
 
   const bild = useMemo(() => ({
     region: beitrag.region.text, titel: job.title, gehalt: beitrag.gehalt,
     zusatz: kopfFakten(job).find(f => f.symbol === 'ort')?.text ?? null,
-    vorteile: beitrag.vorteile, name: kontakt?.name || 'Dein Name', link: beitrag.link, partner: !!partner.data && partnerZeigen,
+    vorteile: beitrag.vorteile, name: kontakt?.name || (tFor(candidateLanguage(), 'jobPosting')('beitrag.yourName') as string), link: beitrag.link, partner: !!partner.data && partnerZeigen,
   }), [beitrag, job, kontakt?.name, partner.data, partnerZeigen]);
 
   useEffect(() => {
@@ -109,7 +116,7 @@ export function BeitragsFenster({ open, onOpenChange, job }: { open: boolean; on
       void qc.invalidateQueries({ queryKey: ['beitrag-stand', job.id] });
     } catch (e) {
       if (e instanceof FunktionsFehler && e.grund === 'expired') void qc.invalidateQueries({ queryKey: ['linkedin-status'] });
-      setFehler(e instanceof Error ? e.message : 'LinkedIn hat den Beitrag nicht angenommen.');
+      setFehler(e instanceof Error ? e.message : tr('post.rejected'));
     } finally {
       setSendet(false);
     }
@@ -117,12 +124,12 @@ export function BeitragsFenster({ open, onOpenChange, job }: { open: boolean; on
 
   const loeschen = async () => {
     if (!ergebnis) return;
-    try { await linkedinApi.loeschen(ergebnis.postId); setErgebnis(null); toast.success('Beitrag gelöscht.'); void qc.invalidateQueries({ queryKey: ['beitrag-stand', job.id] }); }
-    catch (e) { toast.error(e instanceof Error ? e.message : 'Löschen hat nicht geklappt.'); }
+    try { await linkedinApi.loeschen(ergebnis.postId); setErgebnis(null); toast.success(tr('post.deleted')); void qc.invalidateQueries({ queryKey: ['beitrag-stand', job.id] }); }
+    catch (e) { toast.error(e instanceof Error ? e.message : tr('post.deleteFailed')); }
   };
 
   const textKopieren = async () => {
-    try { await navigator.clipboard.writeText(text); toast.success('Text kopiert.'); } catch { toast.error('Kopieren ging nicht.'); }
+    try { await navigator.clipboard.writeText(text); toast.success(tr('post.textCopied')); } catch { toast.error(tr('post.copyFailed')); }
   };
   const bildLaden = async () => {
     const png = await beitragsBildPng(bild, vorlage, format);
@@ -134,8 +141,8 @@ export function BeitragsFenster({ open, onOpenChange, job }: { open: boolean; on
   };
   const selbstGepostet = async () => {
     const { error } = await supabase.from('job_linkedin_posts' as never).insert({ job_id: job.id, recruiter_id: user!.id, status: 'manual', text, template: vorlage, format, visibility: sichtbar, show_salary: gehalt } as never);
-    if (error) { toast.error('Konnte nicht gespeichert werden.'); return; }
-    toast.success('Vermerkt: auf LinkedIn gepostet.');
+    if (error) { toast.error(tr('post.saveFailed')); return; }
+    toast.success(tr('post.noted'));
     void qc.invalidateQueries({ queryKey: ['beitrag-stand', job.id] });
     onOpenChange(false);
   };
@@ -146,34 +153,34 @@ export function BeitragsFenster({ open, onOpenChange, job }: { open: boolean; on
   return <Sheet open={open} onOpenChange={onOpenChange}>
     <SheetContent side="right" className="flex w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-[min(1040px,96vw)]">
       <SheetHeader className="border-b border-border px-5 py-4 text-left">
-        <SheetTitle className="text-base">Auf LinkedIn posten</SheetTitle>
-        <SheetDescription>{job.title} · anonym, mit deinem Buchungslink</SheetDescription>
+        <SheetTitle className="text-base">{tr('ws.postAria')}</SheetTitle>
+        <SheetDescription>{tr('post.description', { title: job.title })}</SheetDescription>
       </SheetHeader>
 
       {ergebnis ? <div className="flex flex-1 flex-col items-start gap-3 overflow-y-auto p-6">
-        <p className="flex items-center gap-2 text-lg font-semibold text-emerald-600"><CheckCircle2 className="h-5 w-5"/>Auf LinkedIn gepostet</p>
-        <p className="text-sm text-muted-foreground">{new Date(ergebnis.zeit).toLocaleString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' })} · sichtbar für {sichtbar === 'PUBLIC' ? 'alle' : 'deine Kontakte'}</p>
+        <p className="flex items-center gap-2 text-lg font-semibold text-emerald-600"><CheckCircle2 className="h-5 w-5"/>{tr('post.posted')}</p>
+        <p className="text-sm text-muted-foreground">{tr(sichtbar === 'PUBLIC' ? 'post.visibleAll' : 'post.visibleContacts', { date: new Date(ergebnis.zeit).toLocaleString(locale, { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }) })}</p>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" asChild><a href={ergebnis.url} target="_blank" rel="noreferrer"><ExternalLink className="mr-1.5 h-4 w-4"/>Beitrag ansehen</a></Button>
-          <Button variant="outline" onClick={() => void loeschen()}>Beitrag löschen</Button>
+          <Button variant="outline" asChild><a href={ergebnis.url} target="_blank" rel="noreferrer"><ExternalLink className="mr-1.5 h-4 w-4"/>{tr('post.viewPost')}</a></Button>
+          <Button variant="outline" onClick={() => void loeschen()}>{tr('post.deletePost')}</Button>
         </div>
-        <p className="text-sm text-muted-foreground">Buchungen über diesen Beitrag landen in Interviews und in deinem Talent Pool.</p>
+        <p className="text-sm text-muted-foreground">{tr('post.bookingsNote')}</p>
       </div> : <>
         <div className="grid min-h-0 flex-1 overflow-y-auto md:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
           {/* Vorschau wie im Feed */}
           <div className="border-b border-border bg-muted/40 p-5 md:border-b-0 md:border-r">
-            <p className="mb-2 text-xs text-muted-foreground">Vorschau · so sieht es im Feed aus</p>
+            <p className="mb-2 text-xs text-muted-foreground">{tr('post.preview')}</p>
             <div className="overflow-hidden rounded-lg border border-border bg-card">
               <div className="flex gap-2.5 px-3.5 pt-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">{initialen}</span>
-                <div className="text-sm leading-tight"><p className="font-semibold">{kontakt?.name || 'Dein Name'}</p><p className="flex items-center gap-1 text-xs text-muted-foreground">Headhunter · Jetzt · {sichtbar === 'PUBLIC' ? <Globe className="h-3 w-3"/> : <Users className="h-3 w-3"/>}</p></div>
+                <div className="text-sm leading-tight"><p className="font-semibold">{kontakt?.name || tr('post.yourName')}</p><p className="flex items-center gap-1 text-xs text-muted-foreground">{tr('post.feedLine')} · {sichtbar === 'PUBLIC' ? <Globe className="h-3 w-3"/> : <Users className="h-3 w-3"/>}</p></div>
               </div>
-              <p className="whitespace-pre-line px-3.5 py-2.5 text-[13px] leading-5">{vorschauText}{!mehr && text.split('\n').length > 7 && <button type="button" className="text-muted-foreground hover:underline" onClick={() => setMehr(true)}> … mehr anzeigen</button>}</p>
-              <canvas ref={leinwand} className="block h-auto w-full" aria-label="Beitragsbild"/>
+              <p className="whitespace-pre-line px-3.5 py-2.5 text-[13px] leading-5">{vorschauText}{!mehr && text.split('\n').length > 7 && <button type="button" className="text-muted-foreground hover:underline" onClick={() => setMehr(true)}> {tr('post.showMore')}</button>}</p>
+              <canvas ref={leinwand} className="block h-auto w-full" aria-label={tr('post.imageAria')}/>
               <div className="flex justify-around border-t border-border py-2 text-xs text-muted-foreground">
-                <span className="inline-flex items-center gap-1"><ThumbsUp className="h-3.5 w-3.5"/>Gefällt mir</span>
-                <span className="inline-flex items-center gap-1"><MessageSquare className="h-3.5 w-3.5"/>Kommentieren</span>
-                <span className="inline-flex items-center gap-1"><Repeat2 className="h-3.5 w-3.5"/>Teilen</span>
+                <span className="inline-flex items-center gap-1"><ThumbsUp className="h-3.5 w-3.5"/>{tr('post.like')}</span>
+                <span className="inline-flex items-center gap-1"><MessageSquare className="h-3.5 w-3.5"/>{tr('post.comment')}</span>
+                <span className="inline-flex items-center gap-1"><Repeat2 className="h-3.5 w-3.5"/>{tr('ws.share')}</span>
               </div>
             </div>
           </div>
@@ -181,68 +188,68 @@ export function BeitragsFenster({ open, onOpenChange, job }: { open: boolean; on
           {/* Anpassen */}
           <div className="space-y-5 p-5 text-sm">
             <section className="space-y-2">
-              <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs text-muted-foreground">Text</p><Segment<Ton> label="Ton" value={ton} options={TOENE} onChange={t => { setTon(t); setBearbeitet(false); }}/></div>
+              <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs text-muted-foreground">{tr('post.text')}</p><Segment<Ton> label={tr('post.toneLabel')} value={ton} options={TOENE} onChange={t => { setTon(t); setBearbeitet(false); }}/></div>
               <Textarea value={text} rows={9} onChange={e => { setText(e.target.value); setBearbeitet(true); }}
                 className={cn('text-[13px] leading-5', funde.length && 'border-destructive focus-visible:ring-destructive')}/>
               <div className="flex justify-between text-xs text-muted-foreground">
-                {bearbeitet ? <button type="button" className="underline-offset-2 hover:underline" onClick={() => setBearbeitet(false)}>Vorlage neu übernehmen</button> : <span>direkt bearbeitbar</span>}
-                <span className={cn(lang && 'text-destructive')}>{text.length.toLocaleString('de-DE')} / {BEITRAG_MAX.toLocaleString('de-DE')}</span>
+                {bearbeitet ? <button type="button" className="underline-offset-2 hover:underline" onClick={() => setBearbeitet(false)}>{tr('post.resetTemplate')}</button> : <span>{tr('post.editable')}</span>}
+                <span className={cn(lang && 'text-destructive')}>{text.length.toLocaleString(locale)} / {BEITRAG_MAX.toLocaleString(locale)}</span>
               </div>
               {funde.length > 0 ? <div role="alert" className="space-y-2 rounded-md border border-destructive/40 bg-destructive/5 p-3">
-                <p className="flex items-center gap-1.5 font-medium text-destructive"><AlertTriangle className="h-4 w-4"/>{funde.length === 1 ? 'Eine Stelle verrät' : `${funde.length} Stellen verraten`} den Kunden</p>
-                <ul className="space-y-0.5 text-xs text-muted-foreground">{funde.map(f => <li key={f.treffer}>„{f.treffer.trim()}“ {GRUND_TEXT[f.grund]}</li>)}</ul>
-                <Button size="sm" variant="outline" onClick={() => { setText(ersetzeFunde(text, funde)); setBearbeitet(true); }}>Automatisch ersetzen</Button>
-              </div> : <p className="flex items-start gap-1.5 rounded-md bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700"><ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0"/>Immer anonym: kein Firmenname, kein Logo, keine Website · Region statt Stadt ({beitrag.region.text}) · Branche allgemein · keine Mitarbeiterzahl</p>}
+                <p className="flex items-center gap-1.5 font-medium text-destructive"><AlertTriangle className="h-4 w-4"/>{tr('post.leaks', { count: funde.length })}</p>
+                <ul className="space-y-0.5 text-xs text-muted-foreground">{funde.map(f => <li key={f.treffer}>„{f.treffer.trim()}“ {grundText(f.grund, normLang(i18n.language))}</li>)}</ul>
+                <Button size="sm" variant="outline" onClick={() => { setText(ersetzeFunde(text, funde)); setBearbeitet(true); }}>{tr('post.autoReplace')}</Button>
+              </div> : <p className="flex items-start gap-1.5 rounded-md bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700"><ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0"/>{tr('post.anonymous', { region: beitrag.region.text })}</p>}
             </section>
 
             <section className="space-y-2">
-              <p className="text-xs text-muted-foreground">Bild</p>
-              <div className="flex flex-wrap gap-2"><Segment<Vorlage> label="Vorlage" value={vorlage} options={VORLAGEN} onChange={setVorlage}/><Segment<Format> label="Format" value={format} options={FORMATE.map(f => ({ id: f.id, label: f.label }))} onChange={setFormat}/></div>
+              <p className="text-xs text-muted-foreground">{tr('post.image')}</p>
+              <div className="flex flex-wrap gap-2"><Segment<Vorlage> label={tr('post.templateLabel')} value={vorlage} options={VORLAGEN} onChange={setVorlage}/><Segment<Format> label={tr('post.formatLabel')} value={format} options={FORMATE.map(f => ({ id: f.id, label: f.label }))} onChange={setFormat}/></div>
             </section>
 
             <section className="space-y-2.5">
-              <p className="text-xs text-muted-foreground">Im Beitrag</p>
-              <label className="flex items-center justify-between gap-3"><span>Gehalt zeigen{beitrag.gehalt ? <span className="text-muted-foreground"> ({beitrag.gehalt})</span> : null}</span><Switch checked={gehalt} onCheckedChange={setGehalt}/></label>
-              {partner.data && <label className="flex items-center justify-between gap-3"><span>Matchunt Partner-Abzeichen im Bild</span><Switch checked={partnerZeigen} onCheckedChange={setPartnerZeigen}/></label>}
+              <p className="text-xs text-muted-foreground">{tr('post.inPost')}</p>
+              <label className="flex items-center justify-between gap-3"><span>{tr('post.showSalary')}{beitrag.gehalt ? <span className="text-muted-foreground"> ({beitrag.gehalt})</span> : null}</span><Switch checked={gehalt} onCheckedChange={setGehalt}/></label>
+              {partner.data && <label className="flex items-center justify-between gap-3"><span>{tr('post.partnerBadge')}</span><Switch checked={partnerZeigen} onCheckedChange={setPartnerZeigen}/></label>}
               <div className="flex items-center justify-between gap-3">
-                <span>Buchungslink + QR-Code</span>
-                {slug ? <span className="flex items-center gap-1 text-xs text-emerald-600"><CheckCircle2 className="h-3.5 w-3.5"/>Terminseite aktiv</span>
-                  : <Link to={`/recruiter/profile/terminseite?zurueck=${encodeURIComponent(rueck)}`} className="flex items-center gap-1 text-xs text-amber-700 underline-offset-2 hover:underline"><CalendarOff className="h-3.5 w-3.5"/>Terminseite einrichten</Link>}
+                <span>{tr('post.bookingLink')}</span>
+                {slug ? <span className="flex items-center gap-1 text-xs text-emerald-600"><CheckCircle2 className="h-3.5 w-3.5"/>{tr('post.pageActive')}</span>
+                  : <Link to={`/recruiter/profile/terminseite?zurueck=${encodeURIComponent(rueck)}`} className="flex items-center gap-1 text-xs text-amber-700 underline-offset-2 hover:underline"><CalendarOff className="h-3.5 w-3.5"/>{tr('post.setupPage')}</Link>}
               </div>
-              {!slug && <p className="text-xs text-muted-foreground">Bis dahin endet der Beitrag mit „Schreib mir hier auf LinkedIn“.</p>}
+              {!slug && <p className="text-xs text-muted-foreground">{tr('post.withoutPage')}</p>}
               <div className="space-y-1">
-                <label htmlFor="beitrag-region" className="text-xs text-muted-foreground">Region</label>
+                <label htmlFor="beitrag-region" className="text-xs text-muted-foreground">{tr('post.region')}</label>
                 <Input id="beitrag-region" className="h-8" value={region || beitrag.region.text} onChange={e => setRegion(e.target.value)}/>
-                {!beitrag.region.sicher && !region && <p className="text-xs text-amber-700">Den Ort kennen wir nicht genau; bitte eine Region eintragen, die den Kunden nicht verrät.</p>}
+                {!beitrag.region.sicher && !region && <p className="text-xs text-amber-700">{tr('post.regionUnsure')}</p>}
               </div>
             </section>
 
             <section className="space-y-2">
-              <p className="text-xs text-muted-foreground">Sichtbar für</p>
-              <Segment<'PUBLIC' | 'CONNECTIONS'> label="Sichtbarkeit" value={sichtbar} options={[{ id: 'PUBLIC', label: 'Alle' }, { id: 'CONNECTIONS', label: 'Nur Kontakte' }]} onChange={setSichtbar}/>
+              <p className="text-xs text-muted-foreground">{tr('post.visibleFor')}</p>
+              <Segment<'PUBLIC' | 'CONNECTIONS'> label={tr('post.visibility')} value={sichtbar} options={[{ id: 'PUBLIC', label: tr('post.all') }, { id: 'CONNECTIONS', label: tr('post.contactsOnly') }]} onChange={setSichtbar}/>
             </section>
 
             {(vonHand || !direkt) && <section className="space-y-2 rounded-lg border border-border p-3">
-              <p className="text-xs text-muted-foreground">{direkt ? 'Selbst posten' : 'Direkt posten kommt, sobald die LinkedIn-App freigeschaltet ist. Bis dahin so:'}</p>
+              <p className="text-xs text-muted-foreground">{direkt ? tr('post.manual') : tr('post.manualUntil')}</p>
               <div className="grid gap-1.5">
-                <Button variant="outline" size="sm" className="justify-start" onClick={() => void textKopieren()}><Copy className="mr-2 h-3.5 w-3.5"/>1 · Text kopieren</Button>
-                <Button variant="outline" size="sm" className="justify-start" onClick={() => void bildLaden()}><Download className="mr-2 h-3.5 w-3.5"/>2 · Bild herunterladen</Button>
-                <Button size="sm" className="justify-start bg-[#0A66C2] text-white hover:bg-[#004182]" asChild><a href="https://www.linkedin.com/feed/?shareActive=true" target="_blank" rel="noreferrer"><Linkedin className="mr-2 h-3.5 w-3.5"/>3 · LinkedIn öffnen</a></Button>
+                <Button variant="outline" size="sm" className="justify-start" onClick={() => void textKopieren()}><Copy className="mr-2 h-3.5 w-3.5"/>{tr('post.step1')}</Button>
+                <Button variant="outline" size="sm" className="justify-start" onClick={() => void bildLaden()}><Download className="mr-2 h-3.5 w-3.5"/>{tr('post.step2')}</Button>
+                <Button size="sm" className="justify-start bg-[#0A66C2] text-white hover:bg-[#004182]" asChild><a href="https://www.linkedin.com/feed/?shareActive=true" target="_blank" rel="noreferrer"><Linkedin className="mr-2 h-3.5 w-3.5"/>{tr('post.step3')}</a></Button>
               </div>
-              <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => void selbstGepostet()}><Check className="mr-1.5 h-3.5 w-3.5"/>Ich habe gepostet</Button>
+              <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => void selbstGepostet()}><Check className="mr-1.5 h-3.5 w-3.5"/>{tr('post.iPosted')}</Button>
             </section>}
           </div>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3">
           {fehler ? <p role="alert" className="flex max-w-md items-start gap-1.5 text-xs text-destructive"><X className="mt-0.5 h-3.5 w-3.5 shrink-0"/>{fehler}</p>
-            : direkt && !vonHand ? <button type="button" className="text-xs text-muted-foreground underline-offset-2 hover:underline" onClick={() => setVonHand(true)}>Lieber selbst posten? Text kopieren und Bild laden</button> : <span/>}
+            : direkt && !vonHand ? <button type="button" className="text-xs text-muted-foreground underline-offset-2 hover:underline" onClick={() => setVonHand(true)}>{tr('post.preferManual')}</button> : <span/>}
           {direkt && (li.isLoading ? <Button disabled><Loader2 className="mr-2 h-4 w-4 animate-spin"/>LinkedIn …</Button>
             : !status?.verbunden ? <Button className="bg-[#0A66C2] text-white hover:bg-[#004182]" disabled={li.verbinden.isPending} onClick={() => li.verbinden.mutate(rueck)}>
-                {li.verbinden.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Linkedin className="mr-2 h-4 w-4"/>}{status?.abgelaufen ? 'Neu bestätigen und posten' : 'Mit LinkedIn verbinden'}
+                {li.verbinden.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Linkedin className="mr-2 h-4 w-4"/>}{status?.abgelaufen ? tr('post.reconfirm') : tr('post.connect')}
               </Button>
             : <Button className="bg-[#0A66C2] text-white hover:bg-[#004182]" disabled={!sauber || sendet} onClick={() => void freigeben()}>
-                {sendet ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Linkedin className="mr-2 h-4 w-4"/>}{funde.length ? `Erst ${funde.length === 1 ? 'die Stelle' : `die ${funde.length} Stellen`} ändern` : 'Freigeben und auf LinkedIn posten'}
+                {sendet ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Linkedin className="mr-2 h-4 w-4"/>}{funde.length ? tr('post.fixFirst', { count: funde.length }) : tr('post.release')}
               </Button>)}
         </div>
       </>}

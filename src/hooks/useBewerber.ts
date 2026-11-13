@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { candidateAnonCode } from '@/lib/anonymization';
 import { feedbackWayOf } from '@/lib/interviewScheduling';
+import { fmtDayMonth, fmtTime, fmtWeekdayDayMonth } from '@/lib/localeFormat';
+import i18n from '@/i18n';
 
 export type BewerberSortOption = 'match_score' | 'waiting_time' | 'newest';
 
@@ -167,7 +169,7 @@ function afterFeedback(iv: InterviewInfo): BewerberState {
   return { key: 'interview_phase', tone: 'neutral', turn: 'other' };
 }
 
-const ddmm = (iso: string) => new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+const ddmm = (iso: string) => fmtDayMonth(iso);
 const daysSince = (iso: string) => Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000));
 
 /** Datum und Grund in die Pille: „Angefragt 12.10. · seit 8 Tagen“, „Abgelehnt 23.07. · Gehaltsvorstellung“. */
@@ -196,14 +198,12 @@ export interface OfferInfo {
 }
 
 function formatTermin(iso: string): string {
-  const d = new Date(iso);
-  const date = d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
-  const time = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-  return `${date}, ${time}`;
+  // Anzeige in der Sprache der Oberfläche (zum Zeitpunkt des Ladens)
+  return `${fmtWeekdayDayMonth(iso)}, ${fmtTime(iso)}`;
 }
 
 function formatTag(iso: string): string {
-  return new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+  return fmtDayMonth(iso);
 }
 
 // Auch fällige Feedbacks eskalieren rot ab 21 Tagen (Referenz: Interviewtermin).
@@ -431,7 +431,7 @@ export function useBewerber(filters: BewerberFilters) {
           }
           const entry: CareerEntry = {
             jobTitle: exp.job_title,
-            companyAnonymized: exp.company_name || 'Unternehmen', // null bis Opt-In
+            companyAnonymized: exp.company_name || i18n.t('clientCandidates:labels.company'), // null bis Opt-In
             startDate: exp.start_date,
             endDate: exp.end_date,
             isCurrent: exp.is_current || false,

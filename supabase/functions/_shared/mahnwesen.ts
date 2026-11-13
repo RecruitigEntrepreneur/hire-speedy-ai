@@ -20,6 +20,7 @@ import {
   CUSTOMER_TYPES, OPEN_STATUSES, customerRecipients, esc, mailCustomer, namesFor, nowIso, openCentsOf, requireAdminUser, rowsIn, text,
 } from './buchhaltung-kern.ts';
 import { DUNNING_DAYS, LATE_FEE_CENTS, dateDe, dunningOptions, lateInterest } from './buchhaltung-rechnen.ts';
+import { dateKeyIn, m, tx } from './notify-i18n.ts';
 
 async function subjectOf(ctx: PlacementCtx, inv: any): Promise<string | null> {
   if (!inv.placement_id) return null;
@@ -181,7 +182,10 @@ export async function sendDunning(ctx: PlacementCtx, user: User, body: any) {
     const { error } = await ctx.db.from('invoice_reminders').insert({ invoice_id: inv.id, level: 3, sent_at: at, open_cents: openCentsOf(inv), note: note ?? 'Inkasso oder Anwalt', created_by: user.id });
     dbFail(error, 'Der Vermerk');
     await ctx.db.from('invoices').update({ dunning_level: 3 }).eq('id', inv.id);
-    if (names?.recruiterId) await notify(ctx, names.recruiterId, 'invoice_dunning', `Mahnstufe 3: ${names.candidateName}`, `Rechnung ${inv.invoice_number} ist trotz zwei Mahnungen offen. Matchunt gibt sie an Inkasso oder Anwalt.`, 'placement', inv.placement_id);
+    if (names?.recruiterId) {
+      await notify(ctx, names.recruiterId, 'invoice_dunning', (l) => tx(l, m`Mahnstufe 3: ${names.candidateName}`, m`Reminder level 3: ${names.candidateName}`, m`Påminnelsenivå 3: ${names.candidateName}`, m`Purrenivå 3: ${names.candidateName}`),
+        (l) => tx(l, m`Rechnung ${inv.invoice_number} ist trotz zwei Mahnungen offen. Matchunt gibt sie an Inkasso oder Anwalt.`, m`Invoice ${inv.invoice_number} is still unpaid despite two reminders. Matchunt is passing it to a collection agency or lawyer.`, m`Faktura ${inv.invoice_number} är obetald trots två påminnelser. Matchunt lämnar den till inkasso eller advokat.`, m`Faktura ${inv.invoice_number} er ubetalt til tross for to purringer. Matchunt overlater den til inkasso eller advokat.`), 'placement', inv.placement_id);
+    }
     return { ok: true, level, sent: false };
   }
 
@@ -233,7 +237,8 @@ export async function sendDunning(ctx: PlacementCtx, user: User, body: any) {
   await ctx.db.from('invoice_reminders').update({ sent_at: at, sent_to: sentTo.join(', ') }).eq('id', (row as any).id);
   await ctx.db.from('invoices').update({ dunning_level: level }).eq('id', inv.id);
   if (names?.recruiterId) {
-    await notify(ctx, names.recruiterId, 'invoice_dunning', `Mahnstufe ${level}: ${names.candidateName}`, `${names.companyName} hat Rechnung ${inv.invoice_number} noch nicht bezahlt. Matchunt hat die ${level}. Mahnung geschickt, neue Frist ${dateDe(payUntil)}.`, 'placement', inv.placement_id);
+    await notify(ctx, names.recruiterId, 'invoice_dunning', (l) => tx(l, m`Mahnstufe ${level}: ${names.candidateName}`, m`Reminder level ${level}: ${names.candidateName}`, m`Påminnelsenivå ${level}: ${names.candidateName}`, m`Purrenivå ${level}: ${names.candidateName}`),
+      (l) => tx(l, m`${names.companyName} hat Rechnung ${inv.invoice_number} noch nicht bezahlt. Matchunt hat die ${level}. Mahnung geschickt, neue Frist ${dateDe(payUntil)}.`, m`${names.companyName} has not yet paid invoice ${inv.invoice_number}. Matchunt has sent reminder no. ${level}, new deadline ${dateKeyIn(payUntil, l)}.`, m`${names.companyName} har ännu inte betalat faktura ${inv.invoice_number}. Matchunt har skickat påminnelse nr ${level}, ny frist ${dateKeyIn(payUntil, l)}.`, m`${names.companyName} har ennå ikke betalt faktura ${inv.invoice_number}. Matchunt har sendt purring nr. ${level}, ny frist ${dateKeyIn(payUntil, l)}.`), 'placement', inv.placement_id);
   }
   return { ok: true, level, sent: true, sentTo, payUntil };
 }

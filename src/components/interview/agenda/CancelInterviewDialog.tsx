@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import {
@@ -23,6 +24,7 @@ interface Props {
 /** Interview absagen bzw. offene Anfrage zurückziehen – mit Begründung,
  *  die dem Recruiter mitgegeben wird (Spalten cancelled_* existieren bereits). */
 export function CancelInterviewDialog({ interview: iv, open, onOpenChange, onDone }: Props) {
+  const { t } = useTranslation('clientInterviews');
   const { user } = useAuth();
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
@@ -50,13 +52,13 @@ export function CancelInterviewDialog({ interview: iv, open, onOpenChange, onDon
           .eq('id', iv.id);
         if (error) throw error;
       }
-      toast.success(isRequest ? 'Anfrage zurückgezogen. Kandidat und Headhunter sind informiert.' : 'Interview abgesagt. Alle Beteiligten bekommen die Absage.');
+      toast.success(isRequest ? t('cancel.withdrawn') : t('cancel.cancelled'));
       setReason('');
       onOpenChange(false);
       onDone();
     } catch (e) {
       console.error('Absage-Fehler:', e);
-      toast.error(e instanceof Error ? e.message : 'Absage fehlgeschlagen.');
+      toast.error(e instanceof Error ? e.message : t('cancel.failed'));
     } finally {
       setSaving(false);
     }
@@ -68,7 +70,7 @@ export function CancelInterviewDialog({ interview: iv, open, onOpenChange, onDon
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <XCircle className="h-5 w-5 text-destructive" />
-            {isRequest ? 'Anfrage zurückziehen' : 'Interview absagen'}
+            {isRequest ? t('cancel.titleRequest') : t('cancel.title')}
           </DialogTitle>
           <DialogDescription className="flex flex-wrap items-center gap-1">
             <CandidateName iv={iv} /> · {iv.jobTitle}
@@ -77,28 +79,28 @@ export function CancelInterviewDialog({ interview: iv, open, onOpenChange, onDon
 
         <div className="space-y-2">
           <Label htmlFor="cancel-reason" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Begründung (optional)
+            {t('cancel.reason')}
           </Label>
           <Textarea
             id="cancel-reason"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="z. B. Position intern besetzt, Termin nicht mehr nötig …"
+            placeholder={t('cancel.reasonPh')}
             rows={3}
             className="resize-none"
           />
           <p className="text-xs text-muted-foreground">
-            Der zuständige Recruiter wird benachrichtigt und informiert den Kandidaten.
+            {t('cancel.note')}
           </p>
         </div>
 
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Abbrechen
+            {t('common.cancel')}
           </Button>
           <Button variant="destructive" onClick={cancel} disabled={saving} className="gap-1.5">
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            {isRequest ? 'Zurückziehen' : 'Absagen'}
+            {isRequest ? t('cancel.withdraw') : t('cancel.confirm')}
           </Button>
         </DialogFooter>
       </DialogContent>

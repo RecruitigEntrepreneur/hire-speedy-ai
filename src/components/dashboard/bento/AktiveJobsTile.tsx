@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { JobHealthIndicator } from '@/components/jobs/JobHealthIndicator';
@@ -8,8 +9,6 @@ import { Briefcase, Users, Calendar, Gift } from 'lucide-react';
 import { stellenVerlauf } from '@/lib/stellenVerlauf';
 import { VerlaufPunkte } from '@/components/dashboard/StellenVerlauf';
 
-// Die Kachel kennt nur den Status -- fuer die Punkte reicht das.
-const pruefVerlauf = stellenVerlauf({ status: 'pending_approval' });
 
 interface Props {
   jobs: JobStats[];
@@ -20,8 +19,12 @@ const daysSince = (iso: string) => Math.floor((Date.now() - new Date(iso).getTim
 
 /** Tile B – Aktive Jobs mit Health-Badge + Funnel (Kand · Intv · Angeb). */
 export function AktiveJobsTile({ jobs, loading }: Props) {
+  const { t } = useTranslation('clientDashboard');
+  // Die Kachel kennt nur den Status -- fuer die Punkte reicht das. Beim Rendern gebaut,
+  // damit die Beschriftung der Punkte der aktuellen Sprache folgt.
+  const pruefVerlauf = stellenVerlauf({ status: 'pending_approval' });
   return (
-    <BentoTile icon={Briefcase} title="Aktive Jobs" count={loading ? undefined : jobs.length} to="/dashboard/jobs">
+    <BentoTile icon={Briefcase} title={t('tiles.activeJobs')} count={loading ? undefined : jobs.length} to="/dashboard/jobs">
       {loading ? (
         <div className="space-y-2">
           {[1, 2, 3, 4].map((i) => (
@@ -30,7 +33,7 @@ export function AktiveJobsTile({ jobs, loading }: Props) {
         </div>
       ) : jobs.length === 0 ? (
         <div className="flex h-full items-center justify-center py-6 text-center text-sm text-muted-foreground">
-          Noch keine aktiven Jobs
+          {t('tiles.noActiveJobs')}
         </div>
       ) : (
         <div className="space-y-0.5">
@@ -47,7 +50,7 @@ export function AktiveJobsTile({ jobs, loading }: Props) {
                     /* Dieselbe Sprache wie Jobliste und Job-Detail (lib/stellenVerlauf). */
                     <>
                       <Badge variant="outline" className="h-5 shrink-0 border-amber-500/40 px-1.5 text-[10px] text-amber-600">
-                        In Prüfung
+                        {t('tiles.inReview')}
                       </Badge>
                       {pruefVerlauf && <VerlaufPunkte verlauf={pruefVerlauf} className="shrink-0" />}
                     </>

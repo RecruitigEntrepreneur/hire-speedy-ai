@@ -1,5 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FunnelMetrics } from '@/hooks/useFunnelAnalytics';
+import { useTranslation } from 'react-i18next';
+import { fmtNumber } from '@/lib/localeFormat';
 
 interface FunnelChartProps {
   metrics: FunnelMetrics | null;
@@ -7,11 +9,12 @@ interface FunnelChartProps {
 }
 
 export function FunnelChart({ metrics, isLoading }: FunnelChartProps) {
+  const { t } = useTranslation('clientDashboard');
   if (isLoading) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Conversion Funnel</CardTitle>
+          <CardTitle>{t('analytics.funnel')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="animate-pulse space-y-4">
@@ -26,31 +29,31 @@ export function FunnelChart({ metrics, isLoading }: FunnelChartProps) {
 
   const stages = [
     {
-      name: 'Submitted',
+      name: t('analytics.stage.submitted'),
       value: metrics?.total_submissions || 0,
       color: 'bg-blue-500',
       percentage: 100,
     },
     {
-      name: 'Opted In',
+      name: t('analytics.stage.optedIn'),
       value: metrics?.submissions_to_opt_in || 0,
       color: 'bg-cyan-500',
       percentage: metrics?.opt_in_rate || 0,
     },
     {
-      name: 'Interviewed',
+      name: t('analytics.stage.interviewed'),
       value: metrics?.opt_in_to_interview || 0,
       color: 'bg-emerald-500',
       percentage: metrics?.interview_rate || 0,
     },
     {
-      name: 'Offered',
+      name: t('analytics.stage.offered'),
       value: metrics?.interview_to_offer || 0,
       color: 'bg-amber-500',
       percentage: metrics?.offer_rate || 0,
     },
     {
-      name: 'Placed',
+      name: t('analytics.stage.placed'),
       value: metrics?.offer_to_placement || 0,
       color: 'bg-green-500',
       percentage: metrics?.acceptance_rate || 0,
@@ -63,7 +66,7 @@ export function FunnelChart({ metrics, isLoading }: FunnelChartProps) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <span>Conversion Funnel</span>
+          <span>{t('analytics.funnel')}</span>
           {metrics && (
             <span className="text-sm font-normal text-muted-foreground">
               {metrics.period_start} - {metrics.period_end}
@@ -84,10 +87,10 @@ export function FunnelChart({ metrics, isLoading }: FunnelChartProps) {
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-sm font-medium">{stage.name}</span>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold">{stage.value.toLocaleString()}</span>
+                    <span className="text-sm font-bold">{fmtNumber(stage.value)}</span>
                     {conversionFromPrevious && (
                       <span className="text-xs text-muted-foreground">
-                        ({conversionFromPrevious}% from prev)
+                        {t('analytics.fromPrev', { pct: conversionFromPrevious })}
                       </span>
                     )}
                   </div>
@@ -124,13 +127,13 @@ export function FunnelChart({ metrics, isLoading }: FunnelChartProps) {
                 ? ((metrics.offer_to_placement / metrics.total_submissions) * 100).toFixed(1)
                 : 0}%
             </p>
-            <p className="text-xs text-muted-foreground">Overall Conversion</p>
+            <p className="text-xs text-muted-foreground">{t('analytics.overallConversion')}</p>
           </div>
           <div className="text-center">
             <p className="text-2xl font-bold text-primary">
-              {metrics?.avg_time_to_fill_days?.toFixed(1) || 'N/A'}
+              {metrics?.avg_time_to_fill_days?.toFixed(1) || t('analytics.na')}
             </p>
-            <p className="text-xs text-muted-foreground">Avg. Days to Fill</p>
+            <p className="text-xs text-muted-foreground">{t('analytics.avgDaysToFill')}</p>
           </div>
         </div>
       </CardContent>

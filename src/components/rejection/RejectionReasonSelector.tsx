@@ -1,38 +1,21 @@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
 
-const REJECTION_CATEGORIES = [
-  {
-    value: 'skills_mismatch',
-    label: 'Fehlende Skills',
-    description: 'Die technischen Fähigkeiten entsprechen nicht den Anforderungen'
+// Gespeichert wird nur der Wert (reason_category); Bezeichnung und Erklärung werden beim
+// Lesen in der Sprache der Oberfläche geholt (clientCandidates:rejection.reasons).
+const category = (value: string) => ({
+  value,
+  get label(): string {
+    return i18n.t(`clientCandidates:rejection.reasons.${value}`);
   },
-  {
-    value: 'experience',
-    label: 'Erfahrungslevel',
-    description: 'Das Erfahrungsniveau passt nicht zur Position'
+  get description(): string {
+    return i18n.t(`clientCandidates:rejection.reasons.${value}_desc`);
   },
-  {
-    value: 'culture_fit',
-    label: 'Kulturelle Passung',
-    description: 'Die Unternehmenskultur passt nicht zum Kandidaten'
-  },
-  {
-    value: 'salary',
-    label: 'Gehaltsvorstellung',
-    description: 'Die Gehaltsvorstellung liegt außerhalb des Budgets'
-  },
-  {
-    value: 'timing',
-    label: 'Verfügbarkeit',
-    description: 'Der Eintrittstermin passt nicht'
-  },
-  {
-    value: 'other',
-    label: 'Sonstiges',
-    description: 'Anderer Grund'
-  }
-];
+});
+
+const REJECTION_CATEGORIES = ['skills_mismatch', 'experience', 'culture_fit', 'salary', 'timing', 'other'].map(category);
 
 interface RejectionReasonSelectorProps {
   value: string;
@@ -40,6 +23,8 @@ interface RejectionReasonSelectorProps {
 }
 
 export function RejectionReasonSelector({ value, onChange }: RejectionReasonSelectorProps) {
+  // Lädt den Namespace und zeichnet beim Sprachwechsel neu.
+  useTranslation('clientCandidates');
   return (
     <RadioGroup value={value} onValueChange={onChange} className="space-y-3">
       {REJECTION_CATEGORIES.map((category) => (

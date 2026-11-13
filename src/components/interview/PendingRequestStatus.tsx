@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -12,16 +14,26 @@ interface Props {
   jobTitle: string;
 }
 
-const waitLabel = (iso: string) => {
-  const h = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 3_600_000));
+const hoursSince = (iso: string) => Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 3_600_000));
+/** Für die gespeicherte Benachrichtigung an den Headhunter (bleibt deutsch). */
+const waitLabelDe = (iso: string) => {
+  const h = hoursSince(iso);
   if (h >= 48) return `seit ${Math.floor(h / 24)} Tagen`;
   if (h >= 1) return `seit ${h} Std`;
   return 'gerade eben';
+};
+/** Anzeige in der Sprache der Oberfläche. */
+const waitLabel = (iso: string) => {
+  const h = hoursSince(iso);
+  if (h >= 48) return i18n.t('clientInterviews:row.sinceDays', { count: Math.floor(h / 24) });
+  if (h >= 1) return i18n.t('clientInterviews:row.sinceHours', { count: h });
+  return i18n.t('clientInterviews:pending.justNow');
 };
 
 /** Aktiver Status für "Interview angefragt": zeigt Wartezeit, erlaubt Erinnern
  *  und verlinkt zur Interview-Agenda — statt eines toten Text-Chips. */
 export function PendingRequestStatus({ submissionId, jobTitle, compact = false }: Props & { /** Nur die Knöpfe: Den Stand sagt schon die Karte „Läuft bei anderen“. */ compact?: boolean }) {
+  const { t } = useTranslation('clientInterviews');
   const [reminding, setReminding] = useState(false);
 
   const { data: request } = useQuery({
@@ -50,16 +62,17 @@ export function PendingRequestStatus({ submissionId, jobTitle, compact = false }
         await supabase.from('notifications').insert({
           user_id: sub.recruiter_id,
           type: 'interview_reminder_requested',
+          // Benachrichtigung an den Headhunter: gespeichert, seine Sprache ist unbekannt -> deutsch
           title: 'Kunde bittet um Erinnerung',
-          message: `Der Kandidat hat auf die Interview-Anfrage für "${jobTitle}" ${waitLabel(request.created_at)} nicht geantwortet. Bitte nachfassen.`,
+          message: `Der Kandidat hat auf die Interview-Anfrage für "${jobTitle}" ${waitLabelDe(request.created_at)} nicht geantwortet. Bitte nachfassen.`,
           related_type: 'interview',
           related_id: request.id,
         });
       }
-      toast.success('Der Recruiter wurde gebeten, beim Kandidaten nachzufassen.');
+      toast.success(t('page.reminded'));
     } catch (e) {
       console.error('Erinnern-Fehler:', e);
-      toast.error('Erinnerung konnte nicht gesendet werden.');
+      toast.error(t('page.remindFailed'));
     } finally {
       setReminding(false);
     }
@@ -79,26 +92,26 @@ export function PendingRequestStatus({ submissionId, jobTitle, compact = false }
       >
         <Clock className="h-3.5 w-3.5" />
         {isCounter
-          ? 'Gegenvorschlag des Kandidaten — bitte antworten'
+          ? t('pending.counter')
           : request
           ? (
             <>
-              Interview angefragt — wartet{' '}
+              {t('pending.waiting')}{' '}
               <span className={cn(isStale && 'font-semibold text-amber-600')}>{waitLabel(request.created_at)}</span>
             </>
           )
-          : 'Interview angefragt — Opt-In ausstehend'}
+          : t('pending.optIn')}
       </div>
       )}
       {request && !isCounter && (
         <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={remind} disabled={reminding}>
           {reminding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bell className="h-3.5 w-3.5" />}
-          Erinnern
+          {t('row.remind')}
         </Button>
       )}
       <Button asChild variant="ghost" size="sm" className="h-8 gap-1 text-xs text-muted-foreground">
         <Link to="/dashboard/interviews">
-          Zur Agenda <ChevronRight className="h-3.5 w-3.5" />
+          {t('pending.toAgenda')} <ChevronRight className="h-3.5 w-3.5" />
         </Link>
       </Button>
     </div>

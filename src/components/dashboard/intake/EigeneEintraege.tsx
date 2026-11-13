@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +17,7 @@ export function EigeneEintraege({ alle, chips, placeholder, onChange }: {
   placeholder?: string;
   onChange: (werte: string[]) => void;
 }) {
+  const { t } = useTranslation(['intake', 'intakeCatalog']);
   const [neu, setNeu] = useState('');
   const eigene = alle.filter((w) => !chips.includes(w));
   const hinzu = () => {
@@ -37,7 +39,7 @@ export function EigeneEintraege({ alle, chips, placeholder, onChange }: {
         </div>
       )}
       <div className="flex gap-2">
-        <Input value={neu} onChange={(e) => setNeu(e.target.value)} placeholder={placeholder ?? 'Eintragen und Enter …'}
+        <Input value={neu} onChange={(e) => setNeu(e.target.value)} placeholder={placeholder ?? t('eigene.placeholder')}
                className="h-8 text-xs"
                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); hinzu(); } }} />
         <Button type="button" size="sm" variant="outline" className="h-8 px-2 text-xs" disabled={!neu.trim()} onClick={hinzu}>

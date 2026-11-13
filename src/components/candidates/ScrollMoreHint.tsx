@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useEffect, useState, type RefObject } from 'react';
 
 /**
@@ -9,6 +10,7 @@ import { useEffect, useState, type RefObject } from 'react';
  * Die Reihe braucht `snap-x snap-mandatory scroll-pl-10`, die Karten `snap-start`.
  */
 export function ScrollMoreHint({ scrollRef, gap = 8 }: { scrollRef: RefObject<HTMLDivElement>; gap?: number }) {
+  const { t } = useTranslation('candidateDetail');
   const [hiddenLeft, setHiddenLeft] = useState(0);
   const [hiddenRight, setHiddenRight] = useState(0);
 
@@ -118,7 +120,7 @@ export function ScrollMoreHint({ scrollRef, gap = 8 }: { scrollRef: RefObject<HT
           type="button"
           onClick={() => page(-1)}
           className="absolute bottom-0 left-0 top-0 z-20 flex items-center bg-gradient-to-r from-card via-card/90 to-transparent pl-1 pr-4 text-xs font-medium text-muted-foreground hover:text-foreground"
-          aria-label={`${hiddenLeft} vorherige anzeigen`}
+          aria-label={t('scroll.previous', { count: hiddenLeft })}
         >
           ‹ {hiddenLeft}
         </button>
@@ -128,7 +130,7 @@ export function ScrollMoreHint({ scrollRef, gap = 8 }: { scrollRef: RefObject<HT
           type="button"
           onClick={() => page(1)}
           className="absolute bottom-0 right-0 top-0 z-20 flex items-center bg-gradient-to-l from-card via-card/90 to-transparent pl-8 pr-1 text-xs font-medium text-muted-foreground hover:text-foreground"
-          aria-label={`${hiddenRight} weitere anzeigen`}
+          aria-label={t('scroll.next', { count: hiddenRight })}
         >
           {hiddenRight} ›
         </button>

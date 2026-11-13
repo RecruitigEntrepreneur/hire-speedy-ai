@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth';
+import i18n from '@/i18n';
 import { callFunction } from '@/lib/interviewScheduling';
 import type {
   BillingView, ConditionsResponse, CreditNotesResponse, JobTerms, OverviewResponse, PlacementWindowView, TaxMode,
@@ -11,35 +12,39 @@ import type {
  * _shared/abrechnung-view.ts, Beträge mit _shared/konditionen.ts.
  */
 
+// Rückfall-Meldung in der Sprache der Oberfläche, gelesen beim Aufruf (nicht beim Laden des Moduls).
+const tx = (key: string): string => i18n.t(`recruiterEarnings:api.${key}`);
+
+// Texte der Ansicht kommen vom Server in der Sprache der Oberfläche (body.lang).
 const call = <T,>(action: string, body: Record<string, unknown> = {}, fallback?: string) =>
-  callFunction<T>('abrechnung', { action, ...body }, fallback);
+  callFunction<T>('abrechnung', { action, ...body, lang: i18n.language }, fallback);
 
 export interface PlacementResponse { view: PlacementWindowView; taxMode: TaxMode | null }
 
 export const abrechnungApi = {
-  overview: () => call<OverviewResponse>('overview', {}, 'Deine Verdienste konnten nicht geladen werden.'),
-  placement: (ref: { placementId?: string; submissionId?: string; taskId?: string }) => call<PlacementResponse>('placement', ref, 'Die Besetzung konnte nicht geladen werden.'),
+  overview: () => call<OverviewResponse>('overview', {}, tx('overview')),
+  placement: (ref: { placementId?: string; submissionId?: string; taskId?: string }) => call<PlacementResponse>('placement', ref, tx('placement')),
   reportStart: (input: { placementId?: string; taskId?: string; way: 'started' | 'later' | 'not_started'; startedOn?: string; startDate?: string; note?: string }) =>
-    call<PlacementResponse & { ok: boolean; state: string }>('report_start', input, 'Deine Meldung konnte nicht gespeichert werden.'),
+    call<PlacementResponse & { ok: boolean; state: string }>('report_start', input, tx('reportStart')),
   halfway: (input: { placementId?: string; taskId?: string; status: 'ok' | 'shaky'; note?: string }) =>
-    call<PlacementResponse & { ok: boolean }>('halfway', input, 'Deine Antwort konnte nicht gespeichert werden.'),
-  statement: (placementId: string, statement: string) => call<PlacementResponse & { ok: boolean }>('statement', { placementId, statement }, 'Deine Stellungnahme konnte nicht gespeichert werden.'),
+    call<PlacementResponse & { ok: boolean }>('halfway', input, tx('halfway')),
+  statement: (placementId: string, statement: string) => call<PlacementResponse & { ok: boolean }>('statement', { placementId, statement }, tx('statement')),
   jobTerms: (jobIds: string[]) => call<{ terms: JobTerms[] }>('job_terms', { jobIds }),
   conditions: () => call<ConditionsResponse>('conditions'),
-  consent: () => call<ConditionsResponse>('consent', {}, 'Deine Zustimmung konnte nicht gespeichert werden.'),
-  creditNotes: () => call<CreditNotesResponse>('credit_notes', {}, 'Die Gutschriften konnten nicht geladen werden.'),
-  creditNoteFile: (creditNoteId: string) => call<{ url: string; number: string }>('credit_note_file', { creditNoteId }, 'Das PDF ist gerade nicht abrufbar.'),
-  creditNotesExport: (year: string) => call<{ year: string; count: number; csv: string; files: { number: string; url: string }[] }>('credit_notes_export', { year }, 'Der Export hat nicht geklappt.'),
-  objection: (creditNoteId: string, topic: string, note: string) => call<{ ok: boolean }>('objection', { creditNoteId, topic, note }, 'Dein Einwand konnte nicht gesendet werden.'),
-  billing: () => call<{ billing: BillingView }>('billing_profile', {}, 'Deine Abrechnungsdaten konnten nicht geladen werden.'),
+  consent: () => call<ConditionsResponse>('consent', {}, tx('consent')),
+  creditNotes: () => call<CreditNotesResponse>('credit_notes', {}, tx('creditNotes')),
+  creditNoteFile: (creditNoteId: string) => call<{ url: string; number: string }>('credit_note_file', { creditNoteId }, tx('creditNoteFile')),
+  creditNotesExport: (year: string) => call<{ year: string; count: number; csv: string; files: { number: string; url: string }[] }>('credit_notes_export', { year }, tx('export')),
+  objection: (creditNoteId: string, topic: string, note: string) => call<{ ok: boolean }>('objection', { creditNoteId, topic, note }, tx('objection')),
+  billing: () => call<{ billing: BillingView }>('billing_profile', {}, tx('billing')),
   saveBilling: (billing: { legalName: string; legalForm: string; street: string; postalCode: string; city: string; country: string; taxMode: TaxMode; vatId: string; taxNumber: string }) =>
-    call<{ ok: boolean; billing: BillingView }>('billing_profile', { save: true, billing }, 'Deine Abrechnungsdaten konnten nicht gespeichert werden.'),
+    call<{ ok: boolean; billing: BillingView }>('billing_profile', { save: true, billing }, tx('saveBilling')),
   accountRequest: (input: { holder: string; iban: string; bic: string }) =>
-    call<{ ok: boolean; sent: boolean; sentTo: string; expiresAt: string; firstSetup: boolean }>('account_change_request', input, 'Der Code konnte nicht verschickt werden.'),
-  accountConfirm: (code: string) => call<{ ok: boolean; immediate: boolean; effectiveAt: string; billing: BillingView }>('account_change_confirm', { code }, 'Das Konto konnte nicht bestätigt werden.'),
-  accountCancel: () => call<{ ok: boolean; billing: BillingView }>('account_change_cancel', {}, 'Die Änderung konnte nicht abgebrochen werden.'),
-  selfBillingObjection: () => call<{ ok: boolean; billing: BillingView }>('self_billing_objection', {}, 'Dein Widerspruch konnte nicht gespeichert werden.'),
-  clientReport: (jobId: string, topic: string, note: string) => call<{ ok: boolean; reportedAt: string }>('client_report', { jobId, topic, note }, 'Deine Meldung konnte nicht gesendet werden.'),
+    call<{ ok: boolean; sent: boolean; sentTo: string; expiresAt: string; firstSetup: boolean }>('account_change_request', input, tx('accountRequest')),
+  accountConfirm: (code: string) => call<{ ok: boolean; immediate: boolean; effectiveAt: string; billing: BillingView }>('account_change_confirm', { code }, tx('accountConfirm')),
+  accountCancel: () => call<{ ok: boolean; billing: BillingView }>('account_change_cancel', {}, tx('accountCancel')),
+  selfBillingObjection: () => call<{ ok: boolean; billing: BillingView }>('self_billing_objection', {}, tx('selfBillingObjection')),
+  clientReport: (jobId: string, topic: string, note: string) => call<{ ok: boolean; reportedAt: string }>('client_report', { jobId, topic, note }, tx('clientReport')),
 };
 
 // ---------------------------------------------------------------------------
@@ -88,7 +93,7 @@ export function useJobTerms(jobId: string | null | undefined) {
 export function useVerdienste() {
   const { user, role } = useAuth();
   return useQuery({
-    queryKey: ['verdienste', user?.id],
+    queryKey: ['verdienste', user?.id, i18n.language],
     queryFn: abrechnungApi.overview,
     enabled: !!user && role === 'recruiter',
     staleTime: 60_000,
@@ -100,7 +105,7 @@ export function useVerdienste() {
 export function useConditionsNotice() {
   const { user, role } = useAuth();
   return useQuery({
-    queryKey: ['konditionen-hinweis', user?.id],
+    queryKey: ['konditionen-hinweis', user?.id, i18n.language],
     queryFn: abrechnungApi.conditions,
     enabled: !!user && role === 'recruiter',
     staleTime: 10 * 60_000,

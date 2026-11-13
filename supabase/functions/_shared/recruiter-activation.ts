@@ -4,6 +4,8 @@ import { esc, layout, sendIntakeMail } from './intake-mail.ts';
 import type { OnboardingCase, RecruiterEnvelope } from './recruiter-onboarding-service.ts';
 import { issueLoginLink, LOGIN_LINK_DAYS } from './recruiter-login-link.ts';
 import { grantPartnerStatus } from './recruiter-partner-service.ts';
+import { normLang } from './i18n.ts';
+import { welcomeMailTexts } from './recruiter-i18n.ts';
 
 /**
  * Freischaltung eines Headhunters: Recruiter-Rolle verifiziert, Profil mit Name
@@ -11,7 +13,7 @@ import { grantPartnerStatus } from './recruiter-partner-service.ts';
  * automatisch, sobald beide Unterschriften bestätigt sind (syncEnvelope). Der
  * Admin-Knopf bleibt für den Fall, dass das scheitert, und zum erneuten Senden.
  */
-type ActivationCase = Pick<OnboardingCase, 'id' | 'email' | 'claimed_by' | 'profile'>;
+type ActivationCase = Pick<OnboardingCase, 'id' | 'email' | 'claimed_by' | 'profile' | 'language'>;
 
 /** Nur leere Felder füllen. Aus der Code-Anmeldung steht oft nur der Vorname im Profil; ein selbst gepflegter Name bleibt. */
 export function profilePatch(current: { full_name?: string | null; company_name?: string | null }, profile: { name?: string; company?: string }) {
@@ -29,22 +31,26 @@ export function profilePatch(current: { full_name?: string | null; company_name?
  * Code auf Knopfdruck (Entscheidung 21.09.2026). Ohne Link, falls er sich nicht
  * erzeugen ließ, gibt er dort seine Adresse ein.
  */
-export function welcomeMail(c: Pick<OnboardingCase, 'profile'>, appUrl: string, link: string | null = null) {
+export function welcomeMail(c: Pick<OnboardingCase, 'profile' | 'language'>, appUrl: string, link: string | null = null) {
+  // Sprache des Vorgangs, sonst Deutsch.
+  const lang = normLang(c.language);
+  const t = welcomeMailTexts(lang, { days: LOGIN_LINK_DAYS });
   const firstName = String(c.profile.name ?? '').trim().split(/\s+/)[0] ?? '';
   const html = layout({
-    preheader: 'Dein Zugang ist frei. In zwei Minuten bist du drin.',
-    heading: 'Willkommen im Netzwerk',
-    body: `<p>Hallo${firstName ? ' ' + esc(firstName) : ''},</p><p>wir haben deinen Vertrag gegengezeichnet. Er ist jetzt komplett, und dein Zugang ist freigeschaltet.</p>`
-      + '<p><strong>So kommst du rein:</strong></p><ol style="margin:0 0 16px 0;padding-left:20px;">'
-      + (link ? '<li>Tippe auf „Jetzt anmelden“.</li>' : '<li>Tippe auf „Jetzt anmelden“ und gib deine E-Mail-Adresse ein.</li>')
-      + '<li>Bestätige mit dem Code, den wir dir dann schicken.</li>'
-      + '<li>Leg dein Passwort fest. Dann bist du in deinem Dashboard, und ein kurzer Rundgang zeigt dir das Wichtigste.</li></ol>',
-    cta: { label: 'Jetzt anmelden', url: `${appUrl}/recruiter/login${link ? `#${link}` : ''}` },
-    after: (link ? `<p>Der Link ist persönlich und ${LOGIN_LINK_DAYS} Tage gültig.</p>` : '')
-      + '<p>Bei Fragen antworte einfach auf diese Mail.</p><p>Viele Grüße<br>dein Matchunt-Team</p>',
-    footnote: `<a href="${esc(appUrl)}/impressum">Impressum</a> · <a href="${esc(appUrl)}/datenschutz">Datenschutz</a>`,
+    lang,
+    preheader: t.preheader,
+    heading: t.heading,
+    body: `<p>${t.hello}${firstName ? ' ' + esc(firstName) : ''},</p><p>${t.lead}</p>`
+      + `<p><strong>${t.how}</strong></p><ol style="margin:0 0 16px 0;padding-left:20px;">`
+      + `<li>${link ? t.stepLink : t.stepAddress}</li>`
+      + `<li>${t.stepCode}</li>`
+      + `<li>${t.stepPassword}</li></ol>`,
+    cta: { label: t.cta, url: `${appUrl}/recruiter/login${link ? `#${link}` : ''}` },
+    after: (link ? `<p>${t.linkValid}</p>` : '')
+      + `<p>${t.questions}</p><p>${t.regards}</p>`,
+    footnote: `<a href="${esc(appUrl)}/impressum">${t.imprint}</a> · <a href="${esc(appUrl)}/datenschutz">${t.privacy}</a>`,
   });
-  return { subject: 'Dein Vertrag ist komplett – willkommen bei Matchunt', html };
+  return { subject: t.subject, html };
 }
 
 /** Rolle verifizieren und Profil ergänzen. false, wenn das Konto keine Recruiter-Rolle hat. */
@@ -64,6 +70,17 @@ export async function grantRecruiterAccess(db: SupabaseClient, c: ActivationCase
   } catch (e) {
     // Ein unvollständiges Profil darf die Freischaltung nicht aufhalten.
     console.error('[recruiter-activation] Profil nicht ergänzt', e instanceof Error ? e.message : e);
+  }
+  // Sprache des Vorgangs ins Profil, wenn dort noch keine steht (eigene Abfrage: die Spalte
+  // kommt mit der Migration 20261112120000 und darf vorher nichts aufhalten).
+  const lang = normLang(c.language);
+  if (lang) {
+    try {
+      const { error: langError } = await db.from('profiles').update({ language: lang }).eq('user_id', c.claimed_by).is('language', null);
+      if (langError) console.warn('[recruiter-activation] Sprache nicht ins Profil übernommen', langError.code ?? '');
+    } catch (e) {
+      console.warn('[recruiter-activation] Sprache nicht ins Profil übernommen', e instanceof Error ? e.message : e);
+    }
   }
   return true;
 }

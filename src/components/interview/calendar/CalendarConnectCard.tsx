@@ -1,4 +1,6 @@
 import { useId, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
 import { toast } from 'sonner';
 import {
   AlertTriangle, CalendarClock, Check, CheckCircle2, Clock, ExternalLink, Eye, Info, Loader2, PenLine, ShieldCheck, X,
@@ -32,27 +34,29 @@ const MicrosoftMark = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const errorText = (e: unknown) => (e instanceof Error ? e.message : 'Das hat nicht geklappt. Bitte erneut versuchen.');
+const tc = (key: string, options?: Record<string, unknown>) => i18n.t(`clientInterviews:calendar.${key}`, options) as string;
+const errorText = (e: unknown) => (e instanceof Error ? e.message : i18n.t('interviews:error.generic'));
 
 async function copyLink(link: string) {
   try {
     await navigator.clipboard.writeText(link);
-    toast.success('Link kopiert.');
+    toast.success(tc('copied'));
   } catch {
     // Ohne Zugriff auf die Zwischenablage (z. B. ältere Browser): zum Selbst-Kopieren anzeigen.
-    window.prompt('Link für Ihre IT', link);
+    window.prompt(tc('linkForIt'), link);
   }
 }
 
 const pendingLine = (status: CalendarStatus) => (status.itRequest
-  ? `Link an ${status.itRequest.itEmail} gesendet ${sentAgo(status.itRequest.sentAt)}`
-  : 'Link an Ihre IT gesendet');
+  ? tc('sentTo', { email: status.itRequest.itEmail, when: sentAgo(status.itRequest.sentAt) })
+  : tc('sentToIt'));
 
 function DatenblattLink({ className }: { className?: string }) {
+  const { t } = useTranslation('clientInterviews');
   return (
     <a href={DATENBLATT} target="_blank" rel="noopener noreferrer"
        className={cn('inline-flex items-center gap-1 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground', className)}>
-      Datenblatt für IT und Betriebsrat <ExternalLink className="h-3 w-3" />
+      {t('calendar.datasheet')} <ExternalLink className="h-3 w-3" />
     </a>
   );
 }
@@ -66,9 +70,9 @@ function useItRequest(cal: Calendar) {
       setLink(result.link);
       if (result.sent) {
         setSentTo(itEmail);
-        toast.success(`Link an ${itEmail} gesendet.`);
+        toast.success(tc('sentToast', { email: itEmail }));
       } else {
-        toast.error('Die Mail konnte nicht gesendet werden. Kopieren Sie den Link und schicken Sie ihn Ihrer IT selbst.');
+        toast.error(tc('mailFailed'));
       }
     },
     onError: (e) => toast.error(errorText(e)),
@@ -77,6 +81,7 @@ function useItRequest(cal: Calendar) {
 }
 
 function ItPanel({ cal, onClose, compact }: { cal: Calendar; onClose: () => void; compact?: boolean }) {
+  const { t } = useTranslation('clientInterviews');
   const emailId = useId();
   const [email, setEmail] = useState(cal.status?.itRequest?.itEmail ?? '');
   const it = useItRequest(cal);
@@ -93,37 +98,37 @@ function ItPanel({ cal, onClose, compact }: { cal: Calendar; onClose: () => void
       <div className="flex items-start gap-3">
         <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
         <div className="space-y-1">
-          <h3 className={cn('font-semibold', compact ? 'text-sm' : 'text-base')}>Ihre IT muss einmal zustimmen</h3>
+          <h3 className={cn('font-semibold', compact ? 'text-sm' : 'text-base')}>{t('calendar.itTitle')}</h3>
           <p className="text-sm text-muted-foreground">
-            Microsoft verlangt bei Ihrer Firma eine Freigabe durch die IT. Sie gilt dann für alle Kollegen.
+            {t('calendar.itLead')}
           </p>
         </div>
       </div>
       <div className="max-w-sm space-y-1.5">
-        <Label htmlFor={emailId}>E-Mail Ihrer IT</Label>
-        <Input id={emailId} type="email" autoComplete="off" placeholder="it@ihre-firma.de"
+        <Label htmlFor={emailId}>{t('calendar.itEmail')}</Label>
+        <Input id={emailId} type="email" autoComplete="off" placeholder={t('calendar.itEmailPh')}
                value={email} onChange={(e) => setEmail(e.target.value)} />
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <Button type="submit" size="sm" disabled={!valid || it.sending}>
           {it.sending && <Loader2 className="h-4 w-4 animate-spin" />}
-          {it.sentTo ? 'Erneut senden' : 'Link an IT senden'}
+          {it.sentTo ? t('calendar.resend') : t('calendar.sendToIt')}
         </Button>
         {it.link && (
-          <Button type="button" size="sm" variant="outline" onClick={() => void copyLink(it.link!)}>Link kopieren</Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => void copyLink(it.link!)}>{t('calendar.copyLink')}</Button>
         )}
         <DatenblattLink className="ml-1" />
       </div>
       {it.sentTo ? (
         <div className="flex flex-wrap items-center gap-2 rounded-md bg-success/10 px-3 py-2 text-sm">
           <Check className="h-4 w-4 text-success" />
-          <span className="flex-1">Gesendet an {it.sentTo}. Sobald Ihre IT zugestimmt hat, verbinden Sie Outlook mit einem Klick.</span>
-          <Button type="button" size="sm" variant="ghost" onClick={onClose}>Fertig</Button>
+          <span className="flex-1">{t('calendar.sentDone', { email: it.sentTo })}</span>
+          <Button type="button" size="sm" variant="ghost" onClick={onClose}>{t('calendar.done')}</Button>
         </div>
       ) : (
         <button type="button" onClick={onClose}
                 className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground">
-          Später erledigen
+          {t('calendar.later')}
         </button>
       )}
     </form>
@@ -133,40 +138,41 @@ function ItPanel({ cal, onClose, compact }: { cal: Calendar; onClose: () => void
 function ConnectButton({ cal, returnPath, label, size = 'default', variant = 'default' }: {
   cal: Calendar; returnPath: string; label: string; size?: 'default' | 'sm'; variant?: 'default' | 'outline';
 }) {
+  const { t } = useTranslation('clientInterviews');
   const busy = cal.connect.isPending || cal.connect.isSuccess; // nach Erfolg läuft die Weiterleitung
   return (
     <Button type="button" size={size} variant={variant} disabled={busy}
             onClick={() => cal.connect.mutate(returnPath, { onError: (e) => toast.error(errorText(e)) })}>
       {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : variant === 'default' ? <MicrosoftMark className="h-4 w-4" /> : null}
-      {busy ? 'Weiter zu Microsoft …' : label}
+      {busy ? t('calendar.toMicrosoft') : label}
     </Button>
   );
 }
 
 function DisconnectButton({ cal }: { cal: Calendar }) {
+  const { t } = useTranslation('clientInterviews');
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
         <Button type="button" size="sm" variant="outline" disabled={cal.disconnect.isPending}>
           {cal.disconnect.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-          Trennen
+          {t('calendar.disconnect')}
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Outlook trennen?</AlertDialogTitle>
+          <AlertDialogTitle>{t('calendar.disconnectTitle')}</AlertDialogTitle>
           <AlertDialogDescription>
-            Danach sieht Matchunt nicht mehr, wann Sie belegt sind, und trägt Interviews nicht mehr in Ihren Kalender ein.
-            Sie können jederzeit neu verbinden.
+            {t('calendar.disconnectLead')}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+          <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
           <AlertDialogAction onClick={() => cal.disconnect.mutate(undefined, {
-            onSuccess: () => toast.success('Outlook ist getrennt.'),
+            onSuccess: () => toast.success(t('calendar.disconnected')),
             onError: (e) => toast.error(errorText(e)),
           })}>
-            Trennen
+            {t('calendar.disconnect')}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -175,6 +181,7 @@ function DisconnectButton({ cal }: { cal: Calendar }) {
 }
 
 function ResendButton({ cal, status, size = 'sm' }: { cal: Calendar; status: CalendarStatus; size?: 'sm' | 'default' }) {
+  const { t } = useTranslation('clientInterviews');
   const it = useItRequest(cal);
   const itEmail = status.itRequest?.itEmail;
   if (!itEmail) return null;
@@ -182,10 +189,10 @@ function ResendButton({ cal, status, size = 'sm' }: { cal: Calendar; status: Cal
     <>
       <Button type="button" size={size} variant="outline" disabled={it.sending} onClick={() => it.send(itEmail)}>
         {it.sending && <Loader2 className="h-4 w-4 animate-spin" />}
-        Erneut senden
+        {t('calendar.resend')}
       </Button>
       {it.link && (
-        <Button type="button" size={size} variant="ghost" onClick={() => void copyLink(it.link!)}>Link kopieren</Button>
+        <Button type="button" size={size} variant="ghost" onClick={() => void copyLink(it.link!)}>{t('calendar.copyLink')}</Button>
       )}
     </>
   );
@@ -196,17 +203,18 @@ function ResendButton({ cal, status, size = 'sm' }: { cal: Calendar; status: Cal
 // ---------------------------------------------------------------------------
 
 function SettingsBody({ cal, itFlow, closeIt }: { cal: Calendar; itFlow: boolean; closeIt: () => void }) {
+  const { t } = useTranslation('clientInterviews');
   const returnPath = `${window.location.pathname}#kalender`;
   const { status } = cal;
 
   if (cal.isLoading) {
-    return <p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Kalender-Stand wird geladen …</p>;
+    return <p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />{t('calendar.loading')}</p>;
   }
   if (!status) {
     return (
       <div className="flex flex-wrap items-center gap-3 text-sm">
-        <span className="flex-1 text-muted-foreground">Der Stand Ihrer Kalender-Verbindung konnte nicht geladen werden.</span>
-        <Button type="button" size="sm" variant="outline" onClick={() => void cal.refetch()}>Erneut versuchen</Button>
+        <span className="flex-1 text-muted-foreground">{t('calendar.loadError')}</span>
+        <Button type="button" size="sm" variant="outline" onClick={() => void cal.refetch()}>{t('page.retry')}</Button>
       </div>
     );
   }
@@ -220,10 +228,10 @@ function SettingsBody({ cal, itFlow, closeIt }: { cal: Calendar; itFlow: boolean
         <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
         <div className="min-w-0 flex-1 space-y-0.5">
           <p className="font-medium">
-            Outlook ist verbunden
+            {t('calendar.connected')}
             {status.accountEmail && <span className="font-normal text-muted-foreground"> · {status.accountEmail}</span>}
           </p>
-          <p className="text-sm text-muted-foreground">Ihre belegten Zeiten und die Ihrer Kollegen werden berücksichtigt.</p>
+          <p className="text-sm text-muted-foreground">{t('calendar.connectedLead')}</p>
         </div>
         <DisconnectButton cal={cal} />
       </div>
@@ -235,12 +243,12 @@ function SettingsBody({ cal, itFlow, closeIt }: { cal: Calendar; itFlow: boolean
       <div className="flex flex-wrap items-start gap-3">
         <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
         <div className="min-w-0 flex-1 space-y-0.5">
-          <p className="font-medium">Die Verbindung zu Outlook ist abgelaufen.</p>
+          <p className="font-medium">{t('calendar.expired')}</p>
           <p className="text-sm text-muted-foreground">
-            {status.accountEmail ? `${status.accountEmail} · ` : ''}Bis Sie neu verbinden, sieht Matchunt Ihre belegten Zeiten nicht.
+            {status.accountEmail ? `${status.accountEmail} · ` : ''}{t('calendar.expiredLead')}
           </p>
         </div>
-        <ConnectButton cal={cal} returnPath={returnPath} label="Neu verbinden" size="sm" />
+        <ConnectButton cal={cal} returnPath={returnPath} label={t('calendar.reconnect')} size="sm" />
       </div>
     );
   }
@@ -251,12 +259,12 @@ function SettingsBody({ cal, itFlow, closeIt }: { cal: Calendar; itFlow: boolean
         <div className="flex items-start gap-3">
           <Clock className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
           <div className="min-w-0 flex-1 space-y-0.5">
-            <p className="font-medium">Wartet auf Ihre IT <span className="font-normal text-muted-foreground">· {pendingLine(status)}</span></p>
-            <p className="text-sm text-muted-foreground">Hat Ihre IT schon zugestimmt? Dann verbinden Sie Outlook jetzt.</p>
+            <p className="font-medium">{t('calendar.waitingIt')} <span className="font-normal text-muted-foreground">· {pendingLine(status)}</span></p>
+            <p className="text-sm text-muted-foreground">{t('calendar.waitingItLead')}</p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 pl-8">
-          <ConnectButton cal={cal} returnPath={returnPath} label="Jetzt verbinden" size="sm" />
+          <ConnectButton cal={cal} returnPath={returnPath} label={t('calendar.connectNow')} size="sm" />
           <ResendButton cal={cal} status={status} />
           <DatenblattLink className="ml-1" />
         </div>
@@ -268,10 +276,9 @@ function SettingsBody({ cal, itFlow, closeIt }: { cal: Calendar; itFlow: boolean
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <h3 className="text-base font-semibold">Ihren Kalender verbinden</h3>
+        <h3 className="text-base font-semibold">{t('calendar.connectTitle')}</h3>
         <p className="text-sm text-muted-foreground">
-          Dann sehen Sie bei Interview-Anfragen Ihre belegten Zeiten, und Kandidaten bekommen nur Zeiten, in denen Sie wirklich frei sind.
-          Interviews trägt Matchunt selbst ein.
+          {t('calendar.connectLead')}
         </p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -284,20 +291,20 @@ function SettingsBody({ cal, itFlow, closeIt }: { cal: Calendar; itFlow: boolean
              className="flex cursor-not-allowed items-center gap-3 rounded-lg border border-border px-4 py-3 opacity-60">
           <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[11px] font-semibold text-muted-foreground">G</span>
           <span className="flex-1 text-sm font-medium">Google</span>
-          <Badge variant="secondary" className="font-normal">später</Badge>
+          <Badge variant="secondary" className="font-normal">{t('calendar.soon')}</Badge>
         </div>
       </div>
       <div className="grid gap-3 text-sm sm:grid-cols-2">
         <div className="flex gap-2.5 rounded-lg bg-muted/50 px-3 py-2.5">
           <Eye className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-          <p><strong className="font-medium">Wir lesen:</strong> nur frei oder belegt, auch von Kollegen, die Sie zu Interviews einladen. Keine Titel oder Inhalte.</p>
+          <p><strong className="font-medium">{t('calendar.weRead')}</strong> {t('calendar.weReadText')}</p>
         </div>
         <div className="flex gap-2.5 rounded-lg bg-muted/50 px-3 py-2.5">
           <PenLine className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-          <p><strong className="font-medium">Wir schreiben:</strong> nur Ihre Matchunt-Interviews.</p>
+          <p><strong className="font-medium">{t('calendar.weWrite')}</strong> {t('calendar.weWriteText')}</p>
         </div>
       </div>
-      <ConnectButton cal={cal} returnPath={returnPath} label="Outlook verbinden" />
+      <ConnectButton cal={cal} returnPath={returnPath} label={t('calendar.connectOutlook')} />
     </div>
   );
 }
@@ -307,6 +314,7 @@ function SettingsBody({ cal, itFlow, closeIt }: { cal: Calendar; itFlow: boolean
 // ---------------------------------------------------------------------------
 
 function DashboardRow({ cal, itFlow, closeIt, className }: { cal: Calendar; itFlow: boolean; closeIt: () => void; className?: string }) {
+  const { t } = useTranslation('clientInterviews');
   const { user } = useAuth();
   // null = dem Merker im Konto folgen; true/false = gerade hier geklickt
   const [hiddenLocal, setHiddenLocal] = useState<boolean | null>(null);
@@ -322,8 +330,8 @@ function DashboardRow({ cal, itFlow, closeIt, className }: { cal: Calendar; itFl
   const hide = () => {
     setHiddenLocal(true);
     remember(new Date().toISOString());
-    toast('Ausgeblendet. Sie finden das unter Einstellungen › Kalender.', {
-      action: { label: 'Rückgängig', onClick: () => { setHiddenLocal(false); remember(null); } },
+    toast(t('calendar.hidden'), {
+      action: { label: t('calendar.undo'), onClick: () => { setHiddenLocal(false); remember(null); } },
     });
   };
 
@@ -333,13 +341,13 @@ function DashboardRow({ cal, itFlow, closeIt, className }: { cal: Calendar; itFl
   if (!showIt && (!relevant || hidden)) return null;
 
   const title = status.state === 'expired'
-    ? 'Die Verbindung zu Outlook ist abgelaufen'
-    : 'Bevor die ersten Kandidaten kommen: Kalender verbinden';
+    ? t('calendar.expiredShort')
+    : t('calendar.dashTitle');
   const stand = status.state === 'it_pending'
-    ? `Wartet auf Ihre IT · ${pendingLine(status)}`
+    ? t('calendar.waitingItLine', { line: pendingLine(status) })
     : status.state === 'expired'
-    ? 'Bis Sie neu verbinden, sieht Matchunt Ihre belegten Zeiten nicht.'
-    : 'Noch nicht verbunden · Kandidaten bekommen dann nur Zeiten, in denen Sie wirklich frei sind.';
+    ? t('calendar.expiredLead')
+    : t('calendar.dashNotConnected');
 
   return (
     <div className={cn('rounded-lg border border-border/60 bg-card shadow-sm', className)}>
@@ -355,10 +363,10 @@ function DashboardRow({ cal, itFlow, closeIt, className }: { cal: Calendar; itFl
         <div className="flex flex-wrap items-center gap-2">
           {status.state === 'it_pending' && <ResendButton cal={cal} status={status} />}
           <ConnectButton cal={cal} returnPath={returnPath} size="sm"
-                         label={status.state === 'expired' ? 'Neu verbinden' : 'Jetzt verbinden'}
+                         label={status.state === 'expired' ? t('calendar.reconnect') : t('calendar.connectNow')}
                          variant={status.state === 'it_pending' ? 'outline' : 'default'} />
         </div>
-        <button type="button" onClick={hide} aria-label="Ausblenden"
+        <button type="button" onClick={hide} aria-label={t('calendar.hide')}
                 className="rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground">
           <X className="h-4 w-4" />
         </button>
@@ -377,6 +385,7 @@ function DashboardRow({ cal, itFlow, closeIt, className }: { cal: Calendar; itFl
 // ---------------------------------------------------------------------------
 
 function ChecklistLine({ cal, itFlow, closeIt, className }: { cal: Calendar; itFlow: boolean; closeIt: () => void; className?: string }) {
+  const { t } = useTranslation('clientInterviews');
   const { status } = cal;
   const returnPath = window.location.pathname;
   if (!status || status.state === 'not_configured') return null;
@@ -385,12 +394,12 @@ function ChecklistLine({ cal, itFlow, closeIt, className }: { cal: Calendar; itF
   }
 
   const text = status.state === 'connected'
-    ? `Outlook ist verbunden${status.accountEmail ? ` · ${status.accountEmail}` : ''}`
+    ? `${t('calendar.connected')}${status.accountEmail ? ` · ${status.accountEmail}` : ''}`
     : status.state === 'it_pending'
-    ? `Wartet auf Ihre IT · ${pendingLine(status)}`
+    ? t('calendar.waitingItLine', { line: pendingLine(status) })
     : status.state === 'expired'
-    ? 'Die Verbindung zu Outlook ist abgelaufen.'
-    : 'Damit Kandidaten nur freie Zeiten sehen.';
+    ? t('calendar.expired')
+    : t('calendar.checklistOpen');
 
   return (
     <div className={cn('flex flex-wrap items-center gap-2 text-sm', className)}>
@@ -398,7 +407,7 @@ function ChecklistLine({ cal, itFlow, closeIt, className }: { cal: Calendar; itF
       {status.state === 'it_pending' && <ResendButton cal={cal} status={status} />}
       {(status.state === 'not_connected' || status.state === 'expired' || status.state === 'it_pending') && (
         <ConnectButton cal={cal} returnPath={returnPath} size="sm"
-                       label={status.state === 'expired' ? 'Neu verbinden' : status.state === 'it_pending' ? 'Jetzt verbinden' : 'Outlook verbinden'}
+                       label={status.state === 'expired' ? t('calendar.reconnect') : status.state === 'it_pending' ? t('calendar.connectNow') : t('calendar.connectOutlook')}
                        variant={status.state === 'it_pending' ? 'outline' : 'default'} />
       )}
     </div>

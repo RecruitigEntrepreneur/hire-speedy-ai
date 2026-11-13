@@ -7,6 +7,9 @@ import {
 } from '../_shared/intake-core.ts';
 import { sendIntakeMail, layout, esc } from '../_shared/intake-mail.ts';
 import { getPublicAppUrl, intakeResumeUrl } from '../_shared/app-url.ts';
+import { callLanguage, customerMailLanguage, rememberDraftLanguage, withIntakeLang } from '../_shared/intake-language.ts';
+import { submittedMailTexts } from '../_shared/intake-i18n.ts';
+import type { Lang } from '../_shared/i18n.ts';
 import {
   CONTRACTING_FASSUNG, CONTRACTING_EINLEITUNG, CONTRACTING_PUNKTE, CONTRACTING_SCHLUSS,
   CONTRACTING_ZUSTIMMUNG, CONTRACTING_BUDGET_HINWEIS, CONTRACTING_OHNE_BUDGET,
@@ -55,6 +58,8 @@ async function contractingAuftrag(
   args: {
     signerName: string; ipHash: string | null; ua: string | null; draftToken: string;
     framework: Record<string, any> | null; unterRahmenvertrag: boolean;
+    /** Sprache der Eingangsbestätigung an den Kunden. Vertrag und Snapshot bleiben deutsch. */
+    mailLang: Lang | null;
   },
 ) {
   const now = new Date().toISOString();
@@ -232,43 +237,35 @@ async function contractingAuftrag(
   const zeile = (label: string, wert: string) =>
     `<tr><td style="padding:6px 0;color:#6b7280;width:38%;vertical-align:top;">${esc(label)}</td>`
     + `<td style="padding:6px 0;">${esc(wert)}</td></tr>`;
+  // Der Rahmen der Mail in der Sprache des Kunden. Die Konditionen selbst
+  // (Punkte, Schlusssatz, Budgethinweis) sind Vertragswortlaut und bleiben deutsch.
+  const text = submittedMailTexts(args.mailLang, { order: unterRahmenvertrag, contracting: true });
   const html = layout({
-    preheader: unterRahmenvertrag
-      ? `Ihr Auftrag für ${esc(titel)} ist eingegangen.`
-      : `Ihre Anfrage für ${esc(titel)} ist bei uns eingegangen.`,
-    heading: unterRahmenvertrag ? 'Ihr Auftrag ist eingegangen' : 'Ihre Beauftragungsanfrage ist eingegangen',
+    lang: args.mailLang,
+    preheader: text.preheader(esc(titel)),
+    heading: text.heading,
     body: `
-      <p style="margin:0 0 16px 0;">Guten Tag ${esc(draft.contact_name)},</p>
+      <p style="margin:0 0 16px 0;">${text.hello} ${esc(draft.contact_name)},</p>
       <p style="margin:0 0 16px 0;">
-        vielen Dank. Wir haben ${unterRahmenvertrag ? 'Ihren Auftrag' : 'Ihre Anfrage'} für
-        <strong>${esc(titel)}</strong> (Contracting) erhalten${unterRahmenvertrag ? '' : ' und prüfen sie'}.
+        ${text.lead(`<strong>${esc(titel)}</strong>`)}
       </p>
+      ${text.germanTermsNote ? `<p style="margin:0 0 8px 0;color:#6b7280;font-size:13px;">${text.germanTermsNote}</p>` : ''}
       <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;font-size:14px;margin:0 0 16px 0;border-collapse:collapse;">
-        ${zeile('Vorgangsnummer', mandate.mandate_number)}
-        ${zeile('Vertragsart', 'Contracting')}
-        ${zeile('Tagessatz', budget ? `${budget}. ${CONTRACTING_BUDGET_HINWEIS}` : CONTRACTING_OHNE_BUDGET)}
+        ${zeile(text.rows.reference, mandate.mandate_number)}
+        ${zeile(text.rows.contractType, 'Contracting')}
+        ${zeile(text.rows.dayRate, budget ? `${budget}. ${CONTRACTING_BUDGET_HINWEIS}` : CONTRACTING_OHNE_BUDGET)}
         ${CONTRACTING_PUNKTE.map((p) => zeile(p.label, p.text)).join('')}
       </table>
       <p style="margin:0 0 16px 0;">${esc(CONTRACTING_SCHLUSS)}</p>
-      <p style="margin:0 0 8px 0;font-weight:600;">Wie es weitergeht</p>
-      <p style="margin:0 0 16px 0;">${unterRahmenvertrag
-        ? `Der Auftrag läuft unter Ihrem Rahmenvertrag <strong>${esc(framework!.agreement_number)}</strong>. `
-          + 'Eine erneute Unterschrift ist nicht nötig. Wir sichten die Position und starten die Suche.'
-        : 'Sie unterschreiben den Rahmenvertrag und die Auftragsbestätigung digital. '
-          + 'Erst wenn beide Seiten unterzeichnet haben, starten wir die Suche.'}
+      <p style="margin:0 0 8px 0;font-weight:600;">${text.nextHeading}</p>
+      <p style="margin:0 0 16px 0;">${text.next(unterRahmenvertrag ? `<strong>${esc(framework!.agreement_number)}</strong>` : '')}
       </p>`,
-    cta: { label: 'Anfrage ansehen', url: intakeResumeUrl(args.draftToken) },
-    footnote: unterRahmenvertrag
-      ? 'Diese Bestätigung dokumentiert Ihre Auftragserteilung unter dem bestehenden Rahmenvertrag. '
-        + 'Kosten entstehen erst ab dem ersten Einsatztag.'
-      : 'Diese Bestätigung dokumentiert den Eingang Ihrer Anfrage. Ein Vertrag kommt erst mit '
-        + 'beidseitiger Unterschrift zustande. Bis dahin entstehen Ihnen keine Kosten.',
+    cta: { label: text.cta, url: intakeResumeUrl(args.draftToken) },
+    footnote: text.footnote,
   });
   const mail = await sendIntakeMail(supabase, {
     to: draft.contact_email,
-    subject: unterRahmenvertrag
-      ? `Ihr Auftrag ${mandate.mandate_number} ist eingegangen`
-      : `Ihre Beauftragungsanfrage ${mandate.mandate_number} ist eingegangen`,
+    subject: text.subject(mandate.mandate_number),
     html,
     template: 'intake_submitted_contracting',
     meta: { draft_id: draft.id, mandate_id: mandate.id, fassung: CONTRACTING_FASSUNG },
@@ -302,7 +299,7 @@ async function contractingAuftrag(
   });
 }
 
-serve(async (req) => {
+serve(withIntakeLang(async (req) => {
   const pre = preflight(req);
   if (pre) return pre;
 
@@ -316,6 +313,11 @@ serve(async (req) => {
     const found = await resolveDraft(supabase, body?.draft_token);
     if (!found.ok) return fail(found.reason!, found.message!);
     const draft = found.draft!;
+    // Der Kunde hat im Menü eine Sprache gewählt: am Entwurf merken. In dieser
+    // Sprache geht die Eingangsbestätigung raus (sonst Link, sonst Aufruf).
+    const lang = callLanguage(body);
+    await rememberDraftLanguage(supabase, draft, lang);
+    const mailLang = await customerMailLanguage(supabase, draft, lang);
 
     if (draft.review_state === 'pending_admin') {
       return json({ ok: true, already: true, review_state: 'pending_admin' });
@@ -388,7 +390,7 @@ serve(async (req) => {
     if (art === 'freelance') {
       return await contractingAuftrag(supabase, draft, {
         signerName, ipHash, ua, draftToken: String(body?.draft_token),
-        framework, unterRahmenvertrag,
+        framework, unterRahmenvertrag, mailLang,
       });
     }
 
@@ -711,53 +713,41 @@ serve(async (req) => {
 
     // ---- Eingangsbestaetigung: ausdruecklich noch kein Vertrag --------------
     const resumeUrl = intakeResumeUrl(String(body?.draft_token));
+    // In der Sprache des Kunden. Vertrag, Snapshot und Zustimmungsnachweis
+    // oben bleiben im deutschen Wortlaut.
+    const text = submittedMailTexts(mailLang, { order: unterRahmenvertrag, contracting: false });
+    const mailTitle = esc(snapshot.position.title ?? text.positionFallback);
     const html = layout({
-      preheader: unterRahmenvertrag
-        ? `Ihr Auftrag für ${esc(snapshot.position.title ?? 'die Position')} ist eingegangen.`
-        : `Ihre Anfrage für ${esc(snapshot.position.title ?? 'die Position')} ist bei uns eingegangen.`,
-      heading: unterRahmenvertrag
-        ? 'Ihr Auftrag ist eingegangen'
-        : 'Ihre Beauftragungsanfrage ist eingegangen',
+      lang: mailLang,
+      preheader: text.preheader(mailTitle),
+      heading: text.heading,
       body: `
-        <p style="margin:0 0 16px 0;">Guten Tag ${esc(draft.contact_name)},</p>
+        <p style="margin:0 0 16px 0;">${text.hello} ${esc(draft.contact_name)},</p>
         <p style="margin:0 0 16px 0;">
-          vielen Dank. Wir haben ${unterRahmenvertrag ? 'Ihren Auftrag' : 'Ihre Anfrage'} für
-          <strong>${esc(snapshot.position.title ?? 'die Position')}</strong>
-          erhalten${unterRahmenvertrag ? '' : ' und prüfen ihn'}.
+          ${text.lead(`<strong>${mailTitle}</strong>`)}
         </p>
         ${unterRahmenvertrag ? `
         <p style="margin:0 0 16px 0;">
-          Der Auftrag läuft unter Ihrem bestehenden Rahmenvertrag
-          <strong>${esc(framework!.agreement_number)}</strong>. Eine erneute Unterschrift
-          ist nicht nötig — die vereinbarten Konditionen gelten unverändert.
+          ${text.underFramework(`<strong>${esc(framework!.agreement_number)}</strong>`)}
         </p>` : ''}
         <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;font-size:14px;margin:18px 0;border-collapse:collapse;">
-          <tr><td style="padding:6px 0;color:#6b7280;width:45%;">Vorgangsnummer</td><td style="padding:6px 0;font-weight:600;">${esc(mandate.mandate_number)}</td></tr>
-          <tr><td style="padding:6px 0;color:#6b7280;">Paket</td><td style="padding:6px 0;font-weight:600;">${esc(pkg.public_name)}</td></tr>
-          <tr><td style="padding:6px 0;color:#6b7280;">Erfolgshonorar</td><td style="padding:6px 0;font-weight:600;">${esc(Number(pkg.client_fee_pct))} % des Bruttojahreszielgehalts</td></tr>
-          <tr><td style="padding:6px 0;color:#6b7280;">Fällig</td><td style="padding:6px 0;">nur im Erfolgsfall, ${esc(pkg.payment_terms_days)} Tage netto</td></tr>
-          ${pkg.continuity_days ? `<tr><td style="padding:6px 0;color:#6b7280;">Erneuter Suchlauf</td><td style="padding:6px 0;">bei Ausscheiden in den ersten ${esc(pkg.continuity_days)} Tagen</td></tr>` : ''}
-          <tr><td style="padding:6px 0;color:#6b7280;">AGB-Fassung</td><td style="padding:6px 0;">${esc(contractTpl.agb_version)}</td></tr>
+          <tr><td style="padding:6px 0;color:#6b7280;width:45%;">${text.rows.reference}</td><td style="padding:6px 0;font-weight:600;">${esc(mandate.mandate_number)}</td></tr>
+          <tr><td style="padding:6px 0;color:#6b7280;">${text.rows.package}</td><td style="padding:6px 0;font-weight:600;">${esc(pkg.public_name)}</td></tr>
+          <tr><td style="padding:6px 0;color:#6b7280;">${text.rows.fee}</td><td style="padding:6px 0;font-weight:600;">${text.rows.feeValue(esc(Number(pkg.client_fee_pct)))}</td></tr>
+          <tr><td style="padding:6px 0;color:#6b7280;">${text.rows.due}</td><td style="padding:6px 0;">${text.rows.dueValue(esc(pkg.payment_terms_days))}</td></tr>
+          ${pkg.continuity_days ? `<tr><td style="padding:6px 0;color:#6b7280;">${text.rows.continuity}</td><td style="padding:6px 0;">${text.rows.continuityValue(esc(pkg.continuity_days))}</td></tr>` : ''}
+          <tr><td style="padding:6px 0;color:#6b7280;">${text.rows.agbVersion}</td><td style="padding:6px 0;">${esc(contractTpl.agb_version)}</td></tr>
         </table>
-        <p style="margin:0 0 8px 0;font-weight:600;">Wie es weitergeht</p>
-        <p style="margin:0 0 16px 0;">${unterRahmenvertrag
-          ? 'Wir sichten die Position und starten die Suche. Sie hören von uns, sobald sie läuft.'
-          : 'Wir prüfen Ihre Anfrage und senden Ihnen anschließend den Vertrag zur digitalen '
-            + 'Unterschrift zu. Erst wenn beide Seiten unterzeichnet haben, starten wir die Suche.'}
+        <p style="margin:0 0 8px 0;font-weight:600;">${text.nextHeading}</p>
+        <p style="margin:0 0 16px 0;">${text.next()}
         </p>`,
-      cta: { label: 'Anfrage ansehen', url: resumeUrl },
-      footnote: unterRahmenvertrag
-        ? 'Diese Bestätigung dokumentiert Ihre Auftragserteilung unter dem bestehenden '
-          + 'Rahmenvertrag. Kosten entstehen ausschließlich im Erfolgsfall.'
-        : 'Diese Bestätigung dokumentiert den Eingang Ihrer Anfrage. Ein Vertrag kommt erst mit '
-          + 'unserer ausdrücklichen Annahme zustande. Bis dahin entstehen Ihnen keine Kosten.',
+      cta: { label: text.cta, url: resumeUrl },
+      footnote: text.footnote,
     });
 
     const mail = await sendIntakeMail(supabase, {
       to: draft.contact_email,
-      subject: unterRahmenvertrag
-        ? `Ihr Auftrag ${mandate.mandate_number} ist eingegangen`
-        : `Ihre Beauftragungsanfrage ${mandate.mandate_number} ist eingegangen`,
+      subject: text.subject(mandate.mandate_number),
       html,
       template: 'intake_submitted',
       meta: { draft_id: draft.id, mandate_id: mandate.id },
@@ -809,4 +799,4 @@ serve(async (req) => {
     console.error('[intake-submit]', e);
     return fail('internal_error', 'Unerwarteter Fehler.');
   }
-});
+}));

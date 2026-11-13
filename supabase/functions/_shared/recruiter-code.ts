@@ -7,6 +7,9 @@ import { normalizeEmail } from './recruiter-contract-policy.ts';
 import { must, dbError, type OnboardingCase } from './recruiter-onboarding-service.ts';
 import { checkLoginLink } from './recruiter-login-link.ts';
 import { CODE_LENGTH, CODE_PATTERN, storeCode, redeemCode, type SessionDeps } from './login-code.ts';
+import { normLang, type Lang } from './i18n.ts';
+import { codeMailTexts } from './recruiter-i18n.ts';
+import { caseLanguage, setCaseLanguage, storedLanguage } from './recruiter-language.ts';
 
 /**
  * Anmeldung per Code statt Konto.
@@ -36,6 +39,12 @@ import { CODE_LENGTH, CODE_PATTERN, storeCode, redeemCode, type SessionDeps } fr
  * ein Einmal-Token, das der Server in derselben Sekunde gegen /auth/v1/verify
  * einlöst. Länge und Ablauf der Supabase-OTPs spielen deshalb keine Rolle;
  * auf Lovable Cloud lassen sie sich ohnehin nicht einstellen (16.09.2026).
+ *
+ * Mehrsprachigkeit (12.11.2026): `lang` im Aufruf ist die Sprache, die die
+ * Person im Menü gewählt hat. Die Code-Mail geht in dieser Sprache raus, sonst
+ * in der des Vorgangs oder Profils, sonst Deutsch. Bei einer Einladung wird die
+ * Wahl am Vorgang gemerkt. `via` (Kennung des öffentlichen Links) wird hier nur
+ * angenommen; gespeichert wird sie, wenn der Vorgang entsteht (`begin`).
  */
 
 export type CaseStatus = 'open' | 'claimed' | 'expired' | 'revoked';
@@ -71,11 +80,11 @@ export async function caseByToken(db: SupabaseClient, token: unknown): Promise<O
 
 export async function peekCase(db: SupabaseClient, token: unknown) {
   const c = await caseByToken(db, token);
-  return { name: firstName(c.profile?.name), masked_email: maskEmail(c.email), expires_at: c.expires_at, status: caseStatus(c) };
+  return { name: firstName(c.profile?.name), masked_email: maskEmail(c.email), expires_at: c.expires_at, status: caseStatus(c), language: caseLanguage(c) };
 }
 
-interface Target { email: string; name: string; caseId: string | null }
-interface Identity { token?: unknown; email?: unknown; link?: unknown }
+interface Target { email: string; name: string; caseId: string | null; invitation?: OnboardingCase }
+interface Identity { token?: unknown; email?: unknown; link?: unknown; lang?: unknown; via?: unknown }
 // Anmeldeseite: per Adresse mit `login`, oder immer über den persönlichen Link.
 const loginMode = (body: Identity & { login?: boolean }) => body.token === undefined && (body.login === true || body.link !== undefined);
 
@@ -107,7 +116,7 @@ async function resolveTarget(db: SupabaseClient, body: Identity): Promise<Target
     const status = caseStatus(c);
     must(status !== 'revoked', 'Dieser Einladungslink wurde zurückgezogen. Sag uns kurz Bescheid, dann bekommst du einen neuen.', 'revoked');
     must(status !== 'expired', 'Dein Einladungslink ist abgelaufen. Sag uns kurz Bescheid, wir schicken dir einen neuen.', 'expired');
-    return { email: c.email, name: firstName(c.profile?.name), caseId: c.id };
+    return { email: c.email, name: firstName(c.profile?.name), caseId: c.id, invitation: c };
   }
   const email = normalizeEmail(String(body.email ?? ''));
   must(isPlausibleEmail(email), 'Bitte gib eine gültige E-Mail-Adresse an.');
@@ -144,9 +153,23 @@ async function ensureUser(db: SupabaseClient, email: string, name: string): Prom
   return link.data.user;
 }
 
+/**
+ * Sprache der Code-Mail: die Wahl aus dem Aufruf, sonst die des Vorgangs
+ * (Einladung), sonst die zur Adresse bekannte (Profil, jüngster Vorgang), sonst
+ * Deutsch. Eine Wahl wird an der Einladung gemerkt. Wirft nie.
+ */
+export async function codeMailLanguage(db: SupabaseClient, target: Pick<Target, 'email' | 'invitation'>, chosen: Lang | null): Promise<Lang | null> {
+  if (chosen) {
+    if (target.invitation) await setCaseLanguage(db, target.invitation, chosen);
+    return chosen;
+  }
+  return caseLanguage(target.invitation) ?? await storedLanguage(db, target.email);
+}
+
 export async function sendCode(db: SupabaseClient, body: Identity & { ip: string | null; login?: boolean }, deps: CodeDeps = liveDeps()) {
   const login = loginMode(body);
   const target = await resolveTarget(db, body);
+  const chosen = normLang(body.lang);
   const limit = await deps.limits(db, LIMITS.recruiterCode(target.email, body.ip));
   if (!limit.allowed) {
     const uhr = limit.retryAt?.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' });
@@ -166,18 +189,21 @@ export async function sendCode(db: SupabaseClient, body: Identity & { ip: string
   }
   const code = await storeCode(db, userId, target.email, CODE_KEY);
   must(code, 'Der Code konnte nicht erzeugt werden. Bitte versuche es gleich noch einmal.', 'upstream_error');
+  const lang = await codeMailLanguage(db, target, chosen);
+  const t = codeMailTexts(lang, { code, login });
   const result = await deps.mail(db, {
     to: target.email,
-    subject: `${code} ist dein Matchunt-Code`,
+    subject: t.subject,
     template: 'recruiter_onboarding_code',
     html: layout({
-      preheader: `Dein Code: ${code}`,
-      heading: login ? 'Dein Anmeldecode' : 'Dein Code für Matchunt',
-      body: `<p style="margin:0 0 16px 0;">Hallo${name ? ' ' + esc(name) : ''},</p>
-        <p style="margin:0 0 20px 0;">${login ? 'mit diesem Code meldest du dich bei Matchunt an' : 'mit diesem Code bestätigst du deine E-Mail-Adresse'}, ganz ohne Passwort:</p>
+      lang,
+      preheader: t.preheader,
+      heading: t.heading,
+      body: `<p style="margin:0 0 16px 0;">${t.hello}${name ? ' ' + esc(name) : ''},</p>
+        <p style="margin:0 0 20px 0;">${t.intro}</p>
         <div style="font-size:34px;font-weight:700;letter-spacing:10px;padding:18px 0;color:#111827;">${esc(code)}</div>
-        <p style="margin:12px 0 0 0;">Der Code ist eine Stunde gültig. Danach fordere auf der Seite einfach einen neuen an.</p>`,
-      footnote: 'Wenn du gerade nichts bei Matchunt gestartet hast, ignoriere diese Nachricht. Gib den Code nicht weiter.',
+        <p style="margin:12px 0 0 0;">${t.validity}</p>`,
+      footnote: t.footnote,
     }),
     meta: { case_id: target.caseId },
   });
@@ -197,7 +223,11 @@ export async function verifyCode(db: SupabaseClient, body: Identity & { code?: u
   // Anmeldeseite: Ohne bestehendes Headhunter-Konto gibt es nichts zu prüfen und nichts anzulegen.
   if (loginMode(body)) must(await findRecruiter(db, target.email), 'Der Code ist falsch oder abgelaufen. Fordere einfach einen neuen an.');
   const result = await redeemCode(db, target.email, code, CODE_KEY, deps);
-  if (result.ok) return result.session;
+  if (result.ok) {
+    // Sprache aus dem Menü an der Einladung merken (wirft nie).
+    if (target.invitation) await setCaseLanguage(db, target.invitation, normLang(body.lang));
+    return result.session;
+  }
   must(result.failure !== 'exhausted', 'Zu oft falsch eingegeben. Fordere bitte einen neuen Code an.');
   must(result.failure !== 'wrong', 'Der Code ist falsch oder abgelaufen. Fordere einfach einen neuen an.');
   must(result.failure !== 'unsaved', 'Die Anmeldung konnte nicht abgeschlossen werden. Bitte versuche es gleich noch einmal.', 'upstream_error');

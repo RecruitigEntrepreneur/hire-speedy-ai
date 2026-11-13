@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { MessageCircleQuestion, Square } from 'lucide-react';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import type { MandatsBriefing } from '@/lib/mandatsBriefing';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Gesprächsleitfaden (21.10.2026): das Werkzeug an Schritt 4 des Briefings,
@@ -25,35 +26,36 @@ export function GespraechsleitfadenSheet({ open, onOpenChange, jobTitle, anruf, 
   /** Screening-Fragen, die beim Job hinterlegt sind. */
   hinterlegt: string[];
 }) {
+  const { t } = useTranslation('recruiterJobDetail');
   // Was unter „Gleich klären“ schon steht (Sprache, Ort, Gehalt), nicht noch einmal abfragen.
   const geklaert = anruf.knockout.map(k => k.text.toLocaleLowerCase('de-DE'));
   const nachfragen = muss.filter(m => !geklaert.includes(m.toLocaleLowerCase('de-DE')));
   return <Sheet open={open} onOpenChange={onOpenChange}>
     <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
       <SheetHeader className="text-left">
-        <SheetTitle>Gesprächsleitfaden</SheetTitle>
-        <SheetDescription>{jobTitle} · Für dein erstes Gespräch mit dem Kandidaten, keine automatische Eignungsentscheidung.</SheetDescription>
+        <SheetTitle>{t('ws.guide')}</SheetTitle>
+        <SheetDescription>{t('guide.description', { title: jobTitle })}</SheetDescription>
       </SheetHeader>
       <div className="mt-6 space-y-6 text-sm leading-6">
-        {anruf.einstieg && <Teil titel="Einstieg" hinweis="Vorschlag der KI"><p>„{anruf.einstieg}“</p></Teil>}
-        {anruf.vorwissen.length > 0 && <Teil titel="Vorher wissen"><ul className="space-y-1 text-amber-700">{anruf.vorwissen.map(v => <li key={v}>{v}</li>)}</ul></Teil>}
-        <Teil titel="Gleich klären">
+        {anruf.einstieg && <Teil titel={t('guide.opening')} hinweis={t('guide.aiSuggestion')}><p>„{anruf.einstieg}“</p></Teil>}
+        {anruf.vorwissen.length > 0 && <Teil titel={t('guide.knowBefore')}><ul className="space-y-1 text-amber-700">{anruf.vorwissen.map(v => <li key={v}>{v}</li>)}</ul></Teil>}
+        <Teil titel={t('guide.clarifyFirst')}>
           <ul className="space-y-1">{anruf.knockout.map(k => <li key={k.text} className={`flex gap-2 ${k.fehlt ? 'text-amber-700' : ''}`}><Square className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />{k.text}</li>)}</ul>
         </Teil>
-        {nachfragen.length > 0 && <Teil titel="Muss-Kriterien nachfragen">
-          <p className="text-muted-foreground">Zu jedem Punkt: In welcher Situation hast du das gemacht? Was hast du selbst verantwortet, mit welchem Ergebnis?</p>
+        {nachfragen.length > 0 && <Teil titel={t('guide.askMust')}>
+          <p className="text-muted-foreground">{t('guide.askMustText')}</p>
           <ul className="space-y-1.5">{nachfragen.map(m => <li key={m} className="flex gap-2"><Square className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />{m}</li>)}</ul>
         </Teil>}
-        {anruf.fragen.length > 0 && <Teil titel="Fachfragen" hinweis="Vorschlag der KI">
+        {anruf.fragen.length > 0 && <Teil titel={t('guide.technical')} hinweis={t('guide.aiSuggestion')}>
           <ul className="space-y-1.5">{anruf.fragen.map(f => <li key={f.frage} className="flex gap-2"><MessageCircleQuestion className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />{f.frage}</li>)}</ul>
         </Teil>}
-        {hinterlegt.length > 0 && <Teil titel="Hinterlegte Screening-Fragen"><ul className="list-disc space-y-1 pl-5">{hinterlegt.map((q, i) => <li key={i}>{q}</li>)}</ul></Teil>}
-        <Teil titel="Rahmen abgleichen">
+        {hinterlegt.length > 0 && <Teil titel={t('guide.storedQuestions')}><ul className="list-disc space-y-1 pl-5">{hinterlegt.map((q, i) => <li key={i}>{q}</li>)}</ul></Teil>}
+        <Teil titel={t('guide.frame')}>
           <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
-            <li>Welche Aufgabe und welches Umfeld suchst du als Nächstes?</li>
-            <li>Gehaltsvorstellung und Verfügbarkeit</li>
-            <li>Passt das Arbeits- und Präsenzmodell?</li>
-            <li>Was möchtest du vor einer Vorstellung noch klären?</li>
+            <li>{t('guide.frame1')}</li>
+            <li>{t('guide.frame2')}</li>
+            <li>{t('guide.frame3')}</li>
+            <li>{t('guide.frame4')}</li>
           </ul>
         </Teil>
       </div>

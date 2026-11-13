@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { SUPPORTED_LANGUAGES, type AppLanguage } from "@/i18n";
+import { SUPPORTED_LANGUAGES, setLanguage, type AppLanguage } from "@/i18n";
 import { cn } from "@/lib/utils";
 
 const LABELS: Record<AppLanguage, string> = { de: "DE", en: "EN" };
@@ -23,7 +23,7 @@ export function LanguageSwitcher({ className }: { className?: string }) {
           <button
             key={lng}
             type="button"
-            onClick={() => i18n.changeLanguage(lng)}
+            onClick={() => void setLanguage(lng)}
             aria-pressed={active}
             className={cn(
               "rounded-full px-2.5 py-1 transition-colors",

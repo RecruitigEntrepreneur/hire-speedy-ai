@@ -7,6 +7,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Keyboard, Navigation, Zap, List } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 interface ShortcutItem {
   keys: string;
@@ -23,17 +24,14 @@ interface KeyboardShortcutsHelpProps {
 const categoryConfig = {
   navigation: {
     icon: Navigation,
-    label: 'Navigation',
     color: 'text-blue-500',
   },
   actions: {
     icon: Zap,
-    label: 'Aktionen',
     color: 'text-amber-500',
   },
   list: {
     icon: List,
-    label: 'Listen',
     color: 'text-green-500',
   },
 };
@@ -47,6 +45,7 @@ function KeyBadge({ children }: { children: string }) {
 }
 
 export function KeyboardShortcutsHelp({ open, onOpenChange, shortcuts }: KeyboardShortcutsHelpProps) {
+  const { t } = useTranslation('shortcuts');
   // Group shortcuts by category
   const groupedShortcuts = shortcuts.reduce((acc, shortcut) => {
     if (!acc[shortcut.category]) {
@@ -62,7 +61,7 @@ export function KeyboardShortcutsHelp({ open, onOpenChange, shortcuts }: Keyboar
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Keyboard className="h-5 w-5 text-primary" />
-            Tastenkürzel
+            {t('title')}
           </DialogTitle>
         </DialogHeader>
         
@@ -78,7 +77,7 @@ export function KeyboardShortcutsHelp({ open, onOpenChange, shortcuts }: Keyboar
                   config?.color
                 )}>
                   <Icon className="h-4 w-4" />
-                  {config?.label || category}
+                  {config ? t(`category.${category}`) : category}
                 </h3>
                 <div className="space-y-2">
                   {items.map((shortcut, idx) => (
@@ -92,7 +91,7 @@ export function KeyboardShortcutsHelp({ open, onOpenChange, shortcuts }: Keyboar
                       <div className="flex items-center gap-1">
                         {shortcut.keys.split(' + ').map((key, keyIdx) => (
                           <span key={keyIdx} className="flex items-center gap-1">
-                            {keyIdx > 0 && <span className="text-muted-foreground text-xs">dann</span>}
+                            {keyIdx > 0 && <span className="text-muted-foreground text-xs">{t('then')}</span>}
                             <KeyBadge>{key.toUpperCase()}</KeyBadge>
                           </span>
                         ))}
@@ -108,35 +107,35 @@ export function KeyboardShortcutsHelp({ open, onOpenChange, shortcuts }: Keyboar
           <div>
             <h3 className="text-sm font-medium mb-3 flex items-center gap-2 text-muted-foreground">
               <List className="h-4 w-4" />
-              Allgemein
+              {t('general')}
             </h3>
             <div className="space-y-2">
               <div className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/50">
-                <span className="text-sm text-muted-foreground">Suche öffnen</span>
+                <span className="text-sm text-muted-foreground">{t('openSearch')}</span>
                 <KeyBadge>/</KeyBadge>
               </div>
               <div className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/50">
-                <span className="text-sm text-muted-foreground">Dialog schließen</span>
+                <span className="text-sm text-muted-foreground">{t('closeDialog')}</span>
                 <KeyBadge>ESC</KeyBadge>
               </div>
               <div className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/50">
-                <span className="text-sm text-muted-foreground">Liste: Nach unten</span>
+                <span className="text-sm text-muted-foreground">{t('listDown')}</span>
                 <div className="flex items-center gap-1">
                   <KeyBadge>J</KeyBadge>
-                  <span className="text-muted-foreground text-xs">oder</span>
+                  <span className="text-muted-foreground text-xs">{t('or')}</span>
                   <KeyBadge>↓</KeyBadge>
                 </div>
               </div>
               <div className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/50">
-                <span className="text-sm text-muted-foreground">Liste: Nach oben</span>
+                <span className="text-sm text-muted-foreground">{t('listUp')}</span>
                 <div className="flex items-center gap-1">
                   <KeyBadge>K</KeyBadge>
-                  <span className="text-muted-foreground text-xs">oder</span>
+                  <span className="text-muted-foreground text-xs">{t('or')}</span>
                   <KeyBadge>↑</KeyBadge>
                 </div>
               </div>
               <div className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/50">
-                <span className="text-sm text-muted-foreground">Auswahl öffnen</span>
+                <span className="text-sm text-muted-foreground">{t('openSelection')}</span>
                 <KeyBadge>ENTER</KeyBadge>
               </div>
             </div>
@@ -144,7 +143,7 @@ export function KeyboardShortcutsHelp({ open, onOpenChange, shortcuts }: Keyboar
         </div>
         
         <div className="text-xs text-muted-foreground text-center pt-2 border-t">
-          Drücke <KeyBadge>?</KeyBadge> um dieses Menü jederzeit zu öffnen
+          {t('pressBefore')} <KeyBadge>?</KeyBadge> {t('pressAfter')}
         </div>
       </DialogContent>
     </Dialog>

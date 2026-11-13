@@ -1,6 +1,9 @@
 import { useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import { Trans, useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
+import i18n from '@/i18n';
 import {
   AlertCircle, ArrowLeft, Building2, CalendarPlus, CalendarX, CheckCircle2, Clock, History, Loader2, MapPin, Phone, Video, XCircle,
 } from 'lucide-react';
@@ -24,21 +27,28 @@ import {
 
 type Mode = 'pick' | 'alternative' | 'decline';
 
+// Absagegründe: `value` geht so an die Function und wird gespeichert (bleibt deutsch),
+// angezeigt wird interviewResponse:candidate.reasons.<key>.
 const OTHER_REASON = 'Anderer Grund';
+const KEEP_PREVIOUS = 'Beim bisherigen Termin bleiben';
 const DECLINE_REASONS = [
-  'Ich habe ein anderes Angebot angenommen',
-  'Die Stelle passt doch nicht zu mir',
-  'Zeitlich passt es gerade nicht',
-  OTHER_REASON,
+  { key: 'otherOffer', value: 'Ich habe ein anderes Angebot angenommen' },
+  { key: 'notFitting', value: 'Die Stelle passt doch nicht zu mir' },
+  { key: 'timing', value: 'Zeitlich passt es gerade nicht' },
+  { key: 'other', value: OTHER_REASON },
 ] as const;
+type ReasonKey = (typeof DECLINE_REASONS)[number]['key'];
 
 const errorText = (err: unknown) =>
-  err instanceof Error && err.message ? err.message : 'Das hat nicht geklappt. Bitte erneut versuchen.';
+  err instanceof Error && err.message ? err.message : i18n.t('interviewResponse:common.error');
 const endOf = (iso: string, minutes: number) => new Date(Date.parse(iso) + minutes * 60000).toISOString();
-const timeSpan = (iso: string, minutes: number) => `${fmtTime(iso)}–${fmtTime(endOf(iso, minutes))} Uhr`;
+const timeSpan = (t: TFunction, iso: string, minutes: number) => t('common.timeSpan', { from: fmtTime(iso), to: fmtTime(endOf(iso, minutes)) });
+/** Tageslabel der anderen Zeiten in der Sprache der Seite (der Server liefert es deutsch). */
+const dayLabel = (d: { label: string; times: string[] }) => (d.times[0] ? fmtDayShort(d.times[0]) : d.label);
 
 export default function InterviewResponsePage() {
   const { token = '' } = useParams<{ token: string }>();
+  const { t } = useTranslation('interviewResponse');
   const [searchParams] = useSearchParams();
   const action = searchParams.get('action');
 
@@ -53,8 +63,8 @@ export default function InterviewResponsePage() {
   const [phone, setPhone] = useState('');
 
   useEffect(() => {
-    document.title = 'Interview-Einladung · Matchunt';
-  }, []);
+    document.title = t('candidate.docTitle');
+  }, [t]);
 
   useEffect(() => {
     let cancelled = false;
@@ -95,11 +105,11 @@ export default function InterviewResponsePage() {
       <PublicInterviewShell>
         <div className="space-y-4 pt-8 text-center">
           <StatusIcon icon={AlertCircle} />
-          <h1 className="text-xl font-semibold">Dieser Link ist ungültig oder abgelaufen.</h1>
+          <h1 className="text-xl font-semibold">{t('candidate.invalidTitle')}</h1>
           <p className="text-sm text-muted-foreground">
-            Bitte nutzen Sie den Link aus der neuesten E-Mail zu Ihrem Interview oder melden Sie sich bei Ihrem Headhunter.
+            {t('candidate.invalidBody')}
           </p>
-          <Button variant="outline" className="min-h-11" onClick={() => setAttempt((n) => n + 1)}>Erneut laden</Button>
+          <Button variant="outline" className="min-h-11" onClick={() => setAttempt((n) => n + 1)}>{t('candidate.reload')}</Button>
         </div>
       </PublicInterviewShell>
     );
@@ -109,13 +119,13 @@ export default function InterviewResponsePage() {
     return (
       <PublicInterviewShell>
         <div className="flex items-center justify-center gap-2 pt-16 text-sm text-muted-foreground" role="status">
-          <Loader2 className="h-5 w-5 animate-spin" /> Einladung wird geladen …
+          <Loader2 className="h-5 w-5 animate-spin" /> {t('candidate.loading')}
         </div>
       </PublicInterviewShell>
     );
   }
 
-  const recruiterName = view.recruiter?.name ?? 'Ihrem Headhunter';
+  const recruiterName = view.recruiter?.name ?? t('common.yourHeadhunterDat');
 
   let content: ReactNode;
   switch (view.state) {
@@ -156,34 +166,34 @@ export default function InterviewResponsePage() {
       break;
     case 'declined':
       content = view.reschedule ? (
-        <EndState icon={CheckCircle2} title="Ihr bisheriger Termin bleibt bestehen." recruiter={view.recruiter}>
-          {fmtDayLong(view.reschedule.previousStart)}, {fmtTime(view.reschedule.previousStart)} Uhr. {view.companyName} ist informiert.
+        <EndState icon={CheckCircle2} title={t('candidate.keptTitle')} recruiter={view.recruiter}>
+          {t('candidate.keptBody', { day: fmtDayLong(view.reschedule.previousStart), time: fmtTime(view.reschedule.previousStart), company: view.companyName })}
         </EndState>
       ) : (
-        <EndState icon={XCircle} title="Sie haben das Interview abgelehnt." recruiter={view.recruiter}>
-          {view.companyName} und {view.recruiter?.name ?? 'Ihr Headhunter'} sind informiert.
+        <EndState icon={XCircle} title={t('candidate.declinedTitle')} recruiter={view.recruiter}>
+          {t('candidate.declinedBody', { company: view.companyName, name: view.recruiter?.name ?? t('common.yourHeadhunter') })}
         </EndState>
       );
       break;
     case 'cancelled':
       content = (
-        <EndState icon={CalendarX} title="Dieses Interview wurde abgesagt." recruiter={view.recruiter}>
-          Bei Fragen melden Sie sich bei {recruiterName}.
+        <EndState icon={CalendarX} title={t('candidate.cancelledTitle')} recruiter={view.recruiter}>
+          {t('candidate.cancelledBody', { name: recruiterName })}
         </EndState>
       );
       break;
     case 'expired':
       content = (
-        <EndState icon={History} title="Diese Einladung ist abgelaufen." recruiter={view.recruiter}>
-          Wenn Sie weiterhin Interesse haben, melden Sie sich bei {recruiterName}.
+        <EndState icon={History} title={t('candidate.expiredTitle')} recruiter={view.recruiter}>
+          {t('candidate.expiredBody', { name: recruiterName })}
         </EndState>
       );
       break;
     case 'completed':
-      content = <EndState icon={CheckCircle2} title="Dieses Interview hat bereits stattgefunden." recruiter={null} />;
+      content = <EndState icon={CheckCircle2} title={t('candidate.completedTitle')} recruiter={null} />;
       break;
     default:
-      content = <EndState icon={AlertCircle} title="Diese Einladung kann gerade nicht angezeigt werden." recruiter={view.recruiter} />;
+      content = <EndState icon={AlertCircle} title={t('candidate.unknownTitle')} recruiter={view.recruiter} />;
   }
 
   return <PublicInterviewShell>{content}</PublicInterviewShell>;
@@ -192,25 +202,26 @@ export default function InterviewResponsePage() {
 /* ------------------------------------------------------------------------ */
 
 function InviteHeader({ view }: { view: CandidateView }) {
+  const { t } = useTranslation('interviewResponse');
   return (
     <div className="space-y-2">
       <h1 className="text-2xl font-semibold leading-tight tracking-tight">
         {view.reschedule
-          ? `${view.companyName} möchte Ihren Termin verschieben`
-          : (view.round ?? 1) > 1 ? `${view.companyName} lädt Sie zum ${view.round}. Gespräch ein` : `${view.companyName} möchte Sie kennenlernen`}
+          ? t('candidate.headerReschedule', { company: view.companyName })
+          : (view.round ?? 1) > 1 ? t('candidate.headerRound', { company: view.companyName, round: view.round }) : t('candidate.headerFirst', { company: view.companyName })}
       </h1>
       <p className="text-sm text-muted-foreground">
-        {view.jobTitle} · {durationLabel(view.durationMinutes)} · {formatText(view)}
+        {view.jobTitle} · {durationLabel(view.durationMinutes)} · {formatText(t, view)}
       </p>
       {view.reschedule?.stillValid && (
         <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm">
-          Ihr bisheriger Termin am <strong>{fmtDayLong(view.reschedule.previousStart)}, {fmtTime(view.reschedule.previousStart)} Uhr</strong> bleibt bestehen, bis Sie eine neue Zeit wählen.
+          <Trans t={t} i18nKey="candidate.previousStays" values={{ when: t('common.dayTime', { day: fmtDayLong(view.reschedule.previousStart), time: fmtTime(view.reschedule.previousStart) }) }} components={{ strong: <strong /> }} />
         </p>
       )}
       <OnsiteBlock view={view} />
       {view.interviewers.length > 0 && (
         <p className="text-sm">
-          <span className="text-muted-foreground">Gesprächspartner: </span>
+          <span className="text-muted-foreground">{t('candidate.interviewers')}</span>
           {view.interviewers.map((p) => (p.title ? `${p.name}, ${p.title}` : p.name)).join(' · ')}
         </p>
       )}
@@ -218,10 +229,11 @@ function InviteHeader({ view }: { view: CandidateView }) {
   );
 }
 
-const formatText = (view: CandidateView) =>
-  view.format === 'phone' ? `telefonisch, ${view.companyName} ruft Sie an` : view.format === 'onsite' ? 'vor Ort' : 'Microsoft Teams';
+const formatText = (t: TFunction, view: CandidateView) =>
+  view.format === 'phone' ? t('candidate.formatPhone', { company: view.companyName }) : view.format === 'onsite' ? t('candidate.formatOnsite') : t('candidate.formatTeams');
 
 function OnsiteBlock({ view }: { view: CandidateView }) {
+  const { t } = useTranslation('interviewResponse');
   if (view.format !== 'onsite' || !view.onsite) return null;
   return (
     <div className="flex items-start gap-2 rounded-xl border border-border bg-card p-3 text-sm">
@@ -229,9 +241,9 @@ function OnsiteBlock({ view }: { view: CandidateView }) {
       <div className="min-w-0">
         <p className="whitespace-pre-line">{view.onsite.address}</p>
         {view.onsite.note && <p className="mt-1 text-muted-foreground">{view.onsite.note}</p>}
-        {view.onsite.contact && <p className="mt-1 text-muted-foreground">Ansprechpartner vor Ort: {view.onsite.contact}</p>}
+        {view.onsite.contact && <p className="mt-1 text-muted-foreground">{t('candidate.onsiteContact', { name: view.onsite.contact })}</p>}
         <a href={view.onsite.mapsUrl} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block font-medium underline underline-offset-4">
-          Karte öffnen
+          {t('candidate.openMap')}
         </a>
       </div>
     </div>
@@ -240,16 +252,17 @@ function OnsiteBlock({ view }: { view: CandidateView }) {
 
 /** Telefon-Interview: Unter welcher Nummer erreichen wir Sie? */
 function PhoneBox({ view, phone, onPhone }: { view: CandidateView; phone: string; onPhone: (v: string) => void }) {
+  const { t } = useTranslation('interviewResponse');
   const [useOther, setUseOther] = useState(false);
   if (view.format !== 'phone') return null;
   const showInput = !view.phoneOnFile || useOther;
   return (
     <section className="space-y-2 rounded-xl border border-border bg-card p-4">
-      <p className="flex items-center gap-2 text-sm font-medium"><Phone className="h-4 w-4 text-muted-foreground" /> Unter welcher Nummer erreichen wir Sie?</p>
+      <p className="flex items-center gap-2 text-sm font-medium"><Phone className="h-4 w-4 text-muted-foreground" /> {t('candidate.phoneQuestion')}</p>
       {view.phoneOnFile && !useOther && (
         <p className="text-sm">
-          Hinterlegte Nummer, endet auf {view.phoneOnFile.replace('··· ', '')}{' '}
-          <button type="button" className="font-medium underline underline-offset-4" onClick={() => setUseOther(true)}>andere angeben</button>
+          {t('candidate.phoneOnFile', { digits: view.phoneOnFile.replace('··· ', '') })}{' '}
+          <button type="button" className="font-medium underline underline-offset-4" onClick={() => setUseOther(true)}>{t('candidate.otherPhone')}</button>
         </p>
       )}
       {showInput && (
@@ -304,6 +317,7 @@ function OpenPanel({ view, initialSlot, busy, consent, onConsent, phone, onPhone
   onAlternative: () => void;
   onDecline: () => void;
 }) {
+  const { t } = useTranslation('interviewResponse');
   const [selected, setSelected] = useState<string | null>(() => {
     const wanted = initialSlot ? Date.parse(initialSlot) : NaN;
     return view.slots.find((s) => s.available && Date.parse(s.start) === wanted)?.start ?? null;
@@ -317,12 +331,12 @@ function OpenPanel({ view, initialSlot, busy, consent, onConsent, phone, onPhone
     <div className="space-y-6">
       <InviteHeader view={view} />
       <RecruiterContactCard recruiter={view.recruiter} />
-      {view.message && <QuoteBlock label={`Nachricht von ${view.companyName}`} text={view.message} />}
+      {view.message && <QuoteBlock label={t('candidate.messageFrom', { company: view.companyName })} text={view.message} />}
 
       <section className="space-y-3" aria-labelledby="slot-heading">
         <div>
-          <h2 id="slot-heading" className="text-base font-semibold">{view.reschedule ? (view.slots.length === 1 ? 'Bestätigen Sie die neue Zeit' : 'Wählen Sie eine neue Zeit') : 'Wählen Sie einen Termin'}</h2>
-          <p className="text-xs text-muted-foreground">Alle Zeiten: <GermanTime isos={view.slots.map((s) => s.start)} /></p>
+          <h2 id="slot-heading" className="text-base font-semibold">{view.reschedule ? (view.slots.length === 1 ? t('candidate.confirmNewTime') : t('candidate.chooseNewTime')) : t('candidate.chooseSlot')}</h2>
+          <p className="text-xs text-muted-foreground">{t('common.allTimes')} <GermanTime isos={view.slots.map((s) => s.start)} /></p>
         </div>
         <div role="radiogroup" aria-labelledby="slot-heading" className="space-y-2">
           {view.slots.map((slot) => {
@@ -354,15 +368,15 @@ function OpenPanel({ view, initialSlot, busy, consent, onConsent, phone, onPhone
                 <span className={cn('flex-1 text-sm font-medium', !slot.available && 'line-through')}>
                   {fmtRange(slot.start, view.durationMinutes)}
                 </span>
-                {!slot.available && <span className="text-xs text-muted-foreground">nicht mehr frei</span>}
+                {!slot.available && <span className="text-xs text-muted-foreground">{t('candidate.notFree')}</span>}
               </button>
             );
           })}
         </div>
         {!anyFree && (
           <p className="text-sm text-muted-foreground">
-            Die vorgeschlagenen Termine sind inzwischen vergeben.{' '}
-            {view.allowAlternative ? 'Wählen Sie unten eine andere Zeit.' : `Bitte melden Sie sich bei ${view.recruiter?.name ?? 'Ihrem Headhunter'}.`}
+            {t('candidate.allTaken')}{' '}
+            {view.allowAlternative ? t('candidate.chooseOtherBelow') : t('candidate.contactRecruiter', { name: view.recruiter?.name ?? t('common.yourHeadhunterDat') })}
           </p>
         )}
       </section>
@@ -379,17 +393,17 @@ function OpenPanel({ view, initialSlot, busy, consent, onConsent, phone, onPhone
           onClick={() => chosen && onAccept(chosen)}
         >
           {busy && <Loader2 className="animate-spin" />}
-          Interview bestätigen
+          {t('candidate.confirmInterview')}
         </Button>
         {chosen && missingConsent && (
-          <p className="text-center text-xs text-muted-foreground">Bitte bestätigen Sie zuerst die Einwilligung.</p>
+          <p className="text-center text-xs text-muted-foreground">{t('candidate.consentFirst')}</p>
         )}
         {chosen && !missingConsent && phoneMissing(view, phone) && (
-          <p className="text-center text-xs text-muted-foreground">Bitte geben Sie Ihre Telefonnummer an.</p>
+          <p className="text-center text-xs text-muted-foreground">{t('candidate.phoneRequired')}</p>
         )}
         {view.allowAlternative && (
           <Button variant="outline" size="lg" className="h-12 w-full" disabled={busy} onClick={onAlternative}>
-            Keiner passt? Andere Zeit wählen
+            {t('candidate.noneFits')}
           </Button>
         )}
         <div className="flex justify-center">
@@ -399,7 +413,7 @@ function OpenPanel({ view, initialSlot, busy, consent, onConsent, phone, onPhone
             onClick={onDecline}
             className={cn('min-h-11 px-3 text-sm font-medium underline-offset-4 hover:underline disabled:opacity-50', view.reschedule ? 'text-foreground' : 'text-destructive')}
           >
-            {view.reschedule ? 'Keine passt – beim bisherigen Termin bleiben' : 'Interview ablehnen'}
+            {view.reschedule ? t('candidate.keepPrevious') : t('candidate.declineInterview')}
           </button>
         </div>
       </div>
@@ -442,6 +456,7 @@ function AlternativePanel({ view, busy, consent, onConsent, phone, onPhone, onBa
   onBack: () => void;
   onSubmit: (start: string, message: string) => void;
 }) {
+  const { t } = useTranslation('interviewResponse');
   const [day, setDay] = useState<string | null>(view.alternatives[0]?.date ?? null);
   const [start, setStart] = useState<string | null>(null);
   const [message, setMessage] = useState('');
@@ -458,48 +473,48 @@ function AlternativePanel({ view, busy, consent, onConsent, phone, onPhone, onBa
         onClick={onBack}
         className="-ml-2 inline-flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-medium text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft className="h-4 w-4" /> Zurück zu den Vorschlägen
+        <ArrowLeft className="h-4 w-4" /> {t('candidate.backToProposals')}
       </button>
 
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold leading-tight tracking-tight">Welche Zeit passt Ihnen?</h1>
+        <h1 className="text-2xl font-semibold leading-tight tracking-tight">{t('candidate.whichTime')}</h1>
         <p className="text-sm text-muted-foreground">
           {book
-            ? 'Alle Zeiten sind beim Unternehmen frei.'
-            : `${view.companyName} bestätigt Ihre Anfrage, meist innerhalb eines Werktags.`}
+            ? t('candidate.allFree')
+            : t('candidate.companyConfirms', { company: view.companyName })}
         </p>
       </div>
 
       {view.alternatives.length === 0 ? (
         <div className="space-y-4">
           <p className="rounded-xl border border-border bg-card p-4 text-sm">
-            Im Moment gibt es keine weiteren freien Zeiten. Bitte melden Sie sich bei {view.recruiter?.name ?? 'Ihrem Headhunter'}.
+            {t('candidate.noMoreTimes', { name: view.recruiter?.name ?? t('common.yourHeadhunterDat') })}
           </p>
           <RecruiterContactCard recruiter={view.recruiter} />
         </div>
       ) : (
         <>
-          <section className="space-y-3" aria-label="Tag wählen">
-            <p className="text-xs text-muted-foreground">Alle Zeiten: <GermanTime isos={allTimes} /></p>
+          <section className="space-y-3" aria-label={t('candidate.chooseDay')}>
+            <p className="text-xs text-muted-foreground">{t('common.allTimes')} <GermanTime isos={allTimes} /></p>
             <div className="flex flex-wrap gap-2">
               {view.alternatives.map((d) => (
                 <Chip key={d.date} active={current?.date === d.date} disabled={busy} onClick={() => setDay(d.date)}>
-                  {d.label}
+                  {dayLabel(d)}
                 </Chip>
               ))}
             </div>
           </section>
 
           {current && (
-            <section className="space-y-3" aria-label={`Uhrzeit am ${current.label} wählen`}>
-              <h2 className="text-sm font-semibold">{current.label}</h2>
+            <section className="space-y-3" aria-label={t('candidate.chooseTimeOn', { day: dayLabel(current) })}>
+              <h2 className="text-sm font-semibold">{dayLabel(current)}</h2>
               {current.times.length === 0 ? (
-                <p className="text-sm text-muted-foreground">An diesem Tag ist nichts mehr frei.</p>
+                <p className="text-sm text-muted-foreground">{t('candidate.dayFull')}</p>
               ) : (
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                  {current.times.map((t) => (
-                    <Chip key={t} active={chosen === t} disabled={busy} onClick={() => setStart(t)} className="rounded-lg px-2">
-                      {fmtTime(t)}
+                  {current.times.map((time) => (
+                    <Chip key={time} active={chosen === time} disabled={busy} onClick={() => setStart(time)} className="rounded-lg px-2">
+                      {fmtTime(time)}
                     </Chip>
                   ))}
                 </div>
@@ -509,14 +524,14 @@ function AlternativePanel({ view, busy, consent, onConsent, phone, onPhone, onBa
 
           <div className="space-y-2">
             <label htmlFor="alternative-message" className="text-sm font-medium">
-              Nachricht an {view.companyName} <span className="font-normal text-muted-foreground">(optional)</span>
+              {t('candidate.messageTo', { company: view.companyName })} <span className="font-normal text-muted-foreground">{t('common.optional')}</span>
             </label>
             <Textarea
               id="alternative-message"
               value={message}
               maxLength={500}
               rows={3}
-              placeholder="Vormittags bin ich im Kundentermin …"
+              placeholder={t('candidate.messagePlaceholder')}
               onChange={(e) => setMessage(e.target.value)}
               disabled={busy}
               className="text-base sm:text-sm"
@@ -536,11 +551,11 @@ function AlternativePanel({ view, busy, consent, onConsent, phone, onPhone, onBa
             >
               {busy && <Loader2 className="animate-spin" />}
               {chosen
-                ? `${fmtDayShort(chosen)} · ${fmtTime(chosen)} ${book ? 'bestätigen' : 'anfragen'}`
-                : 'Bitte eine Zeit wählen'}
+                ? t(book ? 'candidate.confirmAt' : 'candidate.requestAt', { day: fmtDayShort(chosen), time: fmtTime(chosen) })
+                : t('candidate.pickTime')}
             </Button>
             {chosen && missingConsent && (
-              <p className="text-center text-xs text-muted-foreground">Bitte bestätigen Sie zuerst die Einwilligung.</p>
+              <p className="text-center text-xs text-muted-foreground">{t('candidate.consentFirst')}</p>
             )}
           </div>
         </>
@@ -550,7 +565,8 @@ function AlternativePanel({ view, busy, consent, onConsent, phone, onPhone, onBa
 }
 
 function DeclinePanel({ busy, view, onBack, onDecline }: { busy: boolean; view: CandidateView; onBack: () => void; onDecline: (reason: string) => void }) {
-  const [reason, setReason] = useState<string | null>(null);
+  const { t } = useTranslation('interviewResponse');
+  const [reason, setReason] = useState<ReasonKey | null>(null);
   const [other, setOther] = useState('');
 
   if (view.reschedule) {
@@ -558,18 +574,18 @@ function DeclinePanel({ busy, view, onBack, onDecline }: { busy: boolean; view: 
     return (
       <div className="space-y-6">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold leading-tight tracking-tight">Beim bisherigen Termin bleiben?</h1>
+          <h1 className="text-2xl font-semibold leading-tight tracking-tight">{t('candidate.keepTitle')}</h1>
           <p className="text-sm text-muted-foreground">
-            Ihr Termin am {fmtDayLong(view.reschedule.previousStart)}, {fmtTime(view.reschedule.previousStart)} Uhr bleibt bestehen. {view.companyName} wird informiert.
+            {t('candidate.keepBody', { day: fmtDayLong(view.reschedule.previousStart), time: fmtTime(view.reschedule.previousStart), company: view.companyName })}
           </p>
         </div>
         <div className="space-y-3">
-          <Button size="lg" className="h-12 w-full" disabled={busy} onClick={() => onDecline('Beim bisherigen Termin bleiben')}>
+          <Button size="lg" className="h-12 w-full" disabled={busy} onClick={() => onDecline(KEEP_PREVIOUS)}>
             {busy && <Loader2 className="animate-spin" />}
-            Beim bisherigen Termin bleiben
+            {t('candidate.keepButton')}
           </Button>
           <Button variant="outline" size="lg" className="h-12 w-full" disabled={busy} onClick={onBack}>
-            Zurück
+            {t('common.back')}
           </Button>
         </div>
       </div>
@@ -578,35 +594,36 @@ function DeclinePanel({ busy, view, onBack, onDecline }: { busy: boolean; view: 
 
   const submit = () => {
     const text = other.trim();
-    const value = reason === OTHER_REASON ? (text ? `${OTHER_REASON}: ${text}` : OTHER_REASON) : reason ?? '';
+    const picked = DECLINE_REASONS.find((r) => r.key === reason);
+    const value = reason === 'other' ? (text ? `${OTHER_REASON}: ${text}` : OTHER_REASON) : picked?.value ?? '';
     onDecline(value);
   };
 
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold leading-tight tracking-tight">Möchten Sie das Interview ablehnen?</h1>
-        <p className="text-sm text-muted-foreground">Ein Grund ist freiwillig, hilft aber bei der weiteren Suche.</p>
+        <h1 className="text-2xl font-semibold leading-tight tracking-tight">{t('candidate.declineTitle')}</h1>
+        <p className="text-sm text-muted-foreground">{t('candidate.declineBody')}</p>
       </div>
 
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Grund (optional)">
+      <div className="flex flex-wrap gap-2" role="group" aria-label={t('candidate.reasonGroup')}>
         {DECLINE_REASONS.map((r) => (
           <Chip
-            key={r}
-            active={reason === r}
+            key={r.key}
+            active={reason === r.key}
             disabled={busy}
-            onClick={() => setReason((cur) => (cur === r ? null : r))}
+            onClick={() => setReason((cur) => (cur === r.key ? null : r.key))}
             className="h-auto py-2 text-left"
           >
-            {r}
+            {t(`candidate.reasons.${r.key}`)}
           </Chip>
         ))}
       </div>
 
-      {reason === OTHER_REASON && (
+      {reason === 'other' && (
         <div className="space-y-2">
           <label htmlFor="decline-other" className="text-sm font-medium">
-            Möchten Sie den Grund nennen? <span className="font-normal text-muted-foreground">(optional)</span>
+            {t('candidate.reasonQuestion')} <span className="font-normal text-muted-foreground">{t('common.optional')}</span>
           </label>
           <Textarea
             id="decline-other"
@@ -623,10 +640,10 @@ function DeclinePanel({ busy, view, onBack, onDecline }: { busy: boolean; view: 
       <div className="space-y-3">
         <Button variant="destructive" size="lg" className="h-12 w-full" disabled={busy} onClick={submit}>
           {busy && <Loader2 className="animate-spin" />}
-          Interview ablehnen
+          {t('candidate.declineInterview')}
         </Button>
         <Button variant="outline" size="lg" className="h-12 w-full" disabled={busy} onClick={onBack}>
-          Zurück
+          {t('common.back')}
         </Button>
       </div>
     </div>
@@ -634,12 +651,13 @@ function DeclinePanel({ busy, view, onBack, onDecline }: { busy: boolean; view: 
 }
 
 function ScheduledPanel({ view }: { view: CandidateView }) {
+  const { t } = useTranslation('interviewResponse');
   const s = view.scheduled;
   return (
     <div className="space-y-6">
       <div className="space-y-3 text-center">
         <StatusIcon icon={CheckCircle2} tone="success" />
-        <h1 className="text-2xl font-semibold tracking-tight">{(view.round ?? 1) > 1 ? `Ihr ${view.round}. Gespräch steht` : 'Ihr Interview steht'}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{(view.round ?? 1) > 1 ? t('candidate.scheduledRound', { round: view.round }) : t('candidate.scheduledFirst')}</h1>
         <p className="text-sm text-muted-foreground">{view.companyName} · {view.jobTitle}</p>
       </div>
 
@@ -648,7 +666,7 @@ function ScheduledPanel({ view }: { view: CandidateView }) {
           <div>
             <p className="text-lg font-semibold">{fmtDayLong(s.start)}</p>
             <p className="text-sm">
-              {timeSpan(s.start, view.durationMinutes)}{' '}
+              {timeSpan(t, s.start, view.durationMinutes)}{' '}
               <GermanTime isos={[s.start]} className="text-muted-foreground" />
             </p>
           </div>
@@ -656,13 +674,13 @@ function ScheduledPanel({ view }: { view: CandidateView }) {
         <p className="flex items-center gap-2 text-sm">
           {view.format === 'phone' ? <Phone className="h-4 w-4 text-muted-foreground" /> : view.format === 'onsite' ? <Building2 className="h-4 w-4 text-muted-foreground" /> : <Video className="h-4 w-4 text-muted-foreground" />}
           {view.format === 'phone'
-            ? `${view.companyName} ruft Sie an${view.callPhone ? ` (Nummer endet auf ${view.callPhone.replace('··· ', '')})` : ''}`
-            : view.format === 'onsite' ? 'Vor Ort' : 'Microsoft Teams'}
+            ? (view.callPhone ? t('candidate.companyCallsNumber', { company: view.companyName, digits: view.callPhone.replace('··· ', '') }) : t('candidate.companyCalls', { company: view.companyName }))
+            : view.format === 'onsite' ? t('candidate.onsite') : t('candidate.formatTeams')}
         </p>
         <OnsiteBlock view={view} />
         {view.interviewers.length > 0 && (
           <p className="text-sm">
-            <span className="text-muted-foreground">Gesprächspartner: </span>
+            <span className="text-muted-foreground">{t('candidate.interviewers')}</span>
             {view.interviewers.map((p) => (p.title ? `${p.name}, ${p.title}` : p.name)).join(' · ')}
           </p>
         )}
@@ -671,31 +689,31 @@ function ScheduledPanel({ view }: { view: CandidateView }) {
       <div className="space-y-3">
         {view.format === 'teams' && (s?.joinUrl ? (
           <Button asChild size="lg" className="h-12 w-full">
-            <a href={s.joinUrl} target="_blank" rel="noopener noreferrer"><Video /> Teams-Besprechung öffnen</a>
+            <a href={s.joinUrl} target="_blank" rel="noopener noreferrer"><Video /> {t('candidate.openTeams')}</a>
           </Button>
         ) : (
-          <p className="rounded-xl border border-border bg-card p-4 text-sm">Den Link zum Gespräch bekommen Sie per Mail, sobald er feststeht.</p>
+          <p className="rounded-xl border border-border bg-card p-4 text-sm">{t('candidate.linkLater')}</p>
         ))}
         {view.format === 'onsite' && view.onsite && (
           <Button asChild size="lg" className="h-12 w-full">
-            <a href={view.onsite.mapsUrl} target="_blank" rel="noopener noreferrer"><MapPin /> Anfahrt in Karte öffnen</a>
+            <a href={view.onsite.mapsUrl} target="_blank" rel="noopener noreferrer"><MapPin /> {t('candidate.openRoute')}</a>
           </Button>
         )}
         {s?.icsUrl && (
           <Button asChild variant="outline" size="lg" className="h-12 w-full">
-            <a href={s.icsUrl} download="interview.ics"><CalendarPlus /> Zum Kalender hinzufügen</a>
+            <a href={s.icsUrl} download="interview.ics"><CalendarPlus /> {t('candidate.addCalendar')}</a>
           </Button>
         )}
       </div>
 
       <p className="text-sm text-muted-foreground">
         {view.format === 'teams'
-          ? `${s?.joinUrl ? 'Kalendereinladung mit Teams-Link kommt per Mail. ' : ''}Teilnahme mit Teams-App oder im Browser. Am Vortag erinnern wir Sie per Mail.`
-          : 'Die Kalendereinladung kommt per Mail. Am Vortag erinnern wir Sie per Mail.'}
+          ? (s?.joinUrl ? t('candidate.teamsInfoWithLink') : t('candidate.teamsInfo'))
+          : t('candidate.otherInfo')}
       </p>
 
       <div className="space-y-3">
-        <p className="text-sm">Umbuchen oder absagen? Melden Sie sich bei {view.recruiter?.name ?? 'Ihrem Headhunter'}.</p>
+        <p className="text-sm">{t('candidate.changeOrCancel', { name: view.recruiter?.name ?? t('common.yourHeadhunterDat') })}</p>
         <RecruiterContactCard recruiter={view.recruiter} />
       </div>
     </div>
@@ -703,30 +721,30 @@ function ScheduledPanel({ view }: { view: CandidateView }) {
 }
 
 function RequestedPanel({ view }: { view: CandidateView }) {
+  const { t } = useTranslation('interviewResponse');
   const r = view.requested;
   return (
     <div className="space-y-6">
       <div className="space-y-3 text-center">
         <StatusIcon icon={Clock} tone="warning" />
-        <h1 className="text-2xl font-semibold tracking-tight">Ihre Anfrage ist beim Unternehmen</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('candidate.requestedTitle')}</h1>
         <p className="text-sm text-muted-foreground">{view.companyName} · {view.jobTitle}</p>
       </div>
 
       {r?.start && (
         <div className="rounded-xl border border-border bg-card p-4">
-          <p className="text-xs font-medium text-muted-foreground">Angefragt</p>
+          <p className="text-xs font-medium text-muted-foreground">{t('candidate.requested')}</p>
           <p className="text-lg font-semibold">{fmtDayLong(r.start)}</p>
           <p className="text-sm">
-            {timeSpan(r.start, view.durationMinutes)}{' '}
+            {timeSpan(t, r.start, view.durationMinutes)}{' '}
             <GermanTime isos={[r.start]} className="text-muted-foreground" />
           </p>
         </div>
       )}
-      {r?.message && <QuoteBlock label="Ihre Nachricht" text={r.message} />}
+      {r?.message && <QuoteBlock label={t('candidate.yourMessage')} text={r.message} />}
 
       <p className="text-sm">
-        Sie bekommen eine Mail, sobald {view.companyName} bestätigt, meist innerhalb eines Werktags.{' '}
-        {view.recruiter?.name ?? 'Ihr Headhunter'} ist informiert.
+        {t('candidate.requestedBody', { company: view.companyName, name: view.recruiter?.name ?? t('common.yourHeadhunter') })}
       </p>
       <RecruiterContactCard recruiter={view.recruiter} />
     </div>

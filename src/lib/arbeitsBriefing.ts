@@ -3,6 +3,12 @@ import { nichtSchonGenannt, verguetung } from './jobPosting';
 import { briefingText, getRecruiterCriteria, list, type BriefingJob } from './recruiterBriefing';
 import { mitarbeitende } from './stellenKopf';
 import type { WorkspaceJob } from '@/components/recruiter/RecruiterJobWorkspace';
+import i18n from '@/i18n';
+
+// Texte werden beim Aufruf gelesen (Namespace recruiterJobDetail, brief.*), nie beim Laden des Moduls.
+// Sicherheitsnetz: den Namespace schon beim Import anfordern, falls eine Seite ihn nicht selbst lädt.
+void i18n.loadNamespaces('recruiterJobDetail');
+const tr = (key: string, options?: Record<string, unknown>) => i18n.t(`recruiterJobDetail:brief.${key}`, options) as string;
 
 /**
  * Das Briefing nach den Arbeitsschritten des Headhunters (Konzept 21.10.2026):
@@ -17,13 +23,13 @@ export type SchrittId = 'lohnt' | 'suche' | 'ueberzeugen' | 'gespraech' | 'absch
 export interface Zeile { label: string; wert?: string; chips?: string[]; vertraulich?: boolean }
 export interface Schritt { id: SchrittId; frage: string; zeilen: Zeile[]; benefits?: string[]; beleg?: string; offen: Fehlt[] }
 
-export const SCHRITTE: { id: SchrittId; frage: string; kurz: string }[] = [
-  { id: 'lohnt', frage: 'Lohnt sich der Auftrag?', kurz: 'Lohnt es sich' },
-  { id: 'suche', frage: 'Wen suche ich, und wo?', kurz: 'Wen und wo' },
-  { id: 'ueberzeugen', frage: 'Womit überzeuge ich?', kurz: 'Überzeugen' },
-  { id: 'gespraech', frage: 'Was kläre ich im ersten Gespräch?', kurz: 'Gespräch' },
-  { id: 'abschluss', frage: 'Wie bringe ich es ins Ziel?', kurz: 'Abschluss' },
-];
+/** Frage und Kurzform werden bei jedem Zugriff in der aktuellen Sprache gelesen. */
+export const SCHRITTE: { id: SchrittId; readonly frage: string; readonly kurz: string }[] =
+  (['lohnt', 'suche', 'ueberzeugen', 'gespraech', 'abschluss'] as SchrittId[]).map(id => ({
+    id,
+    get frage() { return tr(`steps.${id}.frage`); },
+    get kurz() { return tr(`steps.${id}.kurz`); },
+  }));
 
 /** Welche Frage der Aufnahme in welchen Schritt gehört (für die Lücken je Schritt). */
 const FELDER: Record<SchrittId, string[]> = {
@@ -66,26 +72,26 @@ export function buildArbeitsBriefing(job: BriefingJob & Record<string, unknown>,
   const monate = briefingText(job.salary_months);
   const bonus = briefingText(job.bonus_structure);
   const ohneBonus = bonus && /^(nein|kein|keiner|keine)\b/i.test(bonus);
-  const gehalt = geld ? [freelance ? `${geld}, zzgl. USt` : `${geld} fix${monate ? ` × ${monate}` : ''}`, bonus ? (ohneBonus ? 'kein Bonus' : `Bonus: ${bonus}`) : null].filter(Boolean).join(', ') : '';
+  const gehalt = geld ? [freelance ? tr('v.plusVat', { amount: geld }) : monate ? tr('v.fixedTimes', { amount: geld, months: monate }) : tr('v.fixed', { amount: geld }), bonus ? (ohneBonus ? tr('v.noBonus') : tr('v.bonus', { bonus })) : null].filter(Boolean).join(', ') : '';
   const tage = zahl(job.onsite_days_required);
-  const ort = [briefingText(job.location), job.remote_type === 'remote' || tage === 0 ? 'remote' : tage ? `${tage} ${tage === 1 ? 'Tag' : 'Tage'} vor Ort` : job.remote_type === 'hybrid' ? 'hybrid' : null].filter(Boolean).join(' · ');
+  const ort = [briefingText(job.location), job.remote_type === 'remote' || tage === 0 ? tr('v.remote') : tage ? tr('v.daysOnsite', { count: tage }) : job.remote_type === 'hybrid' ? tr('v.hybrid') : null].filter(Boolean).join(' · ');
   const level = job.experience_level ? LEVEL[String(job.experience_level).toLowerCase()] ?? String(job.experience_level) : '';
-  const laufzeit = freelance ? [zahl(job.contract_duration_months) ? `${zahl(job.contract_duration_months)} Monate` : null,
-    zahl(job.utilization_days_per_week) ? `${zahl(job.utilization_days_per_week)} Tage / Woche` : null,
-    job.extension_possible === true ? 'Verlängerung möglich' : null].filter(Boolean).join(' · ') : '';
+  const laufzeit = freelance ? [zahl(job.contract_duration_months) ? tr('v.months', { n: zahl(job.contract_duration_months) }) : null,
+    zahl(job.utilization_days_per_week) ? tr('v.daysPerWeek', { n: zahl(job.utilization_days_per_week) }) : null,
+    job.extension_possible === true ? tr('v.extensionPossible') : null].filter(Boolean).join(' · ') : '';
   const imProzess = zahl(job.candidates_in_pipeline);
-  const dringlich = [klein(briefingText(job.hiring_urgency)), imProzess != null ? (imProzess === 0 ? 'beim Kunden noch keine Kandidaten im Prozess' : `beim Kunden ${imProzess} ${imProzess === 1 ? 'Kandidat' : 'Kandidaten'} im Prozess`) : null].filter(Boolean).join(' · ');
+  const dringlich = [klein(briefingText(job.hiring_urgency)), imProzess != null ? (imProzess === 0 ? tr('v.pipelineNone') : tr('v.pipeline', { count: imProzess })) : null].filter(Boolean).join(' · ');
   const lohnt: Schritt = {
     id: 'lohnt', frage: SCHRITTE[0].frage, offen: offen('lohnt'),
     zeilen: nurZeilen([
-      zeile(freelance ? 'Tagessatz' : 'Gehalt', gehalt),
-      zeile('Spielraum', briefingText(job.salary_flex), true),
-      zeile('Laufzeit', laufzeit),
-      zeile('Arbeitsort', ort),
-      zeile('Level und Vertrag', [level, freelance ? '' : klein(briefingText(job.contract_limitation))].filter(Boolean).join(' · ')),
-      zeile('Warum offen', briefingText(job.vacancy_reason).replace(/\s*\/\s*/g, ', ')),
-      zeile('Dringlichkeit', dringlich, imProzess != null),
-      zeile('Wenn sie offen bleibt', punkte(job.negative_impact_if_unfilled).join(' · ')),
+      zeile(freelance ? tr('label.dayRate') : tr('label.salary'), gehalt),
+      zeile(tr('label.flex'), briefingText(job.salary_flex), true),
+      zeile(tr('label.duration'), laufzeit),
+      zeile(tr('label.workplace'), ort),
+      zeile(tr('label.levelContract'), [level, freelance ? '' : klein(briefingText(job.contract_limitation))].filter(Boolean).join(' · ')),
+      zeile(tr('label.whyOpen'), briefingText(job.vacancy_reason).replace(/\s*\/\s*/g, ', ')),
+      zeile(tr('label.urgency'), dringlich, imProzess != null),
+      zeile(tr('label.ifUnfilled'), punkte(job.negative_impact_if_unfilled).join(' · ')),
     ]),
   };
 
@@ -97,14 +103,14 @@ export function buildArbeitsBriefing(job: BriefingJob & Record<string, unknown>,
   const suche: Schritt = {
     id: 'suche', frage: SCHRITTE[1].frage, offen: offen('suche'),
     zeilen: nurZeilen([
-      k.required.length ? { label: 'Muss', chips: k.required } : null,
-      zeile('Erlernbar', k.trainable.join(' · ')),
-      zeile('Von Vorteil', [...vorteil, ...zertifikate].join(' · ')),
-      zeile('So gelingt es', punkte(job.success_profile).map(klein).join(', ')),
-      zeile('Nicht schicken', punkte(job.failure_profile).map(klein).join(' · '), true),
-      zeile('Branche', briefingText(job.industry)),
-      revealed ? zeile('Gute Kandidaten kommen aus', list(job.target_companies).join(' · ')) : null,
-      revealed ? zeile('Nicht abwerben bei', list(job.nogo_companies).join(' · '), true) : null,
+      k.required.length ? { label: tr('label.must'), chips: k.required } : null,
+      zeile(tr('label.trainable'), k.trainable.join(' · ')),
+      zeile(tr('label.niceToHave'), [...vorteil, ...zertifikate].join(' · ')),
+      zeile(tr('label.success'), punkte(job.success_profile).map(klein).join(', ')),
+      zeile(tr('label.dontSend'), punkte(job.failure_profile).map(klein).join(' · '), true),
+      zeile(tr('label.industry'), briefingText(job.industry)),
+      revealed ? zeile(tr('label.targetCompanies'), list(job.target_companies).join(' · ')) : null,
+      revealed ? zeile(tr('label.nogoCompanies'), list(job.nogo_companies).join(' · '), true) : null,
     ]),
   };
 
@@ -119,25 +125,25 @@ export function buildArbeitsBriefing(job: BriefingJob & Record<string, unknown>,
   const struktur = briefingText(job.department_structure);
   const groesse = zahl(job.team_size);
   // „Team 4“ nur, wenn die Beschreibung die Größe nicht schon nennt.
-  const team = [groesse && !new RegExp(`\\b${groesse}\\b`).test(struktur) ? `Team ${groesse}` : null, struktur || null,
-    briefingText(job.reports_to) ? `berichtet an: ${briefingText(job.reports_to)}` : null].filter(Boolean).map(ohneSchlusspunkt).join(' · ');
-  const alltag = [briefingText(job.daily_routine), briefingText(job.task_focus) ? `Schwerpunkt: ${klein(briefingText(job.task_focus))}` : null].filter(Boolean).map(ohneSchlusspunkt).join(' · ');
+  const team = [groesse && !new RegExp(`\\b${groesse}\\b`).test(struktur) ? tr('v.team', { n: groesse }) : null, struktur || null,
+    briefingText(job.reports_to) ? tr('v.reportsTo', { name: briefingText(job.reports_to) }) : null].filter(Boolean).map(t => ohneSchlusspunkt(t as string)).join(' · ');
+  const alltag = [briefingText(job.daily_routine), briefingText(job.task_focus) ? tr('v.focus', { focus: klein(briefingText(job.task_focus)) }) : null].filter(Boolean).map(t => ohneSchlusspunkt(t as string)).join(' · ');
   const gewichtung = job.task_breakdown && typeof job.task_breakdown === 'object' && !Array.isArray(job.task_breakdown)
     ? Object.entries(job.task_breakdown as Record<string, unknown>).map(([n, v]) => `${n} ${briefingText(v)}${typeof v === 'number' ? ' %' : ''}`).join(' · ') : '';
-  const arbeitszeit = [...nichtSchonGenannt([briefingText(job.core_hours), briefingText(job.core_hours_detail)].filter(Boolean), benefits), briefingText(job.overtime_policy) ? `Überstunden: ${briefingText(job.overtime_policy)}` : null,
-    briefingText(job.time_tracking_method) ? `Zeiterfassung: ${briefingText(job.time_tracking_method)}` : null].filter(Boolean).join(' · ');
+  const arbeitszeit = [...nichtSchonGenannt([briefingText(job.core_hours), briefingText(job.core_hours_detail)].filter(Boolean), benefits), briefingText(job.overtime_policy) ? tr('v.overtime', { text: briefingText(job.overtime_policy) }) : null,
+    briefingText(job.time_tracking_method) ? tr('v.timeTracking', { text: briefingText(job.time_tracking_method) }) : null].filter(Boolean).join(' · ');
   const ueberzeugen: Schritt = {
     id: 'ueberzeugen', frage: SCHRITTE[2].frage, offen: offen('ueberzeugen'), benefits, beleg,
     zeilen: nurZeilen([
-      zeile('Entwicklung', entwicklung),
-      zeile('Unternehmen', firma),
-      zeile('Kultur', briefingText(job.company_culture)),
-      zeile('Team', team),
-      zeile('Alltag', alltag),
-      zeile('Gewichtung', gewichtung),
-      zeile('Arbeitszeit', arbeitszeit),
-      zeile('Branche: Chancen', briefingText(job.industry_opportunities)),
-      zeile('Branche: Herausforderungen', briefingText(job.industry_challenges)),
+      zeile(tr('label.development'), entwicklung),
+      zeile(tr('label.company'), firma),
+      zeile(tr('label.culture'), briefingText(job.company_culture)),
+      zeile(tr('label.team'), team),
+      zeile(tr('label.daily'), alltag),
+      zeile(tr('label.breakdown'), gewichtung),
+      zeile(tr('label.workingHours'), arbeitszeit),
+      zeile(tr('label.industryChances'), briefingText(job.industry_opportunities)),
+      zeile(tr('label.industryChallenges'), briefingText(job.industry_challenges)),
     ]),
   };
 
@@ -145,24 +151,24 @@ export function buildArbeitsBriefing(job: BriefingJob & Record<string, unknown>,
   const gespraech: Schritt = {
     id: 'gespraech', frage: SCHRITTE[3].frage, offen: offen('gespraech'),
     zeilen: nurZeilen([
-      freelance ? null : zeile('Längste Kündigungsfrist', briefingText(job.max_notice_period)),
-      zeile('Arbeitserlaubnis', typeof job.visa_sponsorship === 'boolean' ? (job.visa_sponsorship ? 'Visum unterstützt der Kunde' : 'Arbeitserlaubnis für Deutschland nötig') : ''),
-      zeile('Vertrag vorab ansprechen', punkte(job.contract_sensitive_topics).join(' · ')),
-      revealed ? zeile('Kandidaten sehen kritisch', list(job.candidate_concerns).join(' · '), true) : null,
-      revealed ? zeile('Antwort des Kunden', briefingText(job.candidate_concerns_answer)) : null,
+      freelance ? null : zeile(tr('label.noticePeriod'), briefingText(job.max_notice_period)),
+      zeile(tr('label.workPermit'), typeof job.visa_sponsorship === 'boolean' ? (job.visa_sponsorship ? tr('v.visaSupported') : tr('v.permitNeeded')) : ''),
+      zeile(tr('label.contractTopics'), punkte(job.contract_sensitive_topics).join(' · ')),
+      revealed ? zeile(tr('label.concerns'), list(job.candidate_concerns).join(' · '), true) : null,
+      revealed ? zeile(tr('label.clientAnswer'), briefingText(job.candidate_concerns_answer)) : null,
     ]),
   };
 
   // 5 · Wie bringe ich es ins Ziel?
-  const vertrag = [briefingText(job.contract_creation_days) ? `${briefingText(job.contract_creation_days)} Tage` : null, job.contract_sent_digitally === true ? 'digital' : null].filter(Boolean).join(', ');
+  const vertrag = [briefingText(job.contract_creation_days) ? tr('v.days', { n: briefingText(job.contract_creation_days) }) : null, job.contract_sent_digitally === true ? tr('v.digital') : null].filter(Boolean).join(', ');
   const abschluss: Schritt = {
     id: 'abschluss', frage: SCHRITTE[4].frage, offen: offen('abschluss'),
     zeilen: nurZeilen([
-      zeile('Ablauf', briefingText(job.interview_process)),
-      zeile('Entscheiden', list(job.decision_makers).join(', ')),
-      zeile('Vom Ja bis zum Vertrag', vertrag),
-      job.works_council === true ? zeile('Betriebsrat', ['ja', briefingText(job.works_council_meeting_schedule)].filter(Boolean).join(', tagt ')) : null,
-      zeile('Bisherige Absagegründe', briefingText(job.candidates_dropped_reason), true),
+      zeile(tr('label.process'), briefingText(job.interview_process)),
+      zeile(tr('label.deciders'), list(job.decision_makers).join(', ')),
+      zeile(tr('label.yesToContract'), vertrag),
+      job.works_council === true ? zeile(tr('label.worksCouncil'), briefingText(job.works_council_meeting_schedule) ? tr('v.worksCouncilMeets', { schedule: briefingText(job.works_council_meeting_schedule) }) : tr('v.yes')) : null,
+      zeile(tr('label.rejectionReasons'), briefingText(job.candidates_dropped_reason), true),
     ]),
   };
 

@@ -13,66 +13,63 @@ import {
   Clock
 } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { useTranslation } from 'react-i18next';
+import { dateFnsLocale } from '@/lib/candidateDateLocale';
 
 interface CandidateActivityTimelineProps {
   activities: CandidateActivity[];
   loading: boolean;
 }
 
-const activityConfig: Record<string, { icon: React.ElementType; color: string; bgColor: string; label: string }> = {
+// Beschriftung über candidateDetail:activity.badges.<typ>
+const activityConfig: Record<string, { icon: React.ElementType; color: string; bgColor: string }> = {
   call: {
     icon: Phone,
     color: 'text-emerald-600',
     bgColor: 'bg-emerald-100',
-    label: 'Anruf',
   },
   email: {
     icon: Mail,
     color: 'text-blue-600',
     bgColor: 'bg-blue-100',
-    label: 'E-Mail',
   },
   note: {
     icon: FileText,
     color: 'text-gray-600',
     bgColor: 'bg-gray-100',
-    label: 'Notiz',
   },
   status_change: {
     icon: ArrowRightLeft,
     color: 'text-purple-600',
     bgColor: 'bg-purple-100',
-    label: 'Status',
   },
   playbook_used: {
     icon: BookOpen,
     color: 'text-amber-600',
     bgColor: 'bg-amber-100',
-    label: 'Playbook',
   },
   alert_actioned: {
     icon: CheckCircle,
     color: 'text-emerald-600',
     bgColor: 'bg-emerald-100',
-    label: 'Alert bearbeitet',
   },
   hubspot_import: {
     icon: Upload,
     color: 'text-orange-600',
     bgColor: 'bg-orange-100',
-    label: 'HubSpot Import',
   },
 };
 
 export function CandidateActivityTimeline({ activities, loading }: CandidateActivityTimelineProps) {
+  const { t, i18n } = useTranslation('candidateDetail');
+  const locale = dateFnsLocale(i18n.language);
   if (loading) {
     return (
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Clock className="h-5 w-5" />
-            Aktivitäten
+            {t('activity.heading')}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -96,14 +93,14 @@ export function CandidateActivityTimeline({ activities, loading }: CandidateActi
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Clock className="h-5 w-5" />
-            Aktivitäten
+            {t('activity.heading')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8 text-muted-foreground">
             <Clock className="h-12 w-12 mx-auto opacity-50 mb-3" />
-            <p>Noch keine Aktivitäten vorhanden</p>
-            <p className="text-sm">Aktionen werden hier protokolliert</p>
+            <p>{t('activity.empty')}</p>
+            <p className="text-sm">{t('activity.emptyHint')}</p>
           </div>
         </CardContent>
       </Card>
@@ -125,7 +122,7 @@ export function CandidateActivityTimeline({ activities, loading }: CandidateActi
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Clock className="h-5 w-5" />
-          Aktivitäten
+          {t('activity.heading')}
           <Badge variant="secondary" className="ml-2">{activities.length}</Badge>
         </CardTitle>
       </CardHeader>
@@ -134,11 +131,12 @@ export function CandidateActivityTimeline({ activities, loading }: CandidateActi
           {Object.entries(groupedActivities).map(([date, dayActivities]) => (
             <div key={date}>
               <div className="text-sm font-medium text-muted-foreground mb-3">
-                {format(new Date(date), 'EEEE, d. MMMM yyyy', { locale: de })}
+                {format(new Date(date), 'PPPP', { locale })}
               </div>
               <div className="space-y-4">
                 {dayActivities.map((activity, index) => {
-                  const config = activityConfig[activity.activity_type] || activityConfig.note;
+                  const typeKey = activityConfig[activity.activity_type] ? activity.activity_type : 'note';
+                  const config = activityConfig[typeKey];
                   const Icon = config.icon;
 
                   return (
@@ -159,11 +157,11 @@ export function CandidateActivityTimeline({ activities, loading }: CandidateActi
                           <div className="min-w-0">
                             <p className="font-medium text-sm truncate">{activity.title}</p>
                             <Badge variant="outline" className="text-xs mt-1">
-                              {config.label}
+                              {t(`activity.badges.${typeKey}`)}
                             </Badge>
                           </div>
                           <span className="text-xs text-muted-foreground shrink-0">
-                            {format(new Date(activity.created_at), 'HH:mm', { locale: de })}
+                            {format(new Date(activity.created_at), 'HH:mm', { locale })}
                           </span>
                         </div>
                         {activity.description && (

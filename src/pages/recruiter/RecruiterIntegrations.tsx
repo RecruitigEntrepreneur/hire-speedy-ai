@@ -31,7 +31,9 @@ import { useRecruiterIntegrations } from '@/hooks/useRecruiterIntegrations';
 import { PROVIDERS, getProviderName } from '@/types/integrations';
 import type { ProviderInfo, IntegrationProvider } from '@/types/integrations';
 import { formatDistanceToNow } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { de, enGB, nb, sv } from 'date-fns/locale';
+import { useTranslation } from 'react-i18next';
+import { languageDef } from '@/i18n/languages';
 
 export default function RecruiterIntegrations() {
   const {
@@ -43,6 +45,8 @@ export default function RecruiterIntegrations() {
     disconnectIntegration,
     availableProviders,
   } = useRecruiterIntegrations();
+  const { t, i18n } = useTranslation('recruiterIntegrations');
+  const dateLocale = { de, en: enGB, sv, nb }[languageDef(i18n.language).base];
 
   // Connect dialog state
   const [connectDialogOpen, setConnectDialogOpen] = useState(false);
@@ -113,9 +117,9 @@ export default function RecruiterIntegrations() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Integrationen</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
           <p className="text-muted-foreground mt-1">
-            Verbinde deine CRM- und ATS-Systeme mit einem Klick
+            {t('subtitle')}
           </p>
         </div>
 
@@ -127,24 +131,23 @@ export default function RecruiterIntegrations() {
             </div>
             <div className="flex-1">
               <h3 className="font-semibold text-green-800 dark:text-green-300">
-                E-Mail-basiertes Interview-System aktiv
+                {t('mail.title')}
               </h3>
               <p className="text-sm text-green-700 dark:text-green-400 mt-1">
-                Kandidaten erhalten automatisch Interview-Einladungen per E-Mail mit Kalender-Anhang (.ics).
-                Bei Terminbestätigung werden alle Beteiligten automatisch benachrichtigt.
+                {t('mail.text')}
               </p>
               <div className="flex flex-wrap gap-3 mt-3">
                 <div className="flex items-center gap-1.5 text-xs text-green-700 dark:text-green-400">
                   <CheckCircle2 className="h-3.5 w-3.5" />
-                  Gebrandete Einladungen
+                  {t('mail.branded')}
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-green-700 dark:text-green-400">
                   <CheckCircle2 className="h-3.5 w-3.5" />
-                  iCal-Anhänge
+                  {t('mail.ical')}
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-green-700 dark:text-green-400">
                   <CheckCircle2 className="h-3.5 w-3.5" />
-                  Auto-Benachrichtigungen
+                  {t('mail.auto')}
                 </div>
               </div>
             </div>
@@ -154,7 +157,7 @@ export default function RecruiterIntegrations() {
         {/* Connected Integrations */}
         {integrations.length > 0 && (
           <div className="space-y-3">
-            <h2 className="text-lg font-semibold">Verbundene Integrationen</h2>
+            <h2 className="text-lg font-semibold">{t('connected.title')}</h2>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {integrations.map((integration) => {
                 const provider = PROVIDERS.find((p) => p.id === integration.provider);
@@ -178,12 +181,12 @@ export default function RecruiterIntegrations() {
                           {isError ? (
                             <>
                               <AlertCircle className="h-3 w-3 mr-1" />
-                              {integration.status === 'expired' ? 'Abgelaufen' : 'Fehler'}
+                              {integration.status === 'expired' ? t('connected.expired') : t('connected.error')}
                             </>
                           ) : (
                             <>
                               <CheckCircle className="h-3 w-3 mr-1" />
-                              Verbunden
+                              {t('connected.ok')}
                             </>
                           )}
                         </Badge>
@@ -194,14 +197,10 @@ export default function RecruiterIntegrations() {
                         {integration.last_synced_at ? (
                           <span className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
-                            Zuletzt synchronisiert{' '}
-                            {formatDistanceToNow(new Date(integration.last_synced_at), {
-                              addSuffix: true,
-                              locale: de,
-                            })}
+                            {t('connected.lastSynced', { when: formatDistanceToNow(new Date(integration.last_synced_at), { addSuffix: true, locale: dateLocale }) })}
                           </span>
                         ) : (
-                          'Noch nicht synchronisiert'
+                          t('connected.never')
                         )}
                       </p>
 
@@ -218,7 +217,7 @@ export default function RecruiterIntegrations() {
                             onClick={() => startOAuthConnect(integration.provider as IntegrationProvider)}
                           >
                             <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-                            Neu verbinden
+                            {t('connected.reconnect')}
                           </Button>
                         )}
                         <Button
@@ -228,7 +227,7 @@ export default function RecruiterIntegrations() {
                           onClick={() => handleDisconnect(integration.id)}
                         >
                           <Unlink className="h-3.5 w-3.5 mr-1.5" />
-                          Trennen
+                          {t('connected.disconnect')}
                         </Button>
                       </div>
                     </CardContent>
@@ -242,9 +241,9 @@ export default function RecruiterIntegrations() {
         {/* Available Integrations */}
         <Card>
           <CardHeader>
-            <CardTitle>Verfügbare Integrationen</CardTitle>
+            <CardTitle>{t('available.title')}</CardTitle>
             <CardDescription>
-              Verbinde dein CRM oder ATS-System – einmal klicken, einloggen, fertig
+              {t('available.text')}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -268,7 +267,7 @@ export default function RecruiterIntegrations() {
                       <p className="font-medium truncate">{provider.name}</p>
                       {provider.comingSoon && (
                         <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">
-                          Bald
+                          {t('available.soon')}
                         </Badge>
                       )}
                     </div>
@@ -288,18 +287,18 @@ export default function RecruiterIntegrations() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <RefreshCw className="h-5 w-5" />
-              Automatische Synchronisation
+              {t('sync.title')}
             </CardTitle>
             <CardDescription>
-              Konfiguriere wie oft deine verbundenen Dienste synchronisiert werden sollen
+              {t('sync.text')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <Label htmlFor="auto-sync">Auto-Sync aktivieren</Label>
+                <Label htmlFor="auto-sync">{t('sync.enable')}</Label>
                 <p className="text-sm text-muted-foreground">
-                  Kandidaten werden automatisch alle 15 Minuten synchronisiert
+                  {t('sync.enableText')}
                 </p>
               </div>
               <Switch id="auto-sync" />
@@ -307,9 +306,9 @@ export default function RecruiterIntegrations() {
 
             <div className="flex items-center justify-between">
               <div>
-                <Label htmlFor="notify-sync">Benachrichtigungen bei Sync</Label>
+                <Label htmlFor="notify-sync">{t('sync.notify')}</Label>
                 <p className="text-sm text-muted-foreground">
-                  Erhalte eine Benachrichtigung wenn neue Kandidaten importiert werden
+                  {t('sync.notifyText')}
                 </p>
               </div>
               <Switch id="notify-sync" />
@@ -320,15 +319,15 @@ export default function RecruiterIntegrations() {
         {/* API Access */}
         <Card>
           <CardHeader>
-            <CardTitle>API Zugang</CardTitle>
+            <CardTitle>{t('api.title')}</CardTitle>
             <CardDescription>
-              Für Entwickler: Integriere eigene Tools über unsere REST API
+              {t('api.text')}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Button variant="outline">
               <ExternalLink className="h-4 w-4 mr-2" />
-              API Dokumentation öffnen
+              {t('api.docs')}
             </Button>
           </CardContent>
         </Card>
@@ -345,11 +344,11 @@ export default function RecruiterIntegrations() {
                 </div>
               )}
               <div>
-                <DialogTitle>{selectedProvider?.name} verbinden</DialogTitle>
+                <DialogTitle>{t('dialog.title', { name: selectedProvider?.name ?? '' })}</DialogTitle>
                 <DialogDescription>
                   {selectedProvider?.authType === 'client_credentials'
-                    ? 'Gib deine Client-Zugangsdaten ein'
-                    : 'Gib deinen API Key ein um die Verbindung herzustellen'}
+                    ? t('dialog.credentials')
+                    : t('dialog.apiKey')}
                 </DialogDescription>
               </div>
             </div>
@@ -363,7 +362,7 @@ export default function RecruiterIntegrations() {
                   <Input
                     id="client-id"
                     type="text"
-                    placeholder="Deine Client ID..."
+                    placeholder={t('dialog.clientIdPlaceholder')}
                     value={clientIdInput}
                     onChange={(e) => setClientIdInput(e.target.value)}
                   />
@@ -373,7 +372,7 @@ export default function RecruiterIntegrations() {
                   <Input
                     id="client-secret"
                     type="password"
-                    placeholder="Dein Client Secret..."
+                    placeholder={t('dialog.clientSecretPlaceholder')}
                     value={clientSecretInput}
                     onChange={(e) => setClientSecretInput(e.target.value)}
                   />
@@ -385,7 +384,7 @@ export default function RecruiterIntegrations() {
                 <Input
                   id="api-key"
                   type="password"
-                  placeholder="Dein API Key..."
+                  placeholder={t('dialog.apiKeyPlaceholder')}
                   value={apiKeyInput}
                   onChange={(e) => setApiKeyInput(e.target.value)}
                 />
@@ -399,14 +398,14 @@ export default function RecruiterIntegrations() {
                 rel="noopener noreferrer"
                 className="text-xs text-primary hover:underline inline-flex items-center gap-1"
               >
-                Dokumentation öffnen <ExternalLink className="h-3 w-3" />
+                {t('dialog.docs')} <ExternalLink className="h-3 w-3" />
               </a>
             )}
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setConnectDialogOpen(false)}>
-              Abbrechen
+              {t('dialog.cancel')}
             </Button>
             <Button
               onClick={handleConnectSubmit}
@@ -420,10 +419,10 @@ export default function RecruiterIntegrations() {
               {isConnecting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Verbinde...
+                  {t('dialog.connecting')}
                 </>
               ) : (
-                'Verbinden'
+                t('dialog.connect')
               )}
             </Button>
           </DialogFooter>

@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Briefcase, MapPin, X, MessageSquare, Send } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface TalentMatchAlertProps {
   alert: TalentAlert;
@@ -12,6 +13,7 @@ interface TalentMatchAlertProps {
 }
 
 export function TalentMatchAlert({ alert, onDismiss, onContact }: TalentMatchAlertProps) {
+  const { t } = useTranslation('talentPool');
   const candidate = alert.talent_pool?.candidates;
   const job = alert.jobs;
   const matchScore = alert.match_score || 0;
@@ -23,12 +25,12 @@ export function TalentMatchAlert({ alert, onDismiss, onContact }: TalentMatchAle
           <div className="flex-1 space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <h4 className="font-semibold">{candidate?.full_name || 'Kandidat'}</h4>
+                <h4 className="font-semibold">{candidate?.full_name || t('alert.candidate')}</h4>
                 <p className="text-sm text-muted-foreground">{candidate?.email}</p>
               </div>
               <div className="text-right">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">{matchScore}% Match</span>
+                  <span className="text-sm font-medium">{t('alert.match', { score: matchScore })}</span>
                   <Progress value={matchScore} className="w-20 h-2" />
                 </div>
               </div>
@@ -37,7 +39,7 @@ export function TalentMatchAlert({ alert, onDismiss, onContact }: TalentMatchAle
             <div className="flex items-center gap-2 text-sm">
               <Briefcase className="h-4 w-4 text-muted-foreground" />
               <span className="font-medium">{job?.title}</span>
-              <span className="text-muted-foreground">bei {job?.company_name}</span>
+              <span className="text-muted-foreground">{t('alert.atCompany', { company: job?.company_name })}</span>
               {job?.location && (
                 <>
                   <MapPin className="h-4 w-4 text-muted-foreground ml-2" />
@@ -66,11 +68,11 @@ export function TalentMatchAlert({ alert, onDismiss, onContact }: TalentMatchAle
             </Button>
             <Button variant="outline" size="sm" onClick={onContact}>
               <MessageSquare className="h-4 w-4 mr-1" />
-              Kontaktieren
+              {t('alert.contact')}
             </Button>
             <Button size="sm">
               <Send className="h-4 w-4 mr-1" />
-              Einreichen
+              {t('alert.submit')}
             </Button>
           </div>
         </div>

@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 import { ArrowLeftRight, Hourglass, MessageSquareWarning, X } from 'lucide-react';
 
 export type AgendaFocus = 'counter' | 'feedback' | 'awaiting' | null;
@@ -12,11 +13,12 @@ interface Props {
 /** Dringlichkeits-Chips: zeigen nur, was wirklich Handeln erfordert.
  *  Klick fokussiert die jeweilige Sektion, zweiter Klick hebt den Fokus auf. */
 export function ActionChips({ counts, focus, onFocusChange }: Props) {
+  const { t } = useTranslation('clientInterviews');
   const chips: { key: Exclude<AgendaFocus, null>; count: number; label: string; icon: typeof Hourglass; cls: string; active: string }[] = [
     {
       key: 'counter',
       count: counts.counter,
-      label: counts.counter === 1 ? 'Gegenvorschlag beantworten' : 'Gegenvorschläge beantworten',
+      label: t('chips.counter', { count: counts.counter }),
       icon: ArrowLeftRight,
       cls: 'bg-destructive/10 text-destructive hover:bg-destructive/15',
       active: 'ring-2 ring-destructive/40',
@@ -24,7 +26,7 @@ export function ActionChips({ counts, focus, onFocusChange }: Props) {
     {
       key: 'feedback',
       count: counts.feedback,
-      label: 'Feedback fällig',
+      label: t('chips.feedback', { count: counts.feedback }),
       icon: MessageSquareWarning,
       cls: 'bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 dark:text-amber-400',
       active: 'ring-2 ring-amber-500/40',
@@ -32,7 +34,7 @@ export function ActionChips({ counts, focus, onFocusChange }: Props) {
     {
       key: 'awaiting',
       count: counts.awaiting,
-      label: counts.awaiting === 1 ? 'wartet auf Kandidaten-Antwort' : 'warten auf Kandidaten-Antwort',
+      label: t('chips.awaiting', { count: counts.awaiting }),
       icon: Hourglass,
       cls: 'bg-primary/10 text-primary hover:bg-primary/15',
       active: 'ring-2 ring-primary/40',
@@ -44,7 +46,7 @@ export function ActionChips({ counts, focus, onFocusChange }: Props) {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {visible.map(({ key, count, label, icon: Icon, cls, active }) => (
+      {visible.map(({ key, label, icon: Icon, cls, active }) => (
         <button
           key={key}
           onClick={() => onFocusChange(focus === key ? null : key)}
@@ -56,7 +58,7 @@ export function ActionChips({ counts, focus, onFocusChange }: Props) {
           )}
         >
           <Icon className="h-3.5 w-3.5" />
-          {count} {label}
+          {label}
           {focus === key && <X className="h-3 w-3" />}
         </button>
       ))}

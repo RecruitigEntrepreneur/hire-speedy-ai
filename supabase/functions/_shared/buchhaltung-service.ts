@@ -27,6 +27,8 @@ import {
   dateDe, dateDeShort, dunningOptions, nextStep, poFollowsFrom, releaseDeadline, runName, workdaysUntil, periodOf,
 } from './buchhaltung-rechnen.ts';
 import { nextRunSummary, trancheContext } from './buchhaltung-gutschriften.ts';
+import { dateKeyIn, eurCentsIn, m, tx } from './notify-i18n.ts';
+import { clientLanguage } from './recipient-language.ts';
 
 const PKG_SHORT: Record<string, string> = { core: 'Core', continuity_90: 'C90', continuity_180: 'C180' };
 
@@ -308,20 +310,28 @@ export async function resendInvoice(ctx: PlacementCtx, user: User, body: any) {
   const bytes = await ctx.invoiceFiles.get(inv.pdf_path);
   must(bytes, 'Das PDF ist gerade nicht abrufbar.', 'not_found');
   const storno = inv.invoice_type === 'cancellation';
-  const title = `${storno ? 'Stornorechnung' : 'Rechnung'} ${inv.invoice_number}`;
   const override = typeof body?.email === 'string' && EMAIL.test(body.email.trim()) ? body.email.trim() : null;
+  // Mailtext in der Sprache des Kunden (Profil des Kunden bzw. der Adresse, sonst Land der Rechnungsanschrift);
+  // die Rechnung selbst (PDF) bleibt deutsch.
+  const l = await clientLanguage(ctx.db, { userId: inv.client_id ?? null, email: override ?? inv.recipient?.email ?? null, country: inv.recipient?.country ?? null });
+  const lde = l === 'de' || l === 'de-AT' || l === 'de-CH';
+  const title = storno ? tx(l, m`Stornorechnung ${inv.invoice_number}`, m`Cancellation invoice ${inv.invoice_number}`, m`Kreditfaktura ${inv.invoice_number}`, m`Kreditnota ${inv.invoice_number}`)
+    : tx(l, m`Rechnung ${inv.invoice_number}`, m`Invoice ${inv.invoice_number}`, m`Faktura ${inv.invoice_number}`, m`Faktura ${inv.invoice_number}`);
+  const amount = esc(lde ? eur(Number(inv.total_amount_cents ?? 0)) : eurCentsIn(Number(inv.total_amount_cents ?? 0), l));
+  const payable = !storno && inv.due_date ? tx(l, m`, zahlbar bis ${esc(dateDe(inv.due_date))}`, m`, payable by ${esc(dateKeyIn(inv.due_date, l))}`, m`, betalas senast ${esc(dateKeyIn(inv.due_date, l))}`, m`, betales innen ${esc(dateKeyIn(inv.due_date, l))}`) : '';
   const html = [
-    'Guten Tag,',
-    `anbei noch einmal unsere ${esc(title)} über ${esc(eur(Number(inv.total_amount_cents ?? 0)))}${!storno && inv.due_date ? `, zahlbar bis ${esc(dateDe(inv.due_date))}` : ''}.`,
-    'Bei Fragen antworten Sie einfach auf diese Mail.',
+    tx(l, 'Guten Tag,', 'Hello,', 'Hej,', 'Hei,'),
+    `${tx(l, m`anbei noch einmal unsere ${esc(title)} über ${amount}`, m`please find attached once more our ${esc(title)} for ${amount}`, m`bifogat finns än en gång vår ${esc(title)} på ${amount}`, m`vedlagt er nok en gang vår ${esc(title)} på ${amount}`)}${payable}.`,
+    tx(l, 'Bei Fragen antworten Sie einfach auf diese Mail.', 'If you have any questions, simply reply to this email.', 'Har du frågor svarar du bara på det här mejlet.', 'Har du spørsmål, svarer du bare på denne e-posten.'),
+    ...(lde ? [] : [tx(l, '', 'The invoice itself (PDF) is issued in German.', 'Själva fakturan (PDF) är utfärdad på tyska.', 'Selve fakturaen (PDF) er utstedt på tysk.')]),
   ];
   const att = [{ filename: `${String(inv.invoice_number).replace(/[^\w.-]/g, '_')}.pdf`, contentBase64: encodeBase64(bytes!), contentType: 'application/pdf' }];
   let sentTo: string[] = [];
   if (override) {
-    const r = await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: override, replyTo: 'info@bluewater-bridge.de', subject: `${title} – Matchunt`, html: layout({ preheader: title, heading: title, body: html.map((p) => `<p style="margin:0 0 12px 0;">${p}</p>`).join('') }), text: html.join('\n\n'), attachments: att }, { template: 'invoice_resent', meta: { invoice_id: inv.id } });
+    const r = await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: override, replyTo: 'info@bluewater-bridge.de', subject: `${title} – Matchunt`, html: layout({ ...(lde ? {} : { lang: l }), preheader: title, heading: title, body: html.map((p) => `<p style="margin:0 0 12px 0;">${p}</p>`).join('') }), text: html.join('\n\n'), attachments: att }, { template: 'invoice_resent', meta: { invoice_id: inv.id } });
     if (r.sent) sentTo = [override];
   } else {
-    const r = await mailCustomer(ctx, inv, { subject: `${title} – Matchunt`, heading: title, paragraphs: html, text: html.join('\n\n'), attachments: att, template: 'invoice_resent', meta: { invoice_id: inv.id } });
+    const r = await mailCustomer(ctx, inv, { subject: `${title} – Matchunt`, heading: title, paragraphs: html, text: html.join('\n\n'), attachments: att, template: 'invoice_resent', meta: { invoice_id: inv.id }, ...(lde ? {} : { lang: l }) });
     sentTo = r.sentTo;
   }
   must(sentTo.length, 'Die Mail konnte nicht verschickt werden.', 'upstream_error');
@@ -543,7 +553,10 @@ export async function cancelOrCorrect(ctx: PlacementCtx, user: User, body: any) 
 
   if (salaryChanged && c.pl) {
     const n = (await namesFor(ctx, [c.pl])).get(c.pl.id);
-    if (n?.recruiterId) await notify(ctx, n.recruiterId, 'placement_corrected', `Gehalt korrigiert: ${n.candidateName}`, 'Das Gehalt laut Vertrag wurde korrigiert. Dein Anteil ist neu berechnet, du siehst ihn unter Verdienste.', 'placement', c.pl.id);
+    if (n?.recruiterId) {
+      await notify(ctx, n.recruiterId, 'placement_corrected', (l) => tx(l, m`Gehalt korrigiert: ${n.candidateName}`, m`Salary corrected: ${n.candidateName}`, m`Lön korrigerad: ${n.candidateName}`, m`Lønn korrigert: ${n.candidateName}`),
+        (l) => tx(l, 'Das Gehalt laut Vertrag wurde korrigiert. Dein Anteil ist neu berechnet, du siehst ihn unter Verdienste.', 'The salary per contract has been corrected. Your share has been recalculated; you can see it under Earnings.', 'Lönen enligt avtalet har korrigerats. Din andel är omräknad, du ser den under Intäkter.', 'Lønnen ifølge kontrakten er korrigert. Andelen din er beregnet på nytt, du ser den under Inntekter.'), 'placement', c.pl.id);
+    }
   }
   return { ok: true, mode, stornoNumber, newNumber, newInvoiceId: newId, draftId, sentTo };
 }

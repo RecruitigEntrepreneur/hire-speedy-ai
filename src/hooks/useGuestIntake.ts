@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import i18n, { currentLanguage } from '@/i18n';
 
 /**
  * Datenzugriff der login-freien Jobaufnahme.
@@ -15,6 +16,11 @@ import { supabase } from '@/integrations/supabase/client';
  */
 
 const STORAGE_PREFIX = 'matchunt.intake.';
+
+/** Fehlertexte, die im Frontend entstehen (clientFunnel: errors.*). Was der Server
+ *  als Text liefert, bleibt wie es kommt: er übersetzt anhand von `lang`. */
+const errorText = (key: 'generic' | 'notDeployed' | 'connection' | 'unknownLink' | 'fileUnreadable') =>
+  i18n.t(`clientFunnel:errors.${key}`);
 
 export type FailureReason =
   | 'invalid_request' | 'not_found' | 'expired' | 'revoked' | 'exhausted'
@@ -85,6 +91,8 @@ export interface IntakeLinkInfo {
   owner_name: string | null;
   allow_freemail: boolean;
   prefill: Record<string, string | null>;
+  /** Sprache der Einladung (z. B. 'sv'). Vorauswahl, solange die Person nicht selbst gewählt hat. */
+  language?: string | null;
 }
 
 export interface GuestDraft {
@@ -145,10 +153,12 @@ export interface GuestDraft {
 }
 
 /** Ein einzelner Aufruf. Fehler kommen als Wert zurück, nicht als Exception —
- *  ein abgelaufener Link ist kein Programmfehler, sondern ein Zustand. */
+ *  ein abgelaufener Link ist kein Programmfehler, sondern ein Zustand.
+ *  Jeder Aufruf trägt die aktuelle Sprache (`lang`), damit der Server Meldungen
+ *  und Mails in der Sprache des Kunden schreiben kann. */
 async function call<T>(fn: string, body: Record<string, unknown>): Promise<T | IntakeFailure> {
   try {
-    const { data, error } = await supabase.functions.invoke(fn, { body });
+    const { data, error } = await supabase.functions.invoke(fn, { body: { ...body, lang: currentLanguage() } });
 
     // supabase-js verpackt 4xx/5xx in error und legt den Rumpf in
     // error.context — ohne das Auslesen wäre jede Absage "Edge Function
@@ -159,7 +169,7 @@ async function call<T>(fn: string, body: Record<string, unknown>): Promise<T | I
         try {
           const payload = await ctx.json();
           if (payload?.reason) {
-            return { reason: payload.reason, message: payload.message ?? 'Es ist ein Fehler aufgetreten.', missing: payload.missing };
+            return { reason: payload.reason, message: payload.message ?? errorText('generic'), missing: payload.missing };
           }
         } catch { /* Rumpf nicht lesbar — unten der Sammelfall */ }
       }
@@ -172,11 +182,10 @@ async function call<T>(fn: string, body: Record<string, unknown>): Promise<T | I
       if ((error as { name?: string })?.name === 'FunctionsFetchError') {
         return {
           reason: 'not_deployed',
-          message:
-            'Die Jobaufnahme ist gerade nicht erreichbar. Bitte melden Sie sich kurz bei Ihrem Ansprechpartner — wir kümmern uns sofort darum.',
+          message: errorText('notDeployed'),
         };
       }
-      return { reason: 'internal_error', message: 'Verbindung zum Server fehlgeschlagen. Bitte erneut versuchen.' };
+      return { reason: 'internal_error', message: errorText('connection') };
     }
 
     if (data && typeof data === 'object' && 'reason' in (data as any)) {
@@ -184,7 +193,7 @@ async function call<T>(fn: string, body: Record<string, unknown>): Promise<T | I
     }
     return data as T;
   } catch {
-    return { reason: 'internal_error', message: 'Verbindung zum Server fehlgeschlagen. Bitte erneut versuchen.' };
+    return { reason: 'internal_error', message: errorText('connection') };
   }
 }
 
@@ -282,7 +291,7 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
       if (!linkToken) {
         setState((s) => ({
           ...s, status: 'failed',
-          failure: { reason: 'not_found', message: 'Dieser Zugriffslink ist unbekannt.' },
+          failure: { reason: 'not_found', message: errorText('unknownLink') },
         }));
         return;
       }
@@ -562,7 +571,7 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
     }).catch(() => null);
 
     if (!base64) {
-      return { reason: 'invalid_request', message: 'Die Datei konnte nicht gelesen werden.' } as IntakeFailure;
+      return { reason: 'invalid_request', message: errorText('fileUnreadable') } as IntakeFailure;
     }
     return withToken<{ success?: boolean; data?: any }>('intake-ai', {
       op: 'parse_pdf', payload: { file_base64: base64, file_name: file.name.slice(0, 120) },

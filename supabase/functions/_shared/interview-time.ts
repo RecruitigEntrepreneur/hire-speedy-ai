@@ -1,6 +1,8 @@
 // Zeitrechnung für Interviews: gespeichert wird immer UTC, angezeigt und
 // geplant immer in deutscher Zeit (Europe/Berlin). Die Edge Runtime läuft in
 // UTC, deshalb nie getHours()/getDay() auf Termine anwenden.
+import { intlLocale, type Lang } from './i18n.ts';
+
 export const INTERVIEW_TZ = 'Europe/Berlin';
 
 export interface BerlinParts { year: number; month: number; day: number; hour: number; minute: number; second: number; weekday: number }
@@ -44,31 +46,32 @@ export function nextDateKey(key: string, days = 1): string {
 
 const ms = (iso: string | number) => (typeof iso === 'number' ? iso : Date.parse(iso));
 
-/** „Dienstag, 6. Oktober 2026“ */
-export function formatBerlinDateLong(iso: string | number): string {
-  return new Intl.DateTimeFormat('de-DE', { timeZone: INTERVIEW_TZ, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(ms(iso)));
+/** „Dienstag, 6. Oktober 2026“ (ohne Sprache Deutsch, wie bisher) */
+export function formatBerlinDateLong(iso: string | number, lang?: Lang | null): string {
+  return new Intl.DateTimeFormat(intlLocale(lang), { timeZone: INTERVIEW_TZ, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(ms(iso)));
 }
 
 /** „Di, 6. Okt“ */
-export function formatBerlinDateShort(iso: string | number): string {
-  const s = new Intl.DateTimeFormat('de-DE', { timeZone: INTERVIEW_TZ, weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(ms(iso)));
+export function formatBerlinDateShort(iso: string | number, lang?: Lang | null): string {
+  const s = new Intl.DateTimeFormat(intlLocale(lang), { timeZone: INTERVIEW_TZ, weekday: 'short', day: 'numeric', month: 'short' }).format(new Date(ms(iso)));
   return s.replace(/\.(?=,)/, '').replace(/\.$/, '');
 }
 
 /** „10:00“ */
-export function formatBerlinTime(iso: string | number): string {
-  return new Intl.DateTimeFormat('de-DE', { timeZone: INTERVIEW_TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(ms(iso)));
+export function formatBerlinTime(iso: string | number, lang?: Lang | null): string {
+  return new Intl.DateTimeFormat(intlLocale(lang), { timeZone: INTERVIEW_TZ, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(ms(iso)));
 }
 
 /** „Di, 6. Okt · 10:00–11:00“ */
-export function formatBerlinRange(iso: string | number, durationMinutes: number): string {
+export function formatBerlinRange(iso: string | number, durationMinutes: number, lang?: Lang | null): string {
   const start = ms(iso);
-  return `${formatBerlinDateShort(start)} · ${formatBerlinTime(start)}–${formatBerlinTime(start + durationMinutes * 60000)}`;
+  return `${formatBerlinDateShort(start, lang)} · ${formatBerlinTime(start, lang)}–${formatBerlinTime(start + durationMinutes * 60000, lang)}`;
 }
 
-/** Sommer- oder Winterzeit als Kürzel für Hinweise in Mails („MESZ“ / „MEZ“). */
-export function berlinZoneLabel(iso: string | number): string {
+/** Sommer- oder Winterzeit als Kürzel für Hinweise in Mails („MESZ“ / „MEZ“; außer Deutsch „CEST“ / „CET“). */
+export function berlinZoneLabel(iso: string | number, lang?: Lang | null): string {
   const p = berlinParts(ms(iso));
   const offset = (Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute) - ms(iso)) / 3600000;
-  return Math.round(offset) === 2 ? 'MESZ' : 'MEZ';
+  const german = !lang || lang === 'de' || lang === 'de-AT' || lang === 'de-CH';
+  return Math.round(offset) === 2 ? (german ? 'MESZ' : 'CEST') : (german ? 'MEZ' : 'CET');
 }

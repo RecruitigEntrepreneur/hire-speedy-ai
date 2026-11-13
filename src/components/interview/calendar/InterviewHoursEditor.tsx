@@ -1,6 +1,8 @@
 import { useId, useState, type ReactNode } from 'react';
 import { format } from 'date-fns';
-import { de } from 'date-fns/locale';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
+import { dfLocale, fmtDate as fmtDay } from '@/lib/localeFormat';
 import type { DateRange } from 'react-day-picker';
 import { CalendarPlus, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,14 +12,16 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
-import { WEEKDAY_LABELS, type InterviewHoursRules, type Weekday } from '@/lib/interviewScheduling';
+import { weekdayLabel, type InterviewHoursRules, type Weekday } from '@/lib/interviewScheduling';
 
 const WORKDAYS: Weekday[] = ['1', '2', '3', '4', '5'];
 const WEEKEND: Weekday[] = ['6', '7'];
 
-const BUFFER = [{ value: 0, label: 'kein' }, { value: 5, label: '5 Min.' }, { value: 10, label: '10 Min.' }, { value: 15, label: '15 Min.' }];
-const NOTICE = [{ value: 0, label: 'ab sofort' }, { value: 24, label: 'ab morgen' }, { value: 48, label: 'ab 2 Tagen' }];
-const HORIZON = [{ value: 7, label: '1 Woche' }, { value: 14, label: '2 Wochen' }, { value: 21, label: '3 Wochen' }, { value: 30, label: '30 Tage' }];
+// Beschriftungen beim Aufruf übersetzt (Namespace interviews); die Werte bleiben Zahlen.
+const hx = (key: string, options?: Record<string, unknown>) => i18n.t(`interviews:hours.${key}`, options);
+const bufferOptions = () => [{ value: 0, label: hx('bufferNone') }, ...[5, 10, 15].map((n) => ({ value: n, label: hx('bufferMinutes', { n }) }))];
+const noticeDefault = () => [{ value: 0, label: hx('noticeNow') }, { value: 24, label: hx('noticeTomorrow') }, { value: 48, label: hx('noticeTwoDays') }];
+const horizonOptions = () => [{ value: 7, label: hx('horizonWeek') }, { value: 14, label: hx('horizonWeeks', { n: 2 }) }, { value: 21, label: hx('horizonWeeks', { n: 3 }) }, { value: 30, label: hx('horizonDays', { n: 30 }) }];
 
 /** HH:MM ± Minuten, begrenzt auf den Tag. */
 function shift(time: string, minutes: number): string {
@@ -34,7 +38,7 @@ function suggestWindow(windows: [string, string][]): [string, string] {
   return [start, shift(start, 180)];
 }
 
-const fmtDate = (ymd: string) => format(new Date(`${ymd}T12:00:00`), 'dd.MM.yyyy', { locale: de });
+const fmtDate = (ymd: string) => fmtDay(new Date(`${ymd}T12:00:00`));
 const fmtAbsence = (a: { from: string; to: string }) => (a.from === a.to ? fmtDate(a.from) : `${fmtDate(a.from)} – ${fmtDate(a.to)}`);
 
 function ChoiceChips({ label, options, value, onChange, compact }: {
@@ -79,17 +83,18 @@ function AddWindow({ day, windows, onAdd, compact }: {
   onAdd: (w: [string, string]) => void;
   compact?: boolean;
 }) {
+  const { t } = useTranslation('interviews');
   const id = useId();
   const [open, setOpen] = useState(false);
   const [from, setFrom] = useState('09:00');
   const [to, setTo] = useState('12:00');
 
   const error = !from || !to
-    ? 'Bitte beide Zeiten angeben.'
+    ? t('hours.errorBoth')
     : from >= to
-    ? '„Bis“ muss nach „von“ liegen.'
+    ? t('hours.errorOrder')
     : windows.some(([a, b]) => from < b && a < to)
-    ? 'Überschneidet sich mit einem Zeitfenster an diesem Tag.'
+    ? t('hours.errorOverlap')
     : null;
 
   return (
@@ -103,7 +108,7 @@ function AddWindow({ day, windows, onAdd, compact }: {
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label={`Zeitfenster am ${WEEKDAY_LABELS[day]} hinzufügen`}
+          aria-label={t('hours.addWindowAria', { day: weekdayLabel(day) })}
           className={cn(
             'inline-flex items-center justify-center rounded-full border border-dashed border-border text-muted-foreground hover:border-primary hover:text-primary',
             compact ? 'h-6 w-6' : 'h-7 w-7',
@@ -113,7 +118,7 @@ function AddWindow({ day, windows, onAdd, compact }: {
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-64 space-y-3">
-        <p className="text-sm font-medium">Zeitfenster am {WEEKDAY_LABELS[day]}</p>
+        <p className="text-sm font-medium">{t('hours.windowTitle', { day: weekdayLabel(day) })}</p>
         <form
           className="space-y-3"
           onSubmit={(e) => {
@@ -125,16 +130,16 @@ function AddWindow({ day, windows, onAdd, compact }: {
         >
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <Label htmlFor={`${id}-von`} className="text-xs">Von</Label>
+              <Label htmlFor={`${id}-von`} className="text-xs">{t('hours.from')}</Label>
               <Input id={`${id}-von`} type="time" step={300} value={from} onChange={(e) => setFrom(e.target.value)} />
             </div>
             <div className="space-y-1">
-              <Label htmlFor={`${id}-bis`} className="text-xs">Bis</Label>
+              <Label htmlFor={`${id}-bis`} className="text-xs">{t('hours.to')}</Label>
               <Input id={`${id}-bis`} type="time" step={300} value={to} onChange={(e) => setTo(e.target.value)} />
             </div>
           </div>
           {error && <p className="text-xs text-destructive">{error}</p>}
-          <Button type="submit" size="sm" className="w-full" disabled={!!error}>Hinzufügen</Button>
+          <Button type="submit" size="sm" className="w-full" disabled={!!error}>{t('hours.add')}</Button>
         </form>
       </PopoverContent>
     </Popover>
@@ -142,6 +147,7 @@ function AddWindow({ day, windows, onAdd, compact }: {
 }
 
 function AddAbsence({ onAdd }: { onAdd: (a: { from: string; to: string }) => void }) {
+  const { t } = useTranslation('interviews');
   const [open, setOpen] = useState(false);
   const [range, setRange] = useState<DateRange | undefined>();
   const today = new Date();
@@ -151,13 +157,13 @@ function AddAbsence({ onAdd }: { onAdd: (a: { from: string; to: string }) => voi
     <Popover open={open} onOpenChange={(next) => { if (next) setRange(undefined); setOpen(next); }}>
       <PopoverTrigger asChild>
         <Button type="button" variant="outline" size="sm" className="gap-1.5">
-          <CalendarPlus className="h-4 w-4" /> Abwesenheit eintragen
+          <CalendarPlus className="h-4 w-4" /> {t('hours.addAbsence')}
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-auto p-0">
         <Calendar
           mode="range"
-          locale={de}
+          locale={dfLocale()}
           selected={range}
           onSelect={setRange}
           disabled={{ before: today }}
@@ -168,7 +174,7 @@ function AddAbsence({ onAdd }: { onAdd: (a: { from: string; to: string }) => voi
           <span className="text-xs text-muted-foreground">
             {range?.from
               ? fmtAbsence({ from: format(range.from, 'yyyy-MM-dd'), to: format(range.to ?? range.from, 'yyyy-MM-dd') })
-              : 'Ersten und letzten Tag wählen'}
+              : t('hours.pickRange')}
           </span>
           <Button
             type="button"
@@ -180,7 +186,7 @@ function AddAbsence({ onAdd }: { onAdd: (a: { from: string; to: string }) => voi
               setOpen(false);
             }}
           >
-            Übernehmen
+            {t('hours.apply')}
           </Button>
         </div>
       </PopoverContent>
@@ -193,13 +199,14 @@ function AddAbsence({ onAdd }: { onAdd: (a: { from: string; to: string }) => voi
  * Vorlauf, Planungshorizont, Feiertage und Abwesenheiten. Rein kontrolliert --
  * Laden und Speichern macht der Aufrufer (useInterviewHours).
  */
-export function InterviewHoursEditor({ value, onChange, compact, noticeOptions = NOTICE }: {
+export function InterviewHoursEditor({ value, onChange, compact, noticeOptions }: {
   value: InterviewHoursRules;
   onChange: (v: InterviewHoursRules) => void;
   compact?: boolean;
   /** Auswahl „Frühester Termin“; die Terminseite des Headhunters rechnet in Stunden (21.10.2026). */
   noticeOptions?: { value: number; label: string }[];
 }) {
+  const { t } = useTranslation('interviews');
   const holidayId = useId();
   const weekendUsed = WEEKEND.some((d) => (value.weekly[d]?.length ?? 0) > 0);
   const [weekendOpen, setWeekendOpen] = useState(weekendUsed);
@@ -221,14 +228,14 @@ export function InterviewHoursEditor({ value, onChange, compact, noticeOptions =
 
   return (
     <div className={compact ? 'space-y-4' : 'space-y-6'}>
-      {section('Wochentage', (
+      {section(t('hours.weekdays'), (
         <div className={compact ? 'space-y-1' : 'space-y-1.5'}>
           {days.map((day) => {
             const windows = value.weekly[day] ?? [];
             return (
               <div key={day} className={cn('flex flex-wrap items-center gap-1.5', compact ? 'min-h-7' : 'min-h-8')}>
-                <span className={cn('w-8 shrink-0 font-medium', compact ? 'text-xs' : 'text-sm')}>{WEEKDAY_LABELS[day]}</span>
-                {windows.length === 0 && <span className="text-xs text-muted-foreground">keine</span>}
+                <span className={cn('w-8 shrink-0 font-medium', compact ? 'text-xs' : 'text-sm')}>{weekdayLabel(day)}</span>
+                {windows.length === 0 && <span className="text-xs text-muted-foreground">{t('hours.none')}</span>}
                 {windows.map(([from, to], i) => (
                   <span
                     key={`${from}-${to}`}
@@ -240,7 +247,7 @@ export function InterviewHoursEditor({ value, onChange, compact, noticeOptions =
                     {from}–{to}
                     <button
                       type="button"
-                      aria-label={`${WEEKDAY_LABELS[day]} ${from}–${to} entfernen`}
+                      aria-label={t('hours.removeWindowAria', { day: weekdayLabel(day), from, to })}
                       onClick={() => setDay(day, windows.filter((_, j) => j !== i))}
                       className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
                     >
@@ -258,7 +265,7 @@ export function InterviewHoursEditor({ value, onChange, compact, noticeOptions =
               onClick={() => setWeekendOpen(true)}
               className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
             >
-              Wochenende hinzufügen
+              {t('hours.weekendAdd')}
             </button>
           )}
           {weekendOpen && !weekendUsed && (
@@ -267,19 +274,19 @@ export function InterviewHoursEditor({ value, onChange, compact, noticeOptions =
               onClick={() => setWeekendOpen(false)}
               className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
             >
-              Wochenende ausblenden
+              {t('hours.weekendHide')}
             </button>
           )}
         </div>
       ))}
 
-      {section('Regeln', (
+      {section(t('hours.rules'), (
         <div className={compact ? 'space-y-1.5' : 'space-y-2.5'}>
-          <ChoiceChips label="Puffer zwischen Terminen" compact={compact} options={BUFFER} value={value.bufferMinutes}
+          <ChoiceChips label={t('hours.buffer')} compact={compact} options={bufferOptions()} value={value.bufferMinutes}
                        onChange={(v) => onChange({ ...value, bufferMinutes: v })} />
-          <ChoiceChips label="Frühester Termin" compact={compact} options={noticeOptions} value={value.minNoticeHours}
+          <ChoiceChips label={t('hours.notice')} compact={compact} options={noticeOptions ?? noticeDefault()} value={value.minNoticeHours}
                        onChange={(v) => onChange({ ...value, minNoticeHours: v })} />
-          <ChoiceChips label="Planung voraus" compact={compact} options={HORIZON} value={value.horizonDays}
+          <ChoiceChips label={t('hours.horizon')} compact={compact} options={horizonOptions()} value={value.horizonDays}
                        onChange={(v) => onChange({ ...value, horizonDays: v })} />
           <div className={cn('flex items-center gap-3', compact ? 'text-xs' : 'text-sm')}>
             <Switch
@@ -288,15 +295,15 @@ export function InterviewHoursEditor({ value, onChange, compact, noticeOptions =
               onCheckedChange={(checked) => onChange({ ...value, skipHolidays: checked })}
             />
             <Label htmlFor={holidayId} className={cn('font-normal', compact ? 'text-xs' : 'text-sm')}>
-              Feiertage in Bayern frei
+              {t('hours.holidays')}
             </Label>
           </div>
         </div>
       ))}
 
-      {!compact && section('Abwesenheiten', (
+      {!compact && section(t('hours.absences'), (
         <div className="space-y-2">
-          {value.absences.length === 0 && <p className="text-xs text-muted-foreground">Keine Abwesenheiten eingetragen.</p>}
+          {value.absences.length === 0 && <p className="text-xs text-muted-foreground">{t('hours.noAbsences')}</p>}
           {value.absences.length > 0 && (
             <ul className="space-y-1">
               {value.absences.map((a, i) => (
@@ -304,7 +311,7 @@ export function InterviewHoursEditor({ value, onChange, compact, noticeOptions =
                   <span className="tabular-nums">{fmtAbsence(a)}</span>
                   <button
                     type="button"
-                    aria-label={`Abwesenheit ${fmtAbsence(a)} entfernen`}
+                    aria-label={t('hours.removeAbsenceAria', { range: fmtAbsence(a) })}
                     onClick={() => onChange({ ...value, absences: value.absences.filter((_, j) => j !== i) })}
                     className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
                   >

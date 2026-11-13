@@ -3,9 +3,10 @@ import { recruiterFeeRange } from '@/lib/recruiterFee';
 import { Honorar } from './Honorar';
 import { useJobEarning } from './verdienste/useJobEarning';
 import { earningExplain, eur0 } from '../../../supabase/functions/_shared/abrechnung-view';
+import { useTranslation } from 'react-i18next';
+import { intlLocale } from '@/i18n/languages';
 
 interface Props { feePercentage: number | null; salaryMin: number | null; salaryMax: number | null; jobId?: string | null }
-const money = (value: number) => new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(value);
 
 /**
  * Der Verdienst — die Zahl, an der ein Headhunter zuerst entscheidet.
@@ -30,33 +31,36 @@ const money = (value: number) => new Intl.NumberFormat('de-DE', { style: 'curren
  */
 export function FeeCalculatorCard({ feePercentage, salaryMin, salaryMax, jobId }: Props) {
   const { earning: plan, terms } = useJobEarning(jobId ?? null, salaryMin, salaryMax);
+  const { t, i18n } = useTranslation('recruiterJobDetail');
+  const locale = intlLocale(i18n.language);
+  const money = (value: number) => new Intl.NumberFormat(locale, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(value);
   if (plan && terms) {
-    const ex = earningExplain(plan, terms);
-    const spanne = plan.minCents != null && plan.maxCents != null && plan.minCents !== plan.maxCents ? `${eur0(plan.minCents)} – ${eur0(plan.maxCents)}` : null;
-    return <section className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-5" aria-label="Dein Verdienst">
-      <h3 className="flex items-center gap-2 text-sm font-medium text-emerald-500"><Euro className="h-4 w-4" />Dein Verdienst</h3>
-      <p className="mt-4 text-3xl font-bold tracking-tight tabular-nums"><Honorar>{eur0(plan.totalCents)}</Honorar></p>
+    const ex = earningExplain(plan, terms, i18n.language);
+    const spanne = plan.minCents != null && plan.maxCents != null && plan.minCents !== plan.maxCents ? `${eur0(plan.minCents, i18n.language)} – ${eur0(plan.maxCents, i18n.language)}` : null;
+    return <section className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-5" aria-label={t('earning.yours')}>
+      <h3 className="flex items-center gap-2 text-sm font-medium text-emerald-500"><Euro className="h-4 w-4" />{t('earning.yours')}</h3>
+      <p className="mt-4 text-3xl font-bold tracking-tight tabular-nums"><Honorar>{eur0(plan.totalCents, i18n.language)}</Honorar></p>
       <p className="mt-1.5 text-xs leading-6 text-muted-foreground">{ex.subtitle}</p>
       <dl className="mt-4 space-y-1.5 border-t border-emerald-500/20 pt-3 text-xs">
-        {spanne && <div className="flex items-center justify-between gap-3"><dt className="text-muted-foreground">Spanne</dt><dd className="tabular-nums"><Honorar>{spanne}</Honorar></dd></div>}
-        {!plan.research && <div className="flex items-center justify-between gap-3"><dt className="text-muted-foreground">Dein Anteil</dt><dd className="tabular-nums"><Honorar>{`${plan.pct.toLocaleString('de-DE')} % vom Zielgehalt`}</Honorar></dd></div>}
-        <div className="flex items-center justify-between gap-3"><dt className="text-muted-foreground">Paket des Kunden</dt><dd>{plan.packageText}</dd></div>
+        {spanne && <div className="flex items-center justify-between gap-3"><dt className="text-muted-foreground">{t('earning.range')}</dt><dd className="tabular-nums"><Honorar>{spanne}</Honorar></dd></div>}
+        {!plan.research && <div className="flex items-center justify-between gap-3"><dt className="text-muted-foreground">{t('earning.share')}</dt><dd className="tabular-nums"><Honorar>{t('earning.percentOfTarget', { pct: plan.pct.toLocaleString(locale) })}</Honorar></dd></div>}
+        <div className="flex items-center justify-between gap-3"><dt className="text-muted-foreground">{t('earning.clientPackage')}</dt><dd>{plan.packageText}</dd></div>
       </dl>
 
       <div className="mt-4 border-t border-emerald-500/20 pt-3">
-        <p className="text-xs font-medium">So wird ausgezahlt</p>
+        <p className="text-xs font-medium">{t('earning.payout')}</p>
         <ol className="mt-1.5 divide-y divide-border/60 text-xs">
           {ex.payout.map((s) => (
             <li key={s.n} className="grid grid-cols-[1rem_minmax(0,1fr)_auto] gap-2 py-1.5">
               <span className="text-muted-foreground">{s.n}</span>
               <span>{s.title}<span className="block text-muted-foreground">{s.note}</span></span>
-              <span className="font-medium tabular-nums">{s.cents != null ? <Honorar>{eur0(s.cents)}</Honorar> : ''}</span>
+              <span className="font-medium tabular-nums">{s.cents != null ? <Honorar>{eur0(s.cents, i18n.language)}</Honorar> : ''}</span>
             </li>
           ))}
         </ol>
       </div>
       <div className="mt-3 border-t border-emerald-500/20 pt-3">
-        <p className="text-xs font-medium">Wenn etwas schiefgeht</p>
+        <p className="text-xs font-medium">{t('earning.risks')}</p>
         <ul className="mt-1.5 space-y-1 text-xs leading-5 text-muted-foreground">
           {ex.risks.map((r) => <li key={r}>· <Honorar>{r}</Honorar></li>)}
         </ul>
@@ -71,25 +75,25 @@ export function FeeCalculatorCard({ feePercentage, salaryMin, salaryMax, jobId }
   const spanne = range?.min != null && range?.max != null && range.min !== range.max
     ? `${money(range.min)} – ${money(range.max)}` : null;
 
-  return <section className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-5" aria-label="Provisionsbeispiel">
-    <h3 className="flex items-center gap-2 text-sm font-medium text-emerald-500"><Euro className="h-4 w-4" />Dein Verdienst</h3>
+  return <section className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-5" aria-label={t('earning.exampleAria')}>
+    <h3 className="flex items-center gap-2 text-sm font-medium text-emerald-500"><Euro className="h-4 w-4" />{t('earning.yours')}</h3>
 
     {mitte == null ? (
-      <p className="mt-4 text-sm text-muted-foreground">Noch nicht berechenbar — es fehlen ein gültiger Provisionssatz und ein Gehaltswert.</p>
+      <p className="mt-4 text-sm text-muted-foreground">{t('earning.notCalculable')}</p>
     ) : (
       <>
         <p className="mt-4 text-3xl font-bold tracking-tight tabular-nums"><Honorar>{money(mitte)}</Honorar></p>
-        <p className="mt-1.5 text-xs leading-6 text-muted-foreground">Bei erfolgreicher Vermittlung</p>
+        <p className="mt-1.5 text-xs leading-6 text-muted-foreground">{t('earning.onSuccess')}</p>
         <dl className="mt-4 space-y-1.5 border-t border-emerald-500/20 pt-3 text-xs">
           {spanne && <div className="flex items-center justify-between gap-3">
-            <dt className="text-muted-foreground">Spanne</dt><dd className="tabular-nums"><Honorar>{spanne}</Honorar></dd>
+            <dt className="text-muted-foreground">{t('earning.range')}</dt><dd className="tabular-nums"><Honorar>{spanne}</Honorar></dd>
           </div>}
           <div className="flex items-center justify-between gap-3">
-            <dt className="text-muted-foreground">Dein Anteil</dt>
-            <dd className="tabular-nums"><Honorar>{`${range!.fee.toLocaleString('de-DE')} %`}</Honorar></dd>
+            <dt className="text-muted-foreground">{t('earning.share')}</dt>
+            <dd className="tabular-nums"><Honorar>{`${range!.fee.toLocaleString(locale)} %`}</Honorar></dd>
           </div>
           {(salaryMin || salaryMax) && <div className="flex items-center justify-between gap-3">
-            <dt className="text-muted-foreground">Fixgehalt</dt>
+            <dt className="text-muted-foreground">{t('earning.fixedSalary')}</dt>
             <dd className="tabular-nums">{[salaryMin, salaryMax].filter(Boolean).map(v => money(v!)).join(' – ')}</dd>
           </div>}
         </dl>
@@ -97,10 +101,10 @@ export function FeeCalculatorCard({ feePercentage, salaryMin, salaryMax, jobId }
     )}
 
     <details className="group mt-4 border-t border-emerald-500/20 pt-3">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-medium">Berechnung & Konditionen<ChevronDown className="h-3.5 w-3.5 group-open:rotate-180" /></summary>
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-medium">{t('earning.calcTerms')}<ChevronDown className="h-3.5 w-3.5 group-open:rotate-180" /></summary>
       <div className="mt-3 space-y-2 text-xs leading-6 text-muted-foreground">
-        <p>Die Spanne ist eine Beispielrechnung, keine zugesagte Auszahlung. Maßgeblich sind das vereinbarte Gehalt und die Konditionen des Mandats.</p>
-        <p>Ausgezahlt wird mit der monatlichen Gutschrift, sobald der Kunde bezahlt hat und dein Kandidat angefangen hat.</p>
+        <p>{t('earning.exampleNote')}</p>
+        <p>{t('earning.payoutNote')}</p>
       </div>
     </details>
   </section>;

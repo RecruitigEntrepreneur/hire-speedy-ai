@@ -6,6 +6,8 @@ import { isPlausibleEmail, isFreemailAddress } from '../_shared/domain.ts';
 import { serviceClient, resolveDraft, touchDraft, logEvent, issueDraftToken } from '../_shared/intake-core.ts';
 import { sendIntakeMail, layout, esc } from '../_shared/intake-mail.ts';
 import { intakeResumeUrl } from '../_shared/app-url.ts';
+import { callLanguage, customerMailLanguage, rememberDraftLanguage, withIntakeLang } from '../_shared/intake-language.ts';
+import { forwardMailTexts } from '../_shared/intake-i18n.ts';
 
 /**
  * intake-forward — "an einen anderen Entscheider weiterleiten". Ohne Login.
@@ -18,7 +20,7 @@ import { intakeResumeUrl } from '../_shared/app-url.ts';
  *
  * Der Zugang des Absenders bleibt bestehen — er hat die Arbeit gemacht.
  */
-serve(async (req) => {
+serve(withIntakeLang(async (req) => {
   const pre = preflight(req);
   if (pre) return pre;
 
@@ -31,6 +33,9 @@ serve(async (req) => {
     const found = await resolveDraft(supabase, body?.draft_token);
     if (!found.ok) return fail(found.reason!, found.message!);
     const draft = found.draft!;
+    // Der Kunde hat im Menü eine Sprache gewählt: am Entwurf merken.
+    const lang = callLanguage(body);
+    await rememberDraftLanguage(supabase, draft, lang);
 
     if (['accepted', 'rejected'].includes(draft.review_state)) {
       return fail('conflict', 'Dieser Vorgang ist abgeschlossen.');
@@ -66,30 +71,32 @@ serve(async (req) => {
     if ('error' in issued) return fail('internal_error', 'Der Zugang konnte nicht erzeugt werden.');
 
     const url = intakeResumeUrl(issued.token);
-    const position = (draft.built as any)?.title ?? draft.title ?? 'eine offene Position';
+    // In der Sprache des Entwurfs, sonst des Links, sonst des Aufrufs.
+    const mailLang = await customerMailLanguage(supabase, draft, lang);
+    const text = forwardMailTexts(mailLang);
+    const position = (draft.built as any)?.title ?? draft.title ?? text.positionFallback;
+    const sender = esc(draft.contact_name ?? text.senderFallback);
 
     const html = layout({
-      preheader: `${esc(draft.contact_name ?? 'Ein Kollege')} bittet Sie um Freigabe.`,
-      heading: 'Freigabe einer Stellenaufnahme',
+      lang: mailLang,
+      preheader: text.preheader(sender),
+      heading: text.heading,
       body: `
-        <p style="margin:0 0 16px 0;">Guten Tag${toName ? ' ' + esc(toName) : ''},</p>
+        <p style="margin:0 0 16px 0;">${text.hello}${toName ? ' ' + esc(toName) : ''},</p>
         <p style="margin:0 0 16px 0;">
-          ${esc(draft.contact_name ?? 'Ein Kollege')}${draft.company_name ? ` (${esc(draft.company_name)})` : ''}
-          hat bei Matchunt eine Stellenaufnahme für <strong>${esc(position)}</strong> vorbereitet
-          und bittet Sie um Prüfung und Freigabe.
+          ${text.lead(`${sender}${draft.company_name ? ` (${esc(draft.company_name)})` : ''}`, `<strong>${esc(position)}</strong>`)}
         </p>
         ${message ? `<div style="margin:0 0 16px 0;padding:14px 16px;background:#f9fafb;border-left:3px solid #d1d5db;font-style:italic;">${esc(message)}</div>` : ''}
         <p style="margin:0 0 16px 0;">
-          Über den Link sehen Sie die vollständige Aufnahme, können sie ergänzen und die Anfrage abschicken.
+          ${text.link}
         </p>`,
-      cta: { label: 'Aufnahme öffnen', url },
-      footnote:
-        'Dieser Zugang gilt 14 Tage und ist ausschließlich für Sie bestimmt. Bitte leiten Sie ihn nicht weiter — nutzen Sie stattdessen die Weiterleitungsfunktion in der Aufnahme, damit jeder Zugang nachvollziehbar bleibt.',
+      cta: { label: text.cta, url },
+      footnote: text.footnote,
     });
 
     const mail = await sendIntakeMail(supabase, {
       to: toEmail,
-      subject: `Freigabe erbeten: Stellenaufnahme ${position}`,
+      subject: text.subject(position),
       html,
       template: 'intake_forward',
       replyTo: draft.contact_email ?? undefined,
@@ -111,4 +118,4 @@ serve(async (req) => {
     console.error('[intake-forward]', e);
     return fail('internal_error', 'Unerwarteter Fehler.');
   }
-});
+}, { success: true }));

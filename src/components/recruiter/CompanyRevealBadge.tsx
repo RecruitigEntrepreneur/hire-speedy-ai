@@ -5,6 +5,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { useTranslation } from 'react-i18next';
 
 interface CompanyRevealBadgeProps {
   companyRevealed: boolean;
@@ -28,6 +29,7 @@ export function CompanyRevealBadge({
   size = 'sm',
 }: CompanyRevealBadgeProps) {
   const iconSize = size === 'sm' ? 'h-3 w-3' : 'h-4 w-4';
+  const { t } = useTranslation('recruiterJobDetail');
 
   if (fullAccess) {
     return (
@@ -38,12 +40,12 @@ export function CompanyRevealBadge({
             className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30 gap-1"
           >
             <Eye className={iconSize} />
-            {showLabel && <span>Voller Zugriff</span>}
+            {showLabel && <span>{t('ws.access.full')}</span>}
           </Badge>
         </TooltipTrigger>
         <TooltipContent>
           <p className="text-xs">
-            Kandidat hat Interview bestätigt. Alle Firmeninfos sind sichtbar.
+            {t('reveal.fullText')}
           </p>
         </TooltipContent>
       </Tooltip>
@@ -59,12 +61,12 @@ export function CompanyRevealBadge({
             className="bg-amber-500/10 text-amber-600 border-amber-500/30 gap-1"
           >
             <Unlock className={iconSize} />
-            {showLabel && <span>Firma enthüllt</span>}
+            {showLabel && <span>{t('reveal.revealed')}</span>}
           </Badge>
         </TooltipTrigger>
         <TooltipContent>
           <p className="text-xs">
-            Kandidat hat Interesse bekundet. Firmenname ist sichtbar.
+            {t('reveal.revealedText')}
           </p>
         </TooltipContent>
       </Tooltip>
@@ -79,12 +81,12 @@ export function CompanyRevealBadge({
           className="bg-muted text-muted-foreground border-border gap-1"
         >
           <Lock className={iconSize} />
-          {showLabel && <span>Firma anonym</span>}
+          {showLabel && <span>{t('ws.access.anonymous')}</span>}
         </Badge>
       </TooltipTrigger>
       <TooltipContent>
         <p className="text-xs">
-          Firmenname wird nach Kandidaten-Opt-in enthüllt.
+          {t('reveal.anonymousText')}
         </p>
       </TooltipContent>
     </Tooltip>
@@ -101,6 +103,7 @@ export function CompanyRevealIcon({
   companyRevealed: boolean;
   fullAccess?: boolean;
 }) {
+  const { t } = useTranslation('recruiterJobDetail');
   if (fullAccess) {
     return (
       <Tooltip>
@@ -108,7 +111,7 @@ export function CompanyRevealIcon({
           <Eye className="h-3.5 w-3.5 text-emerald-500" />
         </TooltipTrigger>
         <TooltipContent>
-          <p className="text-xs">Voller Zugriff</p>
+          <p className="text-xs">{t('ws.access.full')}</p>
         </TooltipContent>
       </Tooltip>
     );
@@ -121,7 +124,7 @@ export function CompanyRevealIcon({
           <Unlock className="h-3.5 w-3.5 text-amber-500" />
         </TooltipTrigger>
         <TooltipContent>
-          <p className="text-xs">Firma enthüllt</p>
+          <p className="text-xs">{t('reveal.revealed')}</p>
         </TooltipContent>
       </Tooltip>
     );
@@ -133,7 +136,7 @@ export function CompanyRevealIcon({
         <Lock className="h-3.5 w-3.5 text-muted-foreground" />
       </TooltipTrigger>
       <TooltipContent>
-        <p className="text-xs">Firma anonym</p>
+        <p className="text-xs">{t('ws.access.anonymous')}</p>
       </TooltipContent>
     </Tooltip>
   );

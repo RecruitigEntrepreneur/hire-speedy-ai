@@ -1,4 +1,6 @@
 import { cn } from '@/lib/utils';
+import i18n from '@/i18n';
+import { useTranslation } from 'react-i18next';
 import type { BesetzungItem } from '@/lib/besetzungApi';
 import { dayMonth, dranOf, factsOf, statusOf, stepsOf, titleOf, type Fact, type PanelRow, type Step, type Tone } from './besetzungView';
 
@@ -47,7 +49,7 @@ export function FactGrid({ facts, limit, onAction }: { facts: Fact[]; limit?: nu
           <dd className={cn(limit ? 'truncate' : 'break-words', f.tone && FACT_TONE[f.tone])} title={f.value}>
             {f.value}
             {f.action && onAction && !limit && (
-              <button type="button" className="ml-1.5 text-xs font-medium underline underline-offset-2 hover:text-foreground" onClick={() => onAction(f.action!)}>ergänzen</button>
+              <button type="button" className="ml-1.5 text-xs font-medium underline underline-offset-2 hover:text-foreground" onClick={() => onAction(f.action!)}>{i18n.t('clientPlacements:facts.add')}</button>
             )}
           </dd>
         </div>
@@ -73,6 +75,7 @@ export function PanelRows({ rows }: { rows: PanelRow[] }) {
 }
 
 export function BesetzungCard({ item, hasTask, onOpen }: { item: BesetzungItem; hasTask: boolean; onOpen: () => void }) {
+  useTranslation('clientPlacements');
   const status = statusOf(item);
   const dran = dranOf(item, hasTask);
   return (
@@ -80,10 +83,10 @@ export function BesetzungCard({ item, hasTask, onOpen }: { item: BesetzungItem; 
       <div className="flex flex-wrap items-start justify-between gap-2">
         <p className="min-w-0 text-sm">
           <span className="font-semibold">{titleOf(item)}</span>
-          <span className="text-muted-foreground"> · {item.jobTitle}{item.recruiterName ? ` · über ${item.recruiterName}` : ''}</span>
+          <span className="text-muted-foreground"> · {item.jobTitle}{item.recruiterName ? i18n.t('clientPlacements:common.via', { name: item.recruiterName }) : ''}</span>
         </p>
         <div className="flex flex-wrap items-center gap-1.5">
-          {dran && <StatusPill text={`dran: ${dran.text}`} tone={dran.tone} />}
+          {dran && <StatusPill text={i18n.t('clientPlacements:dran.label', { who: dran.text })} tone={dran.tone} />}
           <StatusPill text={status.text} tone={status.tone} />
         </div>
       </div>

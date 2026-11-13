@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -23,6 +24,7 @@ interface Props {
  *  Kunde sie (Termin steht, Einladungen mit Teams-Link gehen raus) oder schlägt
  *  neue Termine vor. */
 export function CounterProposalDialog({ interview: iv, open, onOpenChange, onDone, onProposeNew }: Props) {
+  const { t } = useTranslation('clientInterviews');
   const queryClient = useQueryClient();
   const [saving, setSaving] = useState(false);
 
@@ -35,12 +37,12 @@ export function CounterProposalDialog({ interview: iv, open, onOpenChange, onDon
     setSaving(true);
     try {
       await interviewApi.confirmAlternative(iv.id);
-      toast.success('Termin steht. Die Einladungen sind unterwegs.');
+      toast.success(t('page.confirmed'));
       queryClient.invalidateQueries({ queryKey: ['client-interview-agenda'] });
       onOpenChange(false);
       onDone();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Der Termin konnte nicht bestätigt werden.');
+      toast.error(e instanceof Error ? e.message : t('page.confirmFailed'));
     } finally {
       setSaving(false);
     }
@@ -52,7 +54,7 @@ export function CounterProposalDialog({ interview: iv, open, onOpenChange, onDon
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ArrowLeftRight className="h-5 w-5 text-warning" />
-            Andere Zeit angefragt
+            {t('counter.title')}
           </DialogTitle>
           <DialogDescription className="flex flex-wrap items-center gap-1">
             <CandidateName iv={iv} /> · {iv.jobTitle}
@@ -61,7 +63,7 @@ export function CounterProposalDialog({ interview: iv, open, onOpenChange, onDon
 
         {requested ? (
           <div className="rounded-lg border p-3">
-            <p className="text-xs text-muted-foreground">Der Kandidat fragt an:</p>
+            <p className="text-xs text-muted-foreground">{t('counter.asks')}</p>
             <p className={requestedOpen ? 'mt-0.5 font-medium' : 'mt-0.5 font-medium text-muted-foreground line-through'}>
               {fmtRange(requested, iv.durationMinutes)}
             </p>
@@ -78,8 +80,8 @@ export function CounterProposalDialog({ interview: iv, open, onOpenChange, onDon
         {!requestedOpen && (
           <p className="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
             {requested
-              ? 'Die angefragte Zeit liegt inzwischen in der Vergangenheit. Bitte schlagen Sie neue Termine vor.'
-              : 'Der Kandidat hat keine konkrete Zeit genannt. Bitte schlagen Sie neue Termine vor.'}
+              ? t('counter.passed')
+              : t('counter.noTime')}
           </p>
         )}
 
@@ -93,12 +95,12 @@ export function CounterProposalDialog({ interview: iv, open, onOpenChange, onDon
               onProposeNew(iv);
             }}
           >
-            Neue Termine vorschlagen
+            {t('counter.proposeNew')}
           </Button>
           {requestedOpen && (
             <Button onClick={confirm} disabled={saving} className="gap-1.5">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarCheck className="h-4 w-4" />}
-              Zeit bestätigen
+              {t('row.confirmTime')}
             </Button>
           )}
         </DialogFooter>

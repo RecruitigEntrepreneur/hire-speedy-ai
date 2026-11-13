@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { notifyLang, tx } from "../_shared/notify-i18n.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -69,21 +70,23 @@ serve(async (req) => {
             details: {}
           });
 
-          // Notify client and recruiter
+          // Notify client and recruiter (jeweils in der Sprache des Empfängers)
+          const [vcl, vrl] = await Promise.all([notifyLang(supabase, offer.client_id), notifyLang(supabase, offer.submissions.recruiter_id)]);
+          const fn = offer.candidates.full_name;
           await supabase.from('notifications').insert([
             {
               user_id: offer.client_id,
               type: 'offer_viewed',
-              title: 'Angebot angesehen',
-              message: `${offer.candidates.full_name} hat das Angebot geöffnet.`,
+              title: tx(vcl, 'Angebot angesehen', 'Offer viewed', 'Erbjudandet visat', 'Tilbudet sett'),
+              message: tx(vcl, `${fn} hat das Angebot geöffnet.`, `${fn} has opened the offer.`, `${fn} har öppnat erbjudandet.`, `${fn} har åpnet tilbudet.`),
               related_type: 'offer',
               related_id: offer.id
             },
             {
               user_id: offer.submissions.recruiter_id,
               type: 'offer_viewed',
-              title: 'Angebot angesehen',
-              message: `${offer.candidates.full_name} hat das Angebot angesehen.`,
+              title: tx(vrl, 'Angebot angesehen', 'Offer viewed', 'Erbjudandet visat', 'Tilbudet sett'),
+              message: tx(vrl, `${fn} hat das Angebot angesehen.`, `${fn} has viewed the offer.`, `${fn} har tittat på erbjudandet.`, `${fn} har sett på tilbudet.`),
               related_type: 'offer',
               related_id: offer.id
             }
@@ -144,21 +147,24 @@ serve(async (req) => {
           escrow_release_date: escrowReleaseDate.toISOString()
         });
 
-        // Notify all parties
+        // Notify all parties (jeweils in der Sprache des Empfängers)
+        const [acl, arl] = await Promise.all([notifyLang(supabase, offer.client_id), notifyLang(supabase, offer.submissions.recruiter_id)]);
+        const afn = offer.candidates.full_name;
+        const payout = (l: string) => recruiterPayout.toLocaleString(l === 'en' ? 'en-GB' : l === 'sv' ? 'sv-SE' : l === 'nb' ? 'nb-NO' : 'de-DE');
         await supabase.from('notifications').insert([
           {
             user_id: offer.client_id,
             type: 'offer_accepted',
-            title: '🎉 Angebot angenommen!',
-            message: `${offer.candidates.full_name} hat das Angebot für ${offer.position_title} angenommen!`,
+            title: tx(acl, '🎉 Angebot angenommen!', '🎉 Offer accepted!', '🎉 Erbjudandet accepterat!', '🎉 Tilbudet akseptert!'),
+            message: tx(acl, `${afn} hat das Angebot für ${offer.position_title} angenommen!`, `${afn} has accepted the offer for ${offer.position_title}!`, `${afn} har accepterat erbjudandet för ${offer.position_title}!`, `${afn} har akseptert tilbudet for ${offer.position_title}!`),
             related_type: 'offer',
             related_id: offer.id
           },
           {
             user_id: offer.submissions.recruiter_id,
             type: 'placement_created',
-            title: '🎉 Placement erstellt!',
-            message: `${offer.candidates.full_name} wurde erfolgreich platziert. Provision: ${recruiterPayout.toLocaleString('de-DE')} €`,
+            title: tx(arl, '🎉 Placement erstellt!', '🎉 Placement created!', '🎉 Placering skapad!', '🎉 Plassering opprettet!'),
+            message: tx(arl, `${afn} wurde erfolgreich platziert. Provision: ${payout(arl)} €`, `${afn} has been placed successfully. Commission: ${payout(arl)} €`, `${afn} har placerats. Provision: ${payout(arl)} €`, `${afn} er plassert. Provisjon: ${payout(arl)} €`),
             related_type: 'placement',
             related_id: offer.id
           }
@@ -184,21 +190,23 @@ serve(async (req) => {
           details: { reason: rejection_reason }
         });
 
-        // Notify client and recruiter
+        // Notify client and recruiter (jeweils in der Sprache des Empfängers)
+        const [rcl, rrl] = await Promise.all([notifyLang(supabase, offer.client_id), notifyLang(supabase, offer.submissions.recruiter_id)]);
+        const rfn = offer.candidates.full_name;
         await supabase.from('notifications').insert([
           {
             user_id: offer.client_id,
             type: 'offer_rejected',
-            title: 'Angebot abgelehnt',
-            message: `${offer.candidates.full_name} hat das Angebot abgelehnt.${rejection_reason ? ` Grund: ${rejection_reason}` : ''}`,
+            title: tx(rcl, 'Angebot abgelehnt', 'Offer declined', 'Erbjudandet avböjt', 'Tilbudet avslått'),
+            message: `${tx(rcl, `${rfn} hat das Angebot abgelehnt.`, `${rfn} has declined the offer.`, `${rfn} har tackat nej till erbjudandet.`, `${rfn} har takket nei til tilbudet.`)}${rejection_reason ? tx(rcl, ` Grund: ${rejection_reason}`, ` Reason: ${rejection_reason}`, ` Skäl: ${rejection_reason}`, ` Grunn: ${rejection_reason}`) : ''}`,
             related_type: 'offer',
             related_id: offer.id
           },
           {
             user_id: offer.submissions.recruiter_id,
             type: 'offer_rejected',
-            title: 'Angebot abgelehnt',
-            message: `${offer.candidates.full_name} hat das Angebot abgelehnt.`,
+            title: tx(rrl, 'Angebot abgelehnt', 'Offer declined', 'Erbjudandet avböjt', 'Tilbudet avslått'),
+            message: tx(rrl, `${rfn} hat das Angebot abgelehnt.`, `${rfn} has declined the offer.`, `${rfn} har tackat nej till erbjudandet.`, `${rfn} har takket nei til tilbudet.`),
             related_type: 'offer',
             related_id: offer.id
           }
@@ -230,12 +238,14 @@ serve(async (req) => {
           details: { counter_offer_salary, notes: counter_offer_notes }
         });
 
-        // Notify client
+        // Notify client (in seiner Sprache)
+        const ccl = await notifyLang(supabase, offer.client_id);
+        const amount = counter_offer_salary.toLocaleString(ccl === 'en' ? 'en-GB' : ccl === 'sv' ? 'sv-SE' : ccl === 'nb' ? 'nb-NO' : 'de-DE');
         await supabase.from('notifications').insert({
           user_id: offer.client_id,
           type: 'counter_offer',
-          title: 'Gegenangebot erhalten',
-          message: `${offer.candidates.full_name} hat ein Gegenangebot gemacht: ${counter_offer_salary.toLocaleString('de-DE')} €`,
+          title: tx(ccl, 'Gegenangebot erhalten', 'Counter-offer received', 'Motbud mottaget', 'Motbud mottatt'),
+          message: tx(ccl, `${offer.candidates.full_name} hat ein Gegenangebot gemacht: ${amount} €`, `${offer.candidates.full_name} has made a counter-offer: ${amount} €`, `${offer.candidates.full_name} har lagt ett motbud: ${amount} €`, `${offer.candidates.full_name} har gitt et motbud: ${amount} €`),
           related_type: 'offer',
           related_id: offer.id
         });

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AlertTriangle, ChevronLeft, ChevronRight, Plus, RefreshCw, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -65,6 +66,7 @@ export function ProposalGrid({
   weekStart, canGoBack, canGoForward, onWeekChange, note, data, isLoading, isFetching, error, onRetry,
   selected, onToggle, onAdd, peopleCount, durationMinutes, minNoticeHours, onCheckTime, calendar, onConnectCalendar, onOpenHoursSettings,
 }: Props) {
+  const { t } = useTranslation('clientInterviews');
   const [customDay, setCustomDay] = useState<string | null>(null);
   const byKey = new Map((data?.days ?? []).map((d) => [normalizeDayKey(d.date), d]));
   const columns = [0, 1, 2, 3, 4, 5, 6]
@@ -105,15 +107,15 @@ export function ProposalGrid({
           <AlertTriangle className="hidden h-4 w-4 shrink-0 text-warning sm:block" />
           <p className="flex-1">
             {calendar.state === 'expired'
-              ? 'Ihre Outlook-Verbindung ist abgelaufen. Prüfen Sie Ihre Vorschläge in Outlook. '
+              ? t('grid.expired')
               : calendar.state === 'not_configured'
-                ? 'Prüfen Sie Ihre Vorschläge in Ihrem Kalender. '
-                : 'Ihr Kalender ist nicht verbunden. Prüfen Sie Ihre Vorschläge in Outlook. '}
-            Andere Zeiten kann der Kandidat nur anfragen, Sie bestätigen sie.
+                ? t('grid.checkOwn')
+                : t('grid.notConnected')}{' '}
+            {t('grid.onlyRequest')}
           </p>
           {calendar.state !== 'not_configured' && (
             <Button type="button" size="sm" variant="outline" className="h-8 shrink-0 bg-background" onClick={onConnectCalendar}>
-              {calendar.state === 'expired' ? 'Outlook neu verbinden' : 'Outlook verbinden'}
+              {calendar.state === 'expired' ? t('grid.reconnectOutlook') : t('calendar.connectOutlook')}
             </Button>
           )}
         </div>
@@ -123,10 +125,10 @@ export function ProposalGrid({
         <div className="flex flex-col gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm sm:flex-row sm:items-center">
           <AlertTriangle className="hidden h-4 w-4 shrink-0 text-warning sm:block" />
           <p className="flex-1">
-            Ihre Outlook-Termine konnten gerade nicht gelesen werden. Die Zeiten sind ungeprüft – prüfen Sie Ihre Vorschläge in Outlook.
+            {t('grid.unreadable')}
           </p>
           <Button type="button" size="sm" variant="outline" className="h-8 shrink-0 bg-background" onClick={onConnectCalendar}>
-            Outlook neu verbinden
+            {t('grid.reconnectOutlook')}
           </Button>
         </div>
       )}
@@ -141,7 +143,7 @@ export function ProposalGrid({
             className="h-8 w-8"
             onClick={() => onWeekChange(-1)}
             disabled={!canGoBack}
-            aria-label="Vorherige Woche"
+            aria-label={t('grid.prevWeek')}
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -153,21 +155,21 @@ export function ProposalGrid({
             className="h-8 w-8"
             onClick={() => onWeekChange(1)}
             disabled={!canGoForward}
-            aria-label="Nächste Woche"
+            aria-label={t('grid.nextWeek')}
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
-        {isFetching && !isLoading && <span className="text-xs text-muted-foreground">wird aktualisiert …</span>}
+        {isFetching && !isLoading && <span className="text-xs text-muted-foreground">{t('grid.updating')}</span>}
       </div>
       {note && <p className="text-xs text-muted-foreground">{note}</p>}
 
       {/* Raster */}
       {error && !data ? (
         <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-8 text-center text-sm">
-          <p className="text-muted-foreground">{error.message || 'Die freien Zeiten konnten nicht geladen werden.'}</p>
+          <p className="text-muted-foreground">{error.message || t('grid.loadError')}</p>
           <Button type="button" variant="outline" size="sm" className="gap-1.5" onClick={onRetry}>
-            <RefreshCw className="h-3.5 w-3.5" /> Erneut versuchen
+            <RefreshCw className="h-3.5 w-3.5" /> {t('page.retry')}
           </Button>
         </div>
       ) : isLoading || !data ? (
@@ -185,14 +187,14 @@ export function ProposalGrid({
         <>
           {totalSlots === 0 ? (
             <p className="text-xs text-muted-foreground">
-              Keine passenden Zeiten in dieser Woche. Blättern Sie weiter, wählen Sie „+ Uhrzeit“ unter einem Tag oder{' '}
+              {t('grid.none')}{' '}
               <button type="button" className="font-medium text-primary underline underline-offset-2 hover:opacity-80" onClick={onOpenHoursSettings}>
-                ändern Sie Ihre Interview-Zeiten
+                {t('grid.changeHours')}
               </button>
               .
             </p>
           ) : selectable === 0 && (
-            <p className="text-xs text-muted-foreground">In dieser Woche ist alles belegt. Blättern Sie weiter oder wählen Sie „+ Uhrzeit“ unter einem Tag.</p>
+            <p className="text-xs text-muted-foreground">{t('grid.allBusy')}</p>
           )}
           <div className={cn('-mx-1 overflow-x-auto px-1 pb-1 transition-opacity', isFetching && 'opacity-60')}>
             <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(8rem, 1fr))` }}>
@@ -208,11 +210,11 @@ export function ProposalGrid({
                           type="button"
                           aria-pressed
                           onClick={() => onToggle(item.iso)}
-                          title="Eigene Zeit · zum Entfernen klicken"
+                          title={t('grid.ownTimeHint')}
                           className="flex w-full items-center gap-1.5 rounded-md border border-foreground bg-foreground px-2 py-1.5 text-left text-xs font-medium tabular-nums text-background transition-colors hover:bg-foreground/90"
                         >
                           <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-background" />
-                          <span className="truncate">{fmtTime(item.iso)} · eigene Zeit</span>
+                          <span className="truncate">{t('grid.ownTime', { time: fmtTime(item.iso) })}</span>
                         </button>
                       );
                     }
@@ -221,9 +223,9 @@ export function ProposalGrid({
                     const isSelected = selectedSet.has(Date.parse(slot.start));
                     const blocked = clickable && !isSelected && full;
                     const hint = [
-                      unchecked && clickable ? 'Ungeprüft: Outlook nicht lesbar' : '',
-                      slot.unknown.length ? `Kalender nicht sichtbar: ${slot.unknown.join(', ')}` : '',
-                      blocked ? `Höchstens ${MAX_PROPOSALS} Vorschläge` : '',
+                      unchecked && clickable ? t('grid.uncheckedHint') : '',
+                      slot.unknown.length ? t('grid.notVisible', { names: slot.unknown.join(', ') }) : '',
+                      blocked ? t('grid.max', { n: MAX_PROPOSALS }) : '',
                     ].filter(Boolean).join(' · ');
                     return (
                       <button
@@ -256,7 +258,7 @@ export function ProposalGrid({
                         customDay === col.key ? 'font-medium text-foreground' : 'text-muted-foreground',
                       )}
                     >
-                      <Plus className="h-3 w-3" /> Uhrzeit
+                      <Plus className="h-3 w-3" /> {t('grid.time')}
                     </button>
                   )}
                 </div>
@@ -281,7 +283,7 @@ export function ProposalGrid({
       <div className="space-y-2">
         <div className="flex flex-wrap items-center gap-1.5 text-xs">
           <span className="font-medium">
-            Ausgewählt {selected.length} von {MAX_PROPOSALS}
+            {t('grid.selected', { n: selected.length, max: MAX_PROPOSALS })}
           </span>
           {sortedSelected.map((iso) => (
             <span key={iso} className="inline-flex items-center gap-1 rounded-full bg-foreground py-0.5 pl-2.5 pr-1 text-background">
@@ -290,7 +292,7 @@ export function ProposalGrid({
                 type="button"
                 onClick={() => onToggle(iso)}
                 className="rounded-full p-0.5 hover:bg-background/20"
-                aria-label={`${fmtDayShort(iso)} ${fmtTime(iso)} entfernen`}
+                aria-label={t('grid.removeAria', { slot: `${fmtDayShort(iso)} ${fmtTime(iso)}` })}
               >
                 <X className="h-3 w-3" />
               </button>
@@ -300,32 +302,34 @@ export function ProposalGrid({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
             <span className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-success" /> grün = alle frei
+              <span className="h-2 w-2 rounded-full bg-success" /> {t('grid.legendGreen')}
             </span>
             <span>·</span>
             <span className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-warning" /> gelb = alle Pflicht-Teilnehmer frei
+              <span className="h-2 w-2 rounded-full bg-warning" /> {t('grid.legendYellow')}
             </span>
             <span>·</span>
             <span className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-muted-foreground/40" /> grau = belegt
+              <span className="h-2 w-2 rounded-full bg-muted-foreground/40" /> {t('grid.legendGrey')}
             </span>
             {unchecked && (
               <>
                 <span>·</span>
                 <span className="inline-flex items-center gap-1">
-                  <span className="h-2 w-2 rounded-sm border border-dashed border-muted-foreground" /> gestrichelt = ungeprüft
+                  <span className="h-2 w-2 rounded-sm border border-dashed border-muted-foreground" /> {t('grid.legendDashed')}
                 </span>
               </>
             )}
-            <span>· deutsche Zeit</span>
+            <span>{t('grid.germanTime')}</span>
           </p>
         </div>
         {minNoticeHours > 0 && (
           <p className="text-[11px] text-muted-foreground">
-            Zeiten mit weniger als {minNoticeHours % 24 === 0 && minNoticeHours > 24 ? `${minNoticeHours / 24} Tagen` : `${minNoticeHours} Std.`} Vorlauf sind ausgeblendet ·{' '}
+            {minNoticeHours % 24 === 0 && minNoticeHours > 24
+              ? t('grid.noticeDays', { count: minNoticeHours / 24 })
+              : t('grid.noticeHours', { count: minNoticeHours })}{' '}
             <button type="button" className="font-medium text-primary underline underline-offset-2 hover:opacity-80" onClick={onOpenHoursSettings}>
-              Ändern
+              {t('alt.change')}
             </button>
           </p>
         )}

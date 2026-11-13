@@ -1,0 +1,60 @@
+// Meldungen und Beschriftungen der Kandidaten- und Suchlogik (jobSearch, submissionStage, matchV41,
+// candidateCv, useCandidateCv, useCvImport, clientTextCheck). Gespeicherte Werte bleiben unverändert.
+const de = {
+  search: {
+    error: 'Das hat nicht geklappt. Bitte gleich noch einmal versuchen.',
+    toSilver_one: 'Noch {{count}} Kunden-Interview oder 1 Einstellung bis Silber',
+    toSilver_other: 'Noch {{count}} Kunden-Interviews oder 1 Einstellung bis Silber',
+    placements_one: '{{count}} Einstellung',
+    placements_other: '{{count}} Einstellungen',
+    months_one: '{{count}} Monat dabei',
+    months_other: '{{count}} Monate dabei',
+    toGold: 'Noch {{parts}} bis Gold',
+    and: ' und ',
+  },
+  stage: {
+    submitted: 'Eingereicht',
+    in_review: 'In Prüfung',
+    interview_requested: 'Interview angefragt',
+    candidate_opted_in: 'Opt-In erteilt',
+    interview_scheduled: 'Termin steht',
+    interview_counter_proposed: 'Gegenvorschlag',
+    interview_completed: 'Interview geführt',
+    offer: 'Angebot',
+    placed: 'Vermittelt',
+    interview_declined: 'Interview abgelehnt',
+    client_rejected: 'Vom Kunden abgelehnt',
+    rejected: 'Abgelehnt',
+    withdrawn: 'Zurückgezogen',
+  },
+  match: {
+    notDeployed: 'match-v41 ist nicht deployt.',
+    unavailable: 'Matching gerade nicht erreichbar.',
+  },
+  cv: {
+    missing: 'Ohne Lebenslauf kann der Kandidat nicht eingereicht werden.',
+    fileType: 'Bitte eine PDF- oder Word-Datei hochladen.',
+    fileSize: 'Die Datei darf höchstens 10 MB groß sein.',
+    submitFailed: 'Fehler beim Einreichen',
+    uploadFailed: 'Upload fehlgeschlagen: {{msg}}',
+    saveFailed: 'Der Lebenslauf konnte nicht gespeichert werden.',
+    confirmFailed: 'Bestätigung konnte nicht gespeichert werden.',
+  },
+  import: {
+    notPublished: 'Das Auslesen ist noch nicht veröffentlicht (Funktion extract-candidate-cv fehlt).',
+    unreachable: 'Das Auslesen ist gerade nicht erreichbar (Funktion extract-candidate-cv noch nicht veröffentlicht?).',
+    readFailed: 'Der Lebenslauf konnte nicht ausgelesen werden. Bitte gleich noch einmal versuchen.',
+    createFailed: 'Kandidat konnte nicht angelegt werden: {{msg}}',
+    updateFailed: 'Kandidat konnte nicht aktualisiert werden: {{msg}}',
+    unknown: 'unbekannt',
+  },
+  textCheck: {
+    amountMismatch: 'Betrag passt nicht mehr zur Akte (Wunschgehalt {{amount}} €).',
+    noticeMismatch: 'Kündigungsfrist passt nicht mehr zu den Angaben (jetzt {{notice}}).',
+    startMismatch: 'Starttermin passt nicht mehr zu den Angaben (verfügbar ab {{date}}).',
+    summarySalary: 'Das Gehalt im Kurzprofil passt nicht mehr zur Akte (Wunschgehalt {{amount}}).',
+    summaryNotice: 'Die Kündigungsfrist im Kurzprofil passt nicht mehr zur Akte (jetzt {{notice}}).',
+  },
+};
+
+export default de;

@@ -16,18 +16,20 @@ import { supabase } from '@/integrations/supabase/client';
 import { useClientGuide } from '@/components/recruiter/guide/RecruiterGuide';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { FIRST_VISIT_PARAM } from '@/lib/clientLogin';
 import { Compass, RefreshCw } from 'lucide-react';
 
-function getGreeting(): string {
+function greetingKey(): 'morning' | 'day' | 'evening' {
   const h = new Date().getHours();
-  if (h < 11) return 'Guten Morgen';
-  if (h < 18) return 'Guten Tag';
-  return 'Guten Abend';
+  if (h < 11) return 'morning';
+  if (h < 18) return 'day';
+  return 'evening';
 }
 
 export default function ClientDashboard() {
+  const { t } = useTranslation('clientDashboard');
   const { data, isLoading, error, refetch } = useClientDashboard();
   const { user } = useAuth();
 
@@ -64,10 +66,10 @@ export default function ClientDashboard() {
     return (
       <DashboardLayout>
         <div className="flex flex-col items-center justify-center py-12">
-          <p className="mb-4 text-muted-foreground">Fehler beim Laden des Dashboards</p>
+          <p className="mb-4 text-muted-foreground">{t('page.loadError')}</p>
           <Button onClick={() => refetch()} variant="outline">
             <RefreshCw className="mr-2 h-4 w-4" />
-            Erneut versuchen
+            {t('page.retry')}
           </Button>
         </div>
       </DashboardLayout>
@@ -90,13 +92,12 @@ export default function ClientDashboard() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold">
-              {getGreeting()}
-              {firstName ? `, ${firstName}` : ''}
+              {firstName ? t(`page.greetingName.${greetingKey()}`, { name: firstName }) : t(`page.greeting.${greetingKey()}`)}
             </h1>
-            <p className="text-sm text-muted-foreground">Ihr Command Center für alle Kandidaten-Aktivitäten.</p>
+            <p className="text-sm text-muted-foreground">{t('page.subtitle')}</p>
           </div>
           <Button variant="outline" size="sm" className="gap-1.5" onClick={() => guide.start()}>
-            <Compass className="h-4 w-4" /> Rundgang
+            <Compass className="h-4 w-4" /> {t('page.tour')}
           </Button>
         </div>
 

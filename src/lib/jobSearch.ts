@@ -3,6 +3,11 @@
 // Die Funktionen sind noch nicht im generierten Supabase-Typ, deshalb die Casts.
 
 import { supabase } from '@/integrations/supabase/client';
+import i18n from '@/i18n';
+import { fmtDate, fmtDayMonth } from '@/lib/localeFormat';
+
+// Meldungen beim Aufruf übersetzt (Namespace candidateLogic, search.*).
+const tl = (key: string, options?: Record<string, unknown>): string => i18n.t(`candidateLogic:${key}`, options) as string;
 
 type RpcResult<T> = { data: T | null; error: { message: string; hint?: string; code?: string } | null };
 
@@ -21,8 +26,8 @@ async function rpc<T>(fn: string, args?: Record<string, unknown>): Promise<T> {
 }
 
 export const errorHint = (e: unknown): string | undefined => (e as { hint?: string })?.hint;
-export const errorText = (e: unknown, fallback = 'Das hat nicht geklappt. Bitte gleich noch einmal versuchen.'): string =>
-  (e as { message?: string })?.message || fallback;
+export const errorText = (e: unknown, fallback?: string): string =>
+  (e as { message?: string })?.message || fallback || tl('search.error');
 
 // ---------------------------------------------------------------------------
 // Partner-Stufen
@@ -73,17 +78,17 @@ export function nextTierHint(p: PartnerProgress): string | null {
   if (p.tier === 'partner') {
     const iv = Math.max(0, TIER_THRESHOLDS.silver.interviews - m.interviews);
     return iv > 0 && m.placements < 1
-      ? `Noch ${iv} Kunden-${iv === 1 ? 'Interview' : 'Interviews'} oder 1 Einstellung bis Silber`
+      ? tl('search.toSilver', { count: iv })
       : null;
   }
   if (p.tier === 'silver') {
     const pl = Math.max(0, TIER_THRESHOLDS.gold.placements - m.placements);
     const mo = Math.max(0, TIER_THRESHOLDS.gold.months - m.months_active);
     const parts = [
-      pl > 0 ? `${pl} ${pl === 1 ? 'Einstellung' : 'Einstellungen'}` : null,
-      mo > 0 ? `${mo} ${mo === 1 ? 'Monat' : 'Monate'} dabei` : null,
+      pl > 0 ? tl('search.placements', { count: pl }) : null,
+      mo > 0 ? tl('search.months', { count: mo }) : null,
     ].filter(Boolean);
-    return parts.length ? `Noch ${parts.join(' und ')} bis Gold` : null;
+    return parts.length ? tl('search.toGold', { parts: parts.join(tl('search.and')) }) : null;
   }
   return null;
 }
@@ -160,10 +165,10 @@ export const daysUntil = (iso: string | null | undefined): number | null =>
   iso ? Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000)) : null;
 
 export const fmtDay = (iso: string | null | undefined) =>
-  iso ? new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+  iso ? fmtDate(iso) : '';
 
 export const fmtDayShort = (iso: string | null | undefined) =>
-  iso ? new Date(iso).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) : '';
+  iso ? fmtDayMonth(iso) : '';
 
 // ---------------------------------------------------------------------------
 // Kunde

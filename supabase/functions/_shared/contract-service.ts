@@ -34,6 +34,9 @@ import { bucketFiles, onContractFinal, type FilePort as InvoiceFilePort } from '
 import { noticeLabel } from './client-tasks.ts';
 import { generateToken, hashToken } from './tokens.ts';
 import type { MailContent } from './offer-mails.ts';
+import { tr, type Lang } from './i18n.ts';
+import { candidateLanguage, clientLanguage, languageOfEmail, languageOfUser, recruiterLanguage } from './recipient-language.ts';
+import { viaMatchunt } from './mail-i18n.ts';
 
 const UUID = /^[0-9a-f-]{36}$/i;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -264,6 +267,14 @@ async function access(ctx: ContractCtx, user: User, submissionId: unknown, allow
 /** Kundenseite: wer das Angebot gemacht hat und wer die Stelle angelegt hat. */
 const clientRecipients = (b: Bundle) => [...new Set([b.offer?.created_by, b.job.client_id].filter(Boolean))] as string[];
 
+// Mehrsprachigkeit (13.11.2026): Mails in der Sprache des Empfängers. Texte für Headhunter
+// und Kunde dürfen eine Funktion je Sprache sein; die Glocke bleibt deutsch wie bisher.
+type Tx = string | ((lang: Lang) => string);
+const txIn = (t: Tx, lang: Lang) => (typeof t === 'function' ? t(lang) : t);
+const T = (lang: Lang, de: string, en: string, sv: string, nb: string, vars?: Record<string, string | number>) => tr(lang, { de, en, sv, nb }, vars);
+const langOfCandidate = (ctx: ContractCtx, b: Bundle) => candidateLanguage(ctx.db, b.submission.recruiter_id);
+const yourHeadhunter = (lang: Lang) => T(lang, 'Ihr Headhunter', 'Your headhunter', 'Din headhunter', 'Headhunteren din');
+
 async function adminIds(db: SupabaseClient): Promise<string[]> {
   const { data } = await db.from('user_roles').select('user_id').eq('role', 'admin');
   return ((data ?? []) as any[]).map((r) => r.user_id);
@@ -300,20 +311,22 @@ const signReturn = (base: string, b: Bundle) => `${base}/dashboard/candidates/${
 /** Nach einem Rücksprung darf der Stand nach 20 s erneut abgefragt werden (sonst 10 Minuten) */
 export const RETURN_SYNC_MS = 20_000;
 
-async function tellRecruiter(ctx: ContractCtx, b: Bundle, title: string, detail: string | null = null) {
-  await notify(ctx, b.submission.recruiter_id, 'contract_update', `${b.candidate.full_name}: ${title}`, detail ?? `${companyFor(b)} · ${b.job.title}`, 'candidate', b.candidate.id);
+async function tellRecruiter(ctx: ContractCtx, b: Bundle, title: Tx, detail: Tx | null = null) {
+  await notify(ctx, b.submission.recruiter_id, 'contract_update', `${b.candidate.full_name}: ${txIn(title, 'de')}`, detail != null ? txIn(detail, 'de') : `${companyFor(b)} · ${b.job.title}`, 'candidate', b.candidate.id);
   if (!b.recruiter?.email) return;
-  const content = mails.recruiterContractUpdate({ recruiterFirstName: firstName(b.recruiter.name), candidateName: b.candidate.full_name, companyName: companyFor(b), text: title, detail, akteUrl: urls(ctx, b).akte });
+  const lang = await recruiterLanguage(ctx.db, b.submission.recruiter_id);
+  const content = mails.recruiterContractUpdate({ recruiterFirstName: firstName(b.recruiter.name), candidateName: b.candidate.full_name, companyName: companyFor(b), text: txIn(title, lang), detail: detail != null ? txIn(detail, lang) : null, akteUrl: urls(ctx, b).akte, lang });
   await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: b.recruiter.email, ...content }, { template: 'contract_update_recruiter', meta: { submission_id: b.submission.id } });
 }
 
-async function tellClient(ctx: ContractCtx, b: Bundle, title: string, detail: string | null = null, mailToo = true) {
+async function tellClient(ctx: ContractCtx, b: Bundle, title: Tx, detail: Tx | null = null, mailToo = true) {
   for (const uid of clientRecipients(b)) {
-    await notify(ctx, uid, 'contract_update', `${b.candidate.full_name}: ${title}`, detail ?? b.job.title, 'submission', b.submission.id);
+    await notify(ctx, uid, 'contract_update', `${b.candidate.full_name}: ${txIn(title, 'de')}`, detail != null ? txIn(detail, 'de') : b.job.title, 'submission', b.submission.id);
     if (!mailToo) continue;
     const prof = await profile(ctx.db, uid);
     if (!prof?.email) continue;
-    const content = mails.clientContractUpdate({ name: prof.name, candidateName: b.candidate.full_name, text: title, detail, profileUrl: urls(ctx, b).profile });
+    const lang = await clientLanguage(ctx.db, { userId: uid, email: prof.email });
+    const content = mails.clientContractUpdate({ name: prof.name, candidateName: b.candidate.full_name, text: txIn(title, lang), detail: detail != null ? txIn(detail, lang) : null, profileUrl: urls(ctx, b).profile, lang });
     await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: prof.email, ...content }, { template: 'contract_update_client', meta: { submission_id: b.submission.id } });
   }
 }
@@ -539,8 +552,14 @@ export async function sendSelf(ctx: ContractCtx, user: User, body: any) {
   const informed = tellCandidate && await tellCandidateUnderway(ctx, b, done, again);
   if (informed) done = b.contract;
   await tellRecruiter(ctx, b,
-    sentOn ? `Vertrag am ${mails.dateDe(sentOn)} ${again ? 'erneut ' : ''}selbst verschickt` : 'Kunde schickt den Vertrag selbst',
-    informed ? `${first} hat eine Mail von uns und kann Ankunft und Unterschrift selbst melden. Du bekommst Bescheid.` : `Bitte bei ${first} nachhaken und die Unterschrift melden, sobald sie da ist.`);
+    (l) => sentOn
+      ? (again
+        ? T(l, 'Vertrag am {d} erneut selbst verschickt', 'Contract sent again directly by the client on {d}', 'Avtalet skickat igen direkt av kunden {d}', 'Avtalen sendt på nytt direkte av kunden {d}', { d: mails.dateIn(sentOn, l) })
+        : T(l, 'Vertrag am {d} selbst verschickt', 'Contract sent directly by the client on {d}', 'Avtalet skickat direkt av kunden {d}', 'Avtalen sendt direkte av kunden {d}', { d: mails.dateIn(sentOn, l) }))
+      : T(l, 'Kunde schickt den Vertrag selbst', 'Client is sending the contract directly', 'Kunden skickar avtalet själv', 'Kunden sender avtalen selv'),
+    (l) => informed
+      ? T(l, '{f} hat eine Mail von uns und kann Ankunft und Unterschrift selbst melden. Du bekommst Bescheid.', '{f} has an email from us and can report arrival and signature directly. We will let you know.', '{f} har fått ett mejl från oss och kan själv meddela när avtalet kommit och är underskrivet. Du får besked.', '{f} har fått en e-post fra oss og kan selv melde når avtalen er kommet og signert. Du får beskjed.', { f: String(first) })
+      : T(l, 'Bitte bei {f} nachhaken und die Unterschrift melden, sobald sie da ist.', 'Please follow up with {f} and report the signature once it is done.', 'Följ upp med {f} och meddela underskriften så snart den är klar.', 'Følg opp med {f} og meld signaturen så snart den er på plass.', { f: String(first) }));
   return { ok: true, contract: contractView(done, 'client') };
 }
 
@@ -657,10 +676,13 @@ async function sendSignLink(ctx: ContractCtx, b: Bundle, c: any, role: SignerRol
     // Hochgeladen hat, wer den Umschlag verschickt hat (die Vertragszeile legt oft die Zusage an)
     const { data: sentBy } = await ctx.db.from('employment_contract_events').select('actor_id, created_at').eq('contract_id', c.id).eq('event_type', 'sent_digital').order('created_at', { ascending: false }).limit(1);
     const uploader = await profile(ctx.db, ((sentBy ?? [])[0] as any)?.actor_id ?? actorId);
-    const content = mails.companySignLink({ name, companyName: b.job.company_name, candidateName: b.candidate.full_name, jobTitle: b.job.title, uploaderName: uploader?.name || null, uploaderEmail: uploader?.email ?? null, url, days: LINK_DAYS, reminder, demo: ctx.signDemo });
+    // Unterzeichner ohne Konto: Profil zur Adresse, sonst die Sprache dessen, der hochgeladen hat
+    const uploaderId = ((sentBy ?? [])[0] as any)?.actor_id ?? actorId;
+    const lang = (await languageOfEmail(ctx.db, email)) ?? (await languageOfUser(ctx.db, c.company_signer_user_id)) ?? (await languageOfUser(ctx.db, uploaderId)) ?? 'de';
+    const content = mails.companySignLink({ name, companyName: b.job.company_name, candidateName: b.candidate.full_name, jobTitle: b.job.title, uploaderName: uploader?.name || null, uploaderEmail: uploader?.email ?? null, url, days: LINK_DAYS, reminder, demo: ctx.signDemo, lang });
     await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: email, replyTo: uploader?.email ?? undefined, ...content }, { template: reminder ? 'contract_sign_company_reminder' : 'contract_sign_company', meta: { contract_id: c.id } });
   } else {
-    const content = mails.candidateSignLink({ firstName: firstName(name), companyName: b.job.company_name, jobTitle: b.job.title, startDate: c.start_date, salary: c.salary, variable: c.variable_salary, recruiterName: b.recruiter?.name || null, url, days: LINK_DAYS, reminder, demo: ctx.signDemo });
+    const content = mails.candidateSignLink({ firstName: firstName(name), companyName: b.job.company_name, jobTitle: b.job.title, startDate: c.start_date, salary: c.salary, variable: c.variable_salary, recruiterName: b.recruiter?.name || null, url, days: LINK_DAYS, reminder, demo: ctx.signDemo, lang: await langOfCandidate(ctx, b) });
     await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: email, replyTo: b.recruiter?.email ?? undefined, ...content }, { template: reminder ? 'contract_sign_candidate_reminder' : 'contract_sign_candidate', meta: { contract_id: c.id } });
   }
   await event(ctx, c.id, reminder ? 'link_reminder' : 'link_sent', 'system', actorId, { role });
@@ -693,8 +715,9 @@ export async function sendDigital(ctx: ContractCtx, user: User, body: any) {
   must(['preparing', 'sent_self'].includes(c.status), DIGITAL_RUNNING.includes(c.status) ? 'Es läuft schon ein Umschlag. Bitte zuerst zurückziehen.' : 'Der Vertrag ist schon gemeldet.', 'conflict');
   const done = await startEnvelope(ctx, b, c, user, { ...signer, candidateEmail, fileName, salary: salary!, variable, startDate: body.startDate, closeJob: body.closeJob === true, bytes: bytes! }, ['preparing', 'sent_self']);
   const signUrl = await afterStart(ctx, b, done, user, baseFor(ctx, body));
-  const who = signer.signerUserId ? (b.submission.company_revealed ? b.job.company_name : 'die Firma') : signer.signerName;
-  await tellRecruiter(ctx, b, 'Arbeitsvertrag zur Unterschrift verschickt', `Erst unterschreibt ${who}, dann ${firstName(b.candidate.full_name)} über einen Link von Matchunt. Du bekommst Bescheid.`);
+  const who = (l: Lang) => signer.signerUserId ? (b.submission.company_revealed ? b.job.company_name : T(l, 'die Firma', 'the company', 'företaget', 'selskapet')) : signer.signerName;
+  await tellRecruiter(ctx, b, (l) => T(l, 'Arbeitsvertrag zur Unterschrift verschickt', 'Employment contract sent for signature', 'Anställningsavtal skickat för underskrift', 'Arbeidsavtale sendt til signering'),
+    (l) => T(l, 'Erst unterschreibt {w}, dann {f} über einen Link von Matchunt. Du bekommst Bescheid.', 'First {w} signs, then {f} via a link from Matchunt. We will let you know.', 'Först skriver {w} under, sedan {f} via en länk från Matchunt. Du får besked.', 'Først signerer {w}, deretter {f} via en lenke fra Matchunt. Du får beskjed.', { w: who(l), f: String(firstName(b.candidate.full_name)) }));
   return { ok: true, contract: contractView(done, 'client'), signUrl };
 }
 
@@ -762,10 +785,13 @@ export async function voidDigital(ctx: ContractCtx, user: User, body: any) {
   await revokeLinks(ctx.db, c.id, ctx.now());
   await event(ctx, c.id, 'voided', 'client', user.id, { envelopeId: c.envelope_id, toSelf });
   if (toSelf && candidateHadLink) {
-    const content = mails.candidateLinkVoid({ firstName: firstName(b.candidate.full_name), companyName: b.job.company_name, recruiterName: b.recruiter?.name || null });
-    if (await mailCandidate(ctx, b, done, 'link_void', content)) await event(ctx, c.id, 'candidate_informed', 'system', null, { kind: 'link_void' });
+    const lang = await langOfCandidate(ctx, b);
+    const content = mails.candidateLinkVoid({ firstName: firstName(b.candidate.full_name), companyName: b.job.company_name, recruiterName: b.recruiter?.name || null, lang });
+    if (await mailCandidate(ctx, b, done, 'link_void', content, lang)) await event(ctx, c.id, 'candidate_informed', 'system', null, { kind: 'link_void' });
   }
-  await tellRecruiter(ctx, b, toSelf ? 'Digitaler Vertrag zurückgezogen, Kunde schickt selbst' : 'Digitaler Vertrag zurückgezogen, wird neu gesendet', null);
+  await tellRecruiter(ctx, b, (l) => toSelf
+    ? T(l, 'Digitaler Vertrag zurückgezogen, Kunde schickt selbst', 'Digital contract withdrawn, client is sending it directly', 'Digitalt avtal återkallat, kunden skickar själv', 'Digital avtale trukket tilbake, kunden sender selv')
+    : T(l, 'Digitaler Vertrag zurückgezogen, wird neu gesendet', 'Digital contract withdrawn, will be sent again', 'Digitalt avtal återkallat, skickas på nytt', 'Digital avtale trukket tilbake, sendes på nytt'), null);
   return { ok: true, contract: contractView(done, 'client') };
 }
 
@@ -798,14 +824,15 @@ async function applySnapshot(ctx: ContractCtx, b: Bundle, snap: SignerSnapshot) 
   }
   const declined = [company, cand].find((s) => s?.status === 'declined');
   if (declined) {
-    const who = declined.recipientId === '1' ? 'Die Firma' : first;
+    const who = (l: Lang) => declined.recipientId === '1' ? T(l, 'Die Firma', 'The company', 'Företaget', 'Selskapet') : String(first);
     const reason = text(declined.declinedReason, 500) || null;
     c = await update(ctx, c.id, { status: 'declined', decline_reason: reason, envelope_synced_at: nowIso }, DIGITAL_RUNNING);
     b.contract = c;
     await revokeLinks(ctx.db, c.id, ctx.now());
     await event(ctx, c.id, 'declined', 'docusign', null, { by: declined.recipientId, reason });
-    await tellClient(ctx, b, `${who} hat in DocuSign abgelehnt`, reason);
-    await tellRecruiter(ctx, b, `${who} hat den Vertrag in DocuSign abgelehnt`, reason ?? 'Bitte mit allen klären.');
+    await tellClient(ctx, b, (l) => T(l, '{w} hat in DocuSign abgelehnt', '{w} has declined in DocuSign', '{w} har avböjt i DocuSign', '{w} har avslått i DocuSign', { w: who(l) }), reason);
+    await tellRecruiter(ctx, b, (l) => T(l, '{w} hat den Vertrag in DocuSign abgelehnt', '{w} has declined the contract in DocuSign', '{w} har avböjt avtalet i DocuSign', '{w} har avslått avtalen i DocuSign', { w: who(l) }),
+      reason ?? ((l) => T(l, 'Bitte mit allen klären.', 'Please sort it out with everyone involved.', 'Reda ut det med alla inblandade.', 'Avklar det med alle involverte.')));
     return;
   }
   if (snap.status === 'voided') {
@@ -840,11 +867,12 @@ async function applySnapshot(ctx: ContractCtx, b: Bundle, snap: SignerSnapshot) 
       await notify(ctx, uid, 'contract_signed', `${b.candidate.full_name} hat unterschrieben`, `Arbeitsvertrag über DocuSign abgeschlossen`, 'submission', b.submission.id);
       const prof = await profile(ctx.db, uid);
       if (prof?.email) {
-        const content = mails.clientContractDone({ name: prof.name, candidateName: b.candidate.full_name, facts, digital: true, profileUrl: urls(ctx, b).profile });
+        const content = mails.clientContractDone({ name: prof.name, candidateName: b.candidate.full_name, facts, digital: true, profileUrl: urls(ctx, b).profile, lang: await clientLanguage(ctx.db, { userId: uid, email: prof.email }) });
         await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: prof.email, ...content }, { template: 'contract_done_client', meta: { contract_id: c.id } });
       }
     }
-    await tellRecruiter(ctx, b, `Arbeitsvertrag unterschrieben (${mails.dateDe(c.signed_on)})`, 'Beide Seiten haben über DocuSign unterschrieben.');
+    await tellRecruiter(ctx, b, (l) => T(l, 'Arbeitsvertrag unterschrieben ({d})', 'Employment contract signed ({d})', 'Anställningsavtalet underskrivet ({d})', 'Arbeidsavtalen signert ({d})', { d: mails.dateIn(c.signed_on, l) }),
+      (l) => T(l, 'Beide Seiten haben über DocuSign unterschrieben.', 'Both sides have signed via DocuSign.', 'Båda parter har skrivit under via DocuSign.', 'Begge parter har signert via DocuSign.'));
     return;
   }
   if (companyDone && c.status === 'sent_digital') {
@@ -857,10 +885,12 @@ async function applySnapshot(ctx: ContractCtx, b: Bundle, snap: SignerSnapshot) 
       await markLinkSigned(ctx.db, c.id, 'company', String(c.company_signed_at ?? nowIso));
       try { await sendSignLink(ctx, b, c, 'candidate', null); } catch (e) { console.error('[contract] Link an den Kandidaten nicht verschickt', e instanceof Error ? e.message : e); }
       if (!c.company_signer_user_id) await tellClient(ctx, b, `${c.company_signer_name} hat für die Firma unterschrieben`, `Jetzt ist ${first} dran; der Link ist unterwegs.`, false);
-      await tellRecruiter(ctx, b, 'Firma hat unterschrieben', `${first} hat den Link zum Unterschreiben per Mail. Stoß ${first} kurz an.`);
+      await tellRecruiter(ctx, b, (l) => T(l, 'Firma hat unterschrieben', 'Company has signed', 'Företaget har skrivit under', 'Selskapet har signert'),
+        (l) => T(l, '{f} hat den Link zum Unterschreiben per Mail. Stoß {f} kurz an.', '{f} has the signing link by email. Give {f} a quick nudge.', '{f} har fått länken för underskrift via mejl. Påminn {f} kort.', '{f} har fått signeringslenken på e-post. Gi {f} et lite dytt.', { f: String(first) }));
       return;
     }
-    await tellRecruiter(ctx, b, 'Firma hat unterschrieben', `Jetzt fehlt nur noch ${first}. Stoß ${first} kurz an.`);
+    await tellRecruiter(ctx, b, (l) => T(l, 'Firma hat unterschrieben', 'Company has signed', 'Företaget har skrivit under', 'Selskapet har signert'),
+      (l) => T(l, 'Jetzt fehlt nur noch {f}. Stoß {f} kurz an.', 'Now only {f} is missing. Give {f} a quick nudge.', 'Nu saknas bara {f}. Påminn {f} kort.', 'Nå mangler bare {f}. Gi {f} et lite dytt.', { f: String(first) }));
     return;
   }
   b.contract = await update(ctx, c.id, patch);
@@ -876,7 +906,7 @@ async function afterBothSigned(ctx: ContractCtx, b: Bundle, c: any) {
     const { token, id } = await createSignLink(ctx.db, { contractId: c.id, envelopeId: c.envelope_id, role: 'candidate', name: b.candidate.full_name, email: c.candidate_email, createdBy: null, now: ctx.now() });
     // Kopie-Link: zählt nicht als offene Unterschrift
     await ctx.db.from('employment_sign_links').update({ signed_at: nowIso }).eq('id', id);
-    const content = mails.candidateSignedCopy({ firstName: firstName(b.candidate.full_name), companyName: b.job.company_name, startDate: c.start_date, url: linkUrl(ctx, token), days: LINK_DAYS });
+    const content = mails.candidateSignedCopy({ firstName: firstName(b.candidate.full_name), companyName: b.job.company_name, startDate: c.start_date, url: linkUrl(ctx, token), days: LINK_DAYS, lang: await langOfCandidate(ctx, b) });
     await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: c.candidate_email, replyTo: b.recruiter?.email ?? undefined, ...content }, { template: 'contract_signed_copy_candidate', meta: { contract_id: c.id } });
   } catch (e) { console.error('[contract] Kopie an den Kandidaten nicht verschickt', e instanceof Error ? e.message : e); }
 }
@@ -943,7 +973,7 @@ export async function report(ctx: ContractCtx, user: User, body: any) {
     // Gegenprobe beim Headhunter
     await notify(ctx, b.submission.recruiter_id, 'contract_check', `${companyFor(b)} meldet: ${b.candidate.full_name} hat unterschrieben`, `Passt das zu dem, was ${first} sagt?`, 'candidate', b.candidate.id);
     if (b.recruiter?.email) {
-      const content = mails.recruiterCheckRequest({ recruiterFirstName: firstName(b.recruiter.name), candidateName: b.candidate.full_name, companyName: companyFor(b), facts: factsOut, akteUrl: urls(ctx, b).akte });
+      const content = mails.recruiterCheckRequest({ recruiterFirstName: firstName(b.recruiter.name), candidateName: b.candidate.full_name, companyName: companyFor(b), facts: factsOut, akteUrl: urls(ctx, b).akte, lang: await recruiterLanguage(ctx.db, b.submission.recruiter_id) });
       await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: b.recruiter.email, ...content }, { template: 'contract_check_recruiter', meta: { contract_id: c.id } });
     }
     // Glückwunsch an den Kandidaten mit „Stimmt das so?“; wer zuerst bestätigt, er oder der Headhunter, schließt die Gegenprobe
@@ -955,8 +985,8 @@ export async function report(ctx: ContractCtx, user: User, body: any) {
     const done = await update(ctx, c.id, { ...base, evidence_note: evidence, status: 'final', final_at: nowIso, confirmed_by: user.id, confirmed_at: nowIso }, [c.status]);
     await event(ctx, c.id, 'reported_with_evidence', 'admin', user.id, { ...factsOut, evidence });
     await afterFinal(ctx, c.id);
-    await tellClient(ctx, b, `Unterschrift von Matchunt bestätigt (${mails.dateDe(f.signed_on)})`, null);
-    await tellRecruiter(ctx, b, `Unterschrift bestätigt (${mails.dateDe(f.signed_on)})`, null);
+    await tellClient(ctx, b, (l) => T(l, 'Unterschrift von Matchunt bestätigt ({d})', 'Signature confirmed by Matchunt ({d})', 'Underskriften bekräftad av Matchunt ({d})', 'Signaturen bekreftet av Matchunt ({d})', { d: mails.dateIn(f.signed_on, l) }), null);
+    await tellRecruiter(ctx, b, (l) => T(l, 'Unterschrift bestätigt ({d})', 'Signature confirmed ({d})', 'Underskriften bekräftad ({d})', 'Signaturen bekreftet ({d})', { d: mails.dateIn(f.signed_on, l) }), null);
     await tellCandidateSigned(ctx, b, done, false);
     return { ok: true, contract: contractView(done, role) };
   }
@@ -964,18 +994,21 @@ export async function report(ctx: ContractCtx, user: User, body: any) {
   // Headhunter oder Matchunt ohne Beleg: der Kunde bestätigt
   const done = await update(ctx, c.id, { ...base, status: 'reported', evidence_note: evidence || null }, [c.status]);
   await event(ctx, c.id, 'reported', role, user.id, factsOut);
-  await askClientToConfirm(ctx, b, done, role === 'recruiter' ? (b.recruiter?.name || 'Ihr Headhunter') : 'Matchunt', factsOut);
+  await askClientToConfirm(ctx, b, done, role === 'recruiter' ? (b.recruiter?.name || null) : 'Matchunt', factsOut);
   return { ok: true, contract: contractView(done, role) };
 }
 
 /** Meldung von Headhunter, Matchunt oder Kandidat: der Kunde bestätigt. */
-async function askClientToConfirm(ctx: ContractCtx, b: Bundle, c: any, reporterName: string, factsOut: mails.ContractFacts) {
+/** reporterName null: Headhunter ohne Namen im Profil („Ihr Headhunter“ in der Sprache des Kunden). */
+async function askClientToConfirm(ctx: ContractCtx, b: Bundle, c: any, reporter: string | null, factsOut: mails.ContractFacts) {
+  const reporterName = reporter ?? 'Ihr Headhunter';
   const title = reporterName === b.candidate.full_name ? `${reporterName} meldet: Arbeitsvertrag unterschrieben` : `${reporterName} meldet: ${b.candidate.full_name} hat unterschrieben`;
   for (const uid of clientRecipients(b)) {
     await notify(ctx, uid, 'contract_confirm', title, 'Stimmt das? Bitte im Profil bestätigen.', 'submission', b.submission.id);
     const prof = await profile(ctx.db, uid);
     if (!prof?.email) continue;
-    const content = mails.clientConfirmRequest({ name: prof.name, candidateName: b.candidate.full_name, reporterName, facts: factsOut, profileUrl: urls(ctx, b).profile });
+    const lang = await clientLanguage(ctx.db, { userId: uid, email: prof.email });
+    const content = mails.clientConfirmRequest({ name: prof.name, candidateName: b.candidate.full_name, reporterName: reporter ?? yourHeadhunter(lang), facts: factsOut, profileUrl: urls(ctx, b).profile, lang });
     await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: prof.email, ...content }, { template: 'contract_confirm_client', meta: { contract_id: c.id } });
   }
 }
@@ -993,18 +1026,22 @@ export async function confirm(ctx: ContractCtx, user: User, body: any) {
     if (c.reported_role === 'candidate') {
       // Kandidat sagt unterschrieben, Firma sagt nein: das klärt Matchunt mit dem Headhunter
       const first = firstName(b.candidate.full_name);
-      await tellRecruiter(ctx, b, `Kunde sagt: noch nicht unterschrieben (${first} hatte es gemeldet)`, `Bitte mit ${first} und ${companyFor(b)} klären. Matchunt sieht sich den Fall an.`);
+      await tellRecruiter(ctx, b, (l) => T(l, 'Kunde sagt: noch nicht unterschrieben ({f} hatte es gemeldet)', 'Client says: not signed yet ({f} had reported it)', 'Kunden säger: inte underskrivet ännu ({f} hade meddelat det)', 'Kunden sier: ikke signert ennå ({f} hadde meldt det)', { f: String(first) }),
+        (l) => T(l, 'Bitte mit {f} und {co} klären. Matchunt sieht sich den Fall an.', 'Please sort it out with {f} and {co}. Matchunt is looking into it.', 'Reda ut det med {f} och {co}. Matchunt tittar på ärendet.', 'Avklar det med {f} og {co}. Matchunt ser på saken.', { f: String(first), co: companyFor(b) }));
       await tellAdmins(ctx, b, `${first} meldet unterschrieben am ${mails.dateDe(c.signed_on)}, der Kunde sagt: noch nicht.`, c.id);
     } else {
-      await tellRecruiter(ctx, b, 'Kunde sagt: noch nicht unterschrieben', 'Die Erinnerungen laufen weiter.');
+      await tellRecruiter(ctx, b, (l) => T(l, 'Kunde sagt: noch nicht unterschrieben', 'Client says: not signed yet', 'Kunden säger: inte underskrivet ännu', 'Kunden sier: ikke signert ennå'),
+        (l) => T(l, 'Die Erinnerungen laufen weiter.', 'Reminders continue.', 'Påminnelserna fortsätter.', 'Påminnelsene fortsetter.'));
     }
     return { ok: true, contract: contractView(done, 'client') };
   }
   const values = way === 'values' ? facts(body, ctx.now(), c) : {};
   const done = await makeFinal(ctx, c, { ...values, confirmed_by: user.id, confirmed_at: nowIso });
   await event(ctx, c.id, way === 'values' ? 'confirmed_other_values' : 'confirmed', 'client', user.id, values);
-  await tellRecruiter(ctx, b, way === 'values' ? 'Unterschrift bestätigt, mit anderen Werten' : 'Unterschrift vom Kunden bestätigt',
-    way === 'values' ? mails.factLines({ signedOn: done.signed_on, salary: done.salary, variable: done.variable_salary, startDate: done.start_date }).join(' · ') : null);
+  await tellRecruiter(ctx, b, (l) => way === 'values'
+    ? T(l, 'Unterschrift bestätigt, mit anderen Werten', 'Signature confirmed, with different values', 'Underskriften bekräftad, med andra värden', 'Signaturen bekreftet, med andre verdier')
+    : T(l, 'Unterschrift vom Kunden bestätigt', 'Signature confirmed by the client', 'Underskriften bekräftad av kunden', 'Signaturen bekreftet av kunden'),
+    way === 'values' ? (l) => mails.factLines({ signedOn: done.signed_on, salary: done.salary, variable: done.variable_salary, startDate: done.start_date }, l).join(' · ') : null);
   // Gemeldet von Headhunter, Matchunt oder ihm selbst, bestätigt von der Firma: Glückwunsch ohne Rückfrage
   await tellCandidateSigned(ctx, b, done, false);
   return { ok: true, contract: contractView(done, 'client') };
@@ -1021,13 +1058,14 @@ export async function undo(ctx: ContractCtx, user: User, body: any) {
     recruiter_check: null, recruiter_check_note: null, recruiter_checked_at: null, candidate_check: null, candidate_check_note: null, candidate_checked_at: null,
   }, ['signed']);
   await event(ctx, c.id, 'undone', 'client', user.id, {});
-  await tellRecruiter(ctx, b, 'Kunde hat die Unterschrift-Meldung zurückgenommen', null);
+  await tellRecruiter(ctx, b, (l) => T(l, 'Kunde hat die Unterschrift-Meldung zurückgenommen', 'Client has withdrawn the signature report', 'Kunden har tagit tillbaka meddelandet om underskrift', 'Kunden har trukket tilbake meldingen om signatur'), null);
   // Der Kandidat hatte den Glückwunsch schon: kurze Korrektur
   if (candidateEmailOf(b, done)) {
     try {
       const token = await createStatusLink(ctx, c.id);
-      const content = mails.candidateReportUndone({ firstName: firstName(b.candidate.full_name), companyName: b.job.company_name, recruiterName: b.recruiter?.name || null, url: statusUrl(ctx, token) });
-      if (await mailCandidate(ctx, b, done, 'undone', content)) await event(ctx, c.id, 'candidate_informed', 'system', null, { kind: 'undone' });
+      const lang = await langOfCandidate(ctx, b);
+      const content = mails.candidateReportUndone({ firstName: firstName(b.candidate.full_name), companyName: b.job.company_name, recruiterName: b.recruiter?.name || null, url: statusUrl(ctx, token), lang });
+      if (await mailCandidate(ctx, b, done, 'undone', content, lang)) await event(ctx, c.id, 'candidate_informed', 'system', null, { kind: 'undone' });
     } catch (e) { console.error('[contract] Korrektur an den Kandidaten nicht verschickt', e instanceof Error ? e.message : e); }
   }
   return { ok: true, contract: contractView(done, 'client') };
@@ -1064,8 +1102,8 @@ export async function drop(ctx: ContractCtx, user: User, body: any) {
   const { error } = await ctx.db.from('submissions').update({ stage: 'withdrawn' }).eq('id', b.submission.id);
   if (error) console.warn('[contract] Stufe nicht gesetzt', error.code, error.message);
   const first = firstName(b.candidate.full_name);
-  if (role !== 'recruiter') await tellRecruiter(ctx, b, `${first} ist laut Kunde abgesprungen`, reason);
-  if (role !== 'client') await tellClient(ctx, b, `${first} ist abgesprungen`, reason);
+  if (role !== 'recruiter') await tellRecruiter(ctx, b, (l) => T(l, '{f} ist laut Kunde abgesprungen', 'According to the client, {f} has dropped out', 'Enligt kunden har {f} hoppat av', 'Ifølge kunden har {f} trukket seg', { f: String(first) }), reason);
+  if (role !== 'client') await tellClient(ctx, b, (l) => T(l, '{f} ist abgesprungen', '{f} has dropped out', '{f} har hoppat av', '{f} har trukket seg', { f: String(first) }), reason);
   return { ok: true, contract: contractView(done, role) };
 }
 
@@ -1107,7 +1145,8 @@ async function followEmbedded(ctx: ContractCtx, b: Bundle, out: { reminders: num
     if (role === 'candidate' && !links.some((l) => l.signer_role === 'candidate' && l.opened_at) && now - sent >= LINK_REMIND_AFTER_MS) {
       const { data: told } = await ctx.db.from('employment_contract_events').select('id').eq('contract_id', c.id).eq('event_type', 'candidate_link_unopened').limit(1);
       if (!(told ?? []).length) {
-        await tellRecruiter(ctx, b, `${first} hat den Vertrags-Link nicht geöffnet`, `Seit einem Tag ungeöffnet. Ruf ${first} an: Ist die Mail von Matchunt angekommen? Notfalls in der Akte „Link erneut senden“.`);
+        await tellRecruiter(ctx, b, (l) => T(l, '{f} hat den Vertrags-Link nicht geöffnet', '{f} has not opened the contract link', '{f} har inte öppnat avtalslänken', '{f} har ikke åpnet avtalelenken', { f: String(first) }),
+          (l) => T(l, 'Seit einem Tag ungeöffnet. Ruf {f} an: Ist die Mail von Matchunt angekommen? Notfalls in der Akte „Link erneut senden“.', 'Unopened for a day. Call {f}: did the email from Matchunt arrive? If needed, use “Resend link” in the candidate file.', 'Oöppnad i en dag. Ring {f}: har mejlet från Matchunt kommit fram? Använd vid behov ”Skicka länken igen” i kandidatakten.', 'Uåpnet i en dag. Ring {f}: har e-posten fra Matchunt kommet fram? Bruk ved behov «Send lenken på nytt» i kandidatmappen.', { f: String(first) }));
         await event(ctx, c.id, 'candidate_link_unopened', 'system', null, {});
         out.recruiter++;
       }
@@ -1164,7 +1203,8 @@ export async function runFollowups(ctx: ContractCtx) {
         await notify(ctx, uid, 'contract_reminder', `Ist der Vertrag mit ${b.candidate.full_name} unterschrieben?`, 'Kurz im Profil melden.', 'submission', b.submission.id);
         const prof = await profile(ctx.db, uid);
         if (!prof?.email) continue;
-        const content = mails.clientReminder({ name: prof.name, candidateName: b.candidate.full_name, recruiterName: b.recruiter?.name || 'Ihr Headhunter', profileUrl: urls(ctx, b).profile });
+        const lang = await clientLanguage(ctx.db, { userId: uid, email: prof.email });
+        const content = mails.clientReminder({ name: prof.name, candidateName: b.candidate.full_name, recruiterName: b.recruiter?.name || yourHeadhunter(lang), profileUrl: urls(ctx, b).profile, lang });
         await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: prof.email, ...content }, { template: 'contract_reminder_client', meta: { contract_id: b.contract.id } });
       }
       await update(ctx, b.contract.id, { client_reminded_at: nowIso });
@@ -1174,7 +1214,7 @@ export async function runFollowups(ctx: ContractCtx) {
     if (days >= 10 && !b.contract.recruiter_reminded_at) {
       await notify(ctx, b.submission.recruiter_id, 'contract_followup', `Vertrag mit ${b.candidate.full_name} nachfassen`, `Seit ${days} Tagen keine Unterschrift gemeldet. Frag bei ${first} nach.`, 'candidate', b.candidate.id);
       if (b.recruiter?.email) {
-        const content = mails.recruiterFollowup({ recruiterFirstName: firstName(b.recruiter.name), candidateName: b.candidate.full_name, companyName: companyFor(b), days, akteUrl: urls(ctx, b).akte });
+        const content = mails.recruiterFollowup({ recruiterFirstName: firstName(b.recruiter.name), candidateName: b.candidate.full_name, companyName: companyFor(b), days, akteUrl: urls(ctx, b).akte, lang: await recruiterLanguage(ctx.db, b.submission.recruiter_id) });
         await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: b.recruiter.email, ...content }, { template: 'contract_followup_recruiter', meta: { contract_id: b.contract.id } });
       }
       await update(ctx, b.contract.id, { recruiter_reminded_at: nowIso });
@@ -1332,11 +1372,11 @@ async function createStatusLink(ctx: ContractCtx, contractId: string): Promise<s
 }
 
 /** Mail an den Kandidaten im Namen des Headhunters; Antworten gehen an ihn. */
-async function mailCandidate(ctx: ContractCtx, b: Bundle, c: any, kind: string, content: MailContent): Promise<boolean> {
+async function mailCandidate(ctx: ContractCtx, b: Bundle, c: any, kind: string, content: MailContent, lang: Lang = 'de'): Promise<boolean> {
   const to = candidateEmailOf(b, c);
   if (!to) return false;
   const result = await ctx.mail({
-    fromEmail: ctx.fromEmail, fromName: b.recruiter?.name ? `${b.recruiter.name} über Matchunt` : 'Matchunt', to, replyTo: b.recruiter?.email ?? undefined, ...content,
+    fromEmail: ctx.fromEmail, fromName: b.recruiter?.name ? viaMatchunt(b.recruiter.name, lang) : 'Matchunt', to, replyTo: b.recruiter?.email ?? undefined, ...content,
   }, { template: `contract_candidate_${kind}`, meta: { contract_id: c.id, submission_id: b.submission.id } });
   // Nur lokal: Link ins Protokoll (die Mail verlinkt immer die öffentliche Adresse)
   if (localDev()) console.info(`[contract] Lokal: Mail ${kind} an ${to}: ${/\/vertrag\/[A-Za-z0-9_-]+/.exec(content.text)?.[0] ?? '(ohne Link)'}`);
@@ -1348,11 +1388,12 @@ async function tellCandidateUnderway(ctx: ContractCtx, b: Bundle, c: any, again:
   if (!candidateEmailOf(b, c) || !c.sent_at) return false;
   try {
     const token = await createStatusLink(ctx, c.id);
+    const lang = await langOfCandidate(ctx, b);
     const content = mails.candidateContractUnderway({
       firstName: firstName(b.candidate.full_name), companyName: b.job.company_name, jobTitle: b.job.title, sentOn: String(c.sent_at).slice(0, 10),
-      startDate: c.start_date, salary: c.salary, variable: c.variable_salary, recruiterName: b.recruiter?.name || null, url: statusUrl(ctx, token), again,
+      startDate: c.start_date, salary: c.salary, variable: c.variable_salary, recruiterName: b.recruiter?.name || null, url: statusUrl(ctx, token), again, lang,
     });
-    if (!await mailCandidate(ctx, b, c, again ? 'underway_again' : 'underway', content)) return false;
+    if (!await mailCandidate(ctx, b, c, again ? 'underway_again' : 'underway', content, lang)) return false;
     b.contract = await update(ctx, c.id, { candidate_informed_at: new Date(ctx.now()).toISOString() });
     await event(ctx, c.id, 'candidate_informed', 'system', null, { kind: 'underway', again });
     return true;
@@ -1367,11 +1408,12 @@ async function tellCandidateSigned(ctx: ContractCtx, b: Bundle, c: any, ask: boo
   if (c.way === 'digital' || !candidateEmailOf(b, c)) return;
   try {
     const url = ask ? statusUrl(ctx, await createStatusLink(ctx, c.id)) : null;
+    const lang = await langOfCandidate(ctx, b);
     const content = mails.candidateContractSigned({
       firstName: firstName(b.candidate.full_name), companyName: b.job.company_name, signedOn: c.signed_on, startDate: c.start_date,
-      recruiterName: b.recruiter?.name || null, url, ask,
+      recruiterName: b.recruiter?.name || null, url, ask, lang,
     });
-    if (await mailCandidate(ctx, b, c, ask ? 'signed_check' : 'signed', content)) await event(ctx, c.id, 'candidate_informed', 'system', null, { kind: ask ? 'signed_check' : 'signed' });
+    if (await mailCandidate(ctx, b, c, ask ? 'signed_check' : 'signed', content, lang)) await event(ctx, c.id, 'candidate_informed', 'system', null, { kind: ask ? 'signed_check' : 'signed' });
   } catch (e) { console.error('[contract] Glückwunsch an den Kandidaten nicht verschickt', e instanceof Error ? e.message : e); }
 }
 
@@ -1383,8 +1425,9 @@ async function askCandidate(ctx: ContractCtx, b: Bundle) {
   try {
     const token = await createStatusLink(ctx, c.id);
     const arrived = c.candidate_status === 'arrived';
-    const content = mails.candidateContractAsk({ firstName: firstName(b.candidate.full_name), companyName: b.job.company_name, arrived, recruiterName: b.recruiter?.name || null, url: statusUrl(ctx, token) });
-    if (await mailCandidate(ctx, b, c, arrived ? 'ask_signed' : 'ask', content)) await event(ctx, c.id, 'candidate_informed', 'system', null, { kind: 'ask', arrived });
+    const lang = await langOfCandidate(ctx, b);
+    const content = mails.candidateContractAsk({ firstName: firstName(b.candidate.full_name), companyName: b.job.company_name, arrived, recruiterName: b.recruiter?.name || null, url: statusUrl(ctx, token), lang });
+    if (await mailCandidate(ctx, b, c, arrived ? 'ask_signed' : 'ask', content, lang)) await event(ctx, c.id, 'candidate_informed', 'system', null, { kind: 'ask', arrived });
   } catch (e) { console.error('[contract] Frage an den Kandidaten nicht verschickt', e instanceof Error ? e.message : e); }
 }
 
@@ -1464,13 +1507,16 @@ export async function statusAnswer(ctx: ContractCtx, body: any) {
     if (way === 'arrived') {
       await notify(ctx, b.submission.recruiter_id, 'contract_update', `${b.candidate.full_name}: Vertrag ist angekommen`, `${first} hat den Arbeitsvertrag bekommen.`, 'candidate', b.candidate.id);
     } else {
-      const sent = c.status === 'sent_self' && c.sent_at ? ` (laut Kunde verschickt am ${mails.dateDe(c.sent_at)})` : '';
-      await tellRecruiter(ctx, b, 'Vertrag ist noch nicht angekommen', `${first} hat den Arbeitsvertrag noch nicht${sent}. ${companyFor(b)} weiß es und soll ihn erneut schicken. Ruf ${first} kurz an.`);
+      const sentAt = c.status === 'sent_self' && c.sent_at ? c.sent_at : null;
+      await tellRecruiter(ctx, b, (l) => T(l, 'Vertrag ist noch nicht angekommen', 'Contract has not arrived yet', 'Avtalet har inte kommit fram ännu', 'Avtalen har ikke kommet fram ennå'), (l) => {
+        const sent = sentAt ? T(l, ' (laut Kunde verschickt am {d})', ' (sent on {d} according to the client)', ' (skickat {d} enligt kunden)', ' (sendt {d} ifølge kunden)', { d: mails.dateIn(sentAt, l) }) : '';
+        return T(l, '{f} hat den Arbeitsvertrag noch nicht{s}. {co} weiß es und soll ihn erneut schicken. Ruf {f} kurz an.', '{f} has not received the employment contract yet{s}. {co} knows and should send it again. Give {f} a quick call.', '{f} har inte fått anställningsavtalet ännu{s}. {co} vet om det och ska skicka det igen. Ring {f} kort.', '{f} har ikke fått arbeidsavtalen ennå{s}. {co} vet det og skal sende den på nytt. Ring {f} kort.', { f: String(first), s: sent, co: companyFor(b) });
+      });
       for (const uid of clientRecipients(b)) {
         await notify(ctx, uid, 'contract_missing', `${b.candidate.full_name} hat den Arbeitsvertrag noch nicht`, 'Bitte prüfen und erneut schicken.', 'submission', b.submission.id);
         const prof = await profile(ctx.db, uid);
         if (!prof?.email) continue;
-        const content = mails.clientContractMissing({ name: prof.name, candidateName: b.candidate.full_name, sentOn: c.status === 'sent_self' ? c.sent_at : null, profileUrl: urls(ctx, b).profile });
+        const content = mails.clientContractMissing({ name: prof.name, candidateName: b.candidate.full_name, sentOn: c.status === 'sent_self' ? c.sent_at : null, profileUrl: urls(ctx, b).profile, lang: await clientLanguage(ctx.db, { userId: uid, email: prof.email }) });
         await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: prof.email, ...content }, { template: 'contract_missing_client', meta: { contract_id: c.id } });
       }
     }
@@ -1489,7 +1535,8 @@ export async function statusAnswer(ctx: ContractCtx, body: any) {
     const factsOut = { signedOn, salary: c.salary, variable: c.variable_salary, startDate };
     await event(ctx, c.id, 'reported', 'candidate', null, factsOut);
     await askClientToConfirm(ctx, b, b.contract, b.candidate.full_name, factsOut);
-    await tellRecruiter(ctx, b, `Unterschrift selbst gemeldet (${mails.dateDe(signedOn)})`, `${company} bestätigt noch. Du bekommst Bescheid.`);
+    await tellRecruiter(ctx, b, (l) => T(l, 'Unterschrift selbst gemeldet ({d})', 'Signature reported by the candidate ({d})', 'Underskriften anmäld av kandidaten ({d})', 'Signaturen meldt av kandidaten ({d})', { d: mails.dateIn(signedOn, l) }),
+      (l) => T(l, '{co} bestätigt noch. Du bekommst Bescheid.', '{co} still has to confirm. We will let you know.', '{co} ska bekräfta. Du får besked.', '{co} må bekrefte. Du får beskjed.', { co: company }));
   } else {
     // Gegenprobe nach der Meldung der Firma
     must(['signed', 'final'].includes(c.status) && c.reported_role === 'client', 'Hier gibt es nichts zu bestätigen.', 'conflict');
@@ -1501,7 +1548,7 @@ export async function statusAnswer(ctx: ContractCtx, body: any) {
     if (way === 'ok') {
       await notify(ctx, b.submission.recruiter_id, 'contract_update', `${b.candidate.full_name} bestätigt die Unterschrift`, 'Die Gegenprobe ist erledigt.', 'candidate', b.candidate.id);
     } else {
-      await tellRecruiter(ctx, b, 'Meldung der Firma stimmt laut Kandidat nicht', note);
+      await tellRecruiter(ctx, b, (l) => T(l, 'Meldung der Firma stimmt laut Kandidat nicht', "According to the candidate, the company's report is not correct", 'Enligt kandidaten stämmer inte företagets meddelande', 'Ifølge kandidaten stemmer ikke meldingen fra selskapet'), note);
       await tellAdmins(ctx, b, `${first} sagt zur Meldung von ${company}: „${note}“`, c.id);
     }
   }

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -30,13 +31,14 @@ export function BulkActionsBar({
   onDelete,
   onAddToPool,
 }: BulkActionsBarProps) {
+  const { t } = useTranslation('candidates');
   if (selectedCount === 0) return null;
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
       <div className="flex items-center gap-3 bg-card border shadow-lg rounded-lg px-4 py-3">
         <Badge variant="secondary" className="font-medium">
-          {selectedCount} ausgewählt
+          {t('bulk.selected', { count: selectedCount })}
         </Badge>
 
         {/* Assign Tag */}
@@ -45,7 +47,7 @@ export function BulkActionsBar({
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
                 <Tag className="h-4 w-4 mr-2" />
-                Tag zuweisen
+                {t('bulk.assignTag')}
                 <ChevronDown className="h-4 w-4 ml-1" />
               </Button>
             </DropdownMenuTrigger>
@@ -69,7 +71,7 @@ export function BulkActionsBar({
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
                 <Tag className="h-4 w-4 mr-2" />
-                Tag entfernen
+                {t('bulk.removeTag')}
                 <ChevronDown className="h-4 w-4 ml-1" />
               </Button>
             </DropdownMenuTrigger>
@@ -90,19 +92,19 @@ export function BulkActionsBar({
         {/* Add to Pool */}
         <Button variant="outline" size="sm" onClick={onAddToPool}>
           <UserPlus className="h-4 w-4 mr-2" />
-          Talent Pool
+          {t('actions.talentPool')}
         </Button>
 
         {/* Export */}
         <Button variant="outline" size="sm" onClick={onExport}>
           <Download className="h-4 w-4 mr-2" />
-          Exportieren
+          {t('bulk.export')}
         </Button>
 
         {/* Delete */}
         <Button variant="destructive" size="sm" onClick={onDelete}>
           <Trash2 className="h-4 w-4 mr-2" />
-          Löschen
+          {t('actions.delete')}
         </Button>
 
         {/* Clear Selection */}

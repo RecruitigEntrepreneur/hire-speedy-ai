@@ -1,6 +1,7 @@
 import { Progress } from '@/components/ui/progress';
 import { CheckCircle, AlertCircle, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useTranslation } from 'react-i18next';
 
 interface IntakeProgressProps {
   completeness: number;
@@ -8,11 +9,12 @@ interface IntakeProgressProps {
 }
 
 export function IntakeProgress({ completeness, className }: IntakeProgressProps) {
+  const { t } = useTranslation('recruiterJobEdit');
   const getStatus = () => {
     if (completeness >= 85) {
       return {
-        label: 'Hervorragend',
-        description: 'Optimale Datenqualität für beste Matches',
+        label: t('progress.excellent'),
+        description: t('progress.excellentText'),
         icon: CheckCircle,
         color: 'text-emerald-600',
         progressColor: 'bg-emerald-500'
@@ -20,16 +22,16 @@ export function IntakeProgress({ completeness, className }: IntakeProgressProps)
     }
     if (completeness >= 60) {
       return {
-        label: 'Gut',
-        description: 'Empfehlung: Ergänzen Sie weitere Details',
+        label: t('progress.good'),
+        description: t('progress.goodText'),
         icon: Info,
         color: 'text-amber-600',
         progressColor: 'bg-amber-500'
       };
     }
     return {
-      label: 'Basis',
-      description: 'Mehr Details = bessere Kandidaten-Matches',
+      label: t('progress.basic'),
+      description: t('progress.basicText'),
       icon: AlertCircle,
       color: 'text-red-500',
       progressColor: 'bg-red-500'

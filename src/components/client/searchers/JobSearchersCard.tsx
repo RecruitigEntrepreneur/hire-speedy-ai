@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import i18n from '@/i18n';
 import { awardLine, awardSentence, ligaAwardsOf, type LigaAwardBadge } from '@/lib/liga';
 import { Flag, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -17,12 +19,8 @@ import {
 } from '@/lib/jobSearch';
 import { cn } from '@/lib/utils';
 
-const CHANNELS: { key: ContactChannel; label: string }[] = [
-  { key: 'phone', label: 'Anruf' },
-  { key: 'email', label: 'E-Mail' },
-  { key: 'linkedin', label: 'LinkedIn' },
-  { key: 'other', label: 'Sonstiges' },
-];
+/** Beschriftung unter clientJobs:searchers.channel.<key>. */
+const CHANNELS: ContactChannel[] = ['phone', 'email', 'linkedin', 'other'];
 
 const initials = (name: string | null) =>
   (name || '?')
@@ -34,22 +32,28 @@ const initials = (name: string | null) =>
 
 const relDays = (iso: string) => {
   const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
-  return d <= 0 ? 'heute' : d === 1 ? 'gestern' : `vor ${d} Tagen`;
+  return d <= 0 ? i18n.t('clientJobs:searchers.today') : d === 1 ? i18n.t('clientJobs:searchers.yesterday') : i18n.t('clientJobs:searchers.daysAgo', { count: d });
+};
+/** Dauer seit dem Start, für „sucht seit …“. */
+const sinceDays = (iso: string) => {
+  const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  return d <= 0 ? i18n.t('clientJobs:searchers.sinceToday') : d === 1 ? i18n.t('clientJobs:searchers.sinceYesterday') : i18n.t('clientJobs:searchers.sinceDays', { count: d });
 };
 
 function SearcherRow({ s, photo, award }: { s: JobSearcher; photo: string | null; award: LigaAwardBadge | null }) {
+  const { t } = useTranslation('clientJobs');
   const tier = s.tier ? TIER_LABEL[s.tier] : null;
   const tierClass = s.tier === 'gold' ? 'text-amber-500' : s.tier === 'silver' ? 'text-slate-400' : 'text-muted-foreground';
   const parts: string[] = [];
   if (s.status === 'ended') {
-    parts.push(`suchte ${fmtDayShort(s.started_at)}–${fmtDayShort(s.ended_at)}`);
+    parts.push(t('searchers.searched', { from: fmtDayShort(s.started_at), to: fmtDayShort(s.ended_at) }));
   } else if (s.status === 'paused') {
-    parts.push('ruht gerade');
+    parts.push(t('searchers.paused'));
   } else {
-    parts.push(`sucht seit ${relDays(s.started_at).replace('vor ', '')}`);
+    parts.push(t('searchers.searching', { since: sinceDays(s.started_at) }));
   }
-  parts.push(s.candidates === 0 ? (s.status === 'ended' ? 'kein Kandidat' : '') : `${s.candidates} ${s.candidates === 1 ? 'Kandidat' : 'Kandidaten'}`);
-  if (s.last_submission_at && s.status !== 'ended') parts.push(`letzte Einreichung ${relDays(s.last_submission_at)}`);
+  parts.push(s.candidates === 0 ? (s.status === 'ended' ? t('searchers.noCandidate') : '') : t('searchers.candidates', { count: s.candidates }));
+  if (s.last_submission_at && s.status !== 'ended') parts.push(t('searchers.lastSubmission', { when: relDays(s.last_submission_at) }));
 
   const body = (
     <>
@@ -64,13 +68,13 @@ function SearcherRow({ s, photo, award }: { s: JobSearcher; photo: string | null
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium">
-          {s.full_name || 'Headhunter'}
+          {s.full_name || t('searchers.headhunter')}
           {s.company_name ? <span className="font-normal text-muted-foreground"> · {s.company_name}</span> : null}
         </span>
         <span className="block truncate text-xs text-muted-foreground">
           {award && <span className="font-medium text-[#A07F2C]" title={awardSentence(award)}>{awardLine(award)} · </span>}
           {tier && <span className={tierClass}>{tier.replace('Matchunt ', '')}</span>}
-          {s.is_new && (!s.tier || s.tier === 'partner') && <span>{tier ? ' · ' : ''}neu bei Matchunt</span>}
+          {s.is_new && (!s.tier || s.tier === 'partner') && <span>{tier ? ' · ' : ''}{t('searchers.newAtMatchunt')}</span>}
           {parts.filter(Boolean).map((p) => ` · ${p}`)}
         </span>
       </span>
@@ -83,7 +87,7 @@ function SearcherRow({ s, photo, award }: { s: JobSearcher; photo: string | null
       target="_blank"
       rel="noreferrer"
       className="flex items-center gap-3 border-t py-2.5 first:border-t-0 hover:bg-muted/30"
-      title="Partner-Prüfseite öffnen"
+      title={t('searchers.partnerPage')}
     >
       {body}
     </a>
@@ -97,6 +101,7 @@ function SearcherRow({ s, photo, award }: { s: JobSearcher; photo: string | null
  * auch nach dem Ende ihrer Suche. Direktkontakte meldet der Kunde vertraulich.
  */
 export function JobSearchersCard({ jobId, jobTitle, closed = false }: { jobId: string; jobTitle: string; closed?: boolean }) {
+  const { t } = useTranslation('clientJobs');
   const [rows, setRows] = useState<JobSearcher[] | null>(null);
   const [photos, setPhotos] = useState<Record<string, string | null>>({});
   // Auszeichnung der Matchunt Liga (Zusatz 1, 20.10.2026): mit Saison, wie auf der Prüfseite.
@@ -128,7 +133,7 @@ export function JobSearchersCard({ jobId, jobTitle, closed = false }: { jobId: s
     setBusy(true);
     try {
       await reportDirectContact(jobId, who, channel, note);
-      toast.success('Danke. Wir kümmern uns vertraulich darum.');
+      toast.success(t('searchers.reportDone'));
       setReportOpen(false);
       setWho('');
       setChannel(null);
@@ -155,11 +160,11 @@ export function JobSearchersCard({ jobId, jobTitle, closed = false }: { jobId: s
     <div className="rounded-xl border bg-card p-4">
       {!(closed && current.length === 0) && (
         <p className="text-sm font-semibold">
-          {current.length > 0 ? `Suchen gerade für Sie · ${current.length}` : 'Noch kein Headhunter aktiv'}
+          {current.length > 0 ? t('searchers.current', { count: current.length }) : t('searchers.none')}
         </p>
       )}
       {current.length === 0 && !closed && (
-        <p className="mt-1 text-xs text-muted-foreground">Sobald ein Headhunter „Ich suche“ drückt, sehen Sie ihn hier und in der Glocke.</p>
+        <p className="mt-1 text-xs text-muted-foreground">{t('searchers.noneLead')}</p>
       )}
       {current.length > 0 && (
         <div className="mt-1">
@@ -170,7 +175,7 @@ export function JobSearchersCard({ jobId, jobTitle, closed = false }: { jobId: s
       )}
       {former.length > 0 && (
         <>
-          <p className={cn('text-sm font-semibold', !(closed && current.length === 0) && 'mt-3')}>Haben für diese Stelle gesucht · {former.length}</p>
+          <p className={cn('text-sm font-semibold', !(closed && current.length === 0) && 'mt-3')}>{t('searchers.former', { count: former.length })}</p>
           <div className="mt-1">
             {former.map((s) => (
               <SearcherRow key={s.activation_id} s={s} photo={photos[s.recruiter_id] ?? null} award={awards[s.recruiter_id] ?? null} />
@@ -181,12 +186,11 @@ export function JobSearchersCard({ jobId, jobTitle, closed = false }: { jobId: s
       {rows.length > 0 && (
         <div className="mt-3 rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground">
           <p>
-            Alle hier genannten Headhunter arbeiten für Sie nur über Matchunt, auch nach dem Ende ihrer Suche. Meldet sich einer direkt bei
-            Ihnen, sagen Sie uns bitte Bescheid.
+            {t('searchers.onlyVia')}
           </p>
           <button type="button" className="mt-1.5 inline-flex items-center gap-1 text-primary hover:underline" onClick={() => setReportOpen(true)}>
             <Flag className="h-3 w-3" />
-            Direktkontakt melden
+            {t('searchers.report')}
           </button>
         </div>
       )}
@@ -194,50 +198,50 @@ export function JobSearchersCard({ jobId, jobTitle, closed = false }: { jobId: s
       <Dialog open={reportOpen} onOpenChange={setReportOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Direktkontakt melden</DialogTitle>
-            <DialogDescription>{jobTitle} · geht vertraulich an Matchunt. Der Headhunter erfährt nicht, wer gemeldet hat.</DialogDescription>
+            <DialogTitle>{t('searchers.report')}</DialogTitle>
+            <DialogDescription>{t('searchers.reportLead', { title: jobTitle })}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 text-sm">
             <div>
-              <p className="mb-1.5 font-medium">Wer?</p>
+              <p className="mb-1.5 font-medium">{t('searchers.who')}</p>
               <select
                 value={who}
                 onChange={(e) => setWho(e.target.value)}
                 className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
               >
-                <option value="">Headhunter wählen</option>
+                <option value="">{t('searchers.pick')}</option>
                 {rows.map((r) => (
                   <option key={r.recruiter_id} value={r.recruiter_id}>
-                    {r.full_name || 'Headhunter'}
+                    {r.full_name || t('searchers.headhunter')}
                     {r.company_name ? ` · ${r.company_name}` : ''}
                   </option>
                 ))}
               </select>
             </div>
             <div>
-              <p className="mb-1.5 font-medium">Wie?</p>
+              <p className="mb-1.5 font-medium">{t('searchers.how')}</p>
               <div className="flex flex-wrap gap-2">
-                {CHANNELS.map((c) => (
+                {CHANNELS.map((key) => (
                   <button
-                    key={c.key}
+                    key={key}
                     type="button"
-                    onClick={() => setChannel(c.key)}
-                    className={cn('rounded-md border px-2.5 py-1 text-xs', channel === c.key ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-muted/50')}
+                    onClick={() => setChannel(key)}
+                    className={cn('rounded-md border px-2.5 py-1 text-xs', channel === key ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-muted/50')}
                   >
-                    {c.label}
+                    {t(`searchers.channel.${key}`)}
                   </button>
                 ))}
               </div>
             </div>
-            <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} placeholder="Was ist passiert? (optional)" />
+            <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} placeholder={t('searchers.notePh')} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setReportOpen(false)}>
-              Abbrechen
+              {t('common.cancel')}
             </Button>
             <Button onClick={submitReport} disabled={busy || !who || !channel}>
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-              Melden
+              {t('searchers.send')}
             </Button>
           </DialogFooter>
         </DialogContent>
