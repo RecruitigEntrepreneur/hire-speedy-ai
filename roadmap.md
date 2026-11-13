@@ -6,7 +6,8 @@
 - [x] Ausschließlich 20261112120000_mehrsprachigkeit.sql bytegleich als 0057_mehrsprachigkeit angewendet; vier language-Spalten, source_key, RLS und service_role-Rechte live geprüft; recruiter_public_link_open ohne SECURITY DEFINER, search_path=public, EXECUTE nur service_role.
 - [x] Alle 69 angeforderten Functions erfolgreich mit unveränderten Einstellungen deployt; keine manuellen Code- oder Secret-Änderungen, Schema-Typen automatisch regeneriert; build OK.
 - [x] Sicherheitsprüfung: sieben bekannte kritische Befunde, 13 Warnungen und ein Hinweis.
-- [ ] Publish wartet auf Nutzerentscheidung zu den sieben kritischen Bestandsbefunden.
+- [x] Nutzer hat „Jetzt veröffentlichen“ trotz sieben kritischer Bestandsbefunde gewählt.
+- [ ] Publish für https://matchunt.ai anfordern und Ergebnis melden.
 
 ## Auftrag 47 (12.11.2026) — Kundenaufnahme in Etappen
 - [x] Arbeitskopie und GitHub main identisch: cce25e4, enthält 324c371 (EtappenAnsicht, CaptureStep, AbteilungsTreppe, ClientIntake u. a.).
