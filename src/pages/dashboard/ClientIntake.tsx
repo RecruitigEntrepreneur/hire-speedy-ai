@@ -65,6 +65,8 @@ export default function ClientIntake() {
       : vorschau === 'ohne' ? null : realFramework;
 
   const [step, setStep] = useState<Step>('capture');
+  /** Der Etappen-Kopf steht im Inhalt -- dann kein zweiter Titel im Fensterkopf. */
+  const [kopfImInhalt, setKopfImInhalt] = useState(false);
   const [done, setDone] = useState<{ titel: string; text: string; vorschau: boolean } | null>(null);
   const [delegateOpen, setDelegateOpen] = useState(false);
 
@@ -235,6 +237,32 @@ export default function ClientIntake() {
 
   /** Schliessen = speichern. Nichts geht verloren, der Entwurf steht danach
    *  auf dem Dashboard unter "Weitermachen". */
+  /** Der Ablauf "1 Position — 2 Paket & Anfragen". */
+  const ablauf = (
+            <ol className="ml-auto flex items-center gap-1.5 text-xs">
+                {steps.map((s, i) => {
+                  const active = s.key === step;
+                  const past = step === 'submit' && s.key === 'capture';
+                  return (
+                    <li key={s.key} className="flex items-center gap-1.5">
+                      {i > 0 && <span className="h-px w-4 bg-border" />}
+                      <button
+                        type="button"
+                        disabled={!past}
+                        onClick={() => past && setStep('capture')}
+                        className={cn(
+                          'flex items-center gap-1 rounded-full px-2.5 py-1',
+                          active ? 'bg-primary text-primary-foreground' : past ? 'text-emerald-600 hover:underline' : 'text-muted-foreground',
+                        )}
+                      >
+                        {past ? <Check className="h-3 w-3" /> : <span>{i + 1}</span>} {s.label}
+                      </button>
+                    </li>
+                  );
+                })}
+            </ol>
+  );
+
   const close = async () => {
     if (step !== 'done') {
       const ok = await saveDraft();
@@ -264,10 +292,12 @@ export default function ClientIntake() {
           )}
           onInteractOutside={(e) => e.preventDefault()}
         >
-          {/* Kopf: Titel, Schrittleiste, Speicherstand */}
+          {/* Kopf: Titel, Schrittleiste. Steht der Stellenkopf der Aufnahme im
+              Inhalt (Etappen, 13.11.2026), traegt er Titel und Ablauf -- hier
+              bleibt dann nur der Titel fuer Screenreader, sonst stand er doppelt. */}
           <div className={cn(
             'flex flex-wrap items-center gap-3 border-b px-4 py-3 pr-12 md:px-6 md:pr-14',
-            step === 'done' && 'sr-only',
+            (step === 'done' || (step === 'capture' && kopfImInhalt)) && 'sr-only',
           )}>
             <DialogTitle className="truncate text-base font-semibold">
               {title || 'Neue Position aufnehmen'}
@@ -275,30 +305,7 @@ export default function ClientIntake() {
             <DialogDescription className="sr-only">
               Position aufnehmen, Briefing beantworten und bei Matchunt einreichen.
             </DialogDescription>
-            {step !== 'done' && (
-            <ol className="ml-auto flex items-center gap-1.5 text-xs">
-                {steps.map((s, i) => {
-                  const active = s.key === step;
-                  const past = step === 'submit' && s.key === 'capture';
-                  return (
-                    <li key={s.key} className="flex items-center gap-1.5">
-                      {i > 0 && <span className="h-px w-4 bg-border" />}
-                      <button
-                        type="button"
-                        disabled={!past}
-                        onClick={() => past && setStep('capture')}
-                        className={cn(
-                          'flex items-center gap-1 rounded-full px-2.5 py-1',
-                          active ? 'bg-primary text-primary-foreground' : past ? 'text-emerald-600 hover:underline' : 'text-muted-foreground',
-                        )}
-                      >
-                        {past ? <Check className="h-3 w-3" /> : <span>{i + 1}</span>} {s.label}
-                      </button>
-                    </li>
-                  );
-                })}
-            </ol>
-            )}
+            {step !== 'done' && !kopfImInhalt && ablauf}
           </div>
 
           <div className={cn('flex-1 overflow-y-auto', step === 'done' ? 'p-6' : 'px-4 py-5 md:px-6')}>
@@ -397,6 +404,8 @@ export default function ClientIntake() {
             firmaId={intake.firmaId}
             onFirma={intake.waehleFirma}
             speicherStand={saving ? 'Speichert …' : saveError ? <span className="text-destructive">{saveError}</span> : lastSavedAt ? '✓ Gespeichert' : null}
+            kopfRechts={ablauf}
+            onKopf={setKopfImInhalt}
               />
             )}
 

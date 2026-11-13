@@ -17,7 +17,10 @@ import { BENEFIT_GRUPPEN, CONTRACTING_GRUPPEN } from './BenefitsBlock';
 import { CompanyBlock, type CompanyDraft, type Anreicherung } from './CompanyBlock';
 import type { CaptureState } from './CaptureStep';
 import { SEKUNDEN } from './etappenZeit';
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, CheckCircle2, FileText, Sparkles, X } from 'lucide-react';
+import { AnzeigeEtikett } from './AnzeigeEtikett';
+import { gleicherWert } from '@/lib/anzeigeZitat';
+import { aufbauAlsText, istAufbau } from '../../../../supabase/functions/_shared/abteilung';
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, CheckCircle2, Sparkles, X } from 'lucide-react';
 
 /**
  * Die Aufnahme in Etappen (J12, 04.11.2026; Standard seit 11.11.2026).
@@ -95,18 +98,29 @@ const PRUEFEN = 'pruefen';
 /** Hoechstens so viele KI-Nachfragen je Aufnahme -- wie im Briefing. */
 const MAX_NACHFRAGEN = 5;
 
+/** Ruhige Etiketten (Variante A, 13.11.2026): sichtbar, aber keine Warnung -- "Weiter" uebernimmt. */
 const QUELLE: Record<string, string> = {
-  ad: 'aus der Anzeige gelesen — bitte prüfen',
+  ad: 'aus der Anzeige',
   enrich: 'aus dem Impressum',
   inherit: 'aus Ihrem Firmenprofil',
-  derive: 'aus Ihren Angaben abgeleitet — bitte prüfen',
+  derive: 'aus Ihren Angaben abgeleitet',
 };
 
 const frage = (key: string) => BRIEF_QUESTIONS.find((q) => q.key === key);
 const SLOT = new Map(BRIEF_QUESTIONS.flatMap((q) => q.slots.map((s) => [s.key, { s, q }] as const)));
 
 const zeige = (v: unknown): string => {
-  if (Array.isArray(v)) return v.join(' · ');
+  // Gewichtung der Aufgaben kommt als [{ bereich, anteil }] -- sonst stand
+  // in der Pruefliste nur "[object Object]" bzw. "angegeben" (13.11.2026).
+  if (Array.isArray(v)) {
+    return v.map((x) => {
+      if (x && typeof x === 'object' && 'bereich' in x) {
+        const o = x as { bereich?: unknown; anteil?: unknown };
+        return o.anteil != null ? `${String(o.bereich)} ${String(o.anteil)} %` : String(o.bereich);
+      }
+      return String(x);
+    }).join(' · ');
+  }
   if (typeof v === 'boolean') return v ? 'Ja' : 'Nein';
   if (v && typeof v === 'object') {
     const o = v as Record<string, unknown>;
@@ -115,6 +129,10 @@ const zeige = (v: unknown): string => {
       const b = o.max ? Number(o.max).toLocaleString('de-DE') : null;
       return a && b ? `${a} – ${b}` : (a ?? b ?? '—');
     }
+    // Gewichtung der Aufgaben: { "Außendienst": 80, "Werkstatt": 20 }
+    const teile = Object.entries(o);
+    if (teile.length && teile.every(([, x]) => typeof x === 'number')) return teile.map(([k, x]) => `${k} ${x} %`).join(' · ');
+    if (istAufbau(o)) return aufbauAlsText(o) || 'angegeben';
     return 'angegeben';
   }
   return String(v ?? '');
@@ -160,13 +178,22 @@ interface Props {
   feldGesamt: number;
   /** "✓ Gespeichert" bzw. "Speichert …" -- steht im Kopf dieser Ansicht. */
   speicherStand?: React.ReactNode;
+  /** Rechts oben im Kopf, z. B. der Ablauf "1 Position — 2 Paket & Anfragen" (Dashboard). */
+  kopfRechts?: React.ReactNode;
+  /** Meldet, solange dieser Kopf sichtbar ist -- der Fensterkopf blendet dann seinen Titel aus. */
+  onKopf?: (sichtbar: boolean) => void;
 }
 
 export function EtappenAnsicht({
   state, onState, firmaZeile, onVertragsart, onZurAuswahl, katalogKnown, setKatalog, setKatalogVon, bestaetige,
   ausAnzeigeOffen, aufbauVorschlaege, jobDraft, askAi, sperren, weiter, nextLabel, onResumeLater, firmaFest,
-  company, onCompany, onEnrich, speicherStand,
+  company, onCompany, onEnrich, speicherStand, kopfRechts, onKopf,
 }: Props) {
+  useEffect(() => {
+    onKopf?.(true);
+    return () => onKopf?.(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const { type, built: b, freelance, flexibility, dyn } = state;
   const built = b as BuiltJob;
   const katalog: CatalogState = dyn.catalog ?? EMPTY_CATALOG_STATE;
@@ -262,6 +289,18 @@ export function EtappenAnsicht({
   };
   /** Ohne Anzeige ist nichts vorgewaehlt: gewaehlt ist, was der Kunde angeklickt hat oder die Anzeige sagt. */
   const ausAnzeige = Object.values(katalogKnown).some((v) => v?.from === 'ad');
+  /** Wortlaut der Anzeige fuer die Zitate (13.11.2026). */
+  const anzeigeText = (state.dyn as { anzeigeText?: string | null }).anzeigeText ?? null;
+  /** Was die Anzeige je Feld sagte -- bleibt, auch nach einer anderen Wahl (13.11.2026). */
+  const anzeigeWerte = (state.dyn as { anzeigeWerte?: Record<string, unknown> }).anzeigeWerte ?? {};
+  const adVon = (k: string): unknown =>
+    k in anzeigeWerte ? anzeigeWerte[k] : katalogKnown[k]?.from === 'ad' ? katalogKnown[k]?.value : undefined;
+  const ARBEITSMODELL: Record<string, string> = { remote: 'Remote', hybrid: 'Hybrid', onsite: 'Vor Ort' };
+  const ERFAHRUNG: Record<string, string> = { junior: 'Junior', mid: 'Mid-Level', senior: 'Senior', lead: 'Lead' };
+  const adRemote = ('remote_type' in anzeigeWerte ? anzeigeWerte.remote_type
+    : ausAnzeige && !katalogKnown.remote_type__gewaehlt?.value ? built.remote_type || 'hybrid' : undefined) as string | undefined;
+  const adErfahrung = ('experience_level' in anzeigeWerte ? anzeigeWerte.experience_level
+    : ausAnzeige && !katalogKnown.experience_level__gewaehlt?.value ? built.experience_level || 'mid' : undefined) as string | undefined;
   const gewaehlt = (feld: 'remote_type' | 'experience_level' | 'extension_possible') =>
     (feld !== 'extension_possible' && ausAnzeige) || !!katalogKnown[`${feld}__gewaehlt`]?.value;
 
@@ -512,6 +551,16 @@ export function EtappenAnsicht({
     }
   };
 
+  /** Variante A (13.11.2026): "Weiter" uebernimmt, was aus der Anzeige im Schritt steht. */
+  const uebernimmAusAnzeige = (st: Schritt | null) => {
+    if (!st) return;
+    for (const k of ausAnzeigeOffen) if (schrittVonSlot.get(k) === st.id) bestaetige(k);
+    if (ausAnzeige && st.teile.some((t) => t.art === 'eckdaten')) {
+      if (!katalogKnown.remote_type__gewaehlt?.value) setKatalog('remote_type__gewaehlt', true);
+      if (!katalogKnown.experience_level__gewaehlt?.value) setKatalog('experience_level__gewaehlt', true);
+    }
+  };
+
   const vor = () => {
     if (fehltEck.length > 0 || fehlend.length > 0) {
       setVersucht(true);
@@ -522,6 +571,7 @@ export function EtappenAnsicht({
       return;
     }
     schrittAbschliessen(schritt);
+    uebernimmAusAnzeige(schritt);
     const naechster = schritte[index + 1];
     geheZu(naechster ? naechster.id : PRUEFEN);
   };
@@ -560,11 +610,22 @@ export function EtappenAnsicht({
   // ---- Darstellung -------------------------------------------------------
   const titelVon = (s: Schritt) => (isFreelance && s.titelContracting) || s.titel;
 
-  const zeileAnzeige = (key: string) => {
-    const e = SLOT.get(key);
-    const label = e ? slotLabel(e.s, type) : key;
-    return { key, label, wert: zeige(katalogKnown[key]?.value) };
+
+  /**
+   * Was aus der Anzeige kam und noch nicht uebernommen ist (Variante A,
+   * 13.11.2026): je Schritt, je Etappe und insgesamt. Arbeitsmodell und
+   * Erfahrung zaehlen zu Schritt 1, bis der Kunde sie waehlt oder weitergeht.
+   */
+  const offenAusAnzeige = (stId: string) => {
+    let n = ausAnzeigeOffen.filter((k) => schrittVonSlot.get(k) === stId).length;
+    if (ausAnzeige && schritte.find((x) => x.id === stId)?.teile.some((t) => t.art === 'eckdaten')) {
+      if (!katalogKnown.remote_type__gewaehlt?.value) n += 1;
+      if (!katalogKnown.experience_level__gewaehlt?.value) n += 1;
+    }
+    return n;
   };
+  const ausAnzeigeAnzahl = schritte.reduce((n, st) => n + offenAusAnzeige(st.id), 0);
+  const ausAnzeigeEtappe = (e: Etappe) => schritte.filter((st) => st.etappe === e).reduce((n, st) => n + offenAusAnzeige(st.id), 0);
 
   const teilRendern = (t: Teil, i: number) => {
     switch (t.art) {
@@ -572,7 +633,13 @@ export function EtappenAnsicht({
         return (
           <div key={i} className="space-y-3">
             <p className="text-base font-semibold">Worum geht es?</p>
-            {ausAnzeige && <p className="-mt-2 text-[11px] text-amber-600">Arbeitsmodell und Erfahrung aus Ihrer Anzeige — bitte prüfen</p>}
+            {/* Variante A (Entscheidung Marko 13.11.2026): statt einer langen
+                Liste ein Satz -- geprueft wird dort, wo die Frage steht. */}
+            {ausAnzeigeAnzahl > 0 && (
+              <p className="rounded-lg border px-3 py-2 text-xs text-muted-foreground">
+                Aus Ihrer Anzeige haben wir {ausAnzeigeAnzahl} {ausAnzeigeAnzahl === 1 ? 'Angabe' : 'Angaben'} übernommen. Sie sehen sie in den Schritten, in denen sie stehen.
+              </p>
+            )}
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
                 <p className={cn('mb-1 text-sm font-medium', versucht && !built.title?.trim() && 'text-amber-600')}>Jobtitel</p>
@@ -583,48 +650,38 @@ export function EtappenAnsicht({
                 <Input data-feld="location" value={built.location} onChange={(e) => setBuilt({ location: e.target.value })} placeholder="z. B. Stuttgart" />
               </div>
             </div>
-            <div>
-              <p className="mb-1.5 text-sm font-medium">Arbeitsmodell</p>
+            <div data-feld="remote_type" data-aus-anzeige={ausAnzeige && !katalogKnown.remote_type__gewaehlt?.value ? 'ja' : undefined}>
+              <p className="mb-1.5 flex items-baseline gap-1.5 text-sm font-medium">
+                Arbeitsmodell
+                {adRemote && (
+                  <AnzeigeEtikett anzeige={anzeigeText} wert={ARBEITSMODELL[adRemote]} abweichend={(built.remote_type || 'hybrid') !== adRemote} />
+                )}
+              </p>
               <ChipWahl
                 optionen={[['remote', 'Remote'], ['hybrid', 'Hybrid'], ['onsite', 'Vor Ort']]}
                 wert={gewaehlt('remote_type') ? built.remote_type || 'hybrid' : ''}
                 onWahl={(v) => { setBuilt({ remote_type: v }); setKatalog('remote_type__gewaehlt', true); }}
+                anzeige={adRemote}
               />
             </div>
-            <div>
-              <p className="mb-1.5 text-sm font-medium">Erfahrung</p>
+            <div data-feld="experience_level" data-aus-anzeige={ausAnzeige && !katalogKnown.experience_level__gewaehlt?.value ? 'ja' : undefined}>
+              <p className="mb-1.5 flex items-baseline gap-1.5 text-sm font-medium">
+                Erfahrung
+                {adErfahrung && (
+                  <AnzeigeEtikett anzeige={anzeigeText} wert={ERFAHRUNG[adErfahrung]} abweichend={(built.experience_level || 'mid') !== adErfahrung} />
+                )}
+              </p>
               <ChipWahl
                 optionen={[['junior', 'Junior'], ['mid', 'Mid-Level'], ['senior', 'Senior'], ['lead', 'Lead']]}
                 wert={gewaehlt('experience_level') ? built.experience_level || 'mid' : ''}
                 onWahl={(v) => { setBuilt({ experience_level: v }); setKatalog('experience_level__gewaehlt', true); }}
+                anzeige={adErfahrung}
               />
             </div>
             <div className="sm:w-1/2">
               <p className="mb-1 text-sm font-medium">Branche</p>
               <Input value={built.industry} onChange={(e) => setBuilt({ industry: e.target.value })} placeholder="z. B. Maschinenbau" />
             </div>
-            {ausAnzeigeOffen.length > 0 && (
-              <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
-                <p className="mb-2 flex items-center gap-1.5 text-sm">
-                  <FileText className="h-4 w-4 text-amber-600" />
-                  Aus Ihrer Anzeige übernommen · <span className="font-medium">{ausAnzeigeOffen.length} noch zu prüfen</span>
-                </p>
-                <div className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
-                  {ausAnzeigeOffen.map(zeileAnzeige).map((z) => (
-                    <p key={z.key} className="flex justify-between gap-2 border-t border-amber-500/10 py-0.5 text-xs">
-                      <span className="text-muted-foreground">{z.label}</span>
-                      <span className="truncate text-right">{z.wert}</span>
-                    </p>
-                  ))}
-                </div>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <Button size="sm" className="h-7 px-2.5 text-xs" onClick={() => ausAnzeigeOffen.forEach((k) => bestaetige(k))}>
-                    Alle bestätigen
-                  </Button>
-                  <span className="text-xs text-muted-foreground">oder in den Schritten einzeln prüfen, dort steht „aus der Anzeige · stimmt“.</span>
-                </div>
-              </div>
-            )}
           </div>
         );
 
@@ -640,18 +697,21 @@ export function EtappenAnsicht({
             <p className="text-base font-semibold leading-snug">{frageText(q, type)}</p>
             <div className="space-y-3">
               {slots.map((s) => (
-                <div key={s.key} data-feld={s.key} tabIndex={-1} className="scroll-mt-24 outline-none">
+                <div key={s.key} data-feld={s.key} tabIndex={-1} className="scroll-mt-24 outline-none"
+                     data-aus-anzeige={katalogKnown[s.key]?.from === 'ad' ? 'ja' : undefined}>
                   <p className="mb-1.5 flex flex-wrap items-baseline gap-x-1.5 text-xs text-muted-foreground">
                     <span className={cn('text-sm font-medium', versucht && s.required && !istGestellt && !hatWert(katalogKnown, s.key) ? 'text-amber-600' : 'text-foreground')}>
                       {slotLabel(s, type)}
                     </span>
                     {!s.required && <span className="text-[10px]">(optional)</span>}
-                    {QUELLE[katalogKnown[s.key]?.from ?? ''] && (
-                      <span className="text-[10px] italic text-amber-600">{QUELLE[katalogKnown[s.key]!.from]}</span>
+                    {adVon(s.key) !== undefined ? (
+                      <AnzeigeEtikett anzeige={anzeigeText} wert={adVon(s.key)} abweichend={!gleicherWert(katalogKnown[s.key]?.value, adVon(s.key))} />
+                    ) : QUELLE[katalogKnown[s.key]?.from ?? ''] && (
+                      <span className="rounded-full border border-input px-1.5 py-px text-[10px] font-normal text-muted-foreground">{QUELLE[katalogKnown[s.key]!.from]}</span>
                     )}
                   </p>
                   {typeof katalogKnown[`${s.key}__wortlaut`]?.value === 'string' && (
-                    <p className="-mt-1 mb-1.5 text-[10px] text-amber-600">
+                    <p className="-mt-1 mb-1.5 text-[10px] text-muted-foreground">
                       laut Anzeige: „{String(katalogKnown[`${s.key}__wortlaut`]!.value)}“
                     </p>
                   )}
@@ -669,10 +729,15 @@ export function EtappenAnsicht({
                     slot={s}
                     wert={katalogKnown[s.key]?.value}
                     quelle={katalogKnown[s.key]?.from}
+                    anzeigeWert={adVon(s.key)}
                     vorschlaege={katalog.answerSuggestions?.[s.key]}
                     onSet={(v) => setKatalog(s.key, typeof v === 'string' && v === '' ? undefined : v)}
                     onToggle={(c) => {
                       const cur = Array.isArray(katalogKnown[s.key]?.value) ? (katalogKnown[s.key]!.value as string[]) : [];
+                      // Der erste Klick auf einen markierten Wert aus der Anzeige
+                      // bestaetigt ihn -- wie bei Feldern mit einer Auswahl. Vorher
+                      // entfernte er ihn (Durchklick 13.11.2026).
+                      if (katalogKnown[s.key]?.from === 'ad' && cur.includes(c)) { setKatalog(s.key, cur); return; }
                       setKatalog(s.key, cur.includes(c) ? cur.filter((x) => x !== c) : [...cur, c]);
                     }}
                     kiAus={katalog.aiAvailable === false}
@@ -705,6 +770,8 @@ export function EtappenAnsicht({
               aufbauVorschlaege={aufbauVorschlaege}
               treppeOhneWeiter
               gross
+              anzeige={anzeigeText}
+              anzeigeWerte={anzeigeWerte}
             />
             {t.nur.map((k) => frage(k)).filter((q): q is BriefQuestion => !!q && (!q.only || q.only === type)).map((q) => (
               <p key={q.key} className="mt-2 flex items-start gap-1.5 text-[11px] text-muted-foreground">
@@ -777,7 +844,7 @@ export function EtappenAnsicht({
                 />
               </div>
             )}
-            <CatalogFields place="verguetung" known={katalogKnown} onSet={setKatalog} onConfirm={bestaetige} contract={type} gross />
+            <CatalogFields place="verguetung" known={katalogKnown} onSet={setKatalog} onConfirm={bestaetige} contract={type} gross anzeige={anzeigeText} anzeigeWerte={anzeigeWerte} />
             {q?.why && (
               <p className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
                 <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-primary/60" /> {q.why}
@@ -820,7 +887,7 @@ export function EtappenAnsicht({
               onHeadcount={(n) => setKatalogVon('company_size_band', sizeBand(n), 'enrich')}
             />
             <div className="border-t pt-4">
-              <CatalogFields place="firma" known={katalogKnown} onSet={setKatalog} onConfirm={bestaetige} contract={type} gross />
+              <CatalogFields place="firma" known={katalogKnown} onSet={setKatalog} onConfirm={bestaetige} contract={type} gross anzeige={anzeigeText} anzeigeWerte={anzeigeWerte} />
             </div>
             <p className="text-xs text-muted-foreground">Diese Angaben stehen später auf der Vereinbarung.</p>
           </div>
@@ -831,6 +898,24 @@ export function EtappenAnsicht({
   const etappeVon = schritt?.etappe ?? null;
   const inEtappe = etappeVon === null ? [] : schritte.filter((s) => s.etappe === etappeVon);
   const posInEtappe = schritt ? inEtappe.findIndex((s) => s.id === schritt.id) + 1 : 0;
+  // ---- Kopf wie eine Stellenanzeige: Initialen und Kaertchen ------------
+  const firmenName = String((firmaFest as { name?: string } | null)?.name || company?.company_name || built.company_name || '');
+  const initialen = firmenName.split(/\s+/).filter((w) => /^[A-Za-zÄÖÜ0-9]/.test(w) && !/^(gmbh|ag|kg|se|ug|co\.?|&)$/i.test(w))
+    .slice(0, 2).map((w) => w[0].toUpperCase()).join('') || '·';
+  const euro = (n?: number | null) => (n ? `${Number(n).toLocaleString('de-DE')} €` : null);
+  const spanne = (a?: number | null, b?: number | null) => (a && b ? `${euro(a)} – ${euro(b)}` : euro(a) ?? euro(b));
+  const gehalt = isFreelance ? spanne(freelance.dayRateMin, freelance.dayRateMax) : spanne(built.salary_min, built.salary_max);
+  const monate = katalogKnown.salary_months?.value;
+  const befristung = String(katalogKnown.contract_limitation?.value ?? '').trim();
+  const kaertchen: { key: string; leer: string; wert: string | null }[] = [
+    { key: 'remote', leer: 'Arbeitsmodell', wert: gewaehlt('remote_type') ? ({ remote: 'Remote', hybrid: 'Hybrid', onsite: 'Vor Ort' } as Record<string, string>)[built.remote_type || 'hybrid'] ?? null : null },
+    { key: 'erfahrung', leer: 'Erfahrung', wert: gewaehlt('experience_level') ? ({ junior: 'Junior', mid: 'Mid-Level', senior: 'Senior', lead: 'Lead' } as Record<string, string>)[built.experience_level || 'mid'] ?? null : null },
+    isFreelance
+      ? { key: 'budget', leer: 'Budget je Tag', wert: gehalt ? `${gehalt} je Tag` : null }
+      : { key: 'gehalt', leer: 'Gehalt', wert: gehalt ? `${gehalt}${monate ? ` · ${String(monate)} Gehälter` : ''}` : null },
+    ...(befristung && !isFreelance ? [{ key: 'befristung', leer: '', wert: befristung.charAt(0).toUpperCase() + befristung.slice(1) }] : []),
+  ];
+
   const ortZeile = istPruefen ? 'Prüfen' : etappeVon !== null ? `${etappenName(etappeVon, isFreelance)} · Schritt ${posInEtappe} von ${inEtappe.length}` : '';
 
   return (
@@ -840,34 +925,65 @@ export function EtappenAnsicht({
        wenn sich darueber etwas verschob (Durchklick 04.11.2026). */
     <div
       ref={oben}
-      className="flex min-h-full flex-col gap-3 [&_.border-primary]:border-foreground [&_.border-primary]:bg-foreground [&_.border-primary]:text-background"
+      className={cn(
+        'flex min-h-full flex-col gap-3 [&_.border-primary]:border-foreground [&_.border-primary]:bg-foreground [&_.border-primary]:text-background',
+        // Farbe 2A (13.11.2026): Was aus der Anzeige kommt und noch nicht
+        // uebernommen ist, traegt einen blauen Rand -- Orange bleibt "fehlt noch".
+        '[&_[data-aus-anzeige=ja]_.border-primary]:ring-2 [&_[data-aus-anzeige=ja]_.border-primary]:ring-blue-500/70',
+        '[&_[data-aus-anzeige=ja]_textarea]:border-blue-500/60 [&_[data-aus-anzeige=ja]_input]:border-blue-500/60',
+        '[&_[data-aus-anzeige=ja]_.bg-foreground]:ring-2 [&_[data-aus-anzeige=ja]_.bg-foreground]:ring-blue-500/70',
+      )}
     >
-      {/* ---- Kopf: eine Zeile mit fester Hoehe ---- */}
-      <div className="flex h-10 shrink-0 items-center gap-3 overflow-hidden border-b pb-2">
-        <div className="flex min-w-0 flex-1 items-baseline gap-2 overflow-hidden whitespace-nowrap">
-          <span className="min-w-0 truncate text-lg font-semibold">{built.title || 'Neue Position'}</span>
-          {built.location?.trim() && <span className="shrink-0 text-sm text-muted-foreground">· {built.location.trim()}</span>}
+      {/* ---- Kopf wie eine Stellenanzeige (Entscheidung Marko 13.11.2026, J1) ----
+          Logo, Titel, Firma und Ort, darunter Kaertchen, die sich aus den
+          Antworten fuellen -- leere sind gestrichelt. Der Titel steht nur hier
+          (nicht noch einmal im Fensterkopf), die Firmenzeile kam aus der Leiste. */}
+      <div className="shrink-0 border-b">
+        <div className="flex items-start gap-3 pb-3 pr-8">
+          <div className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-semibold text-primary sm:flex" aria-hidden>
+            {initialen}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-xl font-semibold tracking-tight">{built.title || 'Neue Position'}</h2>
+            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground [&>*]:mt-0">{firmaZeile}</div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={onVertragsart}
+                className="rounded-md border bg-muted/40 px-2 py-0.5 text-xs text-foreground transition-colors hover:bg-accent"
+              >
+                {isFreelance ? 'Contracting' : 'Festanstellung'} · <span className="text-muted-foreground underline underline-offset-2">ändern</span>
+              </button>
+              {kaertchen.map((k) => (
+                <span
+                  key={k.key}
+                  className={cn(
+                    'rounded-md border px-2 py-0.5 text-xs',
+                    k.wert ? 'bg-muted/40 text-foreground' : 'border-dashed text-muted-foreground/70',
+                  )}
+                >
+                  {k.wert ?? k.leer}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
+            {kopfRechts}
+            <span className="text-xs text-muted-foreground">
+              {!istPruefen && sekundenOffen > 0 && <>noch etwa {minuten} Min.</>}
+              {!istPruefen && sekundenOffen > 0 && speicherStand && ' · '}
+              {speicherStand}
+            </span>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={onVertragsart}
-          className="hidden shrink-0 rounded-full border border-input px-2.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground lg:inline"
-        >
-          {isFreelance ? 'Contracting' : 'Festanstellung'} · ändern
-        </button>
-        {!istPruefen && sekundenOffen > 0 && (
-          <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">noch etwa {minuten} Min.</span>
-        )}
-        <div className="h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-muted" title={`${fortschritt.pct} %`}>
-          <div className="h-full rounded-full bg-foreground/70 transition-all" style={{ width: `${fortschritt.pct}%` }} />
+        <div className="h-[3px] bg-muted" title={`${fortschritt.pct} %`}>
+          <div className="h-full bg-foreground/70 transition-all" style={{ width: `${fortschritt.pct}%` }} />
         </div>
-        {speicherStand && <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">{speicherStand}</span>}
       </div>
 
       <div className="grid flex-1 gap-5 md:grid-cols-[11.5rem_minmax(0,1fr)] md:items-start">
         {/* ---- Leiste links: nur wo man steht, ohne Farben und Zahlen ---- */}
         <nav className="hidden space-y-0.5 md:sticky md:top-0 md:block" aria-label="Etappen der Aufnahme">
-          <div className="mb-2 px-2.5 text-[11px] leading-snug text-muted-foreground [&>*]:mt-0 [&_*]:text-[11px]">{firmaZeile}</div>
           {([0, 1, 2, 3] as Etappe[]).map((e) => {
             const erster = schritte.find((s) => s.etappe === e);
             if (!erster) return null;
@@ -886,6 +1002,11 @@ export function EtappenAnsicht({
                 >
                   {fertig && !istAktiv ? <Check className="h-3.5 w-3.5 shrink-0" /> : <span className="w-3.5 shrink-0" />}
                   {etappenName(e, isFreelance)}
+                  {ausAnzeigeEtappe(e) > 0 && (
+                    <span className="ml-auto text-[10px] font-normal text-muted-foreground" title="aus der Anzeige, noch nicht übernommen">
+                      {ausAnzeigeEtappe(e)}
+                    </span>
+                  )}
                 </button>
                 {istAktiv && (
                   <p className="pb-1 pl-8 pt-0.5 text-xs text-muted-foreground">Schritt {posInEtappe} von {inEtappe.length}</p>
@@ -904,6 +1025,7 @@ export function EtappenAnsicht({
             <span className="w-3.5 shrink-0" />
             Prüfen
           </button>
+          {ausAnzeigeAnzahl > 0 && <p className="px-2.5 pt-1 text-[10px] text-muted-foreground">Zahl = aus der Anzeige</p>}
           <button
             type="button"
             onClick={onZurAuswahl}
@@ -993,6 +1115,9 @@ export function EtappenAnsicht({
           {istPruefen && sperren.length > 0 && (
             <span className="truncate text-muted-foreground">Erst die fehlenden Angaben ergänzen, dann geht es weiter.</span>
           )}
+          {!istPruefen && !(versucht && (fehltEck.length > 0 || fehlend.length > 0)) && schritt && offenAusAnzeige(schritt.id) > 0 && (
+            <span className="truncate text-muted-foreground">Aus der Anzeige vorausgefüllt. Passt etwas nicht, einfach hier ändern.</span>
+          )}
           {/* Erst nach einem Klick auf "Weiter": was fehlt, und der Ausweg. */}
           {!istPruefen && versucht && fehltEck.length > 0 && (
             <span className="truncate text-amber-600">Es fehlt noch: {fehltEck.map((x) => x.label).join(', ')}</span>
@@ -1000,7 +1125,7 @@ export function EtappenAnsicht({
           {!istPruefen && versucht && fehltEck.length === 0 && fehlend.length > 0 && (
             <>
               <span className="truncate text-amber-600">Es fehlt noch: {fehlend.map((x) => slotLabel(x, type)).join(', ')}</span>
-              <Button size="sm" variant="outline" className="h-7 shrink-0 px-2 text-xs" onClick={() => { schrittAbschliessen(schritt, true); geheZu(schritte[index + 1]?.id ?? PRUEFEN); }}>
+              <Button size="sm" variant="outline" className="h-7 shrink-0 px-2 text-xs" onClick={() => { schrittAbschliessen(schritt, true); uebernimmAusAnzeige(schritt); geheZu(schritte[index + 1]?.id ?? PRUEFEN); }}>
                 Weiß ich nicht
               </Button>
             </>
@@ -1033,7 +1158,7 @@ export function EtappenAnsicht({
 
 /* ------------------------------------------------------------------ */
 
-function ChipWahl({ optionen, wert, onWahl }: { optionen: [string, string][]; wert: string; onWahl: (v: string) => void }) {
+function ChipWahl({ optionen, wert, onWahl, anzeige }: { optionen: [string, string][]; wert: string; onWahl: (v: string) => void; anzeige?: string }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {optionen.map(([v, label]) => (
@@ -1043,8 +1168,12 @@ function ChipWahl({ optionen, wert, onWahl }: { optionen: [string, string][]; we
           onClick={() => onWahl(v)}
           className={cn(
             'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs transition-colors',
-            wert === v ? 'border-primary bg-primary/10 text-foreground' : 'border-input text-muted-foreground hover:bg-accent hover:text-foreground',
+            wert === v ? 'border-primary bg-primary/10 text-foreground'
+              // Was die Anzeige sagt, bleibt gestrichelt sichtbar (13.11.2026).
+              : anzeige === v ? 'border-dashed border-blue-500/70 text-blue-600 hover:bg-accent dark:text-blue-300'
+              : 'border-input text-muted-foreground hover:bg-accent hover:text-foreground',
           )}
+          title={anzeige === v && wert !== v ? 'So steht es in Ihrer Anzeige' : undefined}
         >
           {wert === v && <Check className="h-2.5 w-2.5" />}
           {label}
@@ -1059,8 +1188,27 @@ function ChipWahl({ optionen, wert, onWahl }: { optionen: [string, string][]; we
  * Feld, mit x zum Entfernen; daneben eigene Worte. Gespeichert wird derselbe
  * Text wie bisher ("Baustein · Baustein · eigene Worte").
  */
-function BausteinFeld({ wert, angebote, onSet }: { wert: unknown; angebote: string[]; onSet: (v: string | undefined) => void }) {
-  const text = Array.isArray(wert) ? wert.filter(Boolean).join(' · ') : String(wert ?? '');
+/**
+ * Die Gewichtung der Aufgaben steht als { Bereich: Anteil } im Entwurf -- so
+ * liest sie die Karte des Recruiters. Im Feld stand dadurch "[object Object]"
+ * (Durchklick 13.11.2026). Gezeigt wird "Bereich 80 % · …"; bleibt die Form
+ * beim Aendern erhalten, wird wieder ein Objekt daraus.
+ */
+const istAnteile = (w: unknown): w is Record<string, number> =>
+  !!w && typeof w === 'object' && !Array.isArray(w) && Object.values(w).length > 0
+  && Object.values(w).every((x) => typeof x === 'number');
+const anteileAusText = (t: string): Record<string, number> | null => {
+  const teile = t.split('·').map((x) => x.trim()).filter(Boolean).map((x) => x.match(/^(.+?)\s+(\d{1,3})\s*%$/));
+  return teile.length && teile.every(Boolean) ? Object.fromEntries(teile.map((m) => [m![1], Number(m![2])])) : null;
+};
+
+function BausteinFeld({ wert, angebote, onSet }: { wert: unknown; angebote: string[]; onSet: (v: unknown) => void }) {
+  const anteile = istAnteile(wert);
+  const text = Array.isArray(wert)
+    ? wert.filter(Boolean).join(' · ')
+    : anteile
+      ? Object.entries(wert).map(([k, x]) => `${k} ${x} %`).join(' · ')
+      : String(wert ?? '');
   const teile = text ? text.split(' · ') : [];
   let n = 0;
   while (n < teile.length && angebote.includes(teile[n].trim())) n++;
@@ -1068,7 +1216,8 @@ function BausteinFeld({ wert, angebote, onSet }: { wert: unknown; angebote: stri
   const frei = teile.slice(n).join(' · ');
   const schreibe = (b: string[], f: string) => {
     const v = [...b, ...(f.trim() ? [f] : [])].join(' · ');
-    onSet(v || undefined);
+    const alsAnteile = anteile ? anteileAusText(v) : null;
+    onSet(alsAnteile ?? (v || undefined));
   };
   const offen = angebote.filter((a) => !bausteine.includes(a));
   return (

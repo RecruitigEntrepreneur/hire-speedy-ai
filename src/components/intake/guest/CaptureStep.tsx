@@ -143,6 +143,9 @@ interface Props {
   ansicht?: 'bisher' | 'etappen';
   /** Speicherstand fuer den Kopf der Etappen-Ansicht ("✓ Gespeichert"). */
   speicherStand?: React.ReactNode;
+  /** Etappen-Kopf: rechts oben (Ablauf) und Meldung, solange er sichtbar ist. */
+  kopfRechts?: React.ReactNode;
+  onKopf?: (sichtbar: boolean) => void;
 }
 
 /** Welcher Einstieg gerade zu sehen ist. */
@@ -156,7 +159,7 @@ export function CaptureStep({
   state, onState, companyDefaults, seedTitle, seedText, contactName,
   askAi, parseText, parseUrl, parsePdf, onNext, onResumeLater, company, onCompany, onEnrich,
   nextLabel = 'Weiter zu Ihren Kontaktdaten', entrySub, entryExtras, autoBuildText, autoBuildFile,
-  fertigesProfil = false, firmaFest = null, firmen = [], firmaId = null, onFirma, ansicht = 'etappen', speicherStand,
+  fertigesProfil = false, firmaFest = null, firmen = [], firmaId = null, onFirma, ansicht = 'etappen', speicherStand, kopfRechts, onKopf,
 }: Props) {
   const [text, setText] = useState(seedText ?? autoBuildText ?? '');
   const [firmaWahlOffen, setFirmaWahlOffen] = useState(false);
@@ -303,7 +306,22 @@ export function CaptureStep({
       onState((s) => ({ ...s, flexibility: { ...stufen, ...s.flexibility } }));
     }
 
+    // Der Wortlaut der Anzeige -- fuer die Zitate zu "aus der Anzeige" (13.11.2026).
+    // Beim Text ist es der eingefuegte Text, bei PDF und Link liefert ihn der Leser.
+    const rohAnzeige = mode === 'text'
+      ? (textOverride ?? text)
+      : typeof (res as { anzeige_text?: unknown })?.anzeige_text === 'string' ? (res as { anzeige_text: string }).anzeige_text : null;
+    if (rohAnzeige?.trim()) onState((s) => ({ ...s, dyn: { ...s.dyn, anzeigeText: rohAnzeige.slice(0, 20000) } }));
+
     const ausAnzeige = catalogFromParsed(parsed, type, mode === 'text' ? (textOverride ?? text) : null);
+    // Was die Anzeige zu jedem Feld sagt -- bleibt stehen, auch wenn der Kunde
+    // spaeter etwas anderes waehlt (13.11.2026).
+    const anzeigeWerte: Record<string, unknown> = Object.fromEntries(
+      Object.entries(ausAnzeige).filter(([k]) => !k.includes('__')).map(([k, v]) => [k, v.value]),
+    );
+    if (parsed.remote_type) anzeigeWerte.remote_type = job.remote_type;
+    if (parsed.experience_level) anzeigeWerte.experience_level = job.experience_level;
+    onState((s) => ({ ...s, dyn: { ...s.dyn, anzeigeWerte } }));
     if (Object.keys(ausAnzeige).length > 0) {
       onState((s) => ({
         ...s,
@@ -1072,7 +1090,7 @@ firmaFest ? (
                 <Popover open={firmaWahlOffen} onOpenChange={setFirmaWahlOffen}>
                   <PopoverTrigger asChild>
                     <button type="button" className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 hover:bg-muted">
-                      für {firmaFest.name || company.company_legal_name || company.company_name}
+                      {ansicht === 'etappen' ? '' : 'für '}{firmaFest.name || company.company_legal_name || company.company_name}
                       <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
                     </button>
                   </PopoverTrigger>
@@ -1207,6 +1225,8 @@ firmaFest ? (
         onVertragsart={() => setEntryMode('kind')}
         onZurAuswahl={() => setEntryMode('reselect')}
         speicherStand={speicherStand}
+        kopfRechts={kopfRechts}
+        onKopf={onKopf}
         katalogKnown={katalogKnown}
         setKatalog={setKatalog}
         setKatalogVon={setKatalogVon}

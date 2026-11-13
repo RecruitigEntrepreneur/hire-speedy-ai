@@ -2,8 +2,10 @@ import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { Check, Minus, Plus } from 'lucide-react';
+import { AnzeigeEtikett } from '@/components/intake/guest/AnzeigeEtikett';
+import { gleicherWert } from '@/lib/anzeigeZitat';
 import {
-  EINBINDUNGEN, FUEHRUNGEN, aufbauBereinigt, aufbauSchritte, istAufbau, naechsterSchritt,
+  EINBINDUNGEN, FUEHRUNGEN, aufbauAlsText, aufbauBereinigt, aufbauSchritte, istAufbau, naechsterSchritt,
   rollenText, schrittBeantwortet, fuehrungText,
   type Abteilungsaufbau, type AufbauSchritt, type Rollenzahl,
 } from '../../../../supabase/functions/_shared/abteilung';
@@ -103,11 +105,15 @@ interface Props {
    * alles wie bisher.
    */
   ohneWeiter?: boolean;
+  /** Etappen-Ansicht: Wortlaut der Anzeige fuer das Zitat (13.11.2026). */
+  anzeige?: string | null;
+  /** Etappen-Ansicht: was die Anzeige zum Aufbau sagte -- das Etikett bleibt stehen. */
+  anzeigeWert?: unknown;
 }
 
 export function AbteilungsTreppe({
   wert, quelle, onSet, onConfirm,
-  rollenVorschlaege = [], schnittstellenVorschlaege = [], laedtVorschlaege, onVorschlaegeNoetig, ohneWeiter = false,
+  rollenVorschlaege = [], schnittstellenVorschlaege = [], laedtVorschlaege, onVorschlaegeNoetig, ohneWeiter = false, anzeige = null, anzeigeWert,
 }: Props) {
   const a: Abteilungsaufbau = istAufbau(wert) ? wert : {};
   const [bearbeite, setBearbeite] = useState<AufbauSchritt | null>(null);
@@ -150,6 +156,18 @@ export function AbteilungsTreppe({
     }
     return (
       <div ref={box} className="space-y-4 text-xs">
+        {/* Etappen (13.11.2026): Etikett oben, wie bei den anderen Fragen; "Weiter" uebernimmt. */}
+        {anzeigeWert !== undefined ? (
+          <p className="-mb-2">
+            <AnzeigeEtikett
+              anzeige={anzeige}
+              wert={aufbauAlsText(istAufbau(anzeigeWert) ? anzeigeWert : null) || anzeigeWert}
+              abweichend={!gleicherWert(wert, anzeigeWert)}
+            />
+          </p>
+        ) : hinweis && (
+          <p className="-mb-2"><span className="rounded-full border border-input px-1.5 py-px text-[10px] font-normal text-muted-foreground">{hinweis}</span></p>
+        )}
         {sichtbar.map((s) => (
           <div key={`${a.einbindung ?? ''}-${s}`} data-stufe={s}>
             <Stufe
@@ -165,16 +183,6 @@ export function AbteilungsTreppe({
           </div>
         ))}
         {!a.einbindung && <p className="text-[11px] text-muted-foreground">Je nach Antwort 2–4 kurze Folgefragen</p>}
-        {hinweis && (
-          <p className="flex flex-wrap items-center gap-x-2 text-[10px] text-amber-600">
-            {hinweis}
-            {onConfirm && quelle === 'ad' && (
-              <button type="button" onClick={onConfirm} className="rounded border border-amber-500/40 px-1.5 py-px font-medium hover:bg-amber-500/10">
-                ✓ stimmt
-              </button>
-            )}
-          </p>
-        )}
       </div>
     );
   }

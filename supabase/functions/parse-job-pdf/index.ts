@@ -48,7 +48,17 @@ serve(async (req) => {
       throw new Error('Supabase configuration missing');
     }
 
-    const { pdfPath, jobText } = await req.json();
+    const { pdfPath, jobText, format } = await req.json();
+    /**
+     * format 'aufnahme' (Kundenaufnahme, 13.11.2026): das PDF wird nur woertlich
+     * zu Text, gelesen wird es danach von parse-job-url -- demselben Leser wie
+     * bei eingefuegtem Text. Vorher lief hier ein eigener, alter Leser mit
+     * anderen Feldnamen (remote_policy statt remote_type, die Aufnahme nahm
+     * dann die Vorgabe "Hybrid"), "Kultur aus dem Schreibstil", geschaetzten
+     * Gehaeltern und "bereinigtem" Titel. Ohne format bleibt alles wie bisher
+     * (CreateJob, JobIntakeStudio).
+     */
+    const fuerAufnahme = format === 'aufnahme';
 
     // Pfadpruefung: pdfPath kam bisher ungeprueft aus dem Request-Body und ging
     // direkt an einen Service-Role-Download — jeder Aufrufer konnte damit eine
@@ -103,18 +113,20 @@ serve(async (req) => {
           messages: [
             {
               role: 'system',
-              content: 'Du bist ein Experte für das Extrahieren von Text aus PDF-Dokumenten. Extrahiere den VOLLSTÄNDIGEN Text aus dem Dokument, bewahre die Struktur und alle Details. Gib NUR den extrahierten Text zurück, keine Kommentare.'
+              content: fuerAufnahme
+                ? 'Du gibst den Text eines PDF-Dokuments Wort fuer Wort wieder. Nichts weglassen, nichts hinzufuegen, nichts umformulieren, nichts zusammenfassen, nichts uebersetzen. Ueberschriften, Aufzaehlungen und Absaetze bleiben erhalten. Gib NUR den Text zurueck, keine Kommentare.'
+                : 'Du bist ein Experte für das Extrahieren von Text aus PDF-Dokumenten. Extrahiere den VOLLSTÄNDIGEN Text aus dem Dokument, bewahre die Struktur und alle Details. Gib NUR den extrahierten Text zurück, keine Kommentare.'
             },
             {
               role: 'user',
               content: [
-                { type: 'text', text: 'Extrahiere den kompletten Text aus diesem Stellenanzeigen-PDF:' },
+                { type: 'text', text: fuerAufnahme ? 'Gib den Text dieser Stellenanzeige woertlich wieder:' : 'Extrahiere den kompletten Text aus diesem Stellenanzeigen-PDF:' },
                 { type: 'image_url', image_url: { url: `data:application/pdf;base64,${base64Pdf}` } }
               ]
             }
           ],
           max_tokens: 8000,
-          temperature: 0.1,
+          temperature: fuerAufnahme ? 0 : 0.1,
         }),
       });
 
@@ -146,6 +158,28 @@ serve(async (req) => {
         JSON.stringify({ error: 'Entweder pdfPath oder jobText muss angegeben werden' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Kundenaufnahme: derselbe Leser wie bei eingefuegtem Text. Der Aufruf
+    // traegt die Anmeldung des Aufrufers weiter (Kunde oder intake-ai mit
+    // Service-Role), parse-job-url prueft sie wie sonst auch.
+    if (fuerAufnahme) {
+      const leser = await fetch(`${SUPABASE_URL}/functions/v1/parse-job-url`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: req.headers.get('Authorization') ?? `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+          apikey: req.headers.get('apikey') ?? Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+        },
+        body: JSON.stringify({ jobText: textToAnalyze }),
+        signal: AbortSignal.timeout(45_000),
+      });
+      const antwort = await leser.text();
+      if (!leser.ok) console.error('[parse-job-pdf] parse-job-url:', leser.status, antwort.slice(0, 300));
+      return new Response(antwort, {
+        status: leser.status,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     console.log('Analyzing job description with AI...');

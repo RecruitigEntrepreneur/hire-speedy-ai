@@ -199,7 +199,9 @@ serve(async (req) => {
         return fail('internal_error', 'Die Datei konnte nicht abgelegt werden.');
       }
       pdfPath = path;
-      forward = { pdfPath: path };
+      // format 'aufnahme': woertlicher Text, dann derselbe Leser wie bei
+      // eingefuegtem Text (parse-job-pdf, 13.11.2026).
+      forward = { pdfPath: path, format: 'aufnahme' };
     }
 
     // ---- Weiterreichen ----------------------------------------------------

@@ -607,8 +607,10 @@ export function CatalogBriefing({ type, jobDraft, state, onState, onDone, askAi,
 /* ------------------------------------------------------------------ */
 
 export function SlotEingabe({
-  slot, contract, wert, quelle, vorschlaege, onSet, onToggle, kiAus = false, laedt = false,
+  slot, contract, wert, quelle, vorschlaege, onSet, onToggle, kiAus = false, laedt = false, anzeigeWert,
 }: {
+  /** Was die Anzeige sagt -- die Option wird gestrichelt markiert, wenn etwas anderes gewaehlt ist (13.11.2026). */
+  anzeigeWert?: unknown;
   slot: BriefSlot;
   contract: 'full-time' | 'freelance';
   wert: unknown;
@@ -658,15 +660,20 @@ export function SlotEingabe({
           // "Ja" -> true, "2 Tage, digital" -> 2. Sonst landet Fliesstext in
           // einer Zahlenspalte und der Insert scheitert erst beim Uebergeben.
           const an = multi ? gewaehlt.includes(c) : wert === slotChipWert(slot, contract, c);
+          const laut = anzeigeWert !== undefined && (multi
+            ? Array.isArray(anzeigeWert) && (anzeigeWert as unknown[]).includes(c)
+            : anzeigeWert === slotChipWert(slot, contract, c) || anzeigeWert === c);
           return (
             <button key={c} type="button"
               onClick={() =>
                 (multi
                   ? onToggle(c)
                   : onSet(an && !nurVorschlag ? undefined : slotChipWert(slot, contract, c)))}
+              title={laut && !an ? 'So steht es in Ihrer Anzeige' : undefined}
               className={cn(
                 'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs transition-colors',
                 an ? 'border-primary bg-primary/10 text-foreground'
+                   : laut ? 'border-dashed border-blue-500/70 text-blue-600 hover:bg-accent dark:text-blue-300'
                    : 'border-input text-muted-foreground hover:bg-accent hover:text-foreground',
               )}>
               {an && <Check className="h-2.5 w-2.5 shrink-0" />}
@@ -730,7 +737,28 @@ export function SlotEingabe({
      weil das JavaScripts Vorgabe ist. Auf dem Bildschirm stand dadurch
      "S/4HANA-Migrationsprojekt,Gestaltungsspielraum im Teilprojekt Finanzen".
      Dieselbe Trennung wie beim Anhaengen von Chips. */
-  const text = Array.isArray(wert) ? wert.filter(Boolean).join(' · ') : String(wert ?? '');
+  /* Die Gewichtung der Aufgaben steht als { Bereich: Anteil } in der Spalte --
+     so liest sie die Karte des Recruiters. Im Feld stand dadurch
+     "[object Object]" (Durchklick 13.11.2026). Jetzt als "Bereich 80 % · …";
+     bleibt die Form beim Aendern erhalten, wird wieder ein Objekt daraus. */
+  const anteile = !!wert && typeof wert === 'object' && !Array.isArray(wert)
+    && Object.values(wert as object).length > 0
+    && Object.values(wert as object).every((x) => typeof x === 'number');
+  const text = Array.isArray(wert)
+    ? wert.filter(Boolean).join(' · ')
+    : anteile
+      ? Object.entries(wert as Record<string, number>).map(([k, x]) => `${k} ${x} %`).join(' · ')
+      : String(wert ?? '');
+  const textSetzen = (t: string) => {
+    if (anteile) {
+      const teile = t.split('·').map((x) => x.trim()).filter(Boolean).map((x) => x.match(/^(.+?)\s+(\d{1,3})\s*%$/));
+      if (teile.length && teile.every(Boolean)) {
+        onSet(Object.fromEntries(teile.map((m) => [m![1], Number(m![2])])));
+        return;
+      }
+    }
+    onSet(t);
+  };
   const anhaengen = (c: string) =>
     onSet(text.trim() ? `${text.trim().replace(/[.·\s]+$/, '')} · ${c}` : c);
 
@@ -783,7 +811,7 @@ export function SlotEingabe({
       <Textarea value={text} rows={slot.form === 'ai' ? 3 : 2}
                 placeholder={angebote?.length ? 'Anklicken oder selbst schreiben …' : 'In Ihren Worten …'}
                 className="text-xs"
-                onChange={(e) => onSet(e.target.value)} />
+                onChange={(e) => textSetzen(e.target.value)} />
     </div>
   );
 }

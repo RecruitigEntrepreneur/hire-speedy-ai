@@ -823,7 +823,10 @@ required: ["title", "company_name", "description", "requirements", "location",
     });
 
     return new Response(
-      JSON.stringify({ success: true, data: parsedJob }),
+      // anzeige_text: der Wortlaut, den der Leser gelesen hat. Die Aufnahme
+      // sucht darin die Zitate zu "aus der Anzeige" (13.11.2026) -- so kann
+      // nur ein Satz erscheinen, der woertlich in der Anzeige steht.
+      JSON.stringify({ success: true, data: parsedJob, anzeige_text: String(contentToAnalyze ?? '').slice(0, 20000) }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 

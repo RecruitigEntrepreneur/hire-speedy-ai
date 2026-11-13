@@ -7,6 +7,8 @@ import {
   type BriefPlace, type BriefSlot, type Known,
 } from '@/lib/briefCatalog';
 import { Check } from 'lucide-react';
+import { AnzeigeEtikett } from '@/components/intake/guest/AnzeigeEtikett';
+import { gleicherWert } from '@/lib/anzeigeZitat';
 import { AbteilungsTreppe } from './AbteilungsTreppe';
 import { EigeneEintraege } from './EigeneEintraege';
 import { teamgroesseAus, type Abteilungsaufbau } from '../../../../supabase/functions/_shared/abteilung';
@@ -58,9 +60,16 @@ interface Props {
   treppeOhneWeiter?: boolean;
   /** Etappen-Ansicht: Frage und Zeilen so gross wie die Gespraechsfragen. */
   gross?: boolean;
+  /** Etappen-Ansicht: Wortlaut der Anzeige fuer die Zitate (13.11.2026). */
+  anzeige?: string | null;
+  /** Etappen-Ansicht: was die Anzeige je Feld sagte -- bleibt nach einer anderen Wahl stehen. */
+  anzeigeWerte?: Record<string, unknown>;
 }
 
-export function CatalogFields({ place, known, onSet, contract, mustHaves = [], onConfirm, aufbauVorschlaege, nur, treppeOhneWeiter = false, gross = false }: Props) {
+export function CatalogFields({ place, known, onSet, contract, mustHaves = [], onConfirm, aufbauVorschlaege, nur, treppeOhneWeiter = false, gross = false, anzeige = null, anzeigeWerte }: Props) {
+  /** Was die Anzeige zu einem Feld sagte (gemerkt), sonst der noch ungepruefte Wert. */
+  const adVon = (k: string): unknown =>
+    anzeigeWerte && k in anzeigeWerte ? anzeigeWerte[k] : known[k]?.from === 'ad' ? known[k]?.value : undefined;
   const passt = (qKey: string, sKey?: string) => !nur || nur.includes(qKey) || (!!sKey && nur.includes(sKey));
   const fragen = questionsAt(place, contract).filter((q) =>
     q.slots.some((s) => !s.only || s.only === contract) &&
@@ -105,7 +114,8 @@ export function CatalogFields({ place, known, onSet, contract, mustHaves = [], o
             )}
             <div className="space-y-2.5">
               {slots.map((s) => (
-                <div key={s.key} data-feld={s.key} tabIndex={-1} className="scroll-mt-24 rounded-md outline-none">
+                <div key={s.key} data-feld={s.key} tabIndex={-1} className="scroll-mt-24 rounded-md outline-none"
+                     data-aus-anzeige={gross && known[s.key]?.from === 'ad' ? 'ja' : undefined}>
                   {s.form === 'struktur' ? (
                     /* Die Treppe schreibt die Teamgroesse mit -- abgeleitet aus
                        Kolleg:innen, Fuehrungsspanne oder Zielgroesse. So gibt es
@@ -123,12 +133,19 @@ export function CatalogFields({ place, known, onSet, contract, mustHaves = [], o
                       laedtVorschlaege={aufbauVorschlaege?.laedt}
                       onVorschlaegeNoetig={aufbauVorschlaege?.holen}
                       ohneWeiter={treppeOhneWeiter}
+                      anzeige={anzeige}
+                      anzeigeWert={gross ? adVon(s.key) : undefined}
                     />
                   ) : (
                   <>
                   <p className={gross ? (zeigeFrage ? 'mb-1.5 text-sm font-medium text-foreground' : 'mb-2 text-base font-semibold text-foreground') : 'mb-1 text-[11px] text-muted-foreground'}>
                     {slotLabel(s, contract)}
                     {!s.required && <span className="ml-1 text-[10px]">(optional)</span>}
+                    {gross && adVon(s.key) !== undefined && (
+                      <span className="ml-1.5 inline-block align-middle">
+                        <AnzeigeEtikett anzeige={anzeige} wert={adVon(s.key)} abweichend={!gleicherWert(known[s.key]?.value, adVon(s.key))} />
+                      </span>
+                    )}
                   </p>
                   <FeldEingabe
                     contract={contract}
@@ -149,6 +166,8 @@ export function CatalogFields({ place, known, onSet, contract, mustHaves = [], o
                     }
                     onSet={(v) => onSet(s.key, v)}
                     onConfirm={onConfirm ? () => onConfirm(s.key) : undefined}
+                    ruhig={gross}
+                    anzeigeWert={gross ? adVon(s.key) : undefined}
                   />
                   </>
                   )}
@@ -172,8 +191,10 @@ const QUELLE: Partial<Record<string, string>> = {
 };
 
 function FeldEingabe({
-  slot, contract, wert, quelle, optionen, onSet, onConfirm,
+  slot, contract, wert, quelle, optionen, onSet, onConfirm, ruhig = false, anzeigeWert,
 }: {
+  /** Was die Anzeige sagt -- gestrichelt markiert, wenn etwas anderes gewaehlt ist (13.11.2026). */
+  anzeigeWert?: unknown;
   slot: BriefSlot;
   contract: 'full-time' | 'freelance';
   wert: unknown;
@@ -182,6 +203,11 @@ function FeldEingabe({
   optionen?: string[];
   onSet: (v: unknown) => void;
   onConfirm?: () => void;
+  /**
+   * Etappen-Ansicht (Entscheidung Marko 13.11.2026, Variante A): nur ein
+   * ruhiges Etikett "aus der Anzeige", kein "stimmt" -- "Weiter" uebernimmt.
+   */
+  ruhig?: boolean;
 }) {
   const hinweis = quelle && quelle !== 'answer' ? QUELLE[quelle] : null;
   const gewaehlt = Array.isArray(wert) ? (wert as string[]) : [];
@@ -208,19 +234,25 @@ function FeldEingabe({
       {(chips ?? []).map((c) => {
         const an = multi ? gewaehlt.includes(c) : wert === slotChipWert(slot, contract, c);
         const wert_ = slotChipWert(slot, contract, c);
+        const laut = anzeigeWert !== undefined && (multi
+          ? Array.isArray(anzeigeWert) && (anzeigeWert as unknown[]).includes(c)
+          : anzeigeWert === wert_ || anzeigeWert === c);
         return (
           <button
             key={c}
             type="button"
             onClick={() =>
               multi
-                ? onSet(an ? gewaehlt.filter((x) => x !== c) : [...gewaehlt, c])
+                // Erster Klick auf einen markierten Wert bestaetigt ihn (13.11.2026).
+                ? onSet(an && nurVorschlag ? gewaehlt : an ? gewaehlt.filter((x) => x !== c) : [...gewaehlt, c])
                 : onSet(an && !nurVorschlag ? undefined : wert_)
             }
+            title={laut && !an ? 'So steht es in Ihrer Anzeige' : undefined}
             className={cn(
               'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs transition-colors',
               an
                 ? 'border-primary bg-primary/10 text-foreground'
+                : laut ? 'border-dashed border-blue-500/70 text-blue-600 hover:bg-accent dark:text-blue-300'
                 : 'border-input text-muted-foreground hover:bg-accent hover:text-foreground',
             )}
           >
@@ -264,7 +296,12 @@ function FeldEingabe({
                   className="text-xs" onChange={(e) => onSet(e.target.value || undefined)} />
       )}
 
-      {hinweis && hatWert({ [slot.key]: { value: wert, from: 'ad' } }, slot.key) && (
+      {/* Etappen: das Etikett steht an der Beschriftung (CatalogFields), hier nur
+          die anderen Quellen ruhig. */}
+      {ruhig && hinweis && quelle !== 'ad' && hatWert({ [slot.key]: { value: wert, from: 'ad' } }, slot.key) && (
+        <p className="mt-1"><span className="rounded-full border border-input px-1.5 py-px text-[10px] font-normal text-muted-foreground">{hinweis}</span></p>
+      )}
+      {!ruhig && hinweis && hatWert({ [slot.key]: { value: wert, from: 'ad' } }, slot.key) && (
         <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[10px] text-amber-600">
           {hinweis}
           {onConfirm && quelle === 'ad' ? (

@@ -36,6 +36,16 @@ export interface TensionFlag {
 
 export interface DynState {
   available: boolean | null; // null = noch nicht probiert
+  /**
+   * Der Wortlaut der eingelesenen Anzeige (Text, PDF oder Link). Nur fuer die
+   * Zitate zu "aus der Anzeige" (13.11.2026); geht an keine KI.
+   */
+  anzeigeText?: string | null;
+  /**
+   * Was die Anzeige zu jedem Feld sagte -- bleibt, auch wenn der Kunde etwas
+   * anderes waehlt (Entscheidung Marko 13.11.2026: das Zitat verschwindet nie).
+   */
+  anzeigeWerte?: Record<string, unknown>;
   answers: DynAnswered[];
   askedIds: string[];
   completeness: number;

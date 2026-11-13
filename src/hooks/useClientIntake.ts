@@ -453,7 +453,8 @@ export function useClientIntake(jobIdParam?: string) {
     const path = `uploads/${Date.now()}-${Math.random().toString(36).slice(2, 9)}.pdf`;
     const up = await supabase.storage.from('job-documents').upload(path, file);
     if (up.error) return fail('Die Datei konnte nicht hochgeladen werden.');
-    const { data, error } = await supabase.functions.invoke('parse-job-pdf', { body: { pdfPath: path } });
+    // format 'aufnahme': das PDF liest derselbe Leser wie eingefuegten Text (13.11.2026).
+    const { data, error } = await supabase.functions.invoke('parse-job-pdf', { body: { pdfPath: path, format: 'aufnahme' } });
     if (error) return fail('Die PDF konnte nicht gelesen werden. Fügen Sie den Text ein.');
     return data;
   }, []);
