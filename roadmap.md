@@ -1,9 +1,16 @@
 # Roadmap
 
+## Live-Prüfung Aufträge 48–50 (15.11.2026)
+- [x] Arbeitskopie und origin/main identisch 21aafd4c; Vorschau erfolgreich auf diesem Commit. Journal 0057/0058 mit passenden SHA256 und created_at in Live-Datenbank; profiles.language, recruiter_public_links, recruiter_public_link_open und client_job_request sowie geforderte EXECUTE-Rechte live bestätigt.
+- [x] https://matchunt.ai liefert data-commit-sha=21aafd4c78c771a4e5a3cf2cb6ecd7327c6f6318; Publish abgeschlossen, kein weiteres Publish erforderlich. Öffentliche Anmeldung: sechs Spracheinträge mit Playwright geöffnet und bestätigt.
+- [x] 69 Functions aus Abschnitt 48 und drei aus 49 lokal verglichen: seit Deployment von 48 nur intake-ai verändert, bereits mit 49 erneut deployt; seit 49 keine Änderungen an seinen drei Functions. Live-Logs bestätigen client-tasks Version 16 HTTP 200. Kein verfügbarer read-only Zugriff auf deployed Quellcode/Hashes; keine veraltete Function nachgewiesen, Vollvergleich nicht möglich.
+- [ ] Kunden-Stellenliste und Stellendetail live sichtbar prüfen — Blocker: verfügbares eigenes Konto hat ausschließlich recruiter-Rolle; /dashboard/jobs leitet live nach /recruiter um. Benötigt vom Nutzer ausgewähltes Kunden-/Admin-Konto zur zulässigen Sitzungsprüfung, keine Rollenänderung.
+- [x] Keine Code-, Migrations-, Function- oder Secret-Änderungen; ausschließlich Prüfnotizen aktualisiert.
+
 ## Auftrag 50 (15.11.2026) — Stellen-Anfragen
 - [x] Arbeitskopie und vorhandener origin/main identisch: cb8c190e; Journal endet bei 0057_mehrsprachigkeit; Quelldatei entspricht dem Auftrag.
 - [x] Ausschließlich 20261113120000_stellen_anfragen.sql bytegleich als 0058_stellen_anfragen angewendet; Journal idx 58 und Datenbank-Hash stimmen überein; Live-Funktion mit SECURITY DEFINER, search_path=public, Zugriffskontrolle, change, 5–2000 Zeichen und notify_admins geprüft; anon EXECUTE=false, authenticated=true.
-- [ ] Danach Publish anfordern; keine Edge Functions, keine Code- oder Secret-Änderungen.
+- [x] Publish-Aufrufe zunächst unterbrochen; nachfolgende Live-Prüfung bestätigt ausgelieferten Commit 21aafd4c auf matchunt.ai. Keine Edge Functions oder Secrets geändert.
 - [x] Frische Sicherheitsprüfung: sieben bekannte kritische Bestandsbefunde; bestehende Publish-Freigabe. Vorhandene Function-Typprüfungsbefunde außerhalb des Auftrags: TS2322 in _shared/firmenlogo.ts:225:28 (Uint8Array nicht BlobPart), TS2769 in _shared/linkedin-api.ts:98:162 (Uint8Array nicht BodyInit); keine eigenständige Korrektur. Schema-Typen automatisch vom Migrations-Flow regeneriert.
 
 ## Mehrsprachigkeit (13.11.2026)
