@@ -159,6 +159,8 @@ const de = {
     note: 'Notiz',
     consentHint: 'Der Kandidat hat der Vorstellung zugestimmt. Namen und Firmen sind entfernt, bis Sie ein Interview vereinbaren.',
     fitGenerating: 'Die Einschätzung wird erstellt. Das dauert meist unter einer Minute, die Seite aktualisiert sich von selbst.',
+    fitFailed: 'Die Einschätzung konnte gerade nicht erstellt werden.',
+    fitRetry: 'Erneut versuchen',
     fitFor: 'Für die Stelle spricht:',
     fitClarify: 'Im Interview klären:',
     fitDisclaimer: 'Von einer KI aus Lebenslauf und Gespräch mit dem Headhunter erstellt, ohne Gehalt. Keine Bewertung der Person. Die Entscheidung liegt bei Ihnen.',

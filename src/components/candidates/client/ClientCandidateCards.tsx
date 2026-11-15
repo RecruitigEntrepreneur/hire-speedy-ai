@@ -1,7 +1,8 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { GraduationCap, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import type { CandidateFitAssessment, useCandidateFitAssessment } from '@/hooks/useCandidateFitAssessment';
 import { readGaps } from '@/lib/clientQuestions';
 import { useTranslation } from 'react-i18next';
@@ -75,8 +76,10 @@ export function InterviewInsightsCard({ interview, recruiterNotes, recruiterName
  */
 export function FitTextCard({ fit }: { fit: ReturnType<typeof useCandidateFitAssessment> }) {
   const { t: tc } = useTranslation('clientCandidates');
-  const { assessment, loading, generating, generateAssessment, refetch } = fit;
+  const { assessment, loading, generating, failed, generateAssessment, refetch } = fit;
   const tried = useRef(false);
+  // Wartezeit abgelaufen (2 Minuten nachgesehen, nichts gekommen): Hinweis statt Drehen.
+  const [timedOut, setTimedOut] = useState(false);
 
   // Sicherheitsnetz: fehlt die Einschätzung (Auslöser beim Einreichen nicht durchgekommen), einmal still anstoßen.
   useEffect(() => {
@@ -87,11 +90,18 @@ export function FitTextCard({ fit }: { fit: ReturnType<typeof useCandidateFitAss
 
   // Entsteht sie gerade im Hintergrund, alle 15 Sekunden nachsehen (höchstens 2 Minuten).
   useEffect(() => {
-    if (assessment || loading) return;
+    if (assessment || loading || failed || timedOut) return;
     let n = 0;
-    const t = window.setInterval(() => { n += 1; if (n > 8) window.clearInterval(t); void refetch(); }, 15_000);
+    const t = window.setInterval(() => {
+      n += 1;
+      if (n > 8) { window.clearInterval(t); setTimedOut(true); return; }
+      void refetch();
+    }, 15_000);
     return () => window.clearInterval(t);
-  }, [assessment, loading, refetch]);
+  }, [assessment, loading, failed, timedOut, refetch]);
+
+  const retry = () => { setTimedOut(false); void generateAssessment({ silent: true }); };
+  const stuck = !assessment && !generating && (failed || timedOut);
 
   const fuer = (assessment?.bonus_qualifications ?? []).map((q) => q.qualification).filter(Boolean).slice(0, 3);
   // Gespeichert wird {gap, severity, mitigation}; ältere Einträge haben {requirement, …}. Der Kunde sieht das Thema, nicht den KI-Rat.
@@ -101,7 +111,12 @@ export function FitTextCard({ fit }: { fit: ReturnType<typeof useCandidateFitAss
     <Card>
       <CardContent className="p-5">
         <Kopf aside={<Badge variant="outline" className="text-[10px] font-normal">{tc('preview.aiBadge')}</Badge>}>{tc('preview.fitTitle')}</Kopf>
-        {!assessment ? (
+        {stuck ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+            <p className="min-w-0 flex-1">{tc('cards.fitFailed')}</p>
+            <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={retry}>{tc('cards.fitRetry')}</Button>
+          </div>
+        ) : !assessment ? (
           <div className="flex items-start gap-3 text-sm text-muted-foreground">
             <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin" />
             <p>{tc('cards.fitGenerating')}</p>

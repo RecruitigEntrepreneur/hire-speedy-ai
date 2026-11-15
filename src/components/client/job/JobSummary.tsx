@@ -94,7 +94,8 @@ function Lang({ text, zeilen = 4 }: { text: string; zeilen?: 3 | 4 }) {
  * must_have_criteria & Co. (dieselbe Regel wie beim Headhunter), nicht aus der
  * alten Skill-Spalte must_haves.
  */
-export function JobSummary({ job, ohneRahmen = false }: { job: Record<string, unknown>; ohneRahmen?: boolean }) {
+// schmal: in einer Spalte der Stellenseite (halbe Breite) weniger Kacheln je Zeile.
+export function JobSummary({ job, ohneRahmen = false, schmal = false }: { job: Record<string, unknown>; ohneRahmen?: boolean; schmal?: boolean }) {
   const { t } = useTranslation('clientJobs');
   const [mehr, setMehr] = useState(false);
   const b = job as unknown as BriefingJob & Record<string, unknown>;
@@ -157,7 +158,7 @@ export function JobSummary({ job, ohneRahmen = false }: { job: Record<string, un
       {!ohneRahmen && <Kopf>{datum ? t('summary.titleFrom', { date: fmtDayMonth(datum) }) : t('summary.title')}</Kopf>}
 
       {eckdaten.length > 0 && (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+        <div className={schmal ? "grid grid-cols-2 gap-2 sm:grid-cols-3" : "grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5"}>
           {eckdaten.map((e) => (
             <div key={e.label} className="rounded-lg bg-muted/40 px-3 py-2">
               <p className="text-xs text-muted-foreground">{e.label}</p>
@@ -169,7 +170,7 @@ export function JobSummary({ job, ohneRahmen = false }: { job: Record<string, un
       )}
 
       {(links || rechts) && (
-        <div className="mt-5 grid gap-6 md:grid-cols-2">
+        <div className={schmal ? "mt-5 grid gap-6" : "mt-5 grid gap-6 md:grid-cols-2"}>
           <div>
             {aufgaben && <Feld label={t('summary.tasks')}><Lang text={aufgaben} /></Feld>}
             {kriterien.required.length > 0 && <Feld label={t('summary.must')}><Chips items={kriterien.required} /></Feld>}

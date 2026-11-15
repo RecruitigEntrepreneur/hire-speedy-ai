@@ -245,6 +245,10 @@ export const closeJob = (p: {
 export const requestCallback = (jobId: string, note?: string) =>
   rpc<void>('client_request_callback', { p_job_id: jobId, p_note: note ?? null });
 
+/** Änderung an einer laufenden Stelle bei Matchunt anfragen (Text Pflicht, 14.11.2026). */
+export const requestJobChange = (jobId: string, kind: 'change', note?: string) =>
+  rpc<void>('client_job_request', { p_job_id: jobId, p_kind: kind, p_note: note ?? null });
+
 /** Signierter Link zum Foto eines Headhunters (privater Bucket, Policy für Kunden seiner Stellen). */
 export async function avatarUrl(path: string | null): Promise<string | null> {
   if (!path) return null;

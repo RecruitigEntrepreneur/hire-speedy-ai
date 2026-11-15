@@ -161,6 +161,8 @@ const sv: Messages<typeof de> = {
     note: 'Anteckning',
     consentHint: 'Kandidaten har godkänt att presenteras. Namn och företag är borttagna tills du bokar en intervju.',
     fitGenerating: 'Bedömningen tas fram. Det tar oftast mindre än en minut, sidan uppdateras av sig själv.',
+    fitFailed: 'Bedömningen kunde inte tas fram just nu.',
+    fitRetry: 'Försök igen',
     fitFor: 'Talar för tjänsten:',
     fitClarify: 'Reda ut i intervjun:',
     fitDisclaimer: 'Framtagen av en AI utifrån CV och samtalet med headhuntern, utan lön. Ingen bedömning av personen. Beslutet är ditt.',

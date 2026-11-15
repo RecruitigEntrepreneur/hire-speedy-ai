@@ -59,7 +59,7 @@ export interface JobAgendaSlice {
 
 // Termine & Feedback: vergangene Interviews ohne Feedback zuerst (die häufigste
 // Blockade), dann der nächste Termin — reine Navigation zu den sicheren Flows.
-export function JobTermineCard({ agenda }: { agenda: JobAgendaSlice }) {
+export function JobTermineCard({ agenda, empty }: { agenda: JobAgendaSlice; empty?: { title: string; text: string } }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
@@ -101,7 +101,23 @@ export function JobTermineCard({ agenda }: { agenda: JobAgendaSlice }) {
     });
   }
 
-  if (rows.length === 0) return null;
+  // Ohne Termine: nur auf Wunsch eine ruhige Karte, die erklärt, wie ein Interview zustande kommt.
+  if (rows.length === 0) {
+    if (!empty) return null;
+    return (
+      <div className="rounded-xl border bg-card p-4">
+        <div className="mb-1 flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('jobdetail.termine.title')}</p>
+          <Button variant="ghost" size="sm" className="h-8 gap-1 px-2 text-xs text-primary" onClick={() => navigate('/dashboard/interviews')}>
+            {t('jobdetail.termine.all')}
+            <ArrowRight className="h-3 w-3" />
+          </Button>
+        </div>
+        <p className="text-sm">{empty.title}</p>
+        <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{empty.text}</p>
+      </div>
+    );
+  }
   const more = agenda.upcoming.length - 1;
 
   return (

@@ -161,6 +161,8 @@ const nb: Messages<typeof de> = {
     note: 'Notat',
     consentHint: 'Kandidaten har samtykket til å bli presentert. Navn og virksomheter er fjernet til du avtaler et intervju.',
     fitGenerating: 'Vurderingen lages. Det tar som regel under ett minutt, siden oppdateres av seg selv.',
+    fitFailed: 'Vurderingen kunne ikke lages akkurat nå.',
+    fitRetry: 'Prøv igjen',
     fitFor: 'Taler for stillingen:',
     fitClarify: 'Avklar i intervjuet:',
     fitDisclaimer: 'Laget av en KI ut fra CV og samtalen med headhunteren, uten lønn. Ingen vurdering av personen. Beslutningen er din.',

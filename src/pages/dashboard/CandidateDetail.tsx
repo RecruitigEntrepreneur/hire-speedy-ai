@@ -438,6 +438,7 @@ export default function CandidateDetail() {
   useEffect(() => {
     if (!openRequest || !subState) return;
     if (openRequest === 'feedback') setFeedbackFor(feedbackInterviewId);
+    if (openRequest === 'interview') setShowInterviewDialog(true);
     if (openRequest === 'offer') setShowOffer(true);
     if (openRequest === 'reject') setShowRejectDialog(true);
     if (openRequest === 'frage') setShowFrage(true);

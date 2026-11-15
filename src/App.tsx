@@ -224,6 +224,11 @@ function AppRoutes() {
           <ClientJobDetail />
         </ProtectedRoute>
       } />
+      <Route path="/dashboard/jobs/:id/:tab" element={
+        <ProtectedRoute allowedRoles={['client']}>
+          <ClientJobDetail />
+        </ProtectedRoute>
+      } />
       <Route path="/dashboard/interviews" element={
         <ProtectedRoute allowedRoles={['client']}>
           <ClientInterviews />

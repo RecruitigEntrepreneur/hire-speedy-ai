@@ -18,11 +18,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { JobEditDialog } from '@/components/jobs/JobEditDialog';
 
 // Job-Cockpit: Zustandspille, Zug-Banner (Engpass-Diagnose), Funnel-Leiste,
 // "Wartet auf Sie"-Liste — alles gespeist aus useBewerber({jobId}).
-import { JobStatePill, JobZugBanner, JobFunnel, JobWaitList } from '@/components/client/JobCockpit';
+import { JobStatePill } from '@/components/client/JobCockpit';
 import {
   JobTermineCard,
   JobKonditionen,
@@ -30,13 +29,13 @@ import {
   JobVerlauf,
   type VerlaufEvent,
 } from '@/components/client/JobDetailSections';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
-import { computeJobState, diagnoseJob, myTurnTabs } from '@/lib/jobCockpit';
+import { AgreementCard, AnsweredQuestionsCard, ChangeRequestDialog, DetailSheet, FinalistsCard, ForYouCard, JobFactsLine, OthersCard, SearcherLine, JobMoreMenu, JobStatusMenu, SearchStatusCard, ShareStatusDialog, SpeedCard, agreementFactsOf, useJobSearchers, type JobRunState, type ShareData } from '@/components/client/job/JobControl';
+import { taskHref, useClientTasks, type ClientTask } from '@/lib/clientTasksApi';
+import { ClientTaskWindow } from '@/components/client/tasks/ClientTaskWindow';
+import { CandidatesTab, ContractTab, InterviewsTab, JobTabsBar, MarketTab, TeamTab, costLineOf, isJobTab, type HistoryEvent, type JobTab } from '@/components/client/job/JobSubpages';
+import { SectionCard } from '@/components/client/job/JobControl';
+import { JobsAnalytics } from '@/components/client/jobs/JobsAnalytics';
+import { computeJobState } from '@/lib/jobCockpit';
 import { useBewerber } from '@/hooks/useBewerber';
 import { useClientInterviewAgenda } from '@/hooks/useClientInterviewAgenda';
 
@@ -44,6 +43,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
+  FileDown,
   Circle,
   Clock,
   Loader2,
@@ -62,13 +62,13 @@ import { stellenVerlauf, verlaufDatum } from '@/lib/stellenVerlauf';
 import { VerlaufLeiste } from '@/components/dashboard/StellenVerlauf';
 import { isMissingColumnError } from '@/lib/intakeCapture';
 import { cn } from '@/lib/utils';
-import { JobManageMenu } from '@/components/client/job-manage/JobManageMenu';
 import { PauseJobDialog } from '@/components/client/job-manage/PauseJobDialog';
 import { CloseJobDialog } from '@/components/client/job-manage/CloseJobDialog';
 import { JobSearchersCard } from '@/components/client/searchers/JobSearchersCard';
 import { DirectPositionBanner } from '@/components/client/searchers/DirectPositionBanner';
 import { errorText, resumeJob } from '@/lib/jobSearch';
 import { fmtDayMonth, fmtNumber } from '@/lib/localeFormat';
+import { experienceBandLabel } from '@/lib/clientCandidateLabels';
 
 interface JobSummary {
   key_facts: { icon: string; label: string; value: string }[];
@@ -124,7 +124,8 @@ interface Job {
 }
 
 export default function ClientJobDetail() {
-  const { id } = useParams<{ id: string }>();
+  const { id, tab } = useParams<{ id: string; tab?: string }>();
+  const activeTab: JobTab = isJobTab(tab) ? tab : 'uebersicht';
   const navigate = useNavigate();
   // Dieselbe Aufnahme wie auf dem Dashboard; Schliessen fuehrt hierher zurueck.
   const openIntake = () => navigate(`/dashboard/aufnahme/${id}`, { state: { from: `/dashboard/jobs/${id}` } });
@@ -153,9 +154,15 @@ export default function ClientJobDetail() {
 
   // Interview-Agenda (zeit-basiert, reveal-sicher) — hier job-gefiltert.
   const { data: agendaData } = useClientInterviewAgenda();
+  const clientTasks = useClientTasks();
+  const [activeTask, setActiveTask] = useState<ClientTask | null>(null);
+  const { t: tjobs } = useTranslation('clientJobs');
+  const searchers = useJobSearchers(id ?? '');
+  const [sheet, setSheet] = useState<'stelle' | 'hh' | 'beteiligt' | null>(null);
+  const [changeOpen, setChangeOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
 
   // Dialog states
-  const [showEditDialog, setShowEditDialog] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const [pauseOpen, setPauseOpen] = useState(searchParams.get('pausieren') === '1');
   const [closeOpen, setCloseOpen] = useState(searchParams.get('schliessen') === '1');
@@ -538,8 +545,6 @@ export default function ClientJobDetail() {
     kandidaten: bewerberItems.length,
     ersterKandidatAm: bewerberItems.map((i) => i.submittedAt).filter(Boolean).sort()[0] ?? null,
   });
-  const diagnose = diagnoseJob(bewerberItems, { pausedAt: job.paused_at, liveSince, status: job.status });
-  const turnTabs = myTurnTabs(bewerberItems);
   const hiredCount = bewerberItems.filter((i) => i.archiveKind === 'eingestellt').length;
 
   // Interview-Agenda auf diese Stelle gefiltert (inkl. fälliger Feedbacks)
@@ -562,11 +567,6 @@ export default function ClientJobDetail() {
   const isViewer = myOrgRole === 'viewer';
   // Pausieren/Schließen: Owner, Admin, HR (Kundenvertrag § 3 Abs. 2); ohne Organisation der Ersteller.
   const canManage = !myOrg || ['owner', 'admin', 'hr'].includes(myOrgRole ?? '');
-  // Auch der Banner bietet Viewern keine Job-Verwaltung an (Briefing/Reaktivieren).
-  const shownDiagnose =
-    isViewer && (diagnose.action.type === 'edit' || diagnose.action.type === 'resume')
-      ? { ...diagnose, action: { labelKey: '', type: 'none' as const } }
-      : diagnose;
 
   // Schlanker Verlauf aus vorhandenen Daten (echte Event-Tabelle: späteres Thema)
   const fmtVerlaufDatum = (iso: string) => fmtDayMonth(iso);
@@ -618,9 +618,9 @@ export default function ClientJobDetail() {
       .filter(Boolean)
       .join(', '),
     job.employment_type
-      ? t(`jobdetail.employment.${job.employment_type}`, { defaultValue: job.employment_type })
+      ? t(`jobdetail.employment.${job.employment_type.replace(/_/g, '-')}`, { defaultValue: job.employment_type })
       : null,
-    salaryLabel,
+    // Gehalt steht im Steckbrief darunter (K3), nicht doppelt in dieser Zeile.
     // Geschlossene/besetzte Stellen behaupten keine Live-Laufzeit mehr.
     isTerminal
       ? null
@@ -639,9 +639,91 @@ export default function ClientJobDetail() {
     .filter(Boolean)
     .join(' · ');
 
+  const agreementFacts = agreementFactsOf(rawJob, salaryLabel, tjobs);
+
+  // Aufgaben dieser Stelle (dieselbe Liste wie Seite „Aufgaben“ und Kandidatenprofil).
+  const jobTasks = (clientTasks.data?.tasks ?? []).filter((x) => x.jobId === job.id);
+  const jobWaiting = (clientTasks.data?.waiting ?? []).filter((x) => x.jobId === job.id);
+  const jobDone = (clientTasks.data?.done ?? []).filter((x) => x.jobId === job.id);
+  const openQuestions = jobTasks.filter((x) => x.kind === 'recruiter_question');
+  const openTask = (task: ClientTask) => (task.submissionId ? navigate(taskHref(task)) : setActiveTask(task));
+  const isLiveJob = ['published', 'paused'].includes(job.status ?? '');
+  const hasSearch = ['published', 'paused', 'closed', 'filled'].includes(job.status ?? '');
+  const runState: JobRunState = isTerminal || !isLiveJob ? 'terminal' : job.paused_at ? 'paused' : 'active';
+  const canRequest = !isViewer && !isTerminal;
+
+  // Gewünschter Start aus der Aufnahme (Briefing-Antwort), falls kein Besetzungsdatum gesetzt ist.
+  const startRaw = String(((rawJob.intake_payload as { briefing_answers?: { start?: { value?: unknown } } } | null)?.briefing_answers?.start?.value) ?? '').trim();
+  const startLabel = startRaw ? (['asap', 'sofort'].includes(startRaw.toLowerCase()) ? tjobs(`summary.start.${startRaw.toLowerCase()}`) : startRaw) : null;
+  const weekAgo = Date.now() - 7 * 86_400_000;
+  const interviewsThisWeek = (agendaData?.all || []).filter((x) => x.jobId === job.id && x.scheduledAt && Date.parse(x.createdAt) >= weekAgo).length;
+
+  // Daten für „Stand teilen“ (so anonym wie auf der Seite)
+  // ---- Daten der Unterseiten
+  const jobInterviews = (agendaData?.all || []).filter((x) => x.jobId === job.id);
+  const upcomingCount = jobInterviews.filter((x) => x.scheduledAt && Date.parse(x.scheduledAt) >= Date.now()).length;
+  const runningItems = bewerberItems.filter((x) => x.tab !== 'archiv');
+  const allSearchers = searchers ?? [];
+  const searchSentence = searchers === null ? null : [
+    tjobs('market.begun', { count: allSearchers.length }),
+    tjobs('market.delivered', { count: allSearchers.filter((x) => x.candidates > 0).length }),
+    tjobs('market.ended', { count: allSearchers.filter((x) => x.status === 'ended').length }),
+  ].join(' · ');
+  const budgetLabel = job.employment_type === 'freelance' ? (dayRateLabel ? tjobs('cockpit.facts.dayRate', { rate: dayRateLabel }) : null) : salaryLabel;
+  const costLine = costLineOf({
+    freelance: job.employment_type === 'freelance',
+    dayMin: dayRate.day_rate_min, dayMax: dayRate.day_rate_max,
+    daysPerWeek: (rawJob.utilization_days_per_week as number | null) ?? null,
+    feePct: job.fee_percentage, salaryMin: job.salary_min, salaryMax: job.salary_max,
+  }, tjobs);
+  const historyEvents: HistoryEvent[] = [];
+  if (job.approved_at) historyEvents.push({ when: job.approved_at, kind: 'stelle', text: tjobs('team.ev.published'), who: 'Matchunt' });
+  if (job.paused_at) historyEvents.push({ when: job.paused_at, kind: 'stelle', text: tjobs('team.ev.paused') });
+  if (typeof rawJob.closed_at === 'string') historyEvents.push({ when: rawJob.closed_at, kind: 'stelle', text: tjobs('team.ev.closed') });
+  for (const sx of allSearchers) {
+    if (sx.started_at) historyEvents.push({ when: sx.started_at, kind: 'stelle', text: tjobs('team.ev.started', { name: sx.full_name ?? '' }) });
+    if (sx.ended_at) historyEvents.push({ when: sx.ended_at, kind: 'stelle', text: tjobs('team.ev.ended', { name: sx.full_name ?? '' }) });
+  }
+  for (const it of bewerberItems) {
+    const nm = it.fullName || it.anonymizedName;
+    if (it.submittedAt) historyEvents.push({ when: it.submittedAt, kind: 'kandidaten', text: tjobs('team.ev.proposed', { name: nm }) });
+    if (it.requestedAt) historyEvents.push({ when: it.requestedAt, kind: 'interviews', text: tjobs('team.ev.requested', { name: nm }) });
+    if (it.rejectedAt) historyEvents.push({ when: it.rejectedAt, kind: 'kandidaten', text: it.rejectReason ? tjobs('team.ev.rejectedReason', { name: nm, reason: t(`clientCandidates:rejection.reasons.${it.rejectReason}`, { defaultValue: it.rejectReason }) }) : tjobs('team.ev.rejected', { name: nm }) });
+  }
+  for (const iv of jobInterviews) {
+    if (iv.scheduledAt && Date.parse(iv.scheduledAt) <= Date.now()) historyEvents.push({ when: iv.scheduledAt, kind: 'interviews', text: tjobs('team.ev.interview', { name: iv.candidateName }) });
+  }
+  for (const d of jobDone) {
+    if (d.kind === 'recruiter_question') historyEvents.push({ when: d.doneAt, kind: 'stelle', text: tjobs('team.ev.answered', { question: d.label }) });
+  }
+  historyEvents.sort((a, b) => Date.parse(b.when) - Date.parse(a.when));
+
+  const headSkills = [...new Set([...(job.must_haves ?? []), ...(job.skills ?? [])].map((x) => x.trim()).filter(Boolean))].slice(0, 8);
+
+  const shareData: ShareData = {
+    title: job.title,
+    meta: metaLine,
+    statusLine: [
+      tjobs('cockpit.status.live', { count: liveDays }),
+      tjobs('cockpit.status.searchersLine', { count: (searchers ?? []).filter((x) => x.status !== 'ended').length }),
+    ].join(' · '),
+    steps: [
+      [tjobs('cockpit.status.steps.proposals'), bewerberItems.length],
+      [tjobs('cockpit.status.steps.interview'), tabCounts.interview],
+      [tjobs('cockpit.status.steps.offer'), tabCounts.angebot],
+      [tjobs('cockpit.status.steps.hired'), hiredCount],
+    ],
+    finalists: bewerberItems.filter((x) => x.tab === 'interview' || x.tab === 'angebot').slice(0, 3).map((x) => ({
+      name: x.fullName || x.anonymizedName,
+      facts: [x.currentRole, x.experienceBand !== 'Nicht angegeben' ? experienceBandLabel(x.experienceBand) : '', x.salaryBand].filter(Boolean).join(' · '),
+    })),
+    appointments: [...jobAgenda.upcoming].slice(0, 3).map((iv) => `${iv.scheduledAt ? fmtDayMonth(iv.scheduledAt) : ''} · ${iv.candidateName ?? ''}`.trim()),
+    facts: agreementFacts,
+  };
+
   return (
     <DashboardLayout>
-      <div className="mx-auto max-w-4xl space-y-4">
+      <div className="mx-auto max-w-5xl space-y-4">
         <Link
           to="/dashboard/jobs"
           className="inline-flex items-center text-sm text-muted-foreground transition-colors hover:text-foreground"
@@ -650,121 +732,140 @@ export default function ClientJobDetail() {
           {t('jobdetail.back')}
         </Link>
 
-        {/* Kopf: Titel + Zustandspille + Meta + Verwalten-Aktionen */}
+        {/* Kopf: Titel, Status als Auswahl, Stand teilen, ⋯. Bearbeitet wird nach dem Livegang nicht mehr. */}
         <div className="rounded-xl border bg-card p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0 flex-1 basis-72">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl font-bold md:text-2xl">{job.title}</h1>
-                <JobStatePill state={jobState} />
-              </div>
+              <h1 className="text-xl font-bold md:text-2xl">{job.title}</h1>
               <p className="mt-1 text-sm text-muted-foreground">{metaLine}</p>
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+              <JobStatusMenu
+                state={runState}
+                stateLabel={t(`jobdetail.state.${jobState.key}`)}
+                canManage={canManage && !isViewer}
+                onPause={() => setPauseOpen(true)}
+                onResume={handleResume}
+                onClose={() => setCloseOpen(true)}
+              />
               {!isViewer && (
-                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowEditDialog(true)}>
-                  <Pencil className="h-3.5 w-3.5" />
-                  {t('jobdetail.actions.edit')}
+                <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShareOpen(true)}>
+                  <FileDown className="h-3.5 w-3.5" />{tjobs('cockpit.share.button')}
                 </Button>
               )}
-              {isOrgAdmin && myOrg && (
-                <InviteMemberDialog
-                  organizationId={myOrg.id}
-                  defaultRole="hiring_manager"
-                  defaultJobIds={[job.id]}
-                  jobContext={{ id: job.id, title: job.title, location: job.location }}
-                  trigger={
-                    <Button variant="outline" size="sm" className="gap-1.5">
-                      <UserPlus className="h-3.5 w-3.5" />
-                      {t('jobdetail.actions.invite')}
-                    </Button>
-                  }
-                />
-              )}
-              {!isViewer && !isTerminal && ['published', 'paused'].includes(job.status ?? '') && (
-                <JobManageMenu
-                  canManage={canManage}
-                  isPaused={!!job.paused_at}
-                  onPause={() => setPauseOpen(true)}
-                  onResume={handleResume}
-                  onClose={() => setCloseOpen(true)}
-                />
-              )}
+              <JobMoreMenu canRequest={canRequest} onRequestChange={() => setChangeOpen(true)} onHistory={() => navigate(`/dashboard/jobs/${job.id}/team`)} />
             </div>
           </div>
-
-          {/* Live, aber noch ohne Kandidaten: derselbe Verlauf wie vor dem
-              Livegang, damit der Kunde sieht, wo die Stelle steht. Ab dem
-              ersten Kandidaten traegt der Funnel die Auskunft. */}
+          <JobFactsLine facts={agreementFacts} startLabel={startLabel} skills={headSkills} />
+          {hasSearch && <SearcherLine searchers={searchers} onDetails={() => setSheet('beteiligt')} />}
           {!bewerberLoading && !bewerberError && liveVerlauf?.aktuell && (
             <VerlaufLeiste verlauf={liveVerlauf} className="mt-4" />
           )}
-
-          {bewerberLoading ? (
-            <Skeleton className="mt-4 h-24 w-full" />
-          ) : bewerberError ? (
-            // Ehrlicher Fehler statt "noch kein Vorschlag"-Behauptung mit Null-Funnel
+          {bewerberError && (
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-destructive/10 px-4 py-3">
               <p className="text-sm font-medium text-destructive">{t('jobdetail.bewerber_error')}</p>
               <Button size="sm" variant="outline" onClick={() => refetchBewerber()}>
                 {t('bewerber.error.retry')}
               </Button>
             </div>
-          ) : (
-            <>
-              <div className="mt-4">
-                <JobZugBanner
-                  diagnose={shownDiagnose}
-                  jobId={job.id}
-                  onEdit={() => setShowEditDialog(true)}
-                  onResume={handleResume}
-                />
-              </div>
-              <div className="mt-3">
-                <JobFunnel jobId={job.id} tabCounts={tabCounts} turnTabs={turnTabs} hiredCount={hiredCount} />
-              </div>
-            </>
           )}
+          <JobTabsBar
+            jobId={job.id}
+            active={activeTab}
+            counts={{ kandidaten: runningItems.length, interviews: upcomingCount }}
+            dots={{
+              kandidaten: jobTasks.some((x) => !!x.submissionId),
+              interviews: jobAgenda.feedbackDue.length > 0,
+              markt: openQuestions.length > 0,
+            }}
+          />
         </div>
 
+        {activeTab === 'uebersicht' && (
+          <>
         {/* Rückfrage „Stelle schon direkt vergeben?“ (Bestandskunde eines Headhunters) */}
         <DirectPositionBanner jobId={job.id} jobTitle={job.title} canAnswer={canManage} />
 
-        {/* Wer für die Stelle sucht und gesucht hat (mit Namen) */}
-        {['published', 'paused', 'closed', 'filled'].includes(job.status ?? '') && (
-          <JobSearchersCard key={`${job.paused_at ?? 'live'}-${job.status}`} jobId={job.id} jobTitle={job.title} closed={isTerminal} />
+        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+          {/* Links: was Sie tun */}
+          <div className="space-y-4">
+            {bewerberLoading ? (
+              <Skeleton className="h-48 w-full rounded-xl" />
+            ) : !bewerberError ? (
+              <ForYouCard
+                tasks={isViewer ? [] : jobTasks}
+                waiting={jobWaiting}
+                items={bewerberItems}
+                loading={!isViewer && clientTasks.isLoading}
+                onOpen={openTask}
+              />
+            ) : null}
+            {!bewerberLoading && !bewerberError && <FinalistsCard items={bewerberItems} />}
+            <JobTermineCard agenda={jobAgenda} empty={isTerminal ? undefined : { title: tjobs('cockpit.dates.emptyTitle'), text: tjobs('cockpit.dates.emptyText') }} />
+            {!bewerberLoading && !bewerberError && <OthersCard tasks={jobTasks} waiting={jobWaiting} items={bewerberItems} />}
+          </div>
+
+          {/* Rechts: wie die Suche läuft und was Sie steuern */}
+          <div className="space-y-4">
+            {hasSearch && (
+              <SearchStatusCard
+                liveDays={liveDays}
+                searchers={searchers}
+                items={bewerberItems}
+                tabCounts={tabCounts}
+                hiredCount={hiredCount}
+                isPaused={!!job.paused_at}
+                isTerminal={isTerminal}
+              />
+            )}
+            {!isViewer && !isTerminal && (
+              <SpeedCard
+                openQuestions={openQuestions}
+                items={bewerberItems}
+                onAnswer={openTask}
+                onRequestChange={() => setChangeOpen(true)}
+                canRequest={canRequest}
+              />
+            )}
+            <AgreementCard
+              facts={[]}
+              onDetails={() => setSheet('stelle')}
+              onHeadhunterView={() => setSheet('hh')}
+              onRequestChange={() => setChangeOpen(true)}
+              canRequest={canRequest}
+            />
+            <AnsweredQuestionsCard done={jobDone} />
+          </div>
+        </div>
+          </>
         )}
 
-        {/* Wartet auf Sie — reine Navigation, Entscheidungen fallen in Inbox/Detail */}
-        {!bewerberLoading && !bewerberError && <JobWaitList items={bewerberItems} jobId={job.id} />}
-
-        {/* Termine & fällige Feedbacks dieser Stelle */}
-        <JobTermineCard agenda={jobAgenda} />
-
-        {/* Progressive Disclosure: alles Seltene hinter Akkordeons */}
-        <Accordion type="multiple" className="space-y-2">
-          <AccordionItem value="stelle" className="rounded-xl border bg-card px-4">
-            <AccordionTrigger className="text-sm font-semibold hover:no-underline">
-              {t('jobdetail.sections.stelle')}
-            </AccordionTrigger>
-            <AccordionContent>
-              <div className="space-y-4">
-                <JobSummary job={rawJob} ohneRahmen />
-                {!isViewer && (
-                  <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowEditDialog(true)}>
-                    <Pencil className="h-3.5 w-3.5" />
-                    {t('jobdetail.stelle.edit')}
-                  </Button>
-                )}
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-
-          <AccordionItem value="konditionen" className="rounded-xl border bg-card px-4">
-            <AccordionTrigger className="text-sm font-semibold hover:no-underline">
-              {t('jobdetail.sections.konditionen')}
-            </AccordionTrigger>
-            <AccordionContent>
+        {activeTab === 'kandidaten' && (
+          bewerberLoading ? <Skeleton className="h-64 w-full rounded-xl" /> : (
+            <CandidatesTab items={bewerberItems} tasks={isViewer ? [] : jobTasks} jobId={job.id} onOpen={openTask} />
+          )
+        )}
+        {activeTab === 'interviews' && (
+          <InterviewsTab interviews={jobInterviews} feedbackDue={jobAgenda.feedbackDue} />
+        )}
+        {activeTab === 'markt' && (
+          <MarketTab
+            searchersNode={hasSearch ? <JobSearchersCard key={`${job.paused_at ?? 'live'}-${job.status}`} jobId={job.id} jobTitle={job.title} closed={isTerminal} /> : null}
+            searchSentence={searchSentence}
+            items={bewerberItems}
+            budgetLabel={budgetLabel}
+            openQuestions={isViewer ? [] : openQuestions}
+            done={jobDone}
+            onAnswer={openTask}
+            previewNode={<HeadhunterVorschau descriptor={descriptor} vertraulich={Boolean(rawJob.confidential_search)} />}
+            onRequestChange={() => setChangeOpen(true)}
+            canRequest={canRequest}
+          />
+        )}
+        {activeTab === 'vertrag' && (
+          <ContractTab
+            facts={agreementFacts.filter(([label]) => label !== tjobs('cockpit.facts.budget') && label !== tjobs('cockpit.facts.salary'))}
+            konditionenNode={
               <JobKonditionen
                 salaryLabel={salaryLabel}
                 feePercentage={job.fee_percentage}
@@ -772,31 +873,70 @@ export default function ClientJobDetail() {
                 descriptor={descriptor}
                 contracting={job.employment_type === 'freelance' ? { budget: dayRateLabel } : null}
               />
-            </AccordionContent>
-          </AccordionItem>
-
-          {myOrg && (
-            <AccordionItem value="team" className="rounded-xl border bg-card px-4">
-              <AccordionTrigger className="text-sm font-semibold hover:no-underline">
-                {t('jobdetail.sections.team')}
-              </AccordionTrigger>
-              <AccordionContent>
+            }
+            canSeeFee={canSeeFee}
+            costLine={costLine}
+            offers={bewerberItems.filter((x) => x.tab === 'angebot' || x.archiveKind === 'eingestellt')}
+            onRequestChange={() => setChangeOpen(true)}
+            canRequest={canRequest}
+          />
+        )}
+        {activeTab === 'auswertung' && (
+          <JobsAnalytics
+            single
+            title={job.title}
+            items={bewerberItems}
+            jobs={[{ id: job.id, title: job.title, status: job.status, approved_at: job.approved_at, created_at: job.created_at, closed_at: (rawJob.closed_at as string | null) ?? null }]}
+          />
+        )}
+        {activeTab === 'team' && (
+          <TeamTab
+            teamNode={myOrg ? (
+              <SectionCard title={t('jobdetail.sections.team')}>
                 <JobTeam organizationId={myOrg.id} jobId={job.id} jobTitle={job.title} isOrgAdmin={isOrgAdmin} />
-              </AccordionContent>
-            </AccordionItem>
-          )}
-
-          <AccordionItem value="verlauf" className="rounded-xl border bg-card px-4">
-            <AccordionTrigger className="text-sm font-semibold hover:no-underline">
-              {t('jobdetail.sections.verlauf')}
-            </AccordionTrigger>
-            <AccordionContent>
-              <JobVerlauf events={verlaufShown} />
-            </AccordionContent>
-          </AccordionItem>
-
-        </Accordion>
+              </SectionCard>
+            ) : null}
+            events={historyEvents}
+            summaryNode={
+              <SectionCard title={t('jobdetail.sections.stelle')}>
+                <JobSummary job={rawJob} ohneRahmen schmal />
+              </SectionCard>
+            }
+          />
+        )}
       </div>
+
+      {/* Seltenes in Seitenfenstern */}
+      <DetailSheet open={sheet === 'stelle'} onOpenChange={(o) => !o && setSheet(null)} title={t('jobdetail.sections.stelle')}>
+        <JobSummary job={rawJob} ohneRahmen />
+        <div className="rounded-xl border p-4">
+          <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{t('jobdetail.sections.konditionen')}</p>
+          <JobKonditionen
+            salaryLabel={salaryLabel}
+            feePercentage={job.fee_percentage}
+            canSeeFee={canSeeFee}
+            descriptor={descriptor}
+            contracting={job.employment_type === 'freelance' ? { budget: dayRateLabel } : null}
+          />
+        </div>
+      </DetailSheet>
+      <DetailSheet open={sheet === 'hh'} onOpenChange={(o) => !o && setSheet(null)} title={tjobs('cockpit.agreement.hhView')} description={tjobs('cockpit.agreement.hhViewText')}>
+        <HeadhunterVorschau descriptor={descriptor} vertraulich={Boolean(rawJob.confidential_search)} />
+        <JobSummary job={rawJob} ohneRahmen />
+      </DetailSheet>
+      <DetailSheet open={sheet === 'beteiligt'} onOpenChange={(o) => !o && setSheet(null)} title={tjobs('cockpit.involved.title')}>
+        {hasSearch && <JobSearchersCard key={`${job.paused_at ?? 'live'}-${job.status}`} jobId={job.id} jobTitle={job.title} closed={isTerminal} />}
+        {myOrg && (
+          <div className="rounded-xl border p-4">
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{t('jobdetail.sections.team')}</p>
+            <JobTeam organizationId={myOrg.id} jobId={job.id} jobTitle={job.title} isOrgAdmin={isOrgAdmin} />
+          </div>
+        )}
+      </DetailSheet>
+
+      <ChangeRequestDialog jobId={job.id} open={changeOpen} onOpenChange={setChangeOpen} />
+      <ShareStatusDialog open={shareOpen} onOpenChange={setShareOpen} data={shareData} />
+      <ClientTaskWindow task={activeTask} open={!!activeTask} onOpenChange={(o) => { if (!o) { setActiveTask(null); void clientTasks.refetch(); } }} handlers={null} />
 
       <PauseJobDialog
         open={pauseOpen}
@@ -816,15 +956,6 @@ export default function ClientJobDetail() {
         onClosed={fetchJobData}
         onPauseInstead={() => setPauseOpen(true)}
       />
-
-      {/* Edit Dialog */}
-      <JobEditDialog
-        job={job}
-        open={showEditDialog}
-        onOpenChange={setShowEditDialog}
-        onSave={fetchJobData}
-      />
     </DashboardLayout>
   );
 }
-

@@ -102,6 +102,9 @@ export function useCandidateFitAssessment(submissionId?: string) {
   const [assessment, setAssessment] = useState<CandidateFitAssessment | null>(null);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  // Letzter Versuch, die Einschätzung zu erstellen, ist gescheitert (Karte zeigt dann
+  // einen Hinweis mit „Erneut versuchen“ statt endlos zu drehen).
+  const [failed, setFailed] = useState(false);
   const { toast } = useToast();
 
   const hasTriedGenerate = useRef(false);
@@ -145,6 +148,7 @@ export function useCandidateFitAssessment(submissionId?: string) {
     if (!submissionId) return null;
 
     setGenerating(true);
+    setFailed(false);
     try {
       const { data, error } = await supabase.functions.invoke('assess-candidate-fit', {
         body: { submissionId, force: options?.force },
@@ -179,6 +183,7 @@ export function useCandidateFitAssessment(submissionId?: string) {
       }
     } catch (error) {
       console.error('Error generating fit assessment:', error);
+      setFailed(true);
       if (!options?.silent) {
         toast({
           title: i18n.t('errors:fitFailed'),
@@ -201,6 +206,7 @@ export function useCandidateFitAssessment(submissionId?: string) {
     assessment,
     loading,
     generating,
+    failed,
     refetch: fetchAssessment,
     generateAssessment,
     hasTriedGenerate,

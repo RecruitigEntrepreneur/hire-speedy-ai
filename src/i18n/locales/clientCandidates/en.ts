@@ -160,6 +160,8 @@ const en: Messages<typeof de> = {
     note: 'Note',
     consentHint: 'The candidate has agreed to be presented. Names and companies are removed until you arrange an interview.',
     fitGenerating: 'The assessment is being created. This usually takes less than a minute; the page updates itself.',
+    fitFailed: 'The assessment couldn\'t be created just now.',
+    fitRetry: 'Try again',
     fitFor: 'In favour of the job:',
     fitClarify: 'To clarify in the interview:',
     fitDisclaimer: 'Created by an AI from the CV and the conversation with the headhunter, without salary. Not an assessment of the person. The decision is yours.',
