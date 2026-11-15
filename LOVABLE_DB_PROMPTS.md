@@ -1574,6 +1574,29 @@ Danach: `drizzle/migrations/meta/_journal.json` prüfen, darf sich nicht ändern
 
 ---
 
+## 50 — Kunden-Stellenseite und Meine Stellen neu, „Änderung anfragen“ (15.11.2026)
+
+Commit siehe `git log` („Kunden-Stellenseite und Meine Stellen neu …“). **1 Migration, keine Edge Function, Publish.**
+Erst nach Nr. 49. Stellenseite mit „Für Sie“, Unterseiten (Kandidaten, Interviews, Markt & Headhunter, Vertrag & Kosten,
+Team & Verlauf, Auswertung), Meine Stellen mit neuer Jobkarte und Auswertung. Nach dem Livegang bearbeitet der Kunde
+die Stelle nicht mehr selbst, sondern fragt eine Änderung an; die Meldung geht an die Admins.
+
+> 1. Aktuellen Stand von `main` übernehmen.
+> 2. Genau diese eine Migration über den Migrations-Flow ausführen: `supabase/migrations/20261113120000_stellen_anfragen.sql`.
+>    Keine andere Datei, die noch nicht im Journal steht. Inhalt: nur die Funktion `public.client_job_request(p_job_id uuid,
+>    p_kind text, p_note text)` (SECURITY DEFINER mit `SET search_path = public`, prüft `can_access_job`, erlaubt nur
+>    `p_kind = 'change'`, Text 5–2000 Zeichen, ruft `notify_admins`), dazu `REVOKE ALL … FROM PUBLIC, anon` und
+>    `GRANT EXECUTE … TO authenticated`. Keine Tabelle, keine Daten-Einfügungen, kein BEGIN/COMMIT, kein Cron.
+>    Die Migration so ausführen, wie sie in der Datei steht.
+> 3. Keine Edge Function deployen (es wurde keine geändert).
+> 4. Danach Publish. Reihenfolge: erst Migration, dann Publish.
+> 5. Am Code nichts ändern. Falls etwas nicht durchläuft, alle Befunde gesammelt mit Grund melden. Am Ende melden:
+>    Migration gelaufen (Journal-Eintrag) und Publish durch.
+
+Danach: `drizzle/migrations/meta/_journal.json` prüfen (neuer Eintrag `…_stellen_anfragen` nach `0057_mehrsprachigkeit`).
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über
