@@ -1,5 +1,11 @@
 # Roadmap
 
+## Auftrag 50 (15.11.2026) — Stellen-Anfragen
+- [x] Arbeitskopie und vorhandener origin/main identisch: cb8c190e; Journal endet bei 0057_mehrsprachigkeit; Quelldatei entspricht dem Auftrag.
+- [x] Ausschließlich 20261113120000_stellen_anfragen.sql bytegleich als 0058_stellen_anfragen angewendet; Journal idx 58 und Datenbank-Hash stimmen überein; Live-Funktion mit SECURITY DEFINER, search_path=public, Zugriffskontrolle, change, 5–2000 Zeichen und notify_admins geprüft; anon EXECUTE=false, authenticated=true.
+- [ ] Danach Publish anfordern; keine Edge Functions, keine Code- oder Secret-Änderungen.
+- [x] Frische Sicherheitsprüfung: sieben bekannte kritische Bestandsbefunde; bestehende Publish-Freigabe. Vorhandene Function-Typprüfungsbefunde außerhalb des Auftrags: TS2322 in _shared/firmenlogo.ts:225:28 (Uint8Array nicht BlobPart), TS2769 in _shared/linkedin-api.ts:98:162 (Uint8Array nicht BodyInit); keine eigenständige Korrektur. Schema-Typen automatisch vom Migrations-Flow regeneriert.
+
 ## Mehrsprachigkeit (13.11.2026)
 - [x] Aktuelles lokales main 6b072956 geprüft; Vorschau build OK; alle 69 angeforderten Function-Dateien vorhanden; Journal endet bei 0056_buchhaltung_umbau.
 - [x] Nutzer klärt: recruiter_public_link_open bewusst ohne SECURITY DEFINER; SQL unverändert ausführen, EXECUTE ausschließlich service_role.

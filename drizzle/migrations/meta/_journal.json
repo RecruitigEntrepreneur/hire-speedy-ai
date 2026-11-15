@@ -407,6 +407,13 @@
       "when": 1794577354496,
       "tag": "0057_mehrsprachigkeit",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1794711957542,
+      "tag": "0058_stellen_anfragen",
+      "breakpoints": true
     }
   ]
 }

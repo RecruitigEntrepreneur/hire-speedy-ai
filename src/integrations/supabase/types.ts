@@ -16897,6 +16897,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      client_job_request: {
+        Args: { p_job_id: string; p_kind: string; p_note?: string }
+        Returns: undefined
+      }
       client_pause_job: {
         Args: { p_job_id: string; p_reason?: string; p_until: string }
         Returns: undefined
