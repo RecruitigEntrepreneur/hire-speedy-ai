@@ -38,18 +38,19 @@ export function useLinkedin(opts: { enabled?: boolean } = {}) {
 
 let ruecksprungGemeldet = false;
 /** Rücksprung aus LinkedIn oder Microsoft melden und die Adresse aufräumen. */
-export function useRuecksprung() {
+export function useRuecksprung(opts: { kalender?: boolean } = {}) {
+  // kalender: false, wenn auf der Seite der Kalender-Baustein steht; der verarbeitet ?kalender= selbst (16.11.2026).
+  const mitKalender = opts.kalender !== false;
   // Lädt die Meldungen (Namespace recruiterTermin); gelesen werden sie erst beim Anzeigen.
   useTranslation('recruiterTermin');
   const qc = useQueryClient();
   useEffect(() => {
     const url = new URL(window.location.href);
     const li = url.searchParams.get('linkedin');
-    const ka = url.searchParams.get('kalender');
+    const ka = mitKalender ? url.searchParams.get('kalender') : null;
     if (!li && !ka) return;
     url.searchParams.delete('linkedin');
-    url.searchParams.delete('kalender');
-    url.searchParams.delete('grund');
+    if (ka) { url.searchParams.delete('kalender'); url.searchParams.delete('grund'); }
     history.replaceState(history.state, '', `${url.pathname}${url.search}${url.hash}`);
     if (ruecksprungGemeldet) return;
     ruecksprungGemeldet = true;
@@ -61,5 +62,5 @@ export function useRuecksprung() {
       else if (ka === 'it') toast(i18n.t('recruiterTermin:rueck.itConsent'));
       else if (ka) toast.error(i18n.t('recruiterTermin:rueck.outlookFailed'));
     }, 0);
-  }, [qc]);
+  }, [qc, mitKalender]);
 }

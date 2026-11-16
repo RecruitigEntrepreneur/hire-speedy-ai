@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { fetchRecruiterPlacements } from '@/lib/placementViews';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import { CalendarConnectCard } from '@/components/interview/calendar/CalendarConnectCard';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { LigaDashboardCard } from '@/components/recruiter/liga/LigaDashboardCard';
@@ -523,6 +524,8 @@ export default function RecruiterDashboard() {
         {/* H1: Hinweis auf neue Konditionen, bis zugestimmt ist (nur mit Stichtag) */}
         <KonditionenHinweis />
 
+        {/* Kalender verbinden (16.11.2026): dieselbe Leiste wie beim Kunden, mit du; weg, sobald verbunden oder ausgeblendet */}
+        <CalendarConnectCard variant="dashboard" fuer="headhunter" />
         <LigaDashboardCard />
         <LigaAwardDialog />
 

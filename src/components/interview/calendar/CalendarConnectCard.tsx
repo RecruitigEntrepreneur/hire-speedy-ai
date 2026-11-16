@@ -1,15 +1,14 @@
-import { useId, useState } from 'react';
+import { createContext, useContext, useId, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/i18n';
 import { toast } from 'sonner';
-import {
-  AlertTriangle, CalendarClock, Check, CheckCircle2, Clock, ExternalLink, Eye, Info, Loader2, PenLine, ShieldCheck, X,
-} from 'lucide-react';
+import { CalendarClock, Check, ExternalLink, Eye, Loader2, PenLine, ShieldCheck, X } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
+import { GoogleKalenderIcon, OutlookKalenderIcon } from '@/components/brand/MarkenLogos';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,39 +19,44 @@ import type { CalendarStatus } from '@/lib/interviewScheduling';
 import { CALENDAR_CARD_HIDDEN_KEY, sentAgo, useCalendarReturn, useCalendarStatus } from './useCalendarStatus';
 
 type Variant = 'settings' | 'dashboard' | 'checklist';
+
+/** Kunde („Sie“, clientInterviews) oder Headhunter („du“, recruiterKalender), seit 16.11.2026 ein Baustein für beide. */
+type KalNs = 'clientInterviews' | 'recruiterKalender';
+const KalenderNs = createContext<KalNs>('clientInterviews');
+const useKalT = () => useTranslation(useContext(KalenderNs));
+type KalT = ReturnType<typeof useKalT>['t'];
 type Calendar = ReturnType<typeof useCalendarStatus>;
 
 const DATENBLATT = '/kalender-datenblatt.html';
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/;
 
-const MicrosoftMark = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 21 21" className={cn('h-5 w-5 shrink-0', className)} aria-hidden="true">
-    <rect x="1" y="1" width="9" height="9" fill="#f25022" />
-    <rect x="11" y="1" width="9" height="9" fill="#7fba00" />
-    <rect x="1" y="11" width="9" height="9" fill="#00a4ef" />
-    <rect x="11" y="11" width="9" height="9" fill="#ffb900" />
-  </svg>
-);
+/**
+ * Knopf im Stil der Anbieter, wie „Mit Google anmelden“ (16.11.2026): hell weiß mit grauem Rand,
+ * dunkel fast schwarz mit hellem Rand, links das farbige App-Symbol.
+ * Achtung: Grundklassen = dunkel, dark: = hell (tailwind darkMode ['class', '.light']).
+ */
+const ANBIETER_KNOPF = 'inline-flex h-8 shrink-0 items-center gap-2 whitespace-nowrap rounded-lg border px-2.5 text-xs font-medium transition-colors '
+  + 'border-[#8E918F] bg-[#131314] text-[#E3E3E3] hover:bg-[#202124] dark:border-[#DADCE0] dark:bg-white dark:text-[#1F1F1F] dark:hover:bg-[#F8F9FA] '
+  + 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
 
-const tc = (key: string, options?: Record<string, unknown>) => i18n.t(`clientInterviews:calendar.${key}`, options) as string;
 const errorText = (e: unknown) => (e instanceof Error ? e.message : i18n.t('interviews:error.generic'));
 
-async function copyLink(link: string) {
+async function copyLink(link: string, t: KalT) {
   try {
     await navigator.clipboard.writeText(link);
-    toast.success(tc('copied'));
+    toast.success(t('calendar.copied'));
   } catch {
     // Ohne Zugriff auf die Zwischenablage (z. B. ältere Browser): zum Selbst-Kopieren anzeigen.
-    window.prompt(tc('linkForIt'), link);
+    window.prompt(t('calendar.linkForIt'), link);
   }
 }
 
-const pendingLine = (status: CalendarStatus) => (status.itRequest
-  ? tc('sentTo', { email: status.itRequest.itEmail, when: sentAgo(status.itRequest.sentAt) })
-  : tc('sentToIt'));
+const pendingLine = (status: CalendarStatus, t: KalT) => (status.itRequest
+  ? t('calendar.sentTo', { email: status.itRequest.itEmail, when: sentAgo(status.itRequest.sentAt) })
+  : t('calendar.sentToIt'));
 
 function DatenblattLink({ className }: { className?: string }) {
-  const { t } = useTranslation('clientInterviews');
+  const { t } = useKalT();
   return (
     <a href={DATENBLATT} target="_blank" rel="noopener noreferrer"
        className={cn('inline-flex items-center gap-1 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground', className)}>
@@ -63,6 +67,7 @@ function DatenblattLink({ className }: { className?: string }) {
 
 /** Versand des Freigabe-Links an die IT; danach lässt sich der Link auch kopieren. */
 function useItRequest(cal: Calendar) {
+  const { t } = useKalT();
   const [link, setLink] = useState<string | null>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);
   const send = (itEmail: string) => cal.requestIt.mutate(itEmail, {
@@ -70,9 +75,9 @@ function useItRequest(cal: Calendar) {
       setLink(result.link);
       if (result.sent) {
         setSentTo(itEmail);
-        toast.success(tc('sentToast', { email: itEmail }));
+        toast.success(t('calendar.sentToast', { email: itEmail }));
       } else {
-        toast.error(tc('mailFailed'));
+        toast.error(t('calendar.mailFailed'));
       }
     },
     onError: (e) => toast.error(errorText(e)),
@@ -81,7 +86,7 @@ function useItRequest(cal: Calendar) {
 }
 
 function ItPanel({ cal, onClose, compact }: { cal: Calendar; onClose: () => void; compact?: boolean }) {
-  const { t } = useTranslation('clientInterviews');
+  const { t } = useKalT();
   const emailId = useId();
   const [email, setEmail] = useState(cal.status?.itRequest?.itEmail ?? '');
   const it = useItRequest(cal);
@@ -115,7 +120,7 @@ function ItPanel({ cal, onClose, compact }: { cal: Calendar; onClose: () => void
           {it.sentTo ? t('calendar.resend') : t('calendar.sendToIt')}
         </Button>
         {it.link && (
-          <Button type="button" size="sm" variant="outline" onClick={() => void copyLink(it.link!)}>{t('calendar.copyLink')}</Button>
+          <Button type="button" size="sm" variant="outline" onClick={() => void copyLink(it.link!, t)}>{t('calendar.copyLink')}</Button>
         )}
         <DatenblattLink className="ml-1" />
       </div>
@@ -138,19 +143,97 @@ function ItPanel({ cal, onClose, compact }: { cal: Calendar; onClose: () => void
 function ConnectButton({ cal, returnPath, label, size = 'default', variant = 'default' }: {
   cal: Calendar; returnPath: string; label: string; size?: 'default' | 'sm'; variant?: 'default' | 'outline';
 }) {
-  const { t } = useTranslation('clientInterviews');
+  const { t } = useKalT();
   const busy = cal.connect.isPending || cal.connect.isSuccess; // nach Erfolg läuft die Weiterleitung
   return (
     <Button type="button" size={size} variant={variant} disabled={busy}
             onClick={() => cal.connect.mutate(returnPath, { onError: (e) => toast.error(errorText(e)) })}>
-      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : variant === 'default' ? <MicrosoftMark className="h-4 w-4" /> : null}
+      {busy && <Loader2 className="h-4 w-4 animate-spin" />}
       {busy ? t('calendar.toMicrosoft') : label}
     </Button>
   );
 }
 
+/** Kleiner Outlook-Knopf mit App-Symbol (Leiste in der Übersicht, Checkliste). */
+function OutlookKnopf({ cal, returnPath, label }: { cal: Calendar; returnPath: string; label: string }) {
+  const { t } = useKalT();
+  const busy = cal.connect.isPending || cal.connect.isSuccess;
+  return (
+    <button type="button" className={cn(ANBIETER_KNOPF, busy && 'pointer-events-none opacity-70')} disabled={busy}
+            onClick={() => cal.connect.mutate(returnPath, { onError: (e) => toast.error(errorText(e)) })}>
+      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <OutlookKalenderIcon className="h-4 w-4" />}
+      {busy ? t('calendar.toMicrosoft') : label}
+    </button>
+  );
+}
+
+/** Google Kalender: schon zu sehen, aber noch nicht klickbar. */
+function GoogleBaldKnopf() {
+  const { t } = useKalT();
+  return (
+    <span aria-disabled="true" title={t('calendar.googleSoon')}
+          className={cn(ANBIETER_KNOPF, 'cursor-not-allowed opacity-50 hover:bg-[#131314] dark:hover:bg-white')}>
+      <GoogleKalenderIcon className="h-4 w-4" />
+      {t('calendar.googleCalendar')}
+      <span className="rounded-full border border-[#8E918F] px-1.5 text-[11px] font-normal text-[#BDC1C6] dark:border-[#DADCE0] dark:text-[#5F6368]">{t('calendar.soon')}</span>
+    </span>
+  );
+}
+
+/** Eine App-Kachel: Symbol, Name, Stand in einer Zeile, rechts die Handlung. */
+function AppKachel({ icon, name, zeile, rechts, aus = false }: {
+  icon: ReactNode; name: string; zeile: ReactNode; rechts?: ReactNode; aus?: boolean;
+}) {
+  return (
+    <div aria-disabled={aus || undefined}
+         className={cn('flex flex-wrap items-center gap-3 rounded-lg border border-border/60 bg-card px-3 py-2.5 sm:flex-nowrap', aus && 'opacity-60')}>
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">{icon}</span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium">{name}</p>
+        <p className="break-words text-xs text-muted-foreground">{zeile}</p>
+      </div>
+      {rechts && <div className="flex shrink-0 flex-wrap items-center gap-2">{rechts}</div>}
+    </div>
+  );
+}
+
+function GoogleKachel() {
+  const { t } = useKalT();
+  return (
+    <AppKachel aus icon={<GoogleKalenderIcon className="h-6 w-6" />} name={t('calendar.googleCalendar')} zeile={t('calendar.googleAccount')}
+               rechts={<Badge variant="secondary" className="font-normal">{t('calendar.soon')}</Badge>} />
+  );
+}
+
+/** Hinten (Einstellungen › Kalender, Terminseite): Outlook und Google als App-Kacheln untereinander. */
+function KalenderKacheln({ cal, status, returnPath }: { cal: Calendar; status: CalendarStatus; returnPath: string }) {
+  const { t } = useKalT();
+  const mail = status.accountEmail;
+  let zeile: ReactNode;
+  let rechts: ReactNode;
+  if (status.state === 'connected') {
+    zeile = <span className="inline-flex items-center gap-1"><Check className="h-3.5 w-3.5 shrink-0" />{mail ? t('calendar.connectedAs', { email: mail }) : t('calendar.connectedShort')}</span>;
+    rechts = <DisconnectButton cal={cal} />;
+  } else if (status.state === 'expired') {
+    zeile = mail ? `${t('calendar.expiredTile')} · ${mail}` : t('calendar.expiredTile');
+    rechts = <ConnectButton cal={cal} returnPath={returnPath} label={t('calendar.reconnect')} size="sm" />;
+  } else if (status.state === 'it_pending') {
+    zeile = t('calendar.waitingItLine', { line: pendingLine(status, t) });
+    rechts = <><ResendButton cal={cal} status={status} /><ConnectButton cal={cal} returnPath={returnPath} label={t('calendar.connectNow')} size="sm" variant="outline" /></>;
+  } else {
+    zeile = t('calendar.outlookAccount');
+    rechts = <ConnectButton cal={cal} returnPath={returnPath} label={t('calendar.connect')} size="sm" />;
+  }
+  return (
+    <div className="space-y-2">
+      <AppKachel icon={<OutlookKalenderIcon className="h-6 w-6" />} name={t('calendar.outlookCalendar')} zeile={zeile} rechts={rechts} />
+      <GoogleKachel />
+    </div>
+  );
+}
+
 function DisconnectButton({ cal }: { cal: Calendar }) {
-  const { t } = useTranslation('clientInterviews');
+  const { t } = useKalT();
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
@@ -181,7 +264,7 @@ function DisconnectButton({ cal }: { cal: Calendar }) {
 }
 
 function ResendButton({ cal, status, size = 'sm' }: { cal: Calendar; status: CalendarStatus; size?: 'sm' | 'default' }) {
-  const { t } = useTranslation('clientInterviews');
+  const { t } = useKalT();
   const it = useItRequest(cal);
   const itEmail = status.itRequest?.itEmail;
   if (!itEmail) return null;
@@ -192,7 +275,7 @@ function ResendButton({ cal, status, size = 'sm' }: { cal: Calendar; status: Cal
         {t('calendar.resend')}
       </Button>
       {it.link && (
-        <Button type="button" size={size} variant="ghost" onClick={() => void copyLink(it.link!)}>{t('calendar.copyLink')}</Button>
+        <Button type="button" size={size} variant="ghost" onClick={() => void copyLink(it.link!, t)}>{t('calendar.copyLink')}</Button>
       )}
     </>
   );
@@ -202,9 +285,9 @@ function ResendButton({ cal, status, size = 'sm' }: { cal: Calendar; status: Cal
 // Einstellungen › Kalender (Screens 1, 2a, 2b)
 // ---------------------------------------------------------------------------
 
-function SettingsBody({ cal, itFlow, closeIt }: { cal: Calendar; itFlow: boolean; closeIt: () => void }) {
-  const { t } = useTranslation('clientInterviews');
-  const returnPath = `${window.location.pathname}#kalender`;
+function SettingsBody({ cal, itFlow, closeIt, ohneTitel = false, ruecksprung }: { cal: Calendar; itFlow: boolean; closeIt: () => void; ohneTitel?: boolean; ruecksprung?: string }) {
+  const { t } = useKalT();
+  const returnPath = ruecksprung ?? `${window.location.pathname}#kalender`;
   const { status } = cal;
 
   if (cal.isLoading) {
@@ -222,89 +305,31 @@ function SettingsBody({ cal, itFlow, closeIt }: { cal: Calendar; itFlow: boolean
   if (status.state === 'not_configured') return null;
   if (itFlow && status.state !== 'connected') return <ItPanel cal={cal} onClose={closeIt} />;
 
-  if (status.state === 'connected') {
-    return (
-      <div className="flex flex-wrap items-start gap-3">
-        <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
-        <div className="min-w-0 flex-1 space-y-0.5">
-          <p className="font-medium">
-            {t('calendar.connected')}
-            {status.accountEmail && <span className="font-normal text-muted-foreground"> · {status.accountEmail}</span>}
-          </p>
-          <p className="text-sm text-muted-foreground">{t('calendar.connectedLead')}</p>
-        </div>
-        <DisconnectButton cal={cal} />
-      </div>
-    );
-  }
-
-  if (status.state === 'expired') {
-    return (
-      <div className="flex flex-wrap items-start gap-3">
-        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
-        <div className="min-w-0 flex-1 space-y-0.5">
-          <p className="font-medium">{t('calendar.expired')}</p>
-          <p className="text-sm text-muted-foreground">
-            {status.accountEmail ? `${status.accountEmail} · ` : ''}{t('calendar.expiredLead')}
-          </p>
-        </div>
-        <ConnectButton cal={cal} returnPath={returnPath} label={t('calendar.reconnect')} size="sm" />
-      </div>
-    );
-  }
-
-  if (status.state === 'it_pending') {
-    return (
-      <div className="space-y-3">
-        <div className="flex items-start gap-3">
-          <Clock className="mt-0.5 h-5 w-5 shrink-0 text-warning" />
-          <div className="min-w-0 flex-1 space-y-0.5">
-            <p className="font-medium">{t('calendar.waitingIt')} <span className="font-normal text-muted-foreground">· {pendingLine(status)}</span></p>
-            <p className="text-sm text-muted-foreground">{t('calendar.waitingItLead')}</p>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 pl-8">
-          <ConnectButton cal={cal} returnPath={returnPath} label={t('calendar.connectNow')} size="sm" />
-          <ResendButton cal={cal} status={status} />
-          <DatenblattLink className="ml-1" />
-        </div>
-      </div>
-    );
-  }
-
-  // not_connected (Screen 1)
+  // App-Kacheln (16.11.2026, Marko: „Hinten nehmen wir die App-Kacheln“), in jedem Stand dieselbe Form.
+  const lead = status.state === 'connected' ? t('calendar.connectedLead')
+    : status.state === 'expired' ? t('calendar.expiredLead')
+    : status.state === 'it_pending' ? t('calendar.waitingItLead')
+    : t('calendar.connectLead');
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <h3 className="text-base font-semibold">{t('calendar.connectTitle')}</h3>
-        <p className="text-sm text-muted-foreground">
-          {t('calendar.connectLead')}
-        </p>
+        {!ohneTitel && <h3 className="text-base font-semibold">{t('calendar.connectTitle')}</h3>}
+        <p className="text-sm text-muted-foreground">{lead}</p>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="flex items-center gap-3 rounded-lg border-2 border-primary bg-primary/5 px-4 py-3">
-          <MicrosoftMark />
-          <span className="flex-1 text-sm font-medium">Microsoft 365 / Outlook</span>
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground"><Check className="h-3 w-3" /></span>
+      <KalenderKacheln cal={cal} status={status} returnPath={returnPath} />
+      {status.state === 'not_connected' && (
+        <div className="grid gap-3 text-sm sm:grid-cols-2">
+          <div className="flex gap-2.5 rounded-lg bg-muted/50 px-3 py-2.5">
+            <Eye className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+            <p><strong className="font-medium">{t('calendar.weRead')}</strong> {t('calendar.weReadText')}</p>
+          </div>
+          <div className="flex gap-2.5 rounded-lg bg-muted/50 px-3 py-2.5">
+            <PenLine className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+            <p><strong className="font-medium">{t('calendar.weWrite')}</strong> {t('calendar.weWriteText')}</p>
+          </div>
         </div>
-        <div aria-disabled="true"
-             className="flex cursor-not-allowed items-center gap-3 rounded-lg border border-border px-4 py-3 opacity-60">
-          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[11px] font-semibold text-muted-foreground">G</span>
-          <span className="flex-1 text-sm font-medium">Google</span>
-          <Badge variant="secondary" className="font-normal">{t('calendar.soon')}</Badge>
-        </div>
-      </div>
-      <div className="grid gap-3 text-sm sm:grid-cols-2">
-        <div className="flex gap-2.5 rounded-lg bg-muted/50 px-3 py-2.5">
-          <Eye className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-          <p><strong className="font-medium">{t('calendar.weRead')}</strong> {t('calendar.weReadText')}</p>
-        </div>
-        <div className="flex gap-2.5 rounded-lg bg-muted/50 px-3 py-2.5">
-          <PenLine className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-          <p><strong className="font-medium">{t('calendar.weWrite')}</strong> {t('calendar.weWriteText')}</p>
-        </div>
-      </div>
-      <ConnectButton cal={cal} returnPath={returnPath} label={t('calendar.connectOutlook')} />
+      )}
+      {status.state === 'it_pending' && <DatenblattLink />}
     </div>
   );
 }
@@ -314,13 +339,13 @@ function SettingsBody({ cal, itFlow, closeIt }: { cal: Calendar; itFlow: boolean
 // ---------------------------------------------------------------------------
 
 function DashboardRow({ cal, itFlow, closeIt, className }: { cal: Calendar; itFlow: boolean; closeIt: () => void; className?: string }) {
-  const { t } = useTranslation('clientInterviews');
+  const { t } = useKalT();
   const { user } = useAuth();
   // null = dem Merker im Konto folgen; true/false = gerade hier geklickt
   const [hiddenLocal, setHiddenLocal] = useState<boolean | null>(null);
   const hidden = hiddenLocal ?? !!user?.user_metadata?.[CALENDAR_CARD_HIDDEN_KEY];
   const { status } = cal;
-  const returnPath = '/dashboard';
+  const returnPath = useContext(KalenderNs) === 'recruiterKalender' ? '/recruiter' : '/dashboard';
 
   const remember = (value: string | null) => {
     void supabase.auth.updateUser({ data: { [CALENDAR_CARD_HIDDEN_KEY]: value } }).then(({ error }) => {
@@ -344,7 +369,7 @@ function DashboardRow({ cal, itFlow, closeIt, className }: { cal: Calendar; itFl
     ? t('calendar.expiredShort')
     : t('calendar.dashTitle');
   const stand = status.state === 'it_pending'
-    ? t('calendar.waitingItLine', { line: pendingLine(status) })
+    ? t('calendar.waitingItLine', { line: pendingLine(status, t) })
     : status.state === 'expired'
     ? t('calendar.expiredLead')
     : t('calendar.dashNotConnected');
@@ -362,9 +387,9 @@ function DashboardRow({ cal, itFlow, closeIt, className }: { cal: Calendar; itFl
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {status.state === 'it_pending' && <ResendButton cal={cal} status={status} />}
-          <ConnectButton cal={cal} returnPath={returnPath} size="sm"
-                         label={status.state === 'expired' ? t('calendar.reconnect') : t('calendar.connectNow')}
-                         variant={status.state === 'it_pending' ? 'outline' : 'default'} />
+          <OutlookKnopf cal={cal} returnPath={returnPath}
+                        label={status.state === 'expired' ? t('calendar.reconnect') : status.state === 'it_pending' ? t('calendar.connectNow') : t('calendar.outlookCalendar')} />
+          {status.state === 'not_connected' && <GoogleBaldKnopf />}
         </div>
         <button type="button" onClick={hide} aria-label={t('calendar.hide')}
                 className="rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground">
@@ -385,7 +410,7 @@ function DashboardRow({ cal, itFlow, closeIt, className }: { cal: Calendar; itFl
 // ---------------------------------------------------------------------------
 
 function ChecklistLine({ cal, itFlow, closeIt, className }: { cal: Calendar; itFlow: boolean; closeIt: () => void; className?: string }) {
-  const { t } = useTranslation('clientInterviews');
+  const { t } = useKalT();
   const { status } = cal;
   const returnPath = window.location.pathname;
   if (!status || status.state === 'not_configured') return null;
@@ -396,7 +421,7 @@ function ChecklistLine({ cal, itFlow, closeIt, className }: { cal: Calendar; itF
   const text = status.state === 'connected'
     ? `${t('calendar.connected')}${status.accountEmail ? ` · ${status.accountEmail}` : ''}`
     : status.state === 'it_pending'
-    ? t('calendar.waitingItLine', { line: pendingLine(status) })
+    ? t('calendar.waitingItLine', { line: pendingLine(status, t) })
     : status.state === 'expired'
     ? t('calendar.expired')
     : t('calendar.checklistOpen');
@@ -406,29 +431,57 @@ function ChecklistLine({ cal, itFlow, closeIt, className }: { cal: Calendar; itF
       <span className="flex-1 text-muted-foreground">{text}</span>
       {status.state === 'it_pending' && <ResendButton cal={cal} status={status} />}
       {(status.state === 'not_connected' || status.state === 'expired' || status.state === 'it_pending') && (
-        <ConnectButton cal={cal} returnPath={returnPath} size="sm"
-                       label={status.state === 'expired' ? t('calendar.reconnect') : status.state === 'it_pending' ? t('calendar.connectNow') : t('calendar.connectOutlook')}
-                       variant={status.state === 'it_pending' ? 'outline' : 'default'} />
+        <OutlookKnopf cal={cal} returnPath={returnPath}
+                      label={status.state === 'expired' ? t('calendar.reconnect') : status.state === 'it_pending' ? t('calendar.connectNow') : t('calendar.connectOutlook')} />
       )}
     </div>
   );
 }
 
+/** Ohne Microsoft-App bei Matchunt (z. B. lokal): beide Kacheln zu sehen, beide „Bald“. */
+export function KalenderKachelnBald({ fuer = 'kunde' }: { fuer?: 'kunde' | 'headhunter' }) {
+  return (
+    <KalenderNs.Provider value={fuer === 'headhunter' ? 'recruiterKalender' : 'clientInterviews'}>
+      <KachelnBald />
+    </KalenderNs.Provider>
+  );
+}
+
+function KachelnBald() {
+  const { t } = useKalT();
+  return (
+    <div className="space-y-2">
+      <AppKachel aus icon={<OutlookKalenderIcon className="h-6 w-6" />} name={t('calendar.outlookCalendar')} zeile={t('calendar.outlookAccount')}
+                 rechts={<Badge variant="secondary" className="font-normal">{t('calendar.soon')}</Badge>} />
+      <GoogleKachel />
+    </div>
+  );
+}
+
 /**
- * Kalender-Verbindung (Outlook) des Kunden in drei Formen:
+ * Kalender-Verbindung (Outlook) von Kunde oder Headhunter in drei Formen:
  * settings = Einstellungen › Kalender, dashboard = wegklickbare Zeile im
  * Dashboard, checklist = eine Zeile Stand mit nächstem Schritt.
  * Verarbeitet auch den Rücksprung aus Microsoft (?kalender=…).
  */
-export function CalendarConnectCard({ variant = 'settings', className }: { variant?: Variant; className?: string }) {
+export function CalendarConnectCard({ variant = 'settings', className, fuer = 'kunde', eingebettet = false, ruecksprung }: {
+  variant?: Variant; className?: string; fuer?: 'kunde' | 'headhunter';
+  /** In einem eigenen Schritt (Terminseite): ohne Rahmen und ohne eigene Überschrift. */
+  eingebettet?: boolean;
+  /** Wohin Microsoft zurückspringt (Standard: diese Seite). */
+  ruecksprung?: string;
+}) {
   const cal = useCalendarStatus();
   const { itFlow, closeIt } = useCalendarReturn();
 
-  if (variant === 'dashboard') return <DashboardRow cal={cal} itFlow={itFlow} closeIt={closeIt} className={className} />;
-  if (variant === 'checklist') return <ChecklistLine cal={cal} itFlow={itFlow} closeIt={closeIt} className={className} />;
-  return (
-    <div className={cn('rounded-lg border border-border/60 p-4 sm:p-5', className)}>
-      <SettingsBody cal={cal} itFlow={itFlow} closeIt={closeIt} />
-    </div>
-  );
+  const inhalt = variant === 'dashboard' ? <DashboardRow cal={cal} itFlow={itFlow} closeIt={closeIt} className={className} />
+    : variant === 'checklist' ? <ChecklistLine cal={cal} itFlow={itFlow} closeIt={closeIt} className={className} />
+    : eingebettet
+    ? <div className={className}><SettingsBody cal={cal} itFlow={itFlow} closeIt={closeIt} ohneTitel ruecksprung={ruecksprung} /></div>
+    : (
+      <div className={cn('rounded-lg border border-border/60 p-4 sm:p-5', className)}>
+        <SettingsBody cal={cal} itFlow={itFlow} closeIt={closeIt} ruecksprung={ruecksprung} />
+      </div>
+    );
+  return <KalenderNs.Provider value={fuer === 'headhunter' ? 'recruiterKalender' : 'clientInterviews'}>{inhalt}</KalenderNs.Provider>;
 }

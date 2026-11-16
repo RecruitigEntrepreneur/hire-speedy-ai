@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CalendarClock, CalendarOff, Check, CheckCircle2, Copy, ExternalLink, Loader2, Phone, Video } from 'lucide-react';
+import { CalendarClock, CalendarOff, Check, Copy, ExternalLink, Loader2, Phone, Video } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { OutlookLogo } from '@/components/brand/MarkenLogos';
+import { CalendarConnectCard, KalenderKachelnBald } from '@/components/interview/calendar/CalendarConnectCard';
 import { InterviewHoursEditor } from '@/components/interview/calendar/InterviewHoursEditor';
 import { useCalendarStatus } from '@/components/interview/calendar/useCalendarStatus';
 import { normalizeRules, type InterviewHoursRules } from '@/lib/interviewScheduling';
@@ -44,7 +44,8 @@ function Schritt({ nr, fertig, titel, rechts, children }: { nr: number; fertig: 
 export function TerminseiteBereich({ zurueck }: { zurueck?: string | null }) {
   const { t } = useTranslation('recruiterTermin');
   const vorlauf = useMemo(() => VORLAUF.map((value) => ({ value, label: t(`seite.vorlauf.h${value}`) })), [t]);
-  useRuecksprung();
+  // ?kalender= verarbeitet der Kalender-Baustein in Schritt 1 (auch den IT-Weg)
+  useRuecksprung({ kalender: false });
   const kontakt = useRecruiterKontakt();
   const kal = useCalendarStatus();
   const { zeile, isLoading, speichern } = useTerminseite();
@@ -110,26 +111,18 @@ export function TerminseiteBereich({ zurueck }: { zurueck?: string | null }) {
         <h2 className="flex items-center gap-2 text-lg font-semibold"><CalendarClock className="h-5 w-5"/>{t('seite.title')}</h2>
         <p className="mb-4 mt-1 text-sm text-muted-foreground">{t('seite.intro')}</p>
 
-        <Schritt nr={1} fertig={verbunden} titel={t('seite.step1')} rechts={verbunden ? <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" disabled={kal.disconnect.isPending} onClick={() => kal.disconnect.mutate()}>{t('seite.disconnect')}</Button> : undefined}>
-          {verbunden
-            ? <p className="flex items-center gap-1.5 text-sm text-emerald-600"><CheckCircle2 className="h-4 w-4"/>{kal.status?.accountEmail ? t('seite.outlookConnectedAs', { email: kal.status.accountEmail }) : t('seite.outlookConnected')}</p>
-            : kal.state === 'not_configured'
-              // Ohne Microsoft-App bei Matchunt: Knopf ausgegraut mit „Bald“ (16.11.2026)
-              ? <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Button size="sm" disabled><span className="mr-1.5 flex h-5 w-5 items-center justify-center rounded-[4px] bg-white"><OutlookLogo className="h-3.5 w-3.5"/></span>{t('seite.connectOutlook')}</Button>
-                  <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">{t('linkedin.soon')}</span>
-                </div>
-                <p className="text-xs text-muted-foreground">{t('seite.notConfigured')}</p>
-              </div>
-              : <div className="space-y-2">
-                {kal.state === 'expired' && <p className="text-sm text-amber-700">{t('seite.expired')}</p>}
-                {kal.state === 'it_pending' && <p className="text-sm text-amber-700">{t('seite.itPending')}</p>}
-                <Button size="sm" disabled={kal.connect.isPending} onClick={() => kal.connect.mutate(zurueck ? `${RUECKSPRUNG}?zurueck=${encodeURIComponent(zurueck)}` : RUECKSPRUNG)}>
-                  {kal.connect.isPending ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin"/> : <span className="mr-1.5 flex h-5 w-5 items-center justify-center rounded-[4px] bg-white"><OutlookLogo className="h-3.5 w-3.5"/></span>}{t('seite.connectOutlook')}
-                </Button>
-              </div>}
-          <p className="text-xs text-muted-foreground">{t('seite.privacy')}</p>
+        {/* Schritt 1 (16.11.2026): derselbe Kalender-Baustein wie beim Kunden und in der Übersicht, mit du –
+            App-Kacheln Outlook-Kalender und Google Kalender („Bald“), was wir lesen und schreiben, IT-Freigabe, Trennen. */}
+        <Schritt nr={1} fertig={verbunden} titel={t('seite.step1')}>
+          {kal.state === 'not_configured'
+            // Ohne Microsoft-App bei Matchunt: beide Kacheln ausgegraut mit „Bald“
+            ? <div className="space-y-2">
+              <KalenderKachelnBald fuer="headhunter"/>
+              <p className="text-xs text-muted-foreground">{t('seite.notConfigured')}</p>
+              <p className="text-xs text-muted-foreground">{t('seite.privacy')}</p>
+            </div>
+            : <CalendarConnectCard variant="settings" fuer="headhunter" eingebettet
+                ruecksprung={zurueck ? `${RUECKSPRUNG}?zurueck=${encodeURIComponent(zurueck)}` : RUECKSPRUNG} />}
         </Schritt>
 
         <Schritt nr={2} fertig={!!zeile && !geaendert} titel={t('seite.step2')}>

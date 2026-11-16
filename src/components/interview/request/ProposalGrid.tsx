@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, ChevronLeft, ChevronRight, Plus, RefreshCw, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { OutlookKalenderIcon } from '@/components/brand/MarkenLogos';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import {
@@ -115,6 +116,7 @@ export function ProposalGrid({
           </p>
           {calendar.state !== 'not_configured' && (
             <Button type="button" size="sm" variant="outline" className="h-8 shrink-0 bg-background" onClick={onConnectCalendar}>
+              <OutlookKalenderIcon className="h-4 w-4" />
               {calendar.state === 'expired' ? t('grid.reconnectOutlook') : t('calendar.connectOutlook')}
             </Button>
           )}
@@ -128,6 +130,7 @@ export function ProposalGrid({
             {t('grid.unreadable')}
           </p>
           <Button type="button" size="sm" variant="outline" className="h-8 shrink-0 bg-background" onClick={onConnectCalendar}>
+            <OutlookKalenderIcon className="h-4 w-4" />
             {t('grid.reconnectOutlook')}
           </Button>
         </div>
