@@ -126,6 +126,8 @@ const de = {
   src: {
     fromCv: 'aus dem Lebenslauf',
     fromFile: 'aus der Akte',
+    cvTaken_one: '{{count}} Angabe aus dem Lebenslauf übernommen, kurz bestätigen lassen. Zitat beim Drüberfahren.',
+    cvTaken_other: '{{count}} Angaben aus dem Lebenslauf übernommen, kurz bestätigen lassen. Zitat beim Drüberfahren.',
   },
   common: {
     change: 'ändern',
@@ -171,6 +173,13 @@ const de = {
     title: 'Nur Fehlendes',
     intro: 'Nur die Punkte, die zum Abschließen oder Einreichen noch fehlen.',
     none: 'Es fehlt nichts mehr.',
+    cvUploadFailed: 'Hochladen hat nicht geklappt.',
+    cvJustUploaded: '{{name}} · gerade hochgeladen',
+    cvInFile: 'Liegt in der Akte.',
+    skillsHint: 'Mindestens drei. Enter oder Komma fügt einen Skill hinzu.',
+    skillsPlaceholder: 'z. B. Jahresabschluss, DATEV …',
+    allDone: 'Alles eingetragen.',
+    allDoneReady: 'Alles eingetragen. {{name}} ist bereit zum Einreichen.',
   },
   done: {
     title: '✓ Interview abgeschlossen',
@@ -200,6 +209,7 @@ const de = {
     join: 'Beitreten',
     call: 'Anrufen',
     dateAria: 'Datum des Interviews',
+    howTalked: 'Wie habt ihr gesprochen?',
   },
   warn: {
     columns: 'Einige neue Angaben (z. B. fix oder mit Bonus, Wettbewerbsverbot) werden erst nach dem Datenbank-Update dauerhaft gespeichert. Alles andere ist gesichert.',
@@ -210,6 +220,8 @@ const de = {
     answered: ' (beantwortet)',
     layout: 'Darstellung',
     showAll: 'Alle Fragen zeigen',
+    openCount_one: '{{count}} offen',
+    openCount_other: '{{count}} offen',
   },
   resume: {
     text: 'Weiter, wo du warst',
@@ -391,6 +403,8 @@ const de = {
     rawDeleted: 'Rohtext gelöscht',
     rawUntil: 'Rohtext bis {{date}}',
     rawKept: 'Bleibt gespeichert',
+    highlightInvite: 'Hier lädst du {{name}} zum Gespräch ein',
+    highlightContinue: 'Hier geht es mit {{name}} weiter',
   },
 };
 

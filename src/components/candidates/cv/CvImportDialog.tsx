@@ -112,13 +112,19 @@ export function CvImportDialog({
   onCandidateCreated,
   existingCandidateId,
   startWithText = false,
+  startResult = null,
+  ausAblage = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCandidateCreated?: (candidateId: string) => void;
+  onCandidateCreated?: (candidateId: string, fullName?: string) => void;
   existingCandidateId?: string;
   /** Aus „Text oder LinkedIn-Profil einfügen“: das Textfeld ist gleich offen. */
   startWithText?: boolean;
+  /** Aus der Lebenslauf-Ablage (09.11.2026): schon gelesen, gleich die Prüfseite. */
+  startResult?: { cv: CvExtraction | null; fileInfo: CvFileInfo | null } | null;
+  /** Aus der Ablage: nach dem Anlegen nicht ins Profil springen, „Später“ statt „Zurück“. */
+  ausAblage?: boolean;
 }) {
   const { user } = useAuth();
   const { t } = useTranslation(['candidateImport', 'candidateTerms', 'candidateDossier']);
@@ -162,6 +168,14 @@ export function CvImportDialog({
   }, []);
 
   useEffect(() => { if (!open) reset(); else if (startWithText) setPasteOpen(true); }, [open, reset, startWithText]);
+  const startGelesen = useRef(false);
+  useEffect(() => {
+    if (!open) { startGelesen.current = false; return; }
+    if (!startResult || !user || startGelesen.current) return;
+    startGelesen.current = true;
+    void startReview(startResult.cv, startResult.fileInfo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, startResult, user]);
 
   useEffect(() => {
     if (step !== 'reading') return;
@@ -226,9 +240,9 @@ export function CvImportDialog({
       });
       // Die Erfolgsmeldung zeigt der Aufrufer; hier nur, was schiefging – nie verschluckt.
       if (res.failed.length) toast.warning(t('err.partNew', { list: res.failed.map((x) => term(x)).join(', ') }));
-      onCandidateCreated?.(res.candidateId);
+      onCandidateCreated?.(res.candidateId, form.full_name.trim());
       onOpenChange(false);
-      navigate(`/recruiter/candidates/${res.candidateId}`);
+      if (!ausAblage) navigate(`/recruiter/candidates/${res.candidateId}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t('err.save'));
       setStep('review');
@@ -271,7 +285,10 @@ export function CvImportDialog({
   return (
     <Dialog open={open} onOpenChange={(o) => step !== 'saving' && onOpenChange(o)}>
       <DialogContent className={cn('max-h-[92vh] overflow-y-auto', step === 'review' && !isUpdate ? 'max-w-4xl pb-0' : 'max-w-xl')}>
-        {step === 'start' && (
+        {step === 'start' && startResult && (
+          <div className="flex justify-center py-16"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+        )}
+        {step === 'start' && !startResult && (
           <>
             <DialogHeader>
               <DialogTitle>{isUpdate ? t('start.titleUpdate') : t('start.titleNew')}</DialogTitle>
@@ -428,7 +445,9 @@ export function CvImportDialog({
               <Section title={t('section.links')}><LinksBlock form={form} set={set} /></Section>
             </div>
             <div className="sticky bottom-0 z-10 -mx-6 flex justify-between gap-2 border-t border-border bg-background px-6 py-3">
-              <Button variant="outline" onClick={() => setStep('start')}>{t('review.back')}</Button>
+              {ausAblage
+                ? <Button variant="outline" onClick={() => onOpenChange(false)}>{t('review.later')}</Button>
+                : <Button variant="outline" onClick={() => setStep('start')}>{t('review.back')}</Button>}
               <Button onClick={saveNew}>{t('review.create')}</Button>
             </div>
           </FieldOriginContext.Provider>

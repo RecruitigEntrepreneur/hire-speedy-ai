@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
+  ArrowLeft,
   Link as LinkIcon,
   Mail,
   CheckCircle,
@@ -115,37 +117,40 @@ export default function RecruiterIntegrations() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Header */}
+        {/* Header: seit 16.11.2026 Teil der Einstellungen („Anbindungen“), vorher nur über „Kandidaten anlegen“ erreichbar */}
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{t('title')}</h1>
+          <Link to="/recruiter/settings" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="h-4 w-4" />{t('backToSettings')}
+          </Link>
+          <h1 className="mt-3 text-3xl font-bold tracking-tight">{t('title')}</h1>
           <p className="text-muted-foreground mt-1">
             {t('subtitle')}
           </p>
         </div>
 
         {/* E-Mail Interview System Info */}
-        <Card className="bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
+        <Card>
           <CardContent className="flex items-start gap-4 pt-6">
-            <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900/50">
-              <Mail className="h-5 w-5 text-green-700 dark:text-green-400" />
+            <div className="p-2 rounded-lg bg-muted">
+              <Mail className="h-5 w-5 text-muted-foreground" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-green-800 dark:text-green-300">
+              <h3 className="font-semibold">
                 {t('mail.title')}
               </h3>
-              <p className="text-sm text-green-700 dark:text-green-400 mt-1">
+              <p className="text-sm text-muted-foreground mt-1">
                 {t('mail.text')}
               </p>
               <div className="flex flex-wrap gap-3 mt-3">
-                <div className="flex items-center gap-1.5 text-xs text-green-700 dark:text-green-400">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <CheckCircle2 className="h-3.5 w-3.5" />
                   {t('mail.branded')}
                 </div>
-                <div className="flex items-center gap-1.5 text-xs text-green-700 dark:text-green-400">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <CheckCircle2 className="h-3.5 w-3.5" />
                   {t('mail.ical')}
                 </div>
-                <div className="flex items-center gap-1.5 text-xs text-green-700 dark:text-green-400">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <CheckCircle2 className="h-3.5 w-3.5" />
                   {t('mail.auto')}
                 </div>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dossierFromCv, emptyDossier, interviewGaps, mergeCvIntoDossier, newStations, type CvExtraction } from './cvImport';
+import { dossierFromCv, emptyDossier, interviewGaps, liveOrigins, mergeCvIntoDossier, newStations, originsToStore, sameDossierValue, type CvExtraction } from './cvImport';
 
 const cv: CvExtraction = {
   version: 'cv-v1',
@@ -65,5 +65,34 @@ describe('Neuer Lebenslauf für bestehenden Kandidaten', () => {
   it('erkennt schon vorhandene Stationen', () => {
     expect(newStations([{ company_name: 'Isar Maschinenbau AG', start_date: '2021-04-01' }], cv.stations)).toEqual([]);
     expect(newStations([], cv.stations)).toHaveLength(1);
+  });
+});
+
+describe('Herkunft aus dem Lebenslauf im Interview', () => {
+  const { form } = dossierFromCv(cv);
+  it('merkt nur Lebenslauf-Werte, keine Vorschläge und keine Sperrliste', () => {
+    const stored = originsToStore(cv, form);
+    expect(stored.expected_salary).toEqual({ source: 'cv', quote: '85.000 €', value: 85000 });
+    expect(stored.job_title?.source).toBe('derived');
+    expect(stored.seniority).toBeUndefined();
+    expect(stored.blocked_companies).toBeUndefined();
+    expect(stored.expose_summary).toBeUndefined();
+  });
+  it('merkt nichts, was der Headhunter vor dem Anlegen geändert hat', () => {
+    const stored = originsToStore(cv, { ...form, expected_salary: 90000 });
+    expect(stored.expected_salary).toBeUndefined();
+    expect(stored.notice_period).toBeDefined();
+  });
+  it('zeigt den Vermerk nur, solange der Wert noch stimmt', () => {
+    const stored = originsToStore(cv, form);
+    expect(liveOrigins(stored, form).expected_salary?.quote).toBe('85.000 €');
+    expect(liveOrigins(stored, { ...form, expected_salary: 95000 }).expected_salary).toBeUndefined();
+    expect(liveOrigins(null, form)).toEqual({});
+  });
+  it('vergleicht Listen ohne Reihenfolge und Texte ohne Groß/klein', () => {
+    expect(sameDossierValue([{ language: 'Englisch', proficiency: 'C1' }, { language: 'Deutsch', proficiency: '' }], [{ language: 'deutsch' }, { language: 'Englisch', proficiency: 'C1' }])).toBe(true);
+    expect(sameDossierValue(' München ', 'münchen')).toBe(true);
+    expect(sameDossierValue(85000, 80000)).toBe(false);
+    expect(sameDossierValue(null, '')).toBe(true);
   });
 });

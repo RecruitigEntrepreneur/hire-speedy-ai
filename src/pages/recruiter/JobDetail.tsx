@@ -5,12 +5,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { CandidateSubmitForm } from '@/components/recruiter/CandidateSubmitForm';
+import { VorstellenFenster } from '@/components/recruiter/vorstellen/VorstellenFenster';
 import { AnonymousExposeDialog } from '@/components/recruiter/AnonymousExposeDialog';
 import { JobCandidateProcessCards, type JobSubmission } from '@/components/recruiter/JobCandidateProcessCards';
 import { RecruiterJobWorkspace, type WorkspaceJob } from '@/components/recruiter/RecruiterJobWorkspace';
-import { getRecruiterCriteria } from '@/lib/recruiterBriefing';
 import { ActivateJobDialog, useActivationGate } from '@/components/recruiter/ActivateJobDialog';
 import { EndSearchDialog, JobPausedBadge, SearchHeroAction, SearchHeroStatus, SearchMobileAction, SearchQuestionDialog, useMySearch } from '@/components/recruiter/search/SearchHero';
 import { CandidateJobStrip } from '@/components/recruiter/search/CandidateJobStrip';
@@ -135,15 +133,8 @@ export default function JobDetail() {
         kannPosten={search.searching && !jobPaused}
         mobileAction={<SearchMobileAction search={search} jobPaused={jobPaused} pausedUntil={job.pause_until} onStart={forCandidate ? openSubmit : startSearch} onSubmit={openSubmit} candidateName={forCandidate?.firstName} />} />
     </div>
-    <Dialog open={showSubmit} onOpenChange={setShowSubmit}>
-      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{forCandidate ? t('page.presentNamed', { name: forCandidate.firstName, title: job.title }) : t('page.presentGeneric', { title: job.title })}</DialogTitle>
-          <DialogDescription>{forCandidate ? t('page.presentPreselected') : t('page.presentOnlyFitting')}</DialogDescription>
-        </DialogHeader>
-        <CandidateSubmitForm initialCandidateId={forCandidate?.id} jobId={job.id} jobTitle={job.title} job={job as unknown as Record<string, unknown>} mustHaves={getRecruiterCriteria(job).required} onSuccess={() => { setShowSubmit(false); reload(); }} />
-      </DialogContent>
-    </Dialog>
+    <VorstellenFenster open={showSubmit} onOpenChange={setShowSubmit} job={job as unknown as Record<string, unknown> & { id: string; title: string }}
+      candidate={forCandidate ? { id: forCandidate.id, name: forCandidate.full_name } : null} onSubmitted={() => reload()} />
     <AnonymousExposeDialog open={showExpose} onOpenChange={setShowExpose} jobId={job.id} />
     <ActivateJobDialog job={activateMode ? (job as unknown as Record<string, unknown> & { id: string; title: string }) : null} gate={gate} forSubmission={activateMode === 'submit'}
       onClose={() => {

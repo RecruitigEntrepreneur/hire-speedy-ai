@@ -95,6 +95,7 @@ const en: Messages<typeof de> = {
     open: 'Open',
     notInCv: 'Not in the CV – we ask in the interview',
     back: 'Back',
+    later: 'Later',
     create: 'Create candidate',
   },
   section: {

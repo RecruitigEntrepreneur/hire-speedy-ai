@@ -119,6 +119,50 @@ export function dossierFromCv(cv: CvExtraction): { form: DossierForm; origins: O
 }
 
 // ---------------------------------------------------------------------------
+// Herkunft merken (09.11.2026): Im Interview steht an jeder Frage, deren Antwort
+// noch genau so im Lebenslauf stand, klein „Lebenslauf“. Gespeichert wird der
+// gelesene Wert; ändert jemand die Antwort, egal wo, passt sie nicht mehr und der
+// Vermerk ist weg.
+// ---------------------------------------------------------------------------
+
+export type StoredOrigins = Partial<Record<keyof DossierForm, FieldOrigin & { value: unknown }>>;
+
+/** Gleicher Wert? Listen ohne Reihenfolge, Texte ohne Groß/klein und Ränder. */
+export function sameDossierValue(a: unknown, b: unknown): boolean {
+  const key = (v: unknown): string => {
+    if (v == null || v === '') return '';
+    if (typeof v === 'string') return norm(v);
+    if (Array.isArray(v)) return JSON.stringify(v.map(key).filter(Boolean).sort());
+    if (typeof v === 'object') return JSON.stringify(Object.entries(v as Record<string, unknown>).filter(([, x]) => x != null && x !== '').sort(([x], [y]) => x.localeCompare(y)).map(([k, x]) => [k, key(x)]));
+    return String(v);
+  };
+  return key(a) === key(b);
+}
+
+/** Beim Speichern: nur, was wirklich aus dem Lebenslauf kam und noch unverändert ist. */
+export function originsToStore(cv: CvExtraction, saved: DossierForm, keys?: (keyof DossierForm)[]): StoredOrigins {
+  const { form, origins } = dossierFromCv(cv);
+  const out: StoredOrigins = {};
+  for (const k of (keys ?? Object.keys(origins)) as (keyof DossierForm)[]) {
+    const o = origins[k];
+    if (!o || (o.source !== 'cv' && o.source !== 'derived')) continue;
+    if (k === 'blocked_companies') continue; // füllt sich von selbst, keine Frage
+    if (sameDossierValue(saved[k], form[k]) && !sameDossierValue(form[k], null)) out[k] = { ...o, value: form[k] };
+  }
+  return out;
+}
+
+/** Im Interview: Herkunft nur für Felder, deren Wert noch dem aus dem Lebenslauf entspricht. */
+export function liveOrigins(stored: StoredOrigins | null | undefined, current: DossierForm): OriginMap {
+  const out: OriginMap = {};
+  if (!stored) return out;
+  for (const [k, o] of Object.entries(stored) as [keyof DossierForm, FieldOrigin & { value: unknown }][]) {
+    if (o && sameDossierValue(current[k], o.value)) out[k] = { source: o.source, quote: o.quote };
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
 // Aktualisieren: nur leere Felder füllen, Abweichungen anzeigen
 // ---------------------------------------------------------------------------
 

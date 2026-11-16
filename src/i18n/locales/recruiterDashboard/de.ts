@@ -8,6 +8,7 @@ const de = {
   },
   header: {
     tour: 'Rundgang',
+    dropHint: 'Lebensläufe kannst du hierher ziehen.',
   },
   subtext: {
     urgentInterviewToday_one: 'Du hast {{count}} dringende Aufgaben und ein Interview heute um {{time}} Uhr.',

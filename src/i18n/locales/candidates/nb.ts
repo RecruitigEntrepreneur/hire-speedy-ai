@@ -123,7 +123,7 @@ const nb: Messages<typeof de> = {
   menu: {
     button: 'Legg til kandidater',
     cvTitle: 'Last opp CV',
-    cvText: 'PDF eller Word. KI-en leser ut opplysningene, du trenger bare å kontrollere.',
+    cvText: 'PDF eller Word, også flere på en gang. KI-en leser ut opplysningene, du trenger bare å kontrollere.',
     textTitle: 'Lim inn tekst eller LinkedIn-profil',
     textText: 'Kopier, lim inn – KI-en leser ut opplysningene.',
     withoutCvTitle: 'Legg til uten CV',

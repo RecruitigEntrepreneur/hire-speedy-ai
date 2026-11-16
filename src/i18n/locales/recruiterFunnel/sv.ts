@@ -444,6 +444,12 @@ const sv: Messages<typeof de> = {
     saving: 'Sparar …',
     saveAndContinue: 'Spara och fortsätt',
     later: 'Senare',
+    pwTitle: 'Logga in med lösenord',
+    pwLead: 'Om du redan har valt ett lösenord. Annars loggar du bara in med kod.',
+    withPassword: 'Logga in med lösenord',
+    password: 'Lösenord',
+    forgotPassword: 'Glömt lösenordet? Logga in med kod',
+    wrongPassword: 'E-post eller lösenord stämmer inte. Du kan alltid logga in med kod.',
   },
 };
 

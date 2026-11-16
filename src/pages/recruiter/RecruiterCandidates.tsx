@@ -23,6 +23,7 @@ import { CvUploadDialog } from '@/components/candidates/CvUploadDialog';
 import { fetchCandidateIdsWithCv } from '@/hooks/useCandidateCv';
 import { CandidateFormDialog } from '@/components/candidates/CandidateFormDialog';
 import { KandidatAnlegenMenu } from '@/components/candidates/KandidatAnlegenMenu';
+import { lebenslaufWaehlen } from '@/lib/lebenslaufAblage';
 import { KandidatKurzDialog } from '@/components/candidates/KandidatKurzDialog';
 import { PerMailWeiterleitenDialog } from '@/components/candidates/PerMailWeiterleitenDialog';
 
@@ -268,7 +269,7 @@ export default function RecruiterCandidates() {
             <KandidatAnlegenMenu
               size="default"
               tour="candidates.add"
-              onLebenslauf={() => setCvUploadDialogOpen(true)}
+              onLebenslauf={lebenslaufWaehlen}
               onText={() => { setCvStartText(true); setCvUploadDialogOpen(true); }}
               onOhneLebenslauf={() => setKurzOpen(true)}
               onHubspot={() => setHubspotDialogOpen(true)}
@@ -299,7 +300,7 @@ export default function RecruiterCandidates() {
                     <div className="mt-4">
                       <KandidatAnlegenMenu
                         size="default"
-                        onLebenslauf={() => setCvUploadDialogOpen(true)}
+                        onLebenslauf={lebenslaufWaehlen}
                         onText={() => { setCvStartText(true); setCvUploadDialogOpen(true); }}
                         onOhneLebenslauf={() => setKurzOpen(true)}
                         onHubspot={() => setHubspotDialogOpen(true)}

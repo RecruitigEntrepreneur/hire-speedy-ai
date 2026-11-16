@@ -10,6 +10,7 @@ const sv: Messages<typeof de> = {
   },
   header: {
     tour: 'Rundtur',
+    dropHint: 'Du kan dra hit CV:n.',
   },
   subtext: {
     urgentInterviewToday_one: 'Du har {{count}} brådskande uppgift och en intervju i dag kl. {{time}}.',

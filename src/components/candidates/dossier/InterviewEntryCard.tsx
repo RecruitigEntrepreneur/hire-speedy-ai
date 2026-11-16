@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { format } from 'date-fns';
 import { useTranslation } from 'react-i18next';
 import { dateFnsLocale } from '@/lib/candidateDateLocale';
@@ -120,15 +120,31 @@ export function InterviewEntryCard({
   const { data: termine = [], isLoading: termineLaden } = useErstgespraeche({ candidateId });
 
   // „Anlegen und einladen“ (Kandidaten anlegen, 04.11.2026): ?einladen=1 öffnet gleich die Einladung.
+  // „Einladen“ aus der Ablage (12.11.2026): ?zeigen=einladen hebt die Karte kurz hervor, der Headhunter
+  // sieht erst das Profil und lädt dann selbst ein. Reagiert auch, wenn das Profil schon offen ist.
   const [suche, setSuche] = useSearchParams();
+  const karte = useRef<HTMLDivElement>(null);
+  const [zeigen, setZeigen] = useState(false);
+  const signal = suche.get('einladen') === '1' ? 'oeffnen' : suche.get('zeigen') === 'einladen' ? 'zeigen' : null;
   useEffect(() => {
-    if (suche.get('einladen') !== '1') return;
-    setFensterOffen(true);
+    if (!signal) return;
     const next = new URLSearchParams(suche);
     next.delete('einladen');
+    next.delete('zeigen');
     setSuche(next, { replace: true });
+    if (signal === 'oeffnen') { setFensterOffen(true); return; }
+    setZeigen(true);
+    window.setTimeout(() => karte.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [signal]);
+  // Nach ein paar Sekunden oder beim ersten Klick ist die Hervorhebung wieder weg.
+  useEffect(() => {
+    if (!zeigen) return;
+    const aus = () => setZeigen(false);
+    const t = window.setTimeout(aus, 6000);
+    window.addEventListener('pointerdown', aus, { capture: true, once: true });
+    return () => { window.clearTimeout(t); window.removeEventListener('pointerdown', aus, { capture: true }); };
+  }, [zeigen]);
 
   useEffect(() => {
     supabase
@@ -233,7 +249,12 @@ export function InterviewEntryCard({
   const laedt = !completed && !hasInterview && (einladungLaedt || termineLaden);
 
   return (
-    <Card>
+    <Card ref={karte} className={cn('relative transition-[box-shadow,border-color] duration-300', zeigen && 'border-foreground/60 ring-4 ring-foreground/10')}>
+      {zeigen && (
+        <span className="absolute -top-3 left-4 z-10 rounded-full bg-foreground px-2.5 py-0.5 text-xs font-medium text-background shadow-sm">
+          {schritt === 0 ? t('card.highlightInvite', { name: vorname }) : t('card.highlightContinue', { name: vorname })}
+        </span>
+      )}
       <CardContent className="space-y-4 p-5">
         <div className="flex items-center justify-between gap-2">
           <h3 className="text-sm font-semibold tracking-tight">{t('card.title')}</h3>

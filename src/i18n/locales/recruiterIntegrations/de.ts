@@ -1,7 +1,8 @@
-// Integrationen des Headhunters (Seite derzeit geparkt, nicht im Menü). Deutsch ist die Quelle.
+// Anbindungen des Headhunters (Einstellungen › Anbindungen, /recruiter/integrations). Deutsch ist die Quelle.
 const de = {
-  title: 'Integrationen',
-  subtitle: 'Verbinde deine CRM- und ATS-Systeme mit einem Klick',
+  title: 'Anbindungen',
+  subtitle: 'Verbinde dein CRM oder ATS und hol deine Kandidaten zu Matchunt',
+  backToSettings: 'Einstellungen',
   mail: {
     title: 'E-Mail-basiertes Interview-System aktiv',
     text: 'Kandidaten erhalten automatisch Interview-Einladungen per E-Mail mit Kalender-Anhang (.ics). Bei Terminbestätigung werden alle Beteiligten automatisch benachrichtigt.',

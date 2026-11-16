@@ -32,7 +32,7 @@ import { intlLocale } from '@/i18n/languages';
 import { cn } from '@/lib/utils';
 import type { RoleFamily } from '@/lib/roleFamily';
 import { minimumChips, salaryWarnings, wishChips, type SalaryChip } from '@/lib/salaryChips';
-import { AreaField, ChipGroup, Field, FieldMissingContext, MoneyInput, MultiChips, NumberField, TagInput, TextField, fieldId } from './DossierFields';
+import { AreaField, ChipGroup, Field, FieldMissingContext, MoneyInput, MultiChips, NumberField, TagInput, TextField, fieldId, FehltEtikett, fehltRahmen } from './DossierFields';
 
 // Bausteine der Kandidatenakte. Bearbeiten-Panel und Interview setzen sie
 // unterschiedlich zusammen, schreiben aber dieselben Felder.
@@ -416,8 +416,9 @@ export function SprachenBlock({ form, set }: BlockProps) {
     set({ languages: form.languages.map((l, idx) => (idx === i ? { ...l, ...patch } : l)) });
   const haeufig = haeufigFehlend(form.languages.map((l) => l.language));
   return (
-    <div className={cn('space-y-2', fehlt && 'border-l-2 border-warning pl-3')} data-dossier-field="languages">
-      {form.languages.length === 0 && <p className={cn('text-xs', fehlt ? 'text-warning' : 'text-muted-foreground')}>{fehlt ? t('blocks.noLanguageMissing') : t('blocks.noLanguage')}</p>}
+    <div className={cn('space-y-2', fehlt && fehltRahmen)} data-dossier-field="languages">
+      {fehlt && <FehltEtikett />}
+      {form.languages.length === 0 && <p className="text-xs text-muted-foreground">{t('blocks.noLanguage')}</p>}
       {form.languages.map((l, i) => (
         <div key={i} className="grid grid-cols-[minmax(0,1fr)_minmax(0,11rem)_auto] items-center gap-2">
           <SprachFeld value={l.language} andere={form.languages.filter((_, idx) => idx !== i).map((x) => x.language)} onChange={(v) => update(i, { language: v })} />

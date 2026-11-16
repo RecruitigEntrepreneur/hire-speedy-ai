@@ -10,5 +10,9 @@ const en: Messages<typeof de> = {
   minutesAgo: '{{count}} min ago',
   hoursAgo: '{{count}} h ago',
   daysAgo: '{{count}} days ago',
+  // Sprechblase oben neben der Glocke (Posteingang)
+  inbox: 'Inbox',
+  inboxWaiting: 'Inbox, {{count}} waiting for you',
+  inboxWaitingClient: 'Inbox, {{count}} waiting for you',
 };
 export default en;

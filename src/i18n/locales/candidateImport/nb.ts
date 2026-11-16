@@ -95,6 +95,7 @@ const nb: Messages<typeof de> = {
     open: 'Åpne',
     notInCv: 'Står ikke i CV-en – vi spør i intervjuet',
     back: 'Tilbake',
+    later: 'Senere',
     create: 'Opprett kandidat',
   },
   section: {

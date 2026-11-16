@@ -8,6 +8,9 @@
  *   trennen                                        → Verbindung löschen
  *   posten    { job_id, text, bild, vorlage, format, sichtbarkeit, gehalt } → Beitrag mit Bild
  *   loeschen  { post_id }                          → Beitrag auf LinkedIn und hier löschen
+ *   abgleich                                       → Name, Foto und (mit Datenfreigabe) Vorschläge
+ *                                                    für Über dich und Schwerpunkte (16.11.2026)
+ *   foto_uebernehmen                               → LinkedIn-Foto als Profilfoto speichern
  *
  * Gepostet wird nur nach dem Klick „Freigeben“ im Beitragsfenster, nur zu
  * Stellen, die der Headhunter gerade sucht, und nur, wenn der Text den Kunden
@@ -18,10 +21,13 @@ import { fail, json, preflight } from '../_shared/http.ts';
 import { serviceClient } from '../_shared/intake-core.ts';
 import { generateToken } from '../_shared/tokens.ts';
 import { decryptToken, getEncryptionKey } from '../_shared/encryption.ts';
-import { authorizeUrl, linkedinConfig, LinkedinError, loeschen, posten, postUrl, sichererPfad } from '../_shared/linkedin-api.ts';
+import { authorizeUrl, fotoLaden, linkedinConfig, LinkedinError, loeschen, mitglied, posten, postUrl, sichererPfad, snapshotHolen } from '../_shared/linkedin-api.ts';
+import { LINKEDIN_BEREICHE, type LinkedinBereich, profilAusSnapshot, vorschlagAus } from '../_shared/linkedin-profil.ts';
 import { anonymFunde, GRUND_TEXT, regionAus } from '../_shared/linkedin-anonym.ts';
 
 const MAX_BILD = 5 * 1024 * 1024;
+const AVATARE = 'recruiter-avatars';
+const NEU_BESTAETIGEN = 'Bitte bestätige LinkedIn kurz neu.';
 
 async function angemeldet(req: Request) {
   const client = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
@@ -35,6 +41,19 @@ async function verbindung(db: any, userId: string) {
   const { data } = await db.from('recruiter_linkedin').select('*').eq('recruiter_id', userId).maybeSingle();
   if (!data) return null;
   return { ...data, abgelaufen: Date.parse(data.expires_at) <= Date.now() + 60000 };
+}
+
+/** Mitglied lesen; lehnt LinkedIn das Token ab, gilt die Verbindung als abgelaufen. */
+async function mitgliedOderAbgelaufen(db: ReturnType<typeof serviceClient>, userId: string, token: string) {
+  try {
+    return await mitglied(token);
+  } catch (e) {
+    if (e instanceof LinkedinError && e.status === 401) {
+      await db.from('recruiter_linkedin').update({ expires_at: new Date().toISOString() }).eq('recruiter_id', userId);
+      return null;
+    }
+    throw e;
+  }
 }
 
 Deno.serve(async (req) => {
@@ -117,6 +136,49 @@ Deno.serve(async (req) => {
         await loeschen(cfg, await decryptToken(v.access_token_enc, getEncryptionKey()), p.post_urn);
         await db.from('job_linkedin_posts').update({ status: 'deleted', deleted_at: new Date().toISOString() }).eq('id', p.id);
         return json({ ok: true });
+      }
+      case 'abgleich': {
+        if (!cfg) return fail('not_deployed', 'Die LinkedIn-Verbindung ist bei Matchunt noch nicht eingerichtet.');
+        const v = await verbindung(db, user.id);
+        if (!v || v.abgelaufen) return fail('expired', NEU_BESTAETIGEN);
+        const token = await decryptToken(v.access_token_enc, getEncryptionKey());
+        const m = await mitgliedOderAbgelaufen(db, user.id, token);
+        if (!m) return fail('expired', NEU_BESTAETIGEN);
+        await db.from('recruiter_linkedin').update({ name: m.name, picture_url: m.picture }).eq('recruiter_id', user.id);
+        // Ohne Datenfreigabe gibt LinkedIn nur Name und Foto heraus.
+        let dma: 'aus' | 'bereit' | 'in_arbeit' | 'nicht_freigegeben' = cfg.dma ? 'bereit' : 'aus';
+        let vorschlag = null;
+        if (cfg.dma) {
+          const teile: Partial<Record<LinkedinBereich, Record<string, unknown>[]>> = {};
+          for (const bereich of LINKEDIN_BEREICHE) {
+            const r = await snapshotHolen(token, bereich);
+            if (r.stand === 'ok') { teile[bereich] = r.zeilen; continue; }
+            if (r.stand === 'nicht_freigegeben') { dma = 'nicht_freigegeben'; break; }
+            if (bereich === 'PROFILE' || bereich === 'POSITIONS') dma = 'in_arbeit';
+          }
+          if (dma !== 'nicht_freigegeben' && Object.keys(teile).length) vorschlag = vorschlagAus(profilAusSnapshot(teile));
+        }
+        return json({ name: m.name, bild: m.picture, dma, vorschlag });
+      }
+      case 'foto_uebernehmen': {
+        if (!cfg) return fail('not_deployed', 'Die LinkedIn-Verbindung ist bei Matchunt noch nicht eingerichtet.');
+        const v = await verbindung(db, user.id);
+        if (!v || v.abgelaufen) return fail('expired', NEU_BESTAETIGEN);
+        const m = await mitgliedOderAbgelaufen(db, user.id, await decryptToken(v.access_token_enc, getEncryptionKey()));
+        if (!m) return fail('expired', NEU_BESTAETIGEN);
+        if (!m.picture) return fail('not_found', 'Auf LinkedIn ist kein Profilfoto hinterlegt.');
+        let foto;
+        try { foto = await fotoLaden(m.picture); } catch { return fail('upstream_error', 'Das Foto von LinkedIn konnte gerade nicht geladen werden.'); }
+        const endung = foto.typ === 'image/png' ? 'png' : foto.typ === 'image/webp' ? 'webp' : 'jpg';
+        const pfad = `${user.id}/avatar-linkedin-${Date.now()}.${endung}`;
+        const hoch = await db.storage.from(AVATARE).upload(pfad, foto.bytes, { contentType: foto.typ });
+        if (hoch.error) throw hoch.error;
+        const { data: alt } = await db.from('profiles').select('avatar_path').eq('user_id', user.id).maybeSingle();
+        const { error } = await db.from('profiles').update({ avatar_path: pfad }).eq('user_id', user.id);
+        if (error) { await db.storage.from(AVATARE).remove([pfad]); throw error; }
+        const altPfad = typeof alt?.avatar_path === 'string' ? alt.avatar_path : '';
+        if (altPfad && altPfad !== pfad && altPfad.startsWith(`${user.id}/`)) await db.storage.from(AVATARE).remove([altPfad]);
+        return json({ ok: true, avatar_path: pfad });
       }
       default:
         return fail('invalid_request', 'Unbekannte Aktion.');

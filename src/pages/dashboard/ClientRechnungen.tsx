@@ -49,11 +49,14 @@ export default function ClientRechnungen() {
   const tab = ((params.get('reiter') as Tab) || 'op');
   const setTab = (t: Tab) => { const next = new URLSearchParams(params); next.set('reiter', t); setParams(next, { replace: true }); };
 
-  // Direkt zum Beleg (Besetzungen, Mail): ?beleg=<id>
+  // Direkt zum Beleg (Besetzungen, Mail): ?beleg=<id>. Die Glocke kennt nur die Einreichung
+  // (invoice_issued, 15.11.2026): dann die neueste Rechnung dieser Einreichung.
   useEffect(() => {
     const id = params.get('beleg');
     if (!id || !d) return;
-    if (d.invoices.some((i) => i.id === id)) setWinId(id);
+    const treffer = d.invoices.find((i) => i.id === id)
+      ?? [...d.invoices].filter((i) => i.submissionId === id).sort((a, b) => String(b.issuedAt ?? '').localeCompare(String(a.issuedAt ?? '')))[0];
+    if (treffer) setWinId(treffer.id);
     const next = new URLSearchParams(params); next.delete('beleg'); setParams(next, { replace: true });
   }, [params, d, setParams]);
 

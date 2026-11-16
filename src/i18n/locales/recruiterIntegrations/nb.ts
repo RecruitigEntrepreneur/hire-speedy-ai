@@ -3,7 +3,8 @@ import type { Messages } from '../../types';
 
 const nb: Messages<typeof de> = {
   title: 'Integrasjoner',
-  subtitle: 'Koble til CRM- og ATS-systemene dine med ett klikk',
+  subtitle: 'Koble til CRM eller ATS og ta med kandidatene dine til Matchunt',
+  backToSettings: 'Innstillinger',
   mail: {
     title: 'E-postbasert intervjusystem aktivt',
     text: 'Kandidater får automatisk intervjuinvitasjoner på e-post med kalendervedlegg (.ics). Når en avtale bekreftes, varsles alle involverte automatisk.',

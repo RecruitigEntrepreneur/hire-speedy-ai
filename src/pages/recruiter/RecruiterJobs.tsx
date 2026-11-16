@@ -38,8 +38,7 @@ import { cn } from '@/lib/utils';
 import { JobActionCard } from '@/components/recruiter/JobActionCard';
 import { JobPreviewPanel } from '@/components/recruiter/JobPreviewPanel';
 import { ActivationConfirmDialog, SlotLimitDialog, type ConfirmResult } from '@/components/recruiter/ActivationConfirmDialog';
-import { CandidateSubmitForm } from '@/components/recruiter/CandidateSubmitForm';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { VorstellenFenster } from '@/components/recruiter/vorstellen/VorstellenFenster';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { useJobSubmissionStats } from '@/hooks/useJobSubmissionStats';
 import { MySearchesList } from '@/components/recruiter/search/MySearchesList';
@@ -839,26 +838,14 @@ export default function RecruiterJobs() {
         </SheetContent>
       </Sheet>
 
-      {/* Quick-Submit Dialog (from activation success step) */}
-      <Dialog open={!!submitDialogJob} onOpenChange={(o) => { if (!o) setSubmitDialogJob(null); }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{t('list.submitCandidate')}</DialogTitle>
-          </DialogHeader>
-          {submitDialogJob && (
-            <CandidateSubmitForm
-              jobId={submitDialogJob.jobId}
-              jobTitle={submitDialogJob.title}
-              initialCandidateId={submitDialogJob.candidateId}
-              onSuccess={() => {
-                setSubmitDialogJob(null);
-                fetchRevealedJobs();
-                refetchActivations();
-              }}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Schnell-Vorstellen (aus dem Erfolgsschritt der Aktivierung): neuer Einreichungsweg */}
+      <VorstellenFenster
+        open={!!submitDialogJob}
+        onOpenChange={(o) => { if (!o) setSubmitDialogJob(null); }}
+        jobId={submitDialogJob?.jobId ?? null}
+        candidate={submitDialogJob?.candidateId ? { id: submitDialogJob.candidateId, name: '' } : null}
+        onSubmitted={() => { fetchRevealedJobs(); refetchActivations(); }}
+      />
     </DashboardLayout>
   );
 }

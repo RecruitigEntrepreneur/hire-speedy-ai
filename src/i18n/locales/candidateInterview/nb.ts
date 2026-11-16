@@ -128,6 +128,8 @@ const nb: Messages<typeof de> = {
   src: {
     fromCv: 'fra CV-en',
     fromFile: 'fra mappen',
+    cvTaken_one: '{{count}} opplysning hentet fra CV-en, få den kort bekreftet. Sitatet vises når du holder musepekeren over.',
+    cvTaken_other: '{{count}} opplysninger hentet fra CV-en, få dem kort bekreftet. Sitatet vises når du holder musepekeren over.',
   },
   common: {
     change: 'endre',
@@ -173,6 +175,13 @@ const nb: Messages<typeof de> = {
     title: 'Bare det som mangler',
     intro: 'Bare punktene som mangler for å avslutte eller sende inn.',
     none: 'Ingenting mangler lenger.',
+    cvUploadFailed: 'Opplastingen gikk ikke.',
+    cvJustUploaded: '{{name}} · nettopp lastet opp',
+    cvInFile: 'Ligger i mappen.',
+    skillsHint: 'Minst tre. Enter eller komma legger til en kompetanse.',
+    skillsPlaceholder: 'f.eks. årsoppgjør, SAP FI/CO …',
+    allDone: 'Alt er fylt inn.',
+    allDoneReady: 'Alt er fylt inn. {{name}} er klar til å sendes inn.',
   },
   done: {
     title: '✓ Intervjuet er avsluttet',
@@ -202,6 +211,7 @@ const nb: Messages<typeof de> = {
     join: 'Bli med',
     call: 'Ring',
     dateAria: 'Dato for intervjuet',
+    howTalked: 'Hvordan snakket dere?',
   },
   warn: {
     columns: 'Noen nye opplysninger (f.eks. fast eller med bonus, konkurranseklausul) lagres varig først etter databaseoppdateringen. Alt annet er lagret.',
@@ -212,6 +222,8 @@ const nb: Messages<typeof de> = {
     answered: ' (besvart)',
     layout: 'Visning',
     showAll: 'Vis alle spørsmål',
+    openCount_one: '{{count}} åpen',
+    openCount_other: '{{count}} åpne',
   },
   resume: {
     text: 'Fortsett der du var',
@@ -393,6 +405,8 @@ const nb: Messages<typeof de> = {
     rawDeleted: 'Råteksten slettet',
     rawUntil: 'Råtekst til {{date}}',
     rawKept: 'Blir lagret',
+    highlightInvite: 'Her inviterer du {{name}} til en samtale',
+    highlightContinue: 'Her fortsetter du med {{name}}',
   },
 };
 

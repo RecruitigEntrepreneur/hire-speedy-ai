@@ -10,6 +10,7 @@ const en: Messages<typeof de> = {
   },
   header: {
     tour: 'Tour',
+    dropHint: 'You can drag CVs here.',
   },
   subtext: {
     urgentInterviewToday_one: 'You have {{count}} urgent task and an interview today at {{time}}.',

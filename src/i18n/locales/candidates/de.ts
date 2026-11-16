@@ -121,7 +121,7 @@ const de = {
   menu: {
     button: 'Kandidaten anlegen',
     cvTitle: 'Lebenslauf hochladen',
-    cvText: 'PDF oder Word. Die KI liest aus, du prüfst nur noch.',
+    cvText: 'PDF oder Word, auch mehrere. Die KI liest aus, du prüfst nur noch.',
     textTitle: 'Text oder LinkedIn-Profil einfügen',
     textText: 'Kopieren, einfügen, die KI liest aus.',
     withoutCvTitle: 'Ohne Lebenslauf anlegen',

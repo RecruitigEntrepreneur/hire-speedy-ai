@@ -509,6 +509,8 @@ const sv: Messages<typeof de> = {
     stationen: 'Anställningar',
     ausbildung: 'Utbildning',
     skill_details: 'Kompetensdetaljer',
+    lebenslauf_datei: 'Cv-fil',
+    interviewangaben_sperrliste_motivation_ziele: 'Intervjuuppgifter (spärrlista, motivation, mål)',
     groessere_geschaeftsfuehrung: 'Större ledningsuppdrag',
     beirat_oder_aufsichtsrat: 'Advisory board eller styrelse',
     interim_mandate: 'Interimsuppdrag',

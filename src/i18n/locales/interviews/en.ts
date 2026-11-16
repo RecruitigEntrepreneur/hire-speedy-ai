@@ -83,6 +83,9 @@ const en: Messages<typeof de> = {
     reminderSend: 'The reminder could not be sent.',
     requestSend: 'The request could not be sent.',
     slugTaken: 'This address is already taken.',
+    proofSave: 'The confirmation could not be saved.',
+    linkedinRead: 'LinkedIn could not be read just now. Try again in a moment.',
+    photoAdopt: 'The photo could not be added.',
   },
 };
 

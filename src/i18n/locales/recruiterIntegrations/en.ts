@@ -3,7 +3,8 @@ import type { Messages } from '../../types';
 
 const en: Messages<typeof de> = {
   title: 'Integrations',
-  subtitle: 'Connect your CRM and ATS systems with one click',
+  subtitle: 'Connect your CRM or ATS and bring your candidates to Matchunt',
+  backToSettings: 'Settings',
   mail: {
     title: 'Email-based interview system active',
     text: 'Candidates automatically receive interview invitations by email with a calendar attachment (.ics). When an appointment is confirmed, everyone involved is notified automatically.',

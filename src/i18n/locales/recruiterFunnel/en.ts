@@ -444,6 +444,12 @@ const en: Messages<typeof de> = {
     saving: 'Saving …',
     saveAndContinue: 'Save and continue',
     later: 'Later',
+    pwTitle: 'Sign in with password',
+    pwLead: 'If you have already set a password. Otherwise just use a code.',
+    withPassword: 'Sign in with password',
+    password: 'Password',
+    forgotPassword: 'Forgot your password? Sign in with a code',
+    wrongPassword: 'Email or password is incorrect. You can always sign in with a code.',
   },
 };
 

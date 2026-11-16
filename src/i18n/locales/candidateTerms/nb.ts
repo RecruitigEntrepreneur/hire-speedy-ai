@@ -509,6 +509,8 @@ const nb: Messages<typeof de> = {
     stationen: 'Stillinger',
     ausbildung: 'Utdanning',
     skill_details: 'Kompetansedetaljer',
+    lebenslauf_datei: 'CV-fil',
+    interviewangaben_sperrliste_motivation_ziele: 'Intervjuopplysninger (sperreliste, motivasjon, mål)',
     groessere_geschaeftsfuehrung: 'Større toppleder-rolle',
     beirat_oder_aufsichtsrat: 'Rådgivende styre eller styre',
     interim_mandate: 'Interimoppdrag',

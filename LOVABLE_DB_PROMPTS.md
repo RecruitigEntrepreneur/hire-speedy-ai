@@ -1597,6 +1597,34 @@ Danach: `drizzle/migrations/meta/_journal.json` prüfen (neuer Eintrag `…_stel
 
 ---
 
+## 51 — Headhunter: Glocke, Posteingang, Einstellungen, LinkedIn-Abgleich, Lebenslauf-Ablage, Vorstellen (16.11.2026)
+
+Commit siehe `git log` („Headhunter-Paket …“). **1 Migration, 5 Edge Functions, Publish.** Erst nach Nr. 50.
+Glocke führt direkt ins passende Fenster, Posteingang als Sprechblase oben, Einstellungen für Headhunter
+(Konto und Sicherheit, Abwesenheit, Darstellung, Datenschutz, Anbindungen „Bald“), Anmelden mit Passwort,
+„Mit LinkedIn verbinden“ in Profil › Über dich mit Abgleich (Foto; Werdegang, Sprachen, Schwerpunkte erst mit
+Datenfreigabe), Lebenslauf-Ablage mit Hinweis an den Kandidaten, neuer Vorstellen-Weg, „Fehlendes eintragen“ im
+Interview, offene Stellen im Kandidatenprofil. Alle neuen Texte in Deutsch, Englisch, Schwedisch, Norwegisch.
+
+> 1. Aktuellen Stand von `main` übernehmen.
+> 2. Genau diese eine Migration über den Migrations-Flow ausführen: `supabase/migrations/20261116120000_cv_field_origins.sql`.
+>    Keine andere Datei, die noch nicht im Journal steht. Inhalt: nur eine neue Spalte
+>    `public.candidates.cv_field_origins jsonb` (`ADD COLUMN IF NOT EXISTS`) mit Kommentar. Keine Tabelle, keine
+>    Rechte- oder RLS-Änderung, keine Daten-Einfügungen, kein BEGIN/COMMIT, kein Cron. So ausführen, wie sie in der Datei steht.
+> 3. Diese 5 Edge Functions deployen (alle geändert, Einstellungen unverändert, `verify_jwt` steht in `supabase/config.toml`):
+>    `linkedin`, `linkedin-callback`, `termin-einladung`, `termin-seite`, `recruiter-notify`.
+>    Neu sind nur die gemeinsamen Dateien `_shared/linkedin-profil.ts` und `_shared/lebenslauf-hinweis.ts`.
+> 4. Danach Publish. Reihenfolge ist wichtig: erst Migration, dann Functions, dann Publish – die neue Oberfläche
+>    schreibt beim Anlegen aus dem Lebenslauf `cv_field_origins` und ruft die neuen Aktionen der Functions auf.
+> 5. Keine Secrets anlegen oder ändern. Insbesondere `LINKEDIN_DMA` NICHT setzen (das kommt erst, wenn LinkedIn die
+>    Datenfreigabe für Matchunt freigeschaltet hat).
+> 6. Am Code nichts ändern. Keine Function überspringen. Falls etwas nicht durchläuft, alle Befunde gesammelt mit Grund
+>    melden. Am Ende melden: Migration gelaufen (Journal-Eintrag), welche Functions deployt sind, und dass Publish durch ist.
+
+Danach: `drizzle/migrations/meta/_journal.json` prüfen (neuer Eintrag `…_cv_field_origins` nach `0058_stellen_anfragen`).
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über

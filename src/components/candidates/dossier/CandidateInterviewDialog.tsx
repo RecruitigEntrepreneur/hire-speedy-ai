@@ -1,5 +1,5 @@
 import { Fragment, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, ChevronLeft, ChevronRight, Loader2, MoreHorizontal, Phone, Sparkles, Star, Video, X } from 'lucide-react';
+import { AlertTriangle, ChevronLeft, ChevronRight, FileText, Loader2, MoreHorizontal, Phone, Sparkles, Star, Video, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/i18n';
@@ -15,6 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import { vorname } from '@/lib/vorstellen';
 import {
   CHANGE_READINESS_OPTIONS,
   DISCUSSED_OPTIONS,
@@ -49,6 +50,7 @@ import { ASK_NON_COMPETE, FAMILY_CHIPS, NOTICE_HINT, detectRoleFamily, isLeaderT
 import { clientMotivation, earlierGeneratedMotivation, evaluateMotiveFields, incidentHasEvent, incidentParts, incidentSentence, incidentSuggestions, isAutoWhyNow, isOldAutoMotivation, joinMotivation, legacyAddonFields, motiveLabels, splitMotivation, type MotiveFlow } from '@/lib/situationMotives';
 import { careerSignals, yearsLabel, type CareerHook, type CareerStation, type SignalStation } from '@/lib/careerSignals';
 import { clientTextIssues, type ClientTextField } from '@/lib/clientTextCheck';
+import { liveOrigins, type StoredOrigins } from '@/lib/cvImport';
 import { quickExtract, type CaptureSuggestion } from '@/lib/quickExtract';
 import { buildReview, freshText, fromAiFields, mergeSuggestions, type ReviewItem } from '@/lib/captureReview';
 import {
@@ -81,7 +83,9 @@ import { useErstgespraeche } from '@/components/recruiter/termin/Erstgespraeche'
 import { InterviewInsightsCard } from '../client/ClientCandidateCards';
 import type { InterviewInsights } from '../client/useCandidateInsights';
 import type { EditFocus } from './CandidateEditSheet';
-import { ChipGroup, Field, FieldMissingContext, FieldQuestionContext, PhraseChips, TagInput, TextField, fieldId, focusDossierField } from './DossierFields';
+import { ChipGroup, ErledigtEtikett, FehltEtikett, Field, FieldDoneContext, FieldMissingContext, FieldMissingHintContext, FieldOriginContext, FieldOriginModeContext, FieldQuestionContext, PhraseChips, TagInput, TextField, erledigtRahmen, fehltRahmen, fieldId, focusDossierField } from './DossierFields';
+import { uploadCvFile } from '@/hooks/useCandidateCv';
+import { notifyCandidateChanged } from '@/hooks/useCandidateDossier';
 import { FuehrungFeld } from './FuehrungFeld';
 import { CareerGoalBlock, ClientMotivationField, IncidentBlock, MotiveBlock } from './MotiveBlock';
 import {
@@ -219,10 +223,16 @@ const SAVE_RETRY_MS = 5000;
 
 const uhrzeit = (d: Date | number, locale: string) => new Date(d).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
 
-export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form, pendingColumns, onSave, onComplete, directSubmit = false, onSubmitToJob, onEditMissing, hasCv = false, onUploadCv }: Props) {
+export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form, pendingColumns, onSave, onComplete, directSubmit = false, onSubmitToJob, hasCv: hasCvProp = false }: Props) {
   const { user } = useAuth();
   const { t, i18n: lang } = useTranslation(['candidateInterview', 'candidateTerms', 'candidateDossier']);
   const locale = intlLocale(lang.language);
+  // Lebenslauf direkt im Interview hochgeladen (14.11.2026): zählt sofort, bis die Akte neu geladen ist.
+  const [cvLokal, setCvLokal] = useState<string | null>(null);
+  const [cvLaedt, setCvLaedt] = useState(false);
+  const [cvFehler, setCvFehler] = useState<string | null>(null);
+  const cvInputRef = useRef<HTMLInputElement>(null);
+  const hasCv = hasCvProp || !!cvLokal;
   const [draft, setDraft] = useState<DossierForm>(form);
   // Eine Stelle für beide Darstellungen: Schritt für Schritt die Frage, sonst deren Phase.
   const [view, setView] = useState(0);
@@ -234,6 +244,10 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
   const [finished, setFinished] = useState(false);
   // Gelbe Kante „fehlt“ am Feld erst nach einem Klick auf eine fehlende Angabe, nicht im ganzen Gespräch.
   const [zeigeFehlt, setZeigeFehlt] = useState(false);
+  // Abschließen mit Lücke oben im Kopf (12.11.2026): die Angabe sichtbar hervorheben, bis sie gesetzt ist.
+  const [kopfFehlt, setKopfFehlt] = useState<string | null>(null);
+  // „Weiter: Abschluss“ mit Lücken vor dem Auflegen: je Lücke einmal hinführen, dann geht es weiter.
+  const gemahnt = useRef<Set<string>>(new Set());
   // Ohne Rolle in der Akte steht „Rolle heute“ ganz oben in Punkt 1 (die Ziel-Vorschläge hängen an der Rolle).
   const [rolleOben, setRolleOben] = useState(false);
   const [rueckkehr, setRueckkehr] = useState<{ savedAt: number | null } | null>(null);
@@ -249,10 +263,16 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
   // Werdegang aus der Akte (Stationen) und dem gespeicherten Lebenslauf-Text
   const [stations, setStations] = useState<CareerStation[]>([]);
   const [cvText, setCvText] = useState<string | null>(null);
+  // Was beim Anlegen aus dem Lebenslauf kam (09.11.2026): Vermerk „Lebenslauf“ an der Frage.
+  const [storedOrigins, setStoredOrigins] = useState<StoredOrigins | null>(null);
   const [fromCv, setFromCv] = useState(false);
   const [editRolle, setEditRolle] = useState(false);
   const [editSprachen, setEditSprachen] = useState(false);
   const [onlyMissing, setOnlyMissing] = useState(false);
+  // Was beim Öffnen von „Nur Fehlendes“ offen war: bleibt stehen, auch wenn es eingetragen wird (14.11.2026).
+  // Von der Abschluss-Karte zu „Fehlendes eintragen“: unten führt „Zum Abschluss“ zurück zur Karte.
+  const [vonKarte, setVonKarte] = useState(false);
+  const [fehlendStand, setFehlendStand] = useState<{ items: { key: string; label: string }[]; fields: string[] } | null>(null);
   const [hiddenHooks, setHiddenHooks] = useState<Set<string>>(new Set());
   const [startSaved, setStartSaved] = useState(false);
   const [busyFirm, setBusyFirm] = useState('');
@@ -302,6 +322,7 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
     baselineNotesRef.current = form.additional_notes;
     const completed = form.interview_status === 'completed';
     setCompletedAtOpen(completed);
+    setVonKarte(false);
     setLayout(completed ? 'all' : user ? readInterviewLayout(user.id) : 'steps');
     const startView = completed ? 0 : pos ? viewIndex(pos.view) : firstOpenView(form);
     setView(startView);
@@ -452,7 +473,8 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
 
   const readiness = useMemo(() => computeReadiness(draft, hasCv), [draft, hasCv]);
   const evidence = useMemo(() => changeEvidence(draft), [draft]);
-  const firstName = draft.full_name.split(' ')[0] || t('dlg.thePerson');
+  // Testdaten heißen „Test Vorname Nachname“: im Interview der echte Vorname (12.11.2026).
+  const firstName = draft.full_name.trim() ? vorname(draft.full_name) : t('dlg.thePerson');
 
   // Was fehlt -- zum Abschließen (Mindestangaben und Rahmen fürs Matching, wie die
   // Datenbank beim Einreichen) und zusätzlich zum Einreichen. Gelb nur noch auf „Markt“
@@ -476,6 +498,35 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
     }
     return out;
   }, [gaps, fuerEinreichen, draft.job_title, draft.experience_years]);
+
+  // „Nur Fehlendes“ merkt sich beim Öffnen, was offen war; Eingetragenes bleibt grau stehen.
+  useEffect(() => {
+    if (!onlyMissing) { setFehlendStand(null); return; }
+    setFehlendStand((alt) => alt ?? {
+      items: [...gaps, ...fuerEinreichen].filter((m, i, a) => a.findIndex((x) => x.key === m.key) === i).map((m) => ({ key: m.key, label: m.label })),
+      fields: [...missingFields],
+    });
+  }, [onlyMissing]); // eslint-disable-line react-hooks/exhaustive-deps
+  const erledigteFelder = useMemo(
+    () => (onlyMissing && fehlendStand ? new Set(fehlendStand.fields.filter((f) => !missingFields.has(f))) : null),
+    [onlyMissing, fehlendStand, missingFields],
+  );
+  useEffect(() => { setCvLokal(null); setCvFehler(null); }, [candidateId]);
+
+  const cvHochladen = async (file: File) => {
+    if (!user) return;
+    setCvFehler(null);
+    setCvLaedt(true);
+    try {
+      await uploadCvFile({ userId: user.id, candidateId, file });
+      setCvLokal(file.name);
+      notifyCandidateChanged(candidateId);
+    } catch (err) {
+      setCvFehler(err instanceof Error ? err.message : t('gaps.cvUploadFailed'));
+    } finally {
+      setCvLaedt(false);
+    }
+  };
 
   // Erkennung beim Tippen: Schnellerkennung auf der Notiz und der Notiz aus der Buchung, dazu KI-Vorschläge
   const terminNotiz = termin?.note?.trim() ?? '';
@@ -529,6 +580,7 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
       return;
     }
     if (w.ort === 'kopf') {
+      setKopfFehlt(w.field);
       const el = document.getElementById(fieldId(w.field));
       el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       (el?.matches('input') ? el : el?.querySelector<HTMLElement>('button'))?.focus({ preventScroll: true });
@@ -545,6 +597,9 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
   /** „Nur Fehlendes“: im selben Blick zum Baustein, ohne die Ansicht zu verlassen. */
   const scrollToGap = (key: string) => {
     const w = WHERE[key];
+    const feld = w?.field ?? key;
+    // Skills und Lebenslauf stehen seit 14.11.2026 auch hier auf der Seite.
+    if (onlyMissing && document.querySelector(`[data-dossier-field="${feld}"]`)) { focusDossierField(feld); return; }
     if (!w || w.ort !== 'frage') { jump(key); return; }
     focusDossierField(w.field);
   };
@@ -564,10 +619,14 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
       setCvText(c?.cv_raw_text ?? null);
       setFromCv(/cv/i.test(c?.import_source ?? ''));
     });
+    // Eigene Abfrage: Fehlt die Spalte noch (Migration 20261109120000), gibt es nur keinen Vermerk.
+    void supabase.from('candidates').select('cv_field_origins').eq('id', candidateId).maybeSingle()
+      .then(({ data, error }) => setStoredOrigins(error ? null : ((data?.cv_field_origins as StoredOrigins | null) ?? null)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, candidateId]);
 
   const signals = useMemo(() => careerSignals(stations, { cvText }), [stations, cvText, lang.language]); // eslint-disable-line react-hooks/exhaustive-deps
+  const cvOrigins = useMemo(() => liveOrigins(storedOrigins, draft), [storedOrigins, draft]);
   // Werdegang rechts: Stationen von neu nach alt, Lücken genau dazwischen.
   type WerdegangRow = { kind: 'station'; st: SignalStation; short: number | null } | { kind: 'gap'; from: Date; to: Date; months: number };
   const werdegang = useMemo<WerdegangRow[]>(() => {
@@ -581,6 +640,21 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
   }, [signals]);
   const family = useMemo(() => detectRoleFamily(draft), [draft.job_title, draft.seniority, draft.leadership_scope]);
   const fam = FAMILY_CHIPS[family];
+  // „Gehalt und Rahmen · n offen“ links (09.11.2026): Fragen des Punkts ohne Antwort.
+  // Freiwilliges (heutiges Gehalt, Schmerzgrenze) zählt nicht.
+  const rahmenOffen = [
+    !draft.expected_salary,
+    !draft.notice_period && !draft.availability_date,
+    !!ASK_NON_COMPETE[family] && !draft.non_compete,
+    wohnortFragen.current && !draft.city.trim(),
+    !draft.target_locations.length,
+    draft.relocation_willing == null,
+    !draft.remote_preference,
+    draft.remote_preference !== 'remote' && draft.relocation_willing !== true && !((draft.max_commute_minutes ?? 0) > 0),
+    !draft.employment_type,
+    !draft.languages.some((l) => l.language.trim()),
+    !draft.work_permit,
+  ].filter(Boolean).length;
   const motives = useMemo(() => evaluateMotiveFields(family, draft.current_positive, draft.current_negative), [family, draft.current_positive, draft.current_negative]);
   const incidentSugs = useMemo(
     () => incidentSuggestions(draft.current_negative, { tenureYears: signals.tenureYears, newJob: signals.hooks.some((h) => h.key === 'new_job') }),
@@ -895,7 +969,7 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
       <div className="space-y-2">
         <p className="text-sm font-medium">{t('role.title')}</p>
         <Why>{fromCv ? t('role.confirmCv') : t('role.confirmFile')}</Why>
-        {editRolle || !draft.job_title.trim() ? (
+        {editRolle || !draft.job_title.trim() || !((draft.experience_years ?? 0) > 0) ? (
           <RolleBlock form={draft} set={set} />
         ) : (
           <div className="flex items-start justify-between gap-3 rounded-lg border border-border bg-background px-3 py-2.5">
@@ -1067,8 +1141,8 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
           <SprachenBlock form={draft} set={set} />
         ) : (
           <div className="flex flex-wrap items-center gap-x-2 text-sm">
-            <span className="text-muted-foreground">✓ {fromCv ? t('src.fromCv') : t('src.fromFile')}:</span>
-            <span>{draft.languages.map((l) => (l.proficiency ? `${term(l.language)} (${term(l.proficiency)})` : term(l.language))).join(' · ')}</span>
+            {!cvOrigins.languages && <span className="text-muted-foreground">✓ {fromCv ? t('src.fromCv') : t('src.fromFile')}:</span>}
+            <span className={cn(cvOrigins.languages && 'text-[hsl(var(--cv-fg))]')}>{draft.languages.map((l) => (l.proficiency ? `${term(l.language)} (${term(l.proficiency)})` : term(l.language))).join(' · ')}</span>
             <button type="button" className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => setEditSprachen(true)}>{t('common.change')}</button>
           </div>
         )}
@@ -1181,7 +1255,22 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
   };
 
   /** Inhalt eines Punkts. Schritt für Schritt untereinander, auf der langen Seite wie gewohnt nebeneinander. */
-  const punkt = (key: InterviewViewKey, schritt: boolean) => {
+  // Einmal oben im Punkt (Mix 1, 09.11.2026): wie viele Antworten schon aus dem Lebenslauf kamen.
+  // Die Rolle zeigt ihr „✓ aus dem Lebenslauf“ selbst, der Wohnort wird nur ohne Angabe gefragt.
+  const cvHinweis = (key: InterviewViewKey) => {
+    const v = INTERVIEW_VIEWS.find((x) => x.key === key);
+    const n = (v?.fields ?? []).filter((f) => cvOrigins[f as keyof typeof cvOrigins] && !ROLLE_FIELDS.includes(f) && (f !== 'city' || wohnortFragen.current)).length;
+    if (!n) return null;
+    return (
+      <p className="flex items-center gap-2 rounded-md border border-[hsl(var(--cv-border))] bg-[hsl(var(--cv-bg))] px-3 py-1.5 text-xs text-[hsl(var(--cv-fg))]">
+        <FileText className="h-3.5 w-3.5 shrink-0" />
+        {t('src.cvTaken', { count: n })}
+      </p>
+    );
+  };
+
+  const punkt = (key: InterviewViewKey, schritt: boolean) => <>{cvHinweis(key)}{punktInhalt(key, schritt)}</>;
+  const punktInhalt = (key: InterviewViewKey, schritt: boolean) => {
     switch (key) {
       case 'ziel': return <>{rolleOben && rolleFact()}{careerGoalField()}{zielNachfragen(schritt)}</>;
       case 'rolle': return <>{!rolleOben && rolleFact()}{leadershipFields()}<MotiveBlock form={draft} set={set} family={family} candidateId={candidateId} stacked={schritt} /></>;
@@ -1205,9 +1294,36 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
     </div>
   );
 
+  /** Lebenslauf in „Nur Fehlendes“ (14.11.2026): direkt hier hochladen, das Interview bleibt offen. */
+  const lebenslaufKarte = () => (
+    <div data-dossier-field="lebenslauf" className={cn('space-y-1.5', hasCv ? erledigtRahmen : fehltRahmen)}>
+      {hasCv ? <ErledigtEtikett /> : <FehltEtikett />}
+      <p className="text-sm font-medium">{t('candidateTerms:t.lebenslauf')}</p>
+      {hasCv ? (
+        <p className="text-sm">{cvLokal ? t('gaps.cvJustUploaded', { name: cvLokal }) : t('gaps.cvInFile')}</p>
+      ) : (
+        <>
+          <p className="text-xs text-muted-foreground">{nextQuestion('lebenslauf')}</p>
+          <input
+            ref={cvInputRef}
+            type="file"
+            accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void cvHochladen(f); }}
+          />
+          <Button variant="outline" size="sm" disabled={cvLaedt} onClick={() => cvInputRef.current?.click()}>
+            {cvLaedt && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}{t('done.uploadCv')}
+          </Button>
+          {cvFehler && <p className="text-xs text-destructive">{cvFehler}</p>}
+        </>
+      )}
+    </div>
+  );
+
   /** „Nur Fehlendes“: nur die offenen Pflicht- und Einreichen-Punkte, mit denselben Bausteinen. */
   const renderGaps = () => {
-    const keys = [...gaps.map((g) => g.key), ...fuerEinreichen.map((m) => m.key)];
+    const jetzt = [...gaps.map((g) => g.key), ...fuerEinreichen.map((m) => m.key)];
+    const keys = fehlendStand ? [...fehlendStand.items.map((m) => m.key), ...jetzt] : jetzt;
     const shown = new Set<string>();
     const blocks: ReactNode[] = [];
     let arbeitsortGezeigt = false;
@@ -1229,12 +1345,21 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
       }
       else if (k === 'wohnort') blocks.push(<div key={k}>{wohnortField()}</div>);
       else if (k === 'sprachen') blocks.push(<Field key={k} label={t('q.languages')} field="languages"><SprachenBlock form={draft} set={set} /></Field>);
-      else if (k === 'lebenslauf') blocks.push(<p key={k} className="text-sm text-muted-foreground">{t('gaps.cv', { question: nextQuestion('lebenslauf') })}</p>);
+      else if (k === 'skills') blocks.push(
+        <Field key={k} label={t('candidateTerms:t.skills_mind_3')} field="skills" hint={t('gaps.skillsHint')}>
+          <TagInput field="skills" values={draft.skills} onChange={(v) => set({ skills: v })} placeholder={t('gaps.skillsPlaceholder')} />
+        </Field>,
+      );
+      else if (k === 'lebenslauf') blocks.push(<div key={k}>{lebenslaufKarte()}</div>);
       else if (k === 'kundentexte') blocks.push(<p key={k} className="text-sm">{t('gaps.clientText')}</p>);
       else blocks.push(<p key={k} className="text-sm text-muted-foreground">{t('gaps.inFile', { label: term(readiness.items.find((i) => i.key === k)?.label ?? k) })}</p>);
     }
+    const nochOffen = gaps.length + fuerEinreichen.length;
+    const intro = !blocks.length ? t('gaps.none')
+      : nochOffen ? t('gaps.intro')
+      : readiness.isReady ? t('gaps.allDoneReady', { name: firstName }) : t('gaps.allDone');
     return (
-      <Phase title={t('gaps.title')} intro={blocks.length ? t('gaps.intro') : t('gaps.none')}>
+      <Phase title={t('gaps.title')} intro={intro}>
         {blocks}
       </Phase>
     );
@@ -1243,14 +1368,13 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
   /** Die Karte nach dem Abschluss: bleibt stehen, bis der Headhunter wählt. */
   const renderFinished = () => {
     const nachher = computeReadiness(draft, hasCv);
+    // 14.11.2026 (Marko: „wir klicken drauf, sehen aber nicht, was fehlt“): alles Fehlende auf einer
+    // Seite, jeder Punkt in gelber Karte, statt nur zum ersten Punkt zu springen.
     const fehlendesEintragen = () => {
-      const m = nachher.missing[0];
-      const w = m ? WHERE[m.key] : undefined;
-      if (w && w.ort === 'frage') { jump(m.key); return; }
-      // Fehlt nur noch der Lebenslauf: direkt zum Hochladen.
-      if (m?.key === 'lebenslauf' && onUploadCv) { closeAfterFinish(); onUploadCv(); return; }
-      closeAfterFinish();
-      if (m) onEditMissing?.({ section: m.section, field: m.field });
+      setVonKarte(true);
+      setFinished(false);
+      setZeigeFehlt(false);
+      setOnlyMissing(true);
     };
     return (
       <div className="flex min-h-full items-center justify-center">
@@ -1265,7 +1389,7 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
             {nachher.isReady ? (
               <Button onClick={() => { closeAfterFinish(); onSubmitToJob?.(); }}>{t('done.submit')}</Button>
             ) : (
-              <Button onClick={fehlendesEintragen}>{nachher.missing[0]?.key === 'lebenslauf' && onUploadCv ? t('done.uploadCv') : t('done.fillMissing')}</Button>
+              <Button onClick={fehlendesEintragen}>{t('done.fillMissing')}</Button>
             )}
           </div>
         </div>
@@ -1274,16 +1398,37 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
   };
 
   const openItems = [...gaps, ...fuerEinreichen];
+  // Links in „Nur Fehlendes“: was beim Öffnen fehlte, mit Haken, sobald es eingetragen ist.
+  const offenKeys = new Set(openItems.map((m) => m.key));
+  const navFehlend = [...(fehlendStand?.items ?? []), ...openItems]
+    .filter((m, i, a) => a.findIndex((x) => x.key === m.key) === i)
+    .map((m) => ({ key: m.key, erledigt: !offenKeys.has(m.key), label: WHERE[m.key]?.ort === 'kopf' ? t('open.top', { label: term(m.label) }) : term(m.label) }));
   const openLabel = (m: { key: string; label: string }) => (WHERE[m.key]?.ort === 'kopf' ? t('open.top', { label: term(m.label) }) : WHERE[m.key]?.ort === 'akte' ? t('open.file', { label: term(m.label) }) : term(m.label));
   const ersteOffene = firstOpenView(draft);
 
   // Gelb nur in zwei Momenten: auf „Markt“, solange der Kandidat noch in der Leitung ist
   // (was fehlt, muss er jetzt noch sagen), und beim Abschluss bzw. auf der langen Seite.
   const vorDemAuflegen = gaps.filter((g) => WHERE[g.key]?.ort !== 'kopf');
+  const kopfLeer = kopfFehlt === 'interview_type' ? !draft.interview_type : kopfFehlt === 'interview_date' ? !draft.interview_date : false;
+  const kopfMarkiert = kopfLeer ? kopfFehlt : null;
+
   const hinweisZeile = onlyMissing || finished ? null
     : (!stepMode || currentView.key === 'abschluss') && gaps.length ? { titel: t('bar.toComplete'), liste: gaps, frage: null as string | null }
     : stepMode && currentView.key === 'markt' && vorDemAuflegen.length ? { titel: t('bar.beforeHangup'), liste: vorDemAuflegen, frage: nextQuestion(vorDemAuflegen[0].key) }
     : null;
+
+  /**
+   * Weiter (12.11.2026, Marko: „wieso wird das, was fehlt, nicht gehighlightet“): Auf „Markt“ führt
+   * der Klick erst zur ersten Frage, die vor dem Auflegen noch fehlt, und markiert sie. Jede Lücke
+   * nur einmal: Will der Kandidat etwas nicht sagen, kommt man beim nächsten Klick trotzdem weiter.
+   */
+  const weiter = () => {
+    if (currentView.key === 'markt') {
+      const offen = vorDemAuflegen.find((g) => !gemahnt.current.has(g.key));
+      if (offen) { gemahnt.current.add(offen.key); jump(offen.key); return; }
+    }
+    goToView(view + 1);
+  };
 
   const abschliessenKnopf = (
     <Button onClick={complete} disabled={completing}>
@@ -1292,8 +1437,8 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
     </Button>
   );
   // Von der Abschluss-Karte aus Fehlendes eingetragen: ohne zweites Abschließen zurück zur Karte.
-  const zurKarteKnopf = draft.interview_status === 'completed' && !completedAtOpen && (
-    <Button onClick={async () => { if (await flush()) setFinished(true); }}>{t('btn.toFinish')}</Button>
+  const zurKarteKnopf = ((draft.interview_status === 'completed' && !completedAtOpen) || (vonKarte && onlyMissing)) && (
+    <Button onClick={async () => { if (await flush()) { setOnlyMissing(false); setFinished(true); } }}>{t('btn.toFinish')}</Button>
   );
   const hatVor = view > 0;
   const hatNach = view < INTERVIEW_VIEWS.length - 1;
@@ -1338,8 +1483,11 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
               </div>
             ) : (
               <div className="flex flex-wrap items-center gap-2">
-                <Input id={fieldId('interview_date')} type="date" aria-label={t('head.dateAria')} className="h-8 w-36 text-xs" value={draft.interview_date ?? today()} onChange={(e) => set({ interview_date: e.target.value || today() })} />
-                <ChipGroup field="interview_type" options={INTERVIEW_TYPE_OPTIONS} value={draft.interview_type} onChange={(v) => set({ interview_type: v })} />
+                <Input id={fieldId('interview_date')} type="date" aria-label={t('head.dateAria')} className={cn('h-8 w-36 text-xs', kopfMarkiert === 'interview_date' && 'border-warning ring-1 ring-warning')} value={draft.interview_date ?? today()} onChange={(e) => set({ interview_date: e.target.value || today() })} />
+                {kopfMarkiert === 'interview_type' && <span className="text-xs font-medium text-warning">{t('head.howTalked')}</span>}
+                <span className={cn('inline-flex rounded-lg p-0.5 transition-shadow', kopfMarkiert === 'interview_type' && 'ring-[1.5px] ring-warning')}>
+                  <ChipGroup field="interview_type" options={INTERVIEW_TYPE_OPTIONS} value={draft.interview_type} onChange={(v) => set({ interview_type: v })} />
+                </span>
               </div>
             )}
           </div>
@@ -1360,15 +1508,19 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
             {onlyMissing ? (
               <>
                 <p className="px-2 pb-1 text-xs text-muted-foreground">{t('gaps.title')}</p>
-                {openItems.map((m) => (
-                  <button key={m.key} type="button" onClick={() => scrollToGap(m.key)} className="rounded-md px-2 py-1.5 text-left leading-snug hover:bg-muted">{openLabel(m)}</button>
+                {navFehlend.map((m) => (
+                  <button key={m.key} type="button" onClick={() => scrollToGap(m.key)} className="flex items-start gap-1.5 rounded-md px-2 py-1.5 text-left leading-snug hover:bg-muted">
+                    <span aria-hidden className="w-3 shrink-0 text-xs text-muted-foreground">{m.erledigt ? '✓' : ''}</span>
+                    <span>{m.label}</span>
+                  </button>
                 ))}
-                {!openItems.length && <p className="px-2 text-xs text-muted-foreground">{t('gaps.none')}</p>}
+                {!navFehlend.length && <p className="px-2 text-xs text-muted-foreground">{t('gaps.none')}</p>}
               </>
             ) : (
               INTERVIEW_VIEWS.map((v, i) => {
                 const active = !finished && i === view;
-                const done = viewAnswered(v.key, draft);
+                const offen = v.key === 'rahmen' ? rahmenOffen : 0;
+                const done = viewAnswered(v.key, draft) && offen === 0;
                 return (
                   <Fragment key={v.key}>
                     {v.key === 'abschluss' && <hr className="my-1 hidden border-border md:block" />}
@@ -1382,7 +1534,10 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
                       )}
                     >
                       <span aria-hidden className="w-3 shrink-0 text-xs text-muted-foreground">{done ? '✓' : ''}</span>
-                      {term(v.label)}
+                      <span>
+                        {term(v.label)}
+                        {offen > 0 && <span className="whitespace-nowrap text-xs font-normal text-muted-foreground"> · {t('nav.openCount', { count: offen })}</span>}
+                      </span>
                       {done && <span className="sr-only">{t('nav.answered')}</span>}
                     </button>
                   </Fragment>
@@ -1414,9 +1569,17 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
               </p>
             )}
             <FieldMissingContext.Provider value={fehltAnzeigen ? missingFields : null}>
+              <FieldDoneContext.Provider value={erledigteFelder}>
+              <FieldMissingHintContext.Provider value={stepMode && !onlyMissing && currentView.key !== 'abschluss' ? t('candidateDossier:fields.stillMissingAsk') : t('candidateDossier:fields.stillMissing')}>
               <FieldQuestionContext.Provider value>
-                {finished ? renderFinished() : onlyMissing ? renderGaps() : stepMode ? <div className="space-y-5">{punkt(currentView.key, true)}</div> : renderAll()}
+                <FieldOriginContext.Provider value={cvOrigins}>
+                  <FieldOriginModeContext.Provider value="tag">
+                    {finished ? renderFinished() : onlyMissing ? renderGaps() : stepMode ? <div className="space-y-5">{punkt(currentView.key, true)}</div> : renderAll()}
+                  </FieldOriginModeContext.Provider>
+                </FieldOriginContext.Provider>
               </FieldQuestionContext.Provider>
+              </FieldMissingHintContext.Provider>
+              </FieldDoneContext.Provider>
             </FieldMissingContext.Provider>
           </div>
 
@@ -1488,7 +1651,7 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
           <div className="flex flex-wrap items-center gap-1.5 border-t border-border bg-warning/10 px-6 py-2 text-xs text-warning">
             <span>{hinweisZeile.titel}</span>
             {hinweisZeile.liste.map((m) => (
-              <button key={m.key} type="button" onClick={() => jump(m.key)} className="rounded border border-warning/50 px-1.5 py-0.5 hover:bg-warning/10">{openLabel(m)} ›</button>
+              <button key={m.key} type="button" onClick={() => jump(m.key)} className={cn('rounded border border-warning/50 px-1.5 py-0.5 hover:bg-warning/10', kopfMarkiert === m.key && 'bg-warning/20')}>{openLabel(m)} ›</button>
             ))}
             {hinweisZeile.frage && <span className="text-muted-foreground">{hinweisZeile.frage}</span>}
           </div>
@@ -1511,7 +1674,7 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
               : hatNach ? (
                 <div className="flex gap-2">
                   {/* Alle Mindestangaben da: abschließen von überall, nicht erst am Ende. */}
-                  <Button variant={kannAbschliessen || zurKarteKnopf ? 'outline' : 'default'} onClick={() => goToView(view + 1)}>
+                  <Button variant={kannAbschliessen || zurKarteKnopf ? 'outline' : 'default'} onClick={weiter}>
                     {t('foot.next', { view: term(INTERVIEW_VIEWS[view + 1].label) })}
                     <ChevronRight className="ml-1 h-4 w-4" />
                   </Button>

@@ -6,10 +6,17 @@
 // (Standard: <SUPABASE_URL>/functions/v1/linkedin-callback), LINKEDIN_API_VERSION
 // (YYYYMM, Standard 202509; LinkedIn unterstützt jede Version etwa ein Jahr).
 // Normale Apps bekommen kein Refresh-Token: die Verbindung hält 60 Tage.
+//
+// Datenfreigabe (16.11.2026): Mit LINKEDIN_DMA=an fragt die Anmeldung zusätzlich
+// r_dma_portability_3rd_party an (Produkt „Member Data Portability API (3rd Party)“,
+// nur nach Freischaltung durch LinkedIn, nur Mitglieder im EWR). Erst dann liefert
+// snapshotHolen Werdegang, Sprachen und Fähigkeiten. Ohne Freischaltung bleibt es aus,
+// sonst lehnt LinkedIn die Anmeldung wegen des unbekannten Scopes ab.
 
 export const LINKEDIN_SCOPES = 'openid profile w_member_social';
+export const DMA_SCOPE = 'r_dma_portability_3rd_party';
 
-export interface LinkedinConfig { clientId: string; clientSecret: string; redirectUri: string; version: string }
+export interface LinkedinConfig { clientId: string; clientSecret: string; redirectUri: string; version: string; dma: boolean }
 
 export function linkedinConfig(env: (k: string) => string | undefined = (k) => Deno.env.get(k)): LinkedinConfig | null {
   const clientId = env('LINKEDIN_CLIENT_ID');
@@ -20,11 +27,14 @@ export function linkedinConfig(env: (k: string) => string | undefined = (k) => D
     clientSecret,
     redirectUri: env('LINKEDIN_REDIRECT_URI') ?? `${env('SUPABASE_URL')}/functions/v1/linkedin-callback`,
     version: env('LINKEDIN_API_VERSION') ?? '202509',
+    dma: env('LINKEDIN_DMA') === 'an',
   };
 }
 
+export const linkedinScopes = (cfg: LinkedinConfig) => (cfg.dma ? `${LINKEDIN_SCOPES} ${DMA_SCOPE}` : LINKEDIN_SCOPES);
+
 export function authorizeUrl(cfg: LinkedinConfig, state: string): string {
-  const p = new URLSearchParams({ response_type: 'code', client_id: cfg.clientId, redirect_uri: cfg.redirectUri, state, scope: LINKEDIN_SCOPES });
+  const p = new URLSearchParams({ response_type: 'code', client_id: cfg.clientId, redirect_uri: cfg.redirectUri, state, scope: linkedinScopes(cfg) });
   return `https://www.linkedin.com/oauth/v2/authorization?${p.toString()}`;
 }
 
@@ -122,4 +132,44 @@ export async function posten(cfg: LinkedinConfig, token: string, o: {
 export async function loeschen(cfg: LinkedinConfig, token: string, urn: string) {
   const res = await fetch(`https://api.linkedin.com/rest/posts/${encodeURIComponent(urn)}`, { method: 'DELETE', headers: restHeaders(cfg, token) });
   if (!res.ok && res.status !== 404) throw new LinkedinError(res.status, 'Beitrag konnte nicht gelöscht werden');
+}
+
+/**
+ * Datenfreigabe: einen Bereich aus der Member Snapshot API holen (alle Seiten).
+ * Die API kennt nur die Version 202312. „in_arbeit“: LinkedIn stellt die Daten
+ * nach der Zustimmung erst zusammen; „nicht_freigegeben“: Scope fehlt oder abgelehnt.
+ */
+export type SnapshotErgebnis = { stand: 'ok'; zeilen: Record<string, unknown>[] } | { stand: 'in_arbeit' | 'nicht_freigegeben' };
+
+export async function snapshotHolen(token: string, bereich: string, maxSeiten = 20): Promise<SnapshotErgebnis> {
+  const zeilen: Record<string, unknown>[] = [];
+  for (let start = 0; start < maxSeiten; start++) {
+    const url = `https://api.linkedin.com/rest/memberSnapshotData?q=criteria&domain=${encodeURIComponent(bereich)}&start=${start}`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}`, 'LinkedIn-Version': '202312', 'X-Restli-Protocol-Version': '2.0.0' } });
+    if (res.status === 401 || res.status === 403) return { stand: 'nicht_freigegeben' };
+    // 404 „No data found for this memberId“: am Anfang noch nicht bereit, später das Ende der Seiten.
+    if (res.status === 404) return start === 0 ? { stand: 'in_arbeit' } : { stand: 'ok', zeilen };
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new LinkedinError(res.status, String(data?.message ?? `LinkedIn ${res.status}`));
+    for (const el of Array.isArray(data?.elements) ? data.elements : []) {
+      const teil = Array.isArray(el?.snapshotData) ? el.snapshotData : [];
+      zeilen.push(...teil.filter((z: unknown) => z && typeof z === 'object'));
+    }
+    const weiter = Array.isArray(data?.paging?.links) && data.paging.links.some((l: { rel?: string }) => l?.rel === 'next');
+    if (!weiter) break;
+  }
+  return { stand: 'ok', zeilen };
+}
+
+/** Foto von LinkedIn laden, nur von den LinkedIn-Bildservern, höchstens 5 MB. */
+export async function fotoLaden(url: string): Promise<{ bytes: Uint8Array; typ: string }> {
+  let host = '';
+  try { host = new URL(url).hostname; } catch { /* unten abgelehnt */ }
+  if (!/(^|\.)licdn(-ei)?\.com$/.test(host) || !url.startsWith('https://')) throw new LinkedinError(400, 'Fotoadresse nicht von LinkedIn');
+  const res = await fetch(url);
+  const typ = (res.headers.get('content-type') ?? '').split(';')[0].trim();
+  if (!res.ok || !['image/jpeg', 'image/png', 'image/webp'].includes(typ)) throw new LinkedinError(res.status, 'Foto konnte nicht geladen werden');
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  if (!bytes.length || bytes.length > 5 * 1024 * 1024) throw new LinkedinError(413, 'Foto zu groß');
+  return { bytes, typ };
 }

@@ -3,6 +3,7 @@ import i18n, { currentLanguage } from '@/i18n';
 import type { InterviewHoursRules } from '@/lib/interviewScheduling';
 import type { AnonymFund } from '../../supabase/functions/_shared/linkedin-anonym';
 import type { Steckbrief } from '../../supabase/functions/_shared/termin-seite';
+import type { LinkedinVorschlag } from '../../supabase/functions/_shared/linkedin-profil';
 
 /**
  * Anbindung der Terminseite und des LinkedIn-Beitrags (21.10.2026):
@@ -102,7 +103,14 @@ export const einladungApi = {
     rufe<{ ok: true; id: string; token: string }>('termin-einladung', { action: 'lebenslauf_anfragen', ...d }, fx('requestSend')),
   lebenslaufErinnern: (candidate_id: string) =>
     rufe<{ ok: true }>('termin-einladung', { action: 'lebenslauf_erinnern', candidate_id }, fx('reminderSend')),
+  /** Lebenslauf hochgeladen (12.11.2026): drei Häkchen als Nachweis, auf Wunsch Hinweis von Matchunt an den Kandidaten. */
+  lebenslaufNachweis: (d: { candidate_id: string; hinweis: boolean; datei: string }) =>
+    rufe<{ ok: true; hinweis: HinweisErgebnis; am?: string; message?: string }>('termin-einladung',
+      { action: 'lebenslauf_nachweis', ...d, user_agent: navigator.userAgent }, fx('proofSave')),
 };
+
+/** Ergebnis des Hinweises von Matchunt nach dem Hochladen. */
+export type HinweisErgebnis = 'gesendet' | 'schon' | 'ohne_email' | 'selbst' | 'fehler';
 
 /** Fertiger Link zur Lebenslauf-Anfrage. */
 export const lebenslaufLink = (token: string) => `${window.location.origin}/t/lebenslauf/${token}`;
@@ -122,7 +130,14 @@ export const linkedinApi = {
   trennen: () => rufe<{ ok: true }>('linkedin', { action: 'trennen' }),
   posten: (d: PostenDaten) => rufe<{ ok: true; post_id: string; urn: string; url: string; gepostet: string }>('linkedin', { action: 'posten', ...d }),
   loeschen: (post_id: string) => rufe<{ ok: true }>('linkedin', { action: 'loeschen', post_id }),
+  /** Profil › Über dich (16.11.2026): was LinkedIn über dich weiß, als Vorschlag. */
+  abgleich: () => rufe<LinkedinAbgleich>('linkedin', { action: 'abgleich' }, fx('linkedinRead')),
+  fotoUebernehmen: () => rufe<{ ok: true; avatar_path: string }>('linkedin', { action: 'foto_uebernehmen' }, fx('photoAdopt')),
 };
+
+/** Datenfreigabe: aus = nicht eingeschaltet, in_arbeit = LinkedIn stellt die Daten noch zusammen. */
+export type LinkedinDatenfreigabe = 'aus' | 'bereit' | 'in_arbeit' | 'nicht_freigegeben';
+export interface LinkedinAbgleich { name: string | null; bild: string | null; dma: LinkedinDatenfreigabe; vorschlag: LinkedinVorschlag | null }
 export type { AnonymFund };
 
 // ---------------------------------------------------------------------------

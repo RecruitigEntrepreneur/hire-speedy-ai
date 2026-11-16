@@ -83,6 +83,9 @@ const de = {
     reminderSend: 'Die Erinnerung konnte nicht verschickt werden.',
     requestSend: 'Die Anfrage konnte nicht verschickt werden.',
     slugTaken: 'Diese Adresse ist schon vergeben.',
+    proofSave: 'Der Nachweis konnte nicht gespeichert werden.',
+    linkedinRead: 'LinkedIn konnte gerade nicht gelesen werden. Versuch es gleich noch einmal.',
+    photoAdopt: 'Das Foto konnte nicht übernommen werden.',
   },
 };
 

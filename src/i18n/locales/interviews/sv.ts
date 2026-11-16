@@ -83,6 +83,9 @@ const sv: Messages<typeof de> = {
     reminderSend: 'Påminnelsen kunde inte skickas.',
     requestSend: 'Förfrågan kunde inte skickas.',
     slugTaken: 'Den här adressen är redan upptagen.',
+    proofSave: 'Bekräftelsen kunde inte sparas.',
+    linkedinRead: 'LinkedIn kunde inte läsas just nu. Försök igen om en stund.',
+    photoAdopt: 'Fotot kunde inte läggas till.',
   },
 };
 

@@ -445,6 +445,12 @@ const de = {
     saving: 'Wird gespeichert …',
     saveAndContinue: 'Speichern und weiter',
     later: 'Später',
+    pwTitle: 'Mit Passwort anmelden',
+    pwLead: 'Wenn du schon ein Passwort festgelegt hast. Sonst einfach mit Code.',
+    withPassword: 'Mit Passwort anmelden',
+    password: 'Passwort',
+    forgotPassword: 'Passwort vergessen? Mit Code anmelden',
+    wrongPassword: 'E-Mail oder Passwort stimmen nicht. Du kannst dich jederzeit mit Code anmelden.',
   },
 };
 

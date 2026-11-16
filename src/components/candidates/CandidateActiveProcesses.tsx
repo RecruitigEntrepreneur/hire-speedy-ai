@@ -171,17 +171,7 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
   const [offerFor, setOfferFor] = useState<string | null>(null);
   const [recFor, setRecFor] = useState<string | null>(null);
   const [frageFor, setFrageFor] = useState<string | null>(null);
-  // Knöpfe aus den Mails: ?angebot=, ?empfehlung=, ?frage= öffnen das passende Fenster
   const [searchParams, setSearchParams] = useSearchParams();
-  useEffect(() => {
-    const links = [['angebot', setOfferFor], ['empfehlung', setRecFor], ['frage', setFrageFor]] as const;
-    const hit = links.find(([key]) => searchParams.get(key));
-    if (!hit) return;
-    hit[1](searchParams.get(hit[0]));
-    const next = new URLSearchParams(searchParams);
-    next.delete(hit[0]);
-    setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -269,12 +259,46 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
     setDialogOpen(true);
   };
 
+  // Knöpfe aus den Mails und Hinweise aus der Glocke: ?angebot=, ?empfehlung=, ?frage=, ?vorgang=
+  // öffnen das passende Fenster. „=1“ (Glocke, 15.11.2026): Der Hinweis kennt nur den Kandidaten,
+  // der Vorgang kommt aus der Liste – beim Angebot der mit laufendem Angebot, sonst der neueste.
+  useEffect(() => {
+    const links = [['angebot', setOfferFor], ['empfehlung', setRecFor], ['frage', setFrageFor], ['vorgang', openSubmissionDialog]] as const;
+    const hit = links.find(([key]) => searchParams.get(key));
+    if (!hit) return;
+    let wert: string | null = searchParams.get(hit[0]);
+    if (wert === '1') {
+      if (!processes) return;
+      const neueste = [...processes].sort((a, b) => String(b.submitted_at ?? '').localeCompare(String(a.submitted_at ?? '')));
+      wert = (hit[0] === 'angebot' ? neueste.find((x) => x.runningOffer) : null)?.id ?? neueste[0]?.id ?? null;
+    }
+    if (wert) hit[1](wert);
+    const next = new URLSearchParams(searchParams);
+    next.delete(hit[0]);
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, setSearchParams, processes]);
+
   // Re-check scroll after data loads
   useEffect(() => {
     if (processes) {
       setTimeout(checkScroll, 50);
     }
   }, [processes]);
+
+  // Fenster stehen auch ohne aktive Prozesse bereit (abgesagter Vorgang aus der Glocke, 15.11.2026).
+  const fenster = (
+    <>
+      <SubmissionDetailDialog open={dialogOpen} onOpenChange={setDialogOpen} submissionId={selectedSubmissionId} />
+      <OfferAnswerDialog
+        submissionId={offerFor}
+        onClose={() => setOfferFor(null)}
+        onDone={() => queryClient.invalidateQueries({ queryKey: ['candidate-active-processes', candidateId] })}
+      />
+      <RecommendationDialog submissionId={recFor} onClose={() => setRecFor(null)} />
+      <KundenFrageWindow submissionId={frageFor} onClose={() => setFrageFor(null)} />
+    </>
+  );
 
   if (isLoading) {
     return (
@@ -289,6 +313,7 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
           <div className="h-[110px] w-[200px] bg-muted/30 rounded-lg animate-pulse shrink-0" />
           <div className="h-[110px] w-[200px] bg-muted/30 rounded-lg animate-pulse shrink-0" />
         </div>
+        {fenster}
       </div>
     );
   }
@@ -303,6 +328,7 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
           </span>
         </div>
         <p className="text-xs text-muted-foreground pl-5.5">{t('process.none')}</p>
+        {fenster}
       </div>
     );
   }
@@ -460,20 +486,7 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
         </div>
       </div>
 
-      {/* Submission Detail Dialog */}
-      <SubmissionDetailDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        submissionId={selectedSubmissionId}
-      />
-
-      <OfferAnswerDialog
-        submissionId={offerFor}
-        onClose={() => setOfferFor(null)}
-        onDone={() => queryClient.invalidateQueries({ queryKey: ['candidate-active-processes', candidateId] })}
-      />
-      <RecommendationDialog submissionId={recFor} onClose={() => setRecFor(null)} />
-      <KundenFrageWindow submissionId={frageFor} onClose={() => setFrageFor(null)} />
+      {fenster}
     </div>
   );
 }

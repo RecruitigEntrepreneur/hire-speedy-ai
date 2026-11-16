@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
@@ -18,7 +18,8 @@ interface Notification {
 export function useRealtimeNotifications() {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+  // Aus der Liste abgeleitet, damit Zahl und Punkte nie auseinanderlaufen (15.11.2026).
+  const unreadCount = useMemo(() => notifications.filter((n) => !n.is_read).length, [notifications]);
   const [loading, setLoading] = useState(true);
 
   const fetchNotifications = useCallback(async () => {
@@ -37,23 +38,25 @@ export function useRealtimeNotifications() {
     }
 
     setNotifications(data || []);
-    setUnreadCount(data?.filter((n) => !n.is_read).length || 0);
     setLoading(false);
   }, [user]);
 
-  const markAsRead = useCallback(async (notificationId: string) => {
-    const { error } = await supabase
-      .from("notifications")
-      .update({ is_read: true })
-      .eq("id", notificationId);
-
-    if (!error) {
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n))
-      );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
-    }
-  }, []);
+  /**
+   * Gelesen beim Öffnen (15.11.2026): Mit dem angeklickten Hinweis gelten auch die anderen zum
+   * selben Vorgang als gelesen (gleiches related_type und related_id), sonst bleiben z. B. fünf
+   * Meldungen zum selben Angebot ungelesen stehen.
+   */
+  const markAsRead = useCallback(async (n: Pick<Notification, "id" | "related_type" | "related_id">) => {
+    if (!user) return;
+    const verwandt = (x: Pick<Notification, "id" | "related_type" | "related_id">) =>
+      x.id === n.id || (!!n.related_type && !!n.related_id && x.related_type === n.related_type && x.related_id === n.related_id);
+    let query = supabase.from("notifications").update({ is_read: true }).eq("user_id", user.id).eq("is_read", false);
+    query = n.related_type && n.related_id
+      ? query.or(`id.eq.${n.id},and(related_type.eq.${n.related_type},related_id.eq.${n.related_id})`)
+      : query.eq("id", n.id);
+    const { error } = await query;
+    if (!error) setNotifications((prev) => prev.map((x) => (verwandt(x) ? { ...x, is_read: true } : x)));
+  }, [user]);
 
   const markAllAsRead = useCallback(async () => {
     if (!user) return;
@@ -66,7 +69,6 @@ export function useRealtimeNotifications() {
 
     if (!error) {
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
-      setUnreadCount(0);
     }
   }, [user]);
 
@@ -92,7 +94,6 @@ export function useRealtimeNotifications() {
         (payload) => {
           const newNotification = payload.new as Notification;
           setNotifications((prev) => [newNotification, ...prev]);
-          setUnreadCount((prev) => prev + 1);
 
           // Show toast for new notification
           toast(newNotification.title, {

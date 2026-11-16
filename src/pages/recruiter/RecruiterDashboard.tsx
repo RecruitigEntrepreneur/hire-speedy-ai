@@ -49,6 +49,8 @@ import { useActivityLogger } from '@/hooks/useCandidateActivityLog';
 import { HubSpotImportDialog } from '@/components/candidates/HubSpotImportDialog';
 import { CvUploadDialog } from '@/components/candidates/CvUploadDialog';
 import { KandidatAnlegenMenu } from '@/components/candidates/KandidatAnlegenMenu';
+import { LebenslaufAblage } from '@/components/candidates/LebenslaufAblage';
+import { ablageAnfragen, ablageMelden, lebenslaufWaehlen } from '@/lib/lebenslaufAblage';
 import { KandidatKurzDialog } from '@/components/candidates/KandidatKurzDialog';
 import { PerMailWeiterleitenDialog } from '@/components/candidates/PerMailWeiterleitenDialog';
 import { useRecruiterGuide } from '@/components/recruiter/guide/RecruiterGuide';
@@ -485,7 +487,8 @@ export default function RecruiterDashboard() {
       <div className="space-y-5 max-w-5xl">
         <RecruiterStartChecklist />
 
-        {/* ═══ HEADER ═══ */}
+        {/* ═══ HEADER ═══ Lebenslauf hineinziehen (05.11.2026) */}
+        <LebenslaufAblage onFiles={(fs) => ablageMelden(ablageAnfragen(fs))}>
         <Card className="border-border/30 shadow-sm" data-tour="dashboard.header">
           <CardContent className="p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -495,6 +498,7 @@ export default function RecruiterDashboard() {
                 </h1>
                 <p className="text-sm text-muted-foreground mt-1">
                   {greetingSubtext}
+                  <span className="hidden whitespace-nowrap text-muted-foreground/60 md:inline"> · {t('header.dropHint')}</span>
                 </p>
               </div>
 
@@ -504,7 +508,7 @@ export default function RecruiterDashboard() {
                   {t('header.tour')}
                 </Button>
 <KandidatAnlegenMenu
-                  onLebenslauf={() => setCvUploadDialogOpen(true)}
+                  onLebenslauf={lebenslaufWaehlen}
                   onText={() => { setCvStartText(true); setCvUploadDialogOpen(true); }}
                   onOhneLebenslauf={() => setKurzOpen(true)}
                   onHubspot={() => setHubspotDialogOpen(true)}
@@ -514,6 +518,7 @@ export default function RecruiterDashboard() {
             </div>
           </CardContent>
         </Card>
+        </LebenslaufAblage>
 
         {/* H1: Hinweis auf neue Konditionen, bis zugestimmt ist (nur mit Stichtag) */}
         <KonditionenHinweis />

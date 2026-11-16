@@ -15,7 +15,7 @@ import { onboardingApi, type CodeSession } from '@/lib/recruiterOnboardingApi';
 import { PASSWORD_SET_KEY, safeRecruiterPath, type LoginLinkPeek } from '@/lib/recruiterLogin';
 import '@/components/onboarding/onboarding.css';
 
-type Phase = 'email' | 'code' | 'password' | 'done';
+type Phase = 'email' | 'code' | 'password' | 'pwlogin' | 'done';
 
 const NS = 'recruiterFunnel';
 const strong = { strong: <strong/> };
@@ -106,6 +106,14 @@ export default function RecruiterLogin() {
     setPhase('done');
   });
 
+  // Mit Passwort anmelden (16.11.2026): Bisher hieß es beim Festlegen „künftig auch mit Passwort“,
+  // einen Weg dafür gab es auf dieser Seite aber nicht.
+  const loginWithPassword = () => run(async () => {
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    if (error) throw new Error(t('login.wrongPassword'));
+    setPhase('done');
+  });
+
   // Schon angemeldet, etwa über den Link in der Willkommensmail: direkt weiter.
   if (phase === 'email' && user && (role === 'recruiter' || role === 'admin')) return <Navigate to={next} replace />;
 
@@ -119,6 +127,7 @@ export default function RecruiterLogin() {
     email: [<Mail key="i" size={20}/>, known ? (known.name ? t('login.helloName', { name: known.name }) : t('login.hello')) : t('login.signIn'), emailLead],
     code: [<Mail key="i" size={20}/>, t('common.enterCode'), <Trans key="l" ns={NS} i18nKey={known ? 'login.codeSentKnown' : 'login.codeSentMaybe'} values={{ email: sentTo }} components={strong}/>],
     password: [<KeyRound key="i" size={20}/>, t('login.setPassword'), t('login.setPasswordLead')],
+    pwlogin: [<KeyRound key="i" size={20}/>, t('login.pwTitle'), t('login.pwLead')],
     done: [<Loader2 key="i" size={20} className="animate-spin"/>, t('login.signedIn'), t('login.loadingDashboard')],
   };
   const [icon, title, lead] = head[phase];
@@ -140,7 +149,17 @@ export default function RecruiterLogin() {
             <button autoFocus={!!known} className="mh-button mh-primary mh-full" type="submit" disabled={busy}>{busy ? <Loader2 size={16} className="animate-spin"/> : <Mail size={16}/>}{busy ? t('common.oneMoment') : t('common.sendCode')}</button>
             {known
               ? <button type="button" className="mh-link mh-login-later" disabled={busy} onClick={forgetLink}>{t('login.otherAddress')}</button>
-              : <p className="mh-muted mh-verify-hint">{t('login.sixDigits')}</p>}
+              : <>
+                <p className="mh-muted mh-verify-hint">{t('login.sixDigits')}</p>
+                <button type="button" className="mh-link mh-login-later" disabled={busy} onClick={() => { setPhase('pwlogin'); setError(''); setNotice(''); setPassword(''); }}>{t('login.withPassword')}</button>
+              </>}
+          </form>}
+
+          {phase === 'pwlogin' && <form className="mh-stack" onSubmit={e => { e.preventDefault(); void loginWithPassword(); }}>
+            <label className="mh-field">{t('common.emailAddress')}<input autoFocus={!email} autoComplete="username" type="email" required value={email} onChange={e => setEmail(e.target.value)}/></label>
+            <label className="mh-field">{t('login.password')}<input autoFocus={!!email} autoComplete="current-password" type="password" required value={password} onChange={e => setPassword(e.target.value)}/></label>
+            <button className="mh-button mh-primary mh-full" type="submit" disabled={busy}>{busy ? <Loader2 size={16} className="animate-spin"/> : <KeyRound size={16}/>}{busy ? t('common.oneMoment') : t('login.signIn')}</button>
+            <button type="button" className="mh-link mh-login-later" disabled={busy} onClick={() => { setPhase('email'); setPassword(''); setError(''); }}>{t('login.forgotPassword')}</button>
           </form>}
 
           {phase === 'code' && <>

@@ -1,13 +1,14 @@
 import { KeyboardEvent, ReactNode, createContext, useContext, useState } from 'react';
-import { X, Plus } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+import { FileText, NotebookPen, X, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { Option, parseDigits } from '@/lib/candidateDossier';
 import type { OriginMap } from '@/lib/cvImport';
 import { hasPhrase, phrasesOf, togglePhrase } from '@/lib/interviewSuggestions';
 import { term } from '@/lib/candidateTerms';
+import { useTranslation } from 'react-i18next';
 import { intlLocale } from '@/i18n/languages';
 
 /**
@@ -18,10 +19,41 @@ import { intlLocale } from '@/i18n/languages';
 export const FieldOriginContext = createContext<OriginMap | null>(null);
 
 /**
+ * Wie die Herkunft gezeigt wird: „line“ als Zeile mit Zitat unter dem Feld (Prüfseite),
+ * „tag“ im Interview (09.11.2026): blaues Symbol an der Frage mit Zitat beim Drüberfahren,
+ * der Wert selbst hellblau (index.css, [data-cv-origin]).
+ */
+export const FieldOriginModeContext = createContext<'line' | 'tag'>('line');
+
+/**
  * Felder, die noch fehlen (Interview: zum Abschließen oder Einreichen). Ein Feld
  * darin bekommt eine gelbe Kante und „fehlt“ am Label.
  */
 export const FieldMissingContext = createContext<Set<string> | null>(null);
+/** Etikett über einer fehlenden Angabe; im Interview während des Gesprächs „… · frag kurz nach“. Ohne Wert: „Fehlt noch“. */
+export const FieldMissingHintContext = createContext<string | null>(null);
+
+/**
+ * Fehlende Angabe (12.11.2026, Marko wählte Variante A): die ganze Frage in einer weichen gelben
+ * Fläche, oben ein Etikett. Statt dünnem Strich und kleinem „fehlt“, das unterging.
+ */
+export const fehltRahmen = 'rounded-xl border border-warning/50 bg-warning/[0.07] p-3 transition-colors';
+export function FehltEtikett() {
+  const { t } = useTranslation('candidateDossier');
+  const text = useContext(FieldMissingHintContext) ?? t('fields.stillMissing');
+  return <p className="w-fit rounded-full bg-warning/15 px-2.5 py-0.5 text-[11px] font-medium text-warning">{text}</p>;
+}
+
+/**
+ * „Nur Fehlendes“ (14.11.2026): Was eben noch fehlte und jetzt ausgefüllt ist, bleibt an seinem
+ * Platz und wird ruhig grau mit „✓ eingetragen“, statt beim Tippen zu verschwinden.
+ */
+export const FieldDoneContext = createContext<Set<string> | null>(null);
+export const erledigtRahmen = 'rounded-xl border border-border p-3 transition-colors';
+export function ErledigtEtikett() {
+  const { t } = useTranslation('candidateDossier');
+  return <p className="w-fit rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">{t('fields.entered')}</p>;
+}
 
 /**
  * Im Interview sind Labels Fragen, die vorgelesen werden: groß und hell wie
@@ -29,20 +61,52 @@ export const FieldMissingContext = createContext<Set<string> | null>(null);
  */
 export const FieldQuestionContext = createContext(false);
 
+/** Herkunft im Interview: nur, was noch genau so im Lebenslauf stand. */
+function useCvTag(field?: string) {
+  const origins = useContext(FieldOriginContext);
+  const mode = useContext(FieldOriginModeContext);
+  const o = field && origins ? origins[field as keyof OriginMap] : undefined;
+  return mode === 'tag' && o && (o.source === 'cv' || o.source === 'derived') ? o : undefined;
+}
+
+/**
+ * Kleines blaues Symbol am Feldnamen, Zitat beim Drüberfahren: im Interview (Mix 1, 09.11.2026)
+ * und seit 12.11.2026 auch auf der Prüfseite statt der grünen Zeile unter jedem Feld.
+ */
+function OriginTag({ field }: { field?: string }) {
+  const { t } = useTranslation('candidateDossier');
+  const origins = useContext(FieldOriginContext);
+  const mode = useContext(FieldOriginModeContext);
+  const o = field && origins ? origins[field as keyof OriginMap] : undefined;
+  // Im Interview nur, was noch genau so im Lebenslauf steht; auf der Prüfseite auch eigene Notizen.
+  if (!o || o.source === 'suggestion' || (mode === 'tag' && o.source === 'notes')) return null;
+  const notiz = o.source === 'notes';
+  const zitat = notiz
+    ? (o.quote ? t('fields.fromNotesQuote', { quote: o.quote }) : t('fields.fromNotes'))
+    : o.source === 'derived'
+      ? (o.quote ? t('fields.cvComputedQuote', { quote: o.quote }) : t('fields.cvComputed'))
+      : o.quote ? t('fields.cvTakenQuote', { quote: o.quote }) : t('fields.cvTaken');
+  const Icon = notiz ? NotebookPen : FileText;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="ml-1.5 inline-flex cursor-default align-[-2px] text-[hsl(var(--cv-fg))]" aria-label={zitat}>
+          <Icon className="h-3.5 w-3.5" />
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs text-xs">{zitat}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 function OriginLine({ field }: { field?: string }) {
   const { t } = useTranslation('candidateDossier');
   const origins = useContext(FieldOriginContext);
+  const mode = useContext(FieldOriginModeContext);
   const o = field && origins ? origins[field as keyof OriginMap] : undefined;
-  if (!o) return null;
-  if (o.source === 'suggestion') return <p className="text-xs text-warning">{t('fields.suggestionCheck')}</p>;
-  const label = o.source === 'notes' ? t('fields.fromNotes') : o.source === 'derived' ? o.quote || t('fields.computed') : t('fields.fromCv');
-  const quote = o.source !== 'derived' && o.quote ? (o.quote.length > 90 ? `${o.quote.slice(0, 90)}…` : o.quote) : '';
-  return (
-    <p className="text-xs text-success">
-      {label}
-      {quote && <span className="text-muted-foreground"> · „{quote}“</span>}
-    </p>
-  );
+  // Nur noch Vorschläge als Zeile: da muss man etwas tun. Herkunft zeigt das Symbol am Feldnamen.
+  if (!o || mode === 'tag' || o.source !== 'suggestion') return null;
+  return <p className="text-xs text-warning">{t('fields.suggestionCheck')}</p>;
 }
 
 // Gemeinsame Feld-Bausteine für Bearbeiten-Panel und Interview. Jedes Feld
@@ -68,12 +132,17 @@ export function Field({
   const { t } = useTranslation('candidateDossier');
   const missing = useContext(FieldMissingContext);
   const isMissing = !!field && !!missing?.has(field);
+  const done = useContext(FieldDoneContext);
+  const isDone = !isMissing && !!field && !!done?.has(field);
   const question = useContext(FieldQuestionContext);
+  const cv = useCvTag(field);
   return (
-    <div className={cn('space-y-1.5', isMissing && 'border-l-2 border-warning pl-3', className)} data-dossier-field={field}>
+    <div className={cn('space-y-1.5', isMissing && fehltRahmen, isDone && erledigtRahmen, className)} data-dossier-field={field} data-cv-origin={cv ? '' : undefined}>
+      {isMissing && <FehltEtikett />}
+      {isDone && <ErledigtEtikett />}
       <label htmlFor={field ? fieldId(field) : undefined} className={question ? 'text-sm font-medium' : 'text-xs font-medium text-muted-foreground'}>
         {label}
-        {isMissing && <span className="ml-1.5 font-normal text-warning">{t('fields.missing')}</span>}
+        <OriginTag field={field} />
       </label>
       {children}
       <OriginLine field={field} />

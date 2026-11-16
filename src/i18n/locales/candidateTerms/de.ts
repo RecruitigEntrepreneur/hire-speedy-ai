@@ -507,6 +507,8 @@ const de = {
     stationen: 'Stationen',
     ausbildung: 'Ausbildung',
     skill_details: 'Skill-Details',
+    lebenslauf_datei: 'Lebenslauf-Datei',
+    interviewangaben_sperrliste_motivation_ziele: 'Interviewangaben (Sperrliste, Motivation, Ziele)',
     groessere_geschaeftsfuehrung: 'Größere Geschäftsführung',
     beirat_oder_aufsichtsrat: 'Beirat oder Aufsichtsrat',
     interim_mandate: 'Interim-Mandate',

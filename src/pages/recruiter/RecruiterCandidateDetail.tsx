@@ -35,6 +35,7 @@ import { interviewWasOpen } from '@/lib/interviewViews';
 import { TerminHerkunft } from '@/components/recruiter/termin/TerminHerkunft';
 import { LebenslaufAnfragenFenster } from '@/components/recruiter/termin/LebenslaufAnfragenFenster';
 import { useLebenslaufAnfrage } from '@/components/recruiter/termin/useLebenslaufAnfrage';
+import { vorname } from '@/lib/vorstellen';
 
 function getStatusLabel(status: string): string {
   const known = ['new', 'contacted', 'interview', 'offer', 'placed', 'rejected'];
@@ -201,6 +202,16 @@ export default function RecruiterCandidateDetail() {
   // Aus dem Aufgaben-Fenster: ?interview=live|import|quick öffnet das Interview, ?einreichen=<Stelle>|alle das Einreichen
   const interviewWunsch = searchParams.get('interview');
   const einreichenWunsch = searchParams.get('einreichen');
+  // Aus der Glocke (15.11.2026): Lebenslauf über die Terminseite, Auslesen hat nicht geklappt → Akte zum Ergänzen
+  const akteWunsch = searchParams.get('akte');
+  useEffect(() => {
+    if (akteWunsch !== 'bearbeiten' || !candidate) return;
+    openEdit();
+    const next = new URLSearchParams(searchParams);
+    next.delete('akte');
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [akteWunsch, candidate?.id]);
   useEffect(() => {
     if ((!interviewWunsch && !einreichenWunsch) || !candidate || dossier.loading) return;
     if (interviewWunsch === 'live') setInterviewSliderOpen(true);
@@ -325,7 +336,7 @@ export default function RecruiterCandidateDetail() {
               <div className="space-y-6">
                 <InterviewEntryCard
                   candidateId={candidate.id}
-                  vorname={candidate.full_name.split(' ')[0] || candidate.full_name}
+                  vorname={vorname(candidate.full_name)}
                   email={candidate.email ?? null}
                   hasInterview={!!dossier.form.interview_date || dossier.form.interview_status === 'completed'}
                   completed={interviewCompleted(dossier.form)}
@@ -341,7 +352,7 @@ export default function RecruiterCandidateDetail() {
                 />
                 <DossierReadinessCard
                   readiness={dossier.readiness}
-                  firstName={candidate.full_name.split(' ')[0] || candidate.full_name}
+                  firstName={vorname(candidate.full_name)}
                   cv={dossier.cv}
                   onEdit={openEdit}
                   onUploadCv={() => setCvUploadOpen(true)}
@@ -369,7 +380,7 @@ export default function RecruiterCandidateDetail() {
       <LebenslaufAnfragenFenster
         open={lebenslaufAnfragenOpen}
         onOpenChange={setLebenslaufAnfragenOpen}
-        candidate={{ id: candidate.id, vorname: candidate.full_name.split(' ')[0] || candidate.full_name, email: candidate.email ?? null }}
+        candidate={{ id: candidate.id, vorname: vorname(candidate.full_name), email: candidate.email ?? null }}
       />
       <CvUploadDialog
         open={cvUploadOpen}
@@ -396,9 +407,13 @@ export default function RecruiterCandidateDetail() {
         initialJobId={submitJobId}
         candidateId={candidate.id}
         candidateName={candidate.full_name}
+        // „Interview fortsetzen“ im Vorstellen: Interview öffnen, danach geht das Vorstellen bei derselben Stelle weiter.
+        onOpenInterview={(_, jobId) => { setSubmitOpen(false); setSubmitJobId(jobId); setSubmitAfterInterview(true); setInterviewSliderOpen(true); }}
         onSubmitted={() => {
           queryClient.invalidateQueries({ queryKey: ['candidate-submissions-header', id] });
           queryClient.invalidateQueries({ queryKey: ['candidate-active-processes', id] });
+          // Karte „Offene Stellen, die vielleicht passen“: „Vorgestellt“ sofort zeigen.
+          queryClient.invalidateQueries({ queryKey: ['offene-stellen-vorgestellt', id] });
           refetchActivities();
         }}
       />

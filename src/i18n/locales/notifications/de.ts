@@ -9,5 +9,9 @@ const de = {
   minutesAgo: 'vor {{count}} Min.',
   hoursAgo: 'vor {{count}} Std.',
   daysAgo: 'vor {{count}} Tagen',
+  // Sprechblase oben neben der Glocke (Posteingang)
+  inbox: 'Posteingang',
+  inboxWaiting: 'Posteingang, {{count}} warten auf dich',
+  inboxWaitingClient: 'Posteingang, {{count}} warten auf Sie',
 };
 export default de;

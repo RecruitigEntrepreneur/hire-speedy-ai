@@ -2,7 +2,7 @@ import { Trans, useTranslation } from 'react-i18next';
 import i18n from '@/i18n';
 import { intlLocale } from '@/i18n/languages';
 import { LanguageSelect } from '@/components/language/LanguageSelect';
-import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ArrowRight, Briefcase, Camera, Check, CheckCircle2, Clock, Download, ExternalLink, FileCheck2, Info, Languages, Linkedin, Loader2, Lock, Paperclip, Pencil, Receipt, Save, Target, Upload, User, type LucideIcon } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -30,6 +30,7 @@ import { PartnerCard } from '@/components/recruiter/partner/PartnerCard';
 import { PartnerStatusSection } from '@/components/recruiter/partner/PartnerStatusSection';
 import { TerminseiteBereich } from '@/components/recruiter/termin/TerminseiteBereich';
 import { LinkedinVerbindung } from '@/components/recruiter/termin/LinkedinVerbindung';
+import type { Aktuell as LinkedinAktuell } from '@/lib/linkedinAbgleich';
 import { useTerminseite } from '@/components/recruiter/termin/useTerminseite';
 
 /**
@@ -172,6 +173,8 @@ export default function RecruiterProfile() {
   const [fromContract, setFromContract] = useState(false);
   const [busy, setBusy] = useState('');
   const [formError, setFormError] = useState('');
+  // Nach „Von LinkedIn übernehmen“ (16.11.2026) die Seite frisch laden.
+  const [neuLaden, setNeuLaden] = useState(0);
   const userId = user?.id;
   // Partnerstatus nur im Menü, wenn es ihn gibt (Vertrag ab 2.1, Migration angestoßen).
   const menu = MENU.filter(m => m.id !== 'partnerstatus' || partner);
@@ -210,7 +213,7 @@ export default function RecruiterProfile() {
       setLoading(false);
     })();
     return () => { active = false; };
-  }, [userId, loadEvidence]);
+  }, [userId, loadEvidence, neuLaden]);
 
   // Alte Links (#firmendaten, #bankverbindung) und unbekannte Bereiche landen am richtigen Ort.
   useEffect(() => {
@@ -224,6 +227,15 @@ export default function RecruiterProfile() {
   const contractExpertise = p ? cleanExpertise(p.expertise) : null;
   // Aktuelle Schwerpunkte pflegt der Headhunter selbst; bis dahin gilt der Stand aus dem Vertrag.
   const currentExpertise = row.recruiter_expertise ? cleanExpertise(row.recruiter_expertise) : contractExpertise;
+  // Stand für das LinkedIn-Fenster; Schwerpunkte über den Inhalt verglichen, sonst setzt jedes Zeichnen die Häkchen zurück.
+  const expertiseSchluessel = JSON.stringify(currentExpertise ?? null);
+  const linkedinAktuell = useMemo<LinkedinAktuell>(() => ({
+    name: saved.about.full_name, position: saved.about.role_title,
+    jahre: saved.about.years_experience ? Number(saved.about.years_experience) : null,
+    hatFoto: !!row.avatar_path, fotoVonLinkedin: String(row.avatar_path ?? '').includes('/avatar-linkedin-'),
+    expertise: currentExpertise ?? cleanExpertise({}),
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- currentExpertise steckt im Schlüssel
+  }), [saved.about.full_name, saved.about.role_title, saved.about.years_experience, row.avatar_path, expertiseSchluessel]);
 
   // LinkedIn steht oft nur im Vertrag: im Formular vorbelegen, damit Anzeige und Formular übereinstimmen.
   const startAbout = () => { setAbout({ ...saved.about, linkedin_url: saved.about.linkedin_url || contractExpertise?.linkedin.trim() || '' }); setFormError(''); setEditing('about'); };
@@ -501,7 +513,7 @@ export default function RecruiterProfile() {
       <Fact label={t('about.experience')} value={years || (currentExpertise?.experience && <>{opt(currentExpertise.experience)} <span className="text-muted-foreground">{t('about.perExpertise')}</span></>)}/>
       <Fact label="LinkedIn" value={linkedin && <><a className="text-primary underline-offset-2 hover:underline" href={linkOf(linkedin)} target="_blank" rel="noreferrer">{linkedin.replace(/^https?:\/\/(www\.)?/, '')}</a>{linkedinFromContract && <span className="text-muted-foreground"> {t('about.fromContract')}</span>}</>}/>
     </dl>}
-    <LinkedinVerbindung/>
+    <LinkedinVerbindung aktuell={linkedinAktuell} onUebernommen={() => setNeuLaden(n => n + 1)}/>
   </Panel>;
 
   const x = expertise;

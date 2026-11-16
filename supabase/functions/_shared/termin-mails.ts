@@ -10,6 +10,8 @@ import { formatBerlinDateLong, formatBerlinTime } from './interview-time.ts';
 import type { MailContent } from './interview-mails.ts';
 import { terminText, type Gespraechsart } from './termin-seite.ts';
 import { lang as langOf, m, withLang, type Lang } from './mail-i18n.ts';
+import { hinweisTexte } from './lebenslauf-hinweis.ts';
+import { swiss } from './i18n.ts';
 
 const wann = (iso: string, dauer: number, lang?: Lang | null) => {
   const von = formatBerlinTime(iso, lang);
@@ -145,6 +147,40 @@ export function lebenslaufAnfrage(o: { hhName: string; text: string; url: string
       : L({ de: m`${o.hhName}: dein Lebenslauf`, en: m`${o.hhName}: your CV`, sv: m`${o.hhName}: ditt CV`, nb: m`${o.hhName}: CV-en din` }),
     html,
     text: `${o.text.includes('[Link]') ? o.text.replace('[Link]', url) : `${o.text}\n\n${url}`}\n`,
+  };
+}
+
+/**
+ * Hinweis von Matchunt nach dem Hochladen eines Lebenslaufs (12.11.2026): Der Kandidat
+ * erfährt, wer seinen Lebenslauf hinterlegt hat und was damit passiert. Absender ist
+ * Matchunt, Antworten gehen an den Headhunter. Sprache: die des Kandidaten (16.11.2026).
+ */
+export function lebenslaufHinweis(o: { vorname: string; hhName: string; datenschutzUrl: string; loeschenUrl: string; lang?: Lang | null }): MailContent {
+  const x = hinweisTexte(o.lang);
+  // Schweizer Schreibweise nur im festen Text, nie in Namen.
+  const ch = (s: string) => (o.lang === 'de-CH' ? swiss(s) : s);
+  const hallo = o.vorname ? x.hallo(o.vorname) : x.halloOhneName;
+  const betreff = x.betreff(o.hhName);
+  const einleitung = x.einleitung(o.hhName);
+  const html = layout({
+    preheader: betreff,
+    heading: ch(x.ueberschrift),
+    body: absatz(esc(hallo))
+      + absatz(esc(einleitung))
+      + `<p style="margin:0 0 6px 0;">${esc(ch(x.wasHeisst))}</p><ul style="margin:0 0 12px 0;padding-left:20px;">${x.punkte.map((p) => `<li style="margin:0 0 4px 0;">${esc(ch(p))}</li>`).join('')}</ul>`
+      + absatz(esc(ch(x.fragen))),
+    footnote: `${esc(ch(x.nichtGewollt))} <a href="${esc(o.loeschenUrl)}" style="color:inherit;">${esc(ch(x.loeschen))}</a> · <a href="${esc(o.datenschutzUrl)}" style="color:inherit;">${esc(ch(x.datenschutz))}</a>`,
+  });
+  return {
+    subject: betreff,
+    html,
+    text: [
+      hallo, '', einleitung, '',
+      ch(x.wasHeisst), ...x.punkte.map((p) => `- ${ch(p)}`), '',
+      ch(x.fragen), '',
+      `${ch(x.nichtGewollt)} ${ch(x.loeschen)}: ${o.loeschenUrl}`,
+      `${ch(x.datenschutz)}: ${o.datenschutzUrl}`,
+    ].join('\n') + '\n',
   };
 }
 

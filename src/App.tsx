@@ -38,7 +38,7 @@ import RecruiterNotifications from "./pages/recruiter/RecruiterNotifications";
 import RecruiterMessages from "./pages/recruiter/RecruiterMessages";
 import RecruiterProfile from "./pages/recruiter/RecruiterProfile";
 import RecruiterLiga from "./pages/recruiter/RecruiterLiga";
-import RecruiterDataPrivacy from "./pages/recruiter/RecruiterDataPrivacy";
+import RecruiterSettings from "./pages/recruiter/RecruiterSettings";
 import RecruiterHeute from "./pages/recruiter/RecruiterHeute";
 import RecruiterInterviews from "./pages/recruiter/RecruiterInterviews";
 import RecruiterTalentPool from "./pages/recruiter/RecruiterTalentPool";
@@ -266,6 +266,12 @@ function AppRoutes() {
           <ClientMessages />
         </ProtectedRoute>
       } />
+      {/* „Alle ansehen“ aus der Glocke (15.11.2026): bisher „Seite nicht gefunden“, jetzt dieselbe Liste wie beim Headhunter */}
+      <Route path="/dashboard/notifications" element={
+        <ProtectedRoute allowedRoles={['client']}>
+          <RecruiterNotifications />
+        </ProtectedRoute>
+      } />
       <Route path="/dashboard/aufnahme" element={
         <ProtectedRoute allowedRoles={['client']}>
           <ClientIntake />
@@ -381,9 +387,12 @@ function AppRoutes() {
       } />
       {/* Auszahlungen laufen über Gutschriften (Umbau 11.11.2026): Verdienste › Gutschriften */}
       <Route path="/recruiter/payouts" element={<Navigate to="/recruiter/earnings?reiter=gutschriften" replace />} />
-      <Route path="/recruiter/privacy" element={
+      {/* Datenschutz (15.11.2026): jetzt in den Einstellungen, alte Adresse führt dorthin */}
+      <Route path="/recruiter/privacy" element={<Navigate to="/recruiter/settings?bereich=datenschutz" replace />} />
+      {/* Einstellungen für Headhunter (15.11.2026): bisher „Seite nicht gefunden“ */}
+      <Route path="/recruiter/settings" element={
         <ProtectedRoute allowedRoles={['recruiter']}>
-          <RecruiterDataPrivacy />
+          <RecruiterSettings />
         </ProtectedRoute>
       } />
       <Route path="/recruiter/influence" element={

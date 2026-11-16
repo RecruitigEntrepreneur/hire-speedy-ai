@@ -46,7 +46,8 @@ export default function RecruiterLiga() {
   const [params, setParams] = useSearchParams();
   const { t } = useTranslation('recruiterLiga');
   const tab = (TABS.some(x => x === params.get('tab')) ? params.get('tab') : 'tabelle') as Tab;
-  const [seasonId, setSeasonId] = useState<string | null>(null);
+  // ?saison=<id> aus der Glocke (Auszeichnung, 15.11.2026): gleich die Saison der Auszeichnung zeigen
+  const [seasonId, setSeasonId] = useState<string | null>(() => params.get('saison'));
 
   const seasons = useQuery({ queryKey: ['liga', 'seasons'], queryFn: ligaSeasons });
   const me = useQuery({ queryKey: ['liga', 'me', seasonId], queryFn: () => ligaMe(seasonId) });

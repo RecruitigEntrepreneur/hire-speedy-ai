@@ -123,7 +123,7 @@ const sv: Messages<typeof de> = {
   menu: {
     button: 'Lägg till kandidater',
     cvTitle: 'Ladda upp CV',
-    cvText: 'PDF eller Word. AI:n läser in uppgifterna, du behöver bara granska.',
+    cvText: 'PDF eller Word, även flera på en gång. AI:n läser in uppgifterna, du behöver bara granska.',
     textTitle: 'Klistra in text eller LinkedIn-profil',
     textText: 'Kopiera, klistra in – AI:n läser in uppgifterna.',
     withoutCvTitle: 'Lägg till utan CV',

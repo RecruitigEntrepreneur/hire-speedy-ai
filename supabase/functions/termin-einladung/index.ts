@@ -13,6 +13,11 @@
  *   lebenslauf_anfragen { candidate_id, weg, text }    → Anfrage ohne Termin, eigener Link /t/lebenslauf/<token>
  *   lebenslauf_erinnern { candidate_id }               → Erinnerungs-Mail mit neuem Link, höchstens einmal in 24 Stunden
  *
+ * Lebenslauf hochgeladen (12.11.2026):
+ *   lebenslauf_nachweis { candidate_id, hinweis, datei } → speichert die drei Häkchen als Nachweis (consents);
+ *                                                          mit hinweis: true schickt Matchunt dem Kandidaten
+ *                                                          einmalig einen kurzen Hinweis
+ *
  * Der Link enthält nur eine Zufallsnummer. In der Datenbank liegt der Hash, den Klartext
  * bekommt nur der Headhunter (zum Kopieren) oder der Kandidat (per Mail).
  */
@@ -23,7 +28,7 @@ import { checkLimits, LIMITS } from '../_shared/intake-limits.ts';
 import { generateToken, hashToken } from '../_shared/tokens.ts';
 import { getPublicAppUrl } from '../_shared/app-url.ts';
 import { sendInterviewMail } from '../_shared/interview-mailer.ts';
-import { kandidatEinladung, lebenslaufAnfrage } from '../_shared/termin-mails.ts';
+import { kandidatEinladung, lebenslaufAnfrage, lebenslaufHinweis } from '../_shared/termin-mails.ts';
 import { candidateLanguage } from '../_shared/recipient-language.ts';
 import { viaMatchunt } from '../_shared/mail-i18n.ts';
 
@@ -194,6 +199,62 @@ async function lebenslaufErinnern(db: any, userId: string, body: any) {
   return json({ ok: true });
 }
 
+// ---------------------------------------------------------------------------
+// Lebenslauf hochgeladen: Nachweis und Hinweis von Matchunt (12.11.2026)
+// ---------------------------------------------------------------------------
+
+const NACHWEIS_VERSION = '2026-11-12';
+
+/**
+ * Die drei Häkchen beim Hochladen als Nachweis speichern (Anlage 4: „Die Parteien müssen die
+ * erfolgte Information nachweisen können“). Seit 29.08.2026 darf nur noch der Server in consents
+ * schreiben. Mit hinweis: true geht einmalig der Hinweis von Matchunt an den Kandidaten.
+ */
+async function lebenslaufNachweis(db: any, userId: string, body: any) {
+  const k = await kontextKandidat(db, userId, body.candidate_id);
+  const hinweis = body.hinweis === true;
+  const datei = typeof body.datei === 'string' ? body.datei.trim().slice(0, 200) : null;
+  const jetzt = new Date().toISOString();
+  const ua = typeof body.user_agent === 'string' ? body.user_agent.slice(0, 300) : null;
+  const { error: nErr } = await db.from('consents').insert({
+    subject_id: userId, subject_type: 'recruiter', consent_type: 'lebenslauf_hochladen', granted: true, granted_at: jetzt,
+    version: NACHWEIS_VERSION, user_agent: ua,
+    scope: JSON.stringify({ kandidat: k.kand.id, datei, darf_nutzen: true, informiert: true, nur_mit_zustimmung: true, hinweis: hinweis ? 'matchunt' : 'selbst' }),
+  });
+  if (nErr) console.error('lebenslauf_nachweis consent', nErr.message);
+  if (!hinweis) return json({ ok: true, hinweis: 'selbst' });
+  if (!k.kand.email) return json({ ok: true, hinweis: 'ohne_email' });
+
+  // Einmal je Kandidat: ein zweiter Lebenslauf löst keinen zweiten Hinweis aus.
+  const { data: schon } = await db.from('consents').select('granted_at').eq('subject_type', 'candidate').eq('subject_id', k.kand.id)
+    .eq('consent_type', 'lebenslauf_hinweis').limit(1);
+  if (schon?.length) return json({ ok: true, hinweis: 'schon', am: schon[0].granted_at });
+
+  const grenze = await checkLimits(db, LIMITS.terminEinladen(userId));
+  if (!grenze.allowed) return json({ ok: true, hinweis: 'fehler', message: 'Heute gingen schon viele Mails raus. Sag es ihm selbst.' });
+  const vorname = String(k.kand.full_name ?? '').trim().replace(/^test\s+/i, '').split(/\s+/)[0] || '';
+  const app = getPublicAppUrl();
+  const mail = lebenslaufHinweis({
+    vorname, hhName: k.name, datenschutzUrl: `${app}/datenschutz`,
+    loeschenUrl: `mailto:datenschutz@bluewater-bridge.de?subject=${encodeURIComponent('Lebenslauf löschen')}`,
+    // Kandidat: die Sprache seines Headhunters (wie Einladung und Anfrage)
+    lang: await candidateLanguage(db, userId),
+  });
+  const r = await sendInterviewMail({
+    fromEmail: FROM_EMAIL(), fromName: 'Matchunt', to: k.kand.email, replyTo: k.email ?? undefined,
+    subject: mail.subject, html: mail.html, text: mail.text,
+  });
+  if (!r.sent) {
+    console.error('lebenslauf_nachweis mail', r.error);
+    return json({ ok: true, hinweis: 'fehler', message: 'Der Hinweis ging nicht raus. Sag es ihm selbst.' });
+  }
+  await db.from('consents').insert({
+    subject_id: k.kand.id, subject_type: 'candidate', consent_type: 'lebenslauf_hinweis', granted: true, granted_at: new Date().toISOString(),
+    version: NACHWEIS_VERSION, scope: JSON.stringify({ an: k.kand.email, von: userId, betreff: mail.subject }),
+  });
+  return json({ ok: true, hinweis: 'gesendet', am: new Date().toISOString() });
+}
+
 async function neuerLink(db: any, userId: string, body: any) {
   const k = await kontext(db, userId, body.candidate_id);
   const offen = await offeneLinks(db, k.kand.id);
@@ -243,6 +304,7 @@ Deno.serve(async (req) => {
       case 'zurueckziehen': return await zurueckziehen(db, user.id, body);
       case 'lebenslauf_anfragen': return await lebenslaufAnfragen(db, user.id, body);
       case 'lebenslauf_erinnern': return await lebenslaufErinnern(db, user.id, body);
+      case 'lebenslauf_nachweis': return await lebenslaufNachweis(db, user.id, body);
       default: return fail('invalid_request', 'Unbekannte Aktion.');
     }
   } catch (e) {

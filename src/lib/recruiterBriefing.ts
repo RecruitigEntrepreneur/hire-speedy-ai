@@ -97,7 +97,7 @@ export function getRecruiterCriteria(job: BriefingJob) {
   const negotiableFromIntake = list(job.nice_to_have_criteria);
   const flexible = new Set([...trainable, ...negotiableFromIntake].map(keyOf));
   // A lower-priority canonical criterion must never become mandatory again
-  // through the older ad-derived list used by CandidateSubmitForm.
+  // through the older ad-derived list (früher im Einreichformular genutzt).
   const required = requiredFromIntake.length ? requiredFromIntake : list(job.must_haves).filter(value => !flexible.has(keyOf(value)));
   const occupied = new Set([...required, ...trainable].map(keyOf));
   const negotiable = (negotiableFromIntake.length ? negotiableFromIntake : list(job.nice_to_haves)).filter(value => !occupied.has(keyOf(value)));

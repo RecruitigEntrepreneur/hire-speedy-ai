@@ -128,6 +128,8 @@ const sv: Messages<typeof de> = {
   src: {
     fromCv: 'från cv:t',
     fromFile: 'från akten',
+    cvTaken_one: '{{count}} uppgift hämtad från cv:t, be om en kort bekräftelse. Citatet visas när du håller muspekaren över.',
+    cvTaken_other: '{{count}} uppgifter hämtade från cv:t, be om en kort bekräftelse. Citatet visas när du håller muspekaren över.',
   },
   common: {
     change: 'ändra',
@@ -173,6 +175,13 @@ const sv: Messages<typeof de> = {
     title: 'Bara det som saknas',
     intro: 'Bara de punkter som saknas för att avsluta eller skicka in.',
     none: 'Inget saknas längre.',
+    cvUploadFailed: 'Uppladdningen fungerade inte.',
+    cvJustUploaded: '{{name}} · nyss uppladdat',
+    cvInFile: 'Ligger i akten.',
+    skillsHint: 'Minst tre. Enter eller kommatecken lägger till en kompetens.',
+    skillsPlaceholder: 't.ex. bokslut, SAP FI/CO …',
+    allDone: 'Allt är ifyllt.',
+    allDoneReady: 'Allt är ifyllt. {{name}} är redo att skickas in.',
   },
   done: {
     title: '✓ Intervjun är avslutad',
@@ -202,6 +211,7 @@ const sv: Messages<typeof de> = {
     join: 'Anslut',
     call: 'Ring',
     dateAria: 'Datum för intervjun',
+    howTalked: 'Hur pratade ni?',
   },
   warn: {
     columns: 'Vissa nya uppgifter (t.ex. fast eller med bonus, konkurrensklausul) sparas permanent först efter databasuppdateringen. Allt annat är sparat.',
@@ -212,6 +222,8 @@ const sv: Messages<typeof de> = {
     answered: ' (besvarad)',
     layout: 'Visning',
     showAll: 'Visa alla frågor',
+    openCount_one: '{{count}} öppen',
+    openCount_other: '{{count}} öppna',
   },
   resume: {
     text: 'Fortsätt där du var',
@@ -393,6 +405,8 @@ const sv: Messages<typeof de> = {
     rawDeleted: 'Råtexten raderad',
     rawUntil: 'Råtext till {{date}}',
     rawKept: 'Sparas kvar',
+    highlightInvite: 'Här bjuder du in {{name}} till ett samtal',
+    highlightContinue: 'Här fortsätter du med {{name}}',
   },
 };
 

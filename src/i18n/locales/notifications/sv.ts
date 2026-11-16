@@ -10,5 +10,9 @@ const sv: Messages<typeof de> = {
   minutesAgo: 'för {{count}} min sedan',
   hoursAgo: 'för {{count}} tim sedan',
   daysAgo: 'för {{count}} dagar sedan',
+  // Sprechblase oben neben der Glocke (Posteingang)
+  inbox: 'Inkorg',
+  inboxWaiting: 'Inkorg, {{count}} väntar på dig',
+  inboxWaitingClient: 'Inkorg, {{count}} väntar på dig',
 };
 export default sv;

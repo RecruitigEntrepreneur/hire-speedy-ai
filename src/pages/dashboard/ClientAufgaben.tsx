@@ -42,10 +42,16 @@ export default function ClientAufgaben() {
   // Aufgaben einer Bewerbung öffnen im Bewerberprofil; Fragen zur Stelle und Rechnungen hier
   const open = (task: ClientTask) => (task.submissionId ? navigate(taskHref(task)) : setActive(task));
   const param = new URLSearchParams(location.search).get('aufgabe');
+  // Aus der Glocke (15.11.2026) kommt ?stelle= mit: Ist die Frage schon beantwortet, gibt es die
+  // Aufgabe nicht mehr – dann zur Stelle statt auf eine Liste ohne Fenster.
+  const stelle = new URLSearchParams(location.search).get('stelle');
   useEffect(() => {
     if (!param || !data) return;
-    const hit = data.tasks.find((x) => x.key === param);
+    // Gleiche Fragen können zweimal in der Glocke stehen: dann die offene Frage zur selben Stelle.
+    const hit = data.tasks.find((x) => x.key === param)
+      ?? (stelle && param.startsWith('question:') ? data.tasks.find((x) => x.key.startsWith('question:') && x.jobId === stelle) : undefined);
     if (hit) setActive(hit);
+    if (!hit && stelle) { navigate(`/dashboard/jobs/${stelle}`, { replace: true }); return; }
     navigate(location.pathname, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [param, data]);

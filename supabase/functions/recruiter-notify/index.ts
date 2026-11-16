@@ -379,7 +379,8 @@ serve(async (req) => {
     if (body.action === 'candidate_message') {
       const b = await loadBundle(db, body.submissionId, user.id);
       must(!!b.candidate.email, 'Der Kandidat hat keine E-Mail-Adresse.', 'not_found');
-      const first = String(b.candidate.full_name || '').trim().split(/\s+/)[0] || 'Hallo';
+      // Testdaten heißen „Test Vorname Nachname“: wie in der Vorschau den echten Vornamen nehmen (12.11.2026).
+      const first = String(b.candidate.full_name || '').trim().replace(/^test\s+/i, '').split(/\s+/)[0] || 'Hallo';
       // Kandidat: die Sprache des Textes, sonst die seines Headhunters
       const lang = normLang(body.lang) ?? await candidateLanguage(db, user.id);
       const subject = typeof body.subject === 'string' && body.subject.trim() ? body.subject.trim().slice(0, 120)

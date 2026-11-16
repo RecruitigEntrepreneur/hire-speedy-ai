@@ -10,6 +10,7 @@ const nb: Messages<typeof de> = {
   },
   header: {
     tour: 'Omvisning',
+    dropHint: 'Du kan dra CV-er hit.',
   },
   subtext: {
     urgentInterviewToday_one: 'Du har {{count}} oppgave som haster, og et intervju i dag kl. {{time}}.',

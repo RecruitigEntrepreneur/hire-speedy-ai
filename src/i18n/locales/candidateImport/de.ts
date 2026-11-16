@@ -93,6 +93,7 @@ const de = {
     open: 'Öffnen',
     notInCv: 'Steht nicht im Lebenslauf – fragen wir im Interview',
     back: 'Zurück',
+    later: 'Später',
     create: 'Kandidat anlegen',
   },
   section: {

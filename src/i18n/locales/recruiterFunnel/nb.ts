@@ -444,6 +444,12 @@ const nb: Messages<typeof de> = {
     saving: 'Lagrer …',
     saveAndContinue: 'Lagre og fortsett',
     later: 'Senere',
+    pwTitle: 'Logg inn med passord',
+    pwLead: 'Hvis du allerede har valgt et passord. Ellers logger du bare inn med kode.',
+    withPassword: 'Logg inn med passord',
+    password: 'Passord',
+    forgotPassword: 'Glemt passordet? Logg inn med kode',
+    wrongPassword: 'E-post eller passord stemmer ikke. Du kan alltid logge inn med kode.',
   },
 };
 

@@ -128,6 +128,8 @@ const en: Messages<typeof de> = {
   src: {
     fromCv: 'from the CV',
     fromFile: 'from the file',
+    cvTaken_one: '{{count}} detail taken from the CV, have it confirmed briefly. Hover to see the quote.',
+    cvTaken_other: '{{count}} details taken from the CV, have them confirmed briefly. Hover to see the quote.',
   },
   common: {
     change: 'change',
@@ -173,6 +175,13 @@ const en: Messages<typeof de> = {
     title: 'Missing items only',
     intro: 'Only the items still missing to complete or submit.',
     none: 'Nothing is missing any more.',
+    cvUploadFailed: 'The upload didn’t work.',
+    cvJustUploaded: '{{name}} · just uploaded',
+    cvInFile: 'It is in the file.',
+    skillsHint: 'At least three. Enter or comma adds a skill.',
+    skillsPlaceholder: 'e.g. annual accounts, DATEV …',
+    allDone: 'Everything is filled in.',
+    allDoneReady: 'Everything is filled in. {{name}} is ready to be submitted.',
   },
   done: {
     title: '✓ Interview completed',
@@ -202,6 +211,7 @@ const en: Messages<typeof de> = {
     join: 'Join',
     call: 'Call',
     dateAria: 'Interview date',
+    howTalked: 'How did you talk?',
   },
   warn: {
     columns: 'Some new details (e.g. fixed or with bonus, non-compete) are only stored permanently after the database update. Everything else is saved.',
@@ -212,6 +222,8 @@ const en: Messages<typeof de> = {
     answered: ' (answered)',
     layout: 'View',
     showAll: 'Show all questions',
+    openCount_one: '{{count}} open',
+    openCount_other: '{{count}} open',
   },
   resume: {
     text: 'Continue where you left off',
@@ -393,6 +405,8 @@ const en: Messages<typeof de> = {
     rawDeleted: 'Raw text deleted',
     rawUntil: 'Raw text until {{date}}',
     rawKept: 'Stays stored',
+    highlightInvite: 'This is where you invite {{name}} to a conversation',
+    highlightContinue: 'This is where you continue with {{name}}',
   },
 };
 

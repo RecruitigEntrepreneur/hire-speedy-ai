@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { intlLocale } from '@/i18n/languages';
+import { useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
@@ -15,8 +16,6 @@ import {
   Loader2,
   MessageSquare,
   Send,
-  Search,
-  User
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -46,19 +45,21 @@ interface Conversation {
   candidateName?: string | null;
   companyName?: string | null;
   needsAnswer?: boolean;
+  /** Verlauf (Posteingang, 15.11.2026): wann vorgestellt */
+  submittedAt?: string | null;
 }
 
 export default function RecruiterMessages() {
+  const { t, i18n } = useTranslation('recruiterInbox');
   const { user } = useAuth();
   const { toast } = useToast();
-  const { t, i18n } = useTranslation('recruiterInbox');
+  const queryClient = useQueryClient();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   // Link aus Glocke und Mail: /recruiter/messages?c=<Gespräch>
   const [searchParams] = useSearchParams();
@@ -119,7 +120,9 @@ export default function RecruiterMessages() {
           otherUserName: profileData?.full_name || t('messages.unknown'),
           lastMessage: lastMsg.content,
           lastMessageAt: lastMsg.created_at,
-          unreadCount
+          unreadCount,
+          // Posteingang: wartet auf dich, solange die neueste Nachricht nicht von dir ist
+          needsAnswer: lastMsg.sender_id !== user?.id,
         });
       }
 
@@ -131,7 +134,7 @@ export default function RecruiterMessages() {
         const [jobsRes, candRes, subRes] = await Promise.all([
           supabase.from('recruiter_jobs_view').select('id, title, company_name').in('id', jobIds),
           supabase.from('candidates').select('id, full_name').in('id', candIds),
-          supabase.from('submissions').select('id, job_id, candidate_id').eq('recruiter_id', user!.id).in('job_id', jobIds),
+          supabase.from('submissions').select('id, job_id, candidate_id, submitted_at').eq('recruiter_id', user!.id).in('job_id', jobIds),
         ]);
         for (const conv of convList) {
           const first = conversationMap.get(conv.id)?.[0];
@@ -143,6 +146,7 @@ export default function RecruiterMessages() {
           conv.candidateId = first.candidate_id;
           conv.candidateName = (candRes.data ?? []).find((c: any) => c.id === first.candidate_id)?.full_name ?? null;
           conv.submissionId = sub?.id ?? null;
+          conv.submittedAt = (sub as { submitted_at?: string | null } | undefined)?.submitted_at ?? null;
           conv.needsAnswer = first.sender_id !== user?.id;
           if (conv.otherUserName === t('messages.unknown')) conv.otherUserName = job?.company_name ? t('messages.clientOf', { company: job.company_name }) : t('messages.client');
         }
@@ -151,6 +155,10 @@ export default function RecruiterMessages() {
       setConversations(convList);
       if (linkedConversation && convList.some((c) => c.id === linkedConversation)) {
         setSelectedConversation(linkedConversation);
+      } else {
+        // Ohne Link gleich das erste, das auf dich wartet (Posteingang, 15.11.2026)
+        const erstes = convList.find((c) => c.needsAnswer) ?? convList[0];
+        if (erstes) setSelectedConversation(erstes.id);
       }
     } catch (error) {
       console.error('Error fetching conversations:', error);
@@ -182,6 +190,7 @@ export default function RecruiterMessages() {
         setConversations(prev => prev.map(c => 
           c.id === conversationId ? { ...c, unreadCount: 0 } : c
         ));
+        queryClient.invalidateQueries({ queryKey: ['posteingang-zahl'] });
       }
     } catch (error) {
       console.error('Error fetching messages:', error);
@@ -210,6 +219,7 @@ export default function RecruiterMessages() {
         setNewMessage('');
         await fetchMessages(selectedConversation);
         setConversations((prev) => prev.map((c) => (c.id === selectedConversation ? { ...c, needsAnswer: false, lastMessage: newMessage.trim(), lastMessageAt: new Date().toISOString() } : c)));
+        queryClient.invalidateQueries({ queryKey: ['posteingang-zahl'] });
         return;
       }
       const { data, error } = await supabase
@@ -231,9 +241,10 @@ export default function RecruiterMessages() {
       // Update conversation list
       setConversations(prev => prev.map(c => 
         c.id === selectedConversation 
-          ? { ...c, lastMessage: newMessage.trim(), lastMessageAt: new Date().toISOString() }
+          ? { ...c, needsAnswer: false, lastMessage: newMessage.trim(), lastMessageAt: new Date().toISOString() }
           : c
       ));
+      queryClient.invalidateQueries({ queryKey: ['posteingang-zahl'] });
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
@@ -257,11 +268,42 @@ export default function RecruiterMessages() {
     return date.toLocaleDateString(intlLocale(i18n.language), { day: '2-digit', month: '2-digit' });
   };
 
-  const filteredConversations = conversations.filter(c =>
-    c.otherUserName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const warten = conversations.filter((c) => c.needsAnswer);
+  const beantwortet = conversations.filter((c) => !c.needsAnswer);
+  const aktiv = conversations.find((c) => c.id === selectedConversation) ?? null;
+  const datum = (d: string) => new Date(d).toLocaleDateString(intlLocale(i18n.language), { day: '2-digit', month: '2-digit' });
+  // Verlauf zum Vorgang: vorgestellt, Fragen und Antworten (Posteingang, 15.11.2026)
+  const verlauf = aktiv ? [
+    ...(aktiv.submittedAt ? [{ at: aktiv.submittedAt, text: t('messages.histSubmitted') }] : []),
+    ...messages.map((m) => ({ at: m.created_at, text: m.sender_id === user?.id ? t('messages.histAnswered') : aktiv.submissionId ? t('messages.histClientQuestion') : t('messages.histReceived') })),
+  ].sort((a, b) => a.at.localeCompare(b.at)) : [];
 
-  const totalUnread = conversations.reduce((acc, c) => acc + c.unreadCount, 0);
+  const zeile = (conv: Conversation) => (
+    <button
+      key={conv.id}
+      type="button"
+      onClick={() => setSelectedConversation(conv.id)}
+      className={`w-full p-3 text-left transition-colors ${selectedConversation === conv.id ? 'bg-muted' : 'hover:bg-muted/50'}`}
+    >
+      <div className="flex items-start gap-3">
+        <Avatar className="h-8 w-8">
+          <AvatarFallback className="text-xs">{conv.otherUserName.charAt(0).toUpperCase()}</AvatarFallback>
+        </Avatar>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <p className="line-clamp-2 text-sm font-medium">
+              {conv.companyName && conv.candidateName ? t('messages.asks', { company: conv.companyName, name: conv.candidateName.replace(/^test\s+/i, '') }) : conv.otherUserName}
+            </p>
+            <span className="shrink-0 text-xs text-muted-foreground">{formatTime(conv.lastMessageAt)}</span>
+          </div>
+          {conv.jobTitle && <p className="truncate text-xs text-muted-foreground">{conv.jobTitle}</p>}
+          <p className="mt-0.5 truncate text-sm text-muted-foreground">
+            {conv.needsAnswer ? t('messages.quoted', { text: conv.lastMessage }) : t('messages.youWrote', { text: conv.lastMessage })}
+          </p>
+        </div>
+      </div>
+    </button>
+  );
 
   if (loading) {
     return (
@@ -276,137 +318,75 @@ export default function RecruiterMessages() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Header */}
+        {/* Posteingang (15.11.2026): erreichbar über die Sprechblase oben, kein Menüpunkt */}
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{t('messages.title')}</h1>
-          <p className="text-muted-foreground">
-            {totalUnread > 0 ? t('messages.unread', { count: totalUnread }) : t('messages.subtitle')}
-          </p>
+          <h1 className="text-3xl font-bold tracking-tight">{t('messages.inboxTitle')}</h1>
+          <p className="text-muted-foreground">{t('messages.inboxSubtitle')}</p>
         </div>
 
-        {/* Messages Layout */}
-        <div className="grid md:grid-cols-3 gap-6 h-[calc(100vh-280px)] min-h-[500px]">
-          {/* Conversations List */}
+        <div className="grid min-h-[500px] gap-6 md:h-[calc(100vh-280px)] md:grid-cols-3">
+          {/* Links: was auf dich wartet, darunter Beantwortetes */}
           <Card className="md:col-span-1">
-            <CardHeader className="pb-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder={t('messages.search')}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-            </CardHeader>
             <CardContent className="p-0">
-              <ScrollArea className="h-[calc(100vh-400px)] min-h-[350px]">
-                {filteredConversations.length === 0 ? (
-                  <div className="text-center py-8 px-4">
+              <ScrollArea className="h-[calc(100vh-300px)] min-h-[450px] [&_[data-radix-scroll-area-viewport]>div]:!block">
+                {conversations.length === 0 ? (
+                  <div className="px-4 py-8 text-center">
                     <MessageSquare className="mx-auto h-8 w-8 text-muted-foreground/50" />
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {t('messages.none')}
-                    </p>
+                    <p className="mt-2 text-sm text-muted-foreground">{t('messages.noneYet')}</p>
                   </div>
                 ) : (
-                  <div className="divide-y">
-                    {filteredConversations.map((conv) => (
-                      <div
-                        key={conv.id}
-                        className={`p-4 cursor-pointer transition-colors ${
-                          selectedConversation === conv.id
-                            ? 'bg-primary/10'
-                            : 'hover:bg-muted/50'
-                        }`}
-                        onClick={() => setSelectedConversation(conv.id)}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Avatar>
-                            <AvatarFallback>
-                              {conv.otherUserName.charAt(0).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <p className="font-medium truncate">{conv.otherUserName}</p>
-                              <span className="text-xs text-muted-foreground">
-                                {formatTime(conv.lastMessageAt)}
-                              </span>
-                            </div>
-                            {conv.jobTitle && (
-                              <p className="text-xs text-muted-foreground truncate">
-                                {conv.candidateName ?? t('messages.candidate')} · {conv.jobTitle}
-                              </p>
-                            )}
-                            <p className="text-sm text-muted-foreground truncate">
-                              {conv.lastMessage}
-                            </p>
-                          </div>
-                          {conv.unreadCount > 0 && (
-                            <Badge className="bg-primary">{conv.unreadCount}</Badge>
-                          )}
-                          {conv.needsAnswer && conv.unreadCount === 0 && (
-                            <Badge variant="outline" className="text-xs">Antwort offen</Badge>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <>
+                    <p className="px-3 pb-1 pt-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('messages.waiting', { count: warten.length })}</p>
+                    {warten.length ? <div className="divide-y">{warten.map(zeile)}</div> : <p className="px-3 pb-3 text-sm text-muted-foreground">{t('messages.nothingOpen')}</p>}
+                    <p className="border-t px-3 pb-1 pt-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('messages.answered', { count: beantwortet.length })}</p>
+                    {beantwortet.length ? <div className="divide-y">{beantwortet.map(zeile)}</div> : <p className="px-3 pb-3 text-sm text-muted-foreground">{t('messages.nothingYet')}</p>}
+                  </>
                 )}
               </ScrollArea>
             </CardContent>
           </Card>
 
-          {/* Messages Area */}
-          <Card className="md:col-span-2 flex flex-col">
-            {selectedConversation ? (
+          {/* Rechts: das Gespräch mit Antwortfeld und Verlauf */}
+          <Card className="flex flex-col md:col-span-2">
+            {aktiv ? (
               <>
                 <CardHeader className="border-b pb-4">
-                  <div className="flex items-center gap-3">
-                    <Avatar>
-                      <AvatarFallback>
-                        {conversations.find(c => c.id === selectedConversation)?.otherUserName.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <CardTitle className="text-base">
-                        {conversations.find(c => c.id === selectedConversation)?.otherUserName}
-                      </CardTitle>
-                      {(() => {
-                        const c = conversations.find((x) => x.id === selectedConversation);
-                        return c?.jobTitle ? (
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <Avatar>
+                        <AvatarFallback>{aktiv.otherUserName.charAt(0).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <CardTitle className="text-base">{aktiv.otherUserName}</CardTitle>
+                        {aktiv.jobTitle && (
                           <p className="text-xs text-muted-foreground">
-                            <Trans t={t} i18nKey="messages.questionAbout" values={{ name: c.candidateName ?? t('messages.yourCandidate'), job: c.jobTitle }}
-                              components={{ link: c.candidateId ? <Link to={`/recruiter/candidates/${c.candidateId}`} className="underline underline-offset-2 hover:text-foreground" /> : <span /> }} />
+                            <Trans
+                              t={t}
+                              i18nKey="messages.questionAbout"
+                              values={{ name: aktiv.candidateName ?? t('messages.yourCandidate'), job: aktiv.jobTitle }}
+                              components={{
+                                link: aktiv.candidateId
+                                  ? <Link to={`/recruiter/candidates/${aktiv.candidateId}`} className="underline underline-offset-2 hover:text-foreground" />
+                                  : <span />,
+                              }}
+                            />
                           </p>
-                        ) : null;
-                      })()}
+                        )}
+                      </div>
                     </div>
+                    {aktiv.candidateId && (
+                      <Link to={`/recruiter/candidates/${aktiv.candidateId}`} className="shrink-0 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground">{t('messages.toProfile')}</Link>
+                    )}
                   </div>
                 </CardHeader>
-                <CardContent className="flex-1 p-0 flex flex-col">
+                <CardContent className="flex flex-1 flex-col p-0">
                   <ScrollArea className="flex-1 p-4">
                     <div className="space-y-4">
                       {messages.map((msg) => (
-                        <div
-                          key={msg.id}
-                          className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
-                        >
-                          <div
-                            className={`max-w-[70%] rounded-lg p-3 ${
-                              msg.sender_id === user?.id
-                                ? 'bg-primary text-primary-foreground'
-                                : 'bg-muted'
-                            }`}
-                          >
+                        <div key={msg.id} className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}>
+                          <div className={`max-w-[70%] rounded-lg p-3 ${msg.sender_id === user?.id ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
                             <p className="text-sm">{msg.content}</p>
-                            <p className={`text-xs mt-1 ${
-                              msg.sender_id === user?.id
-                                ? 'text-primary-foreground/70'
-                                : 'text-muted-foreground'
-                            }`}>
-                              {formatTime(msg.created_at)}
-                            </p>
+                            <p className={`mt-1 text-xs ${msg.sender_id === user?.id ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{formatTime(msg.created_at)}</p>
                           </div>
                         </div>
                       ))}
@@ -414,37 +394,37 @@ export default function RecruiterMessages() {
                     </div>
                   </ScrollArea>
                   <div className="border-t p-4">
-                    {conversations.find((c) => c.id === selectedConversation)?.submissionId && (
+                    {aktiv.submissionId && (
                       <p className="mb-2 text-xs text-muted-foreground">
                         {t('messages.replyNote')}
                       </p>
                     )}
                     <div className="flex gap-2">
                       <Input
-                        placeholder={t('messages.write')}
+                        placeholder={aktiv.companyName ? t('messages.replyTo', { company: aktiv.companyName }) : t('messages.writeShort')}
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
                       />
                       <Button onClick={sendMessage} disabled={sending || !newMessage.trim()}>
-                        {sending ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Send className="h-4 w-4" />
-                        )}
+                        {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Send className="mr-1.5 h-4 w-4" />{t('messages.send')}</>}
                       </Button>
                     </div>
+                    {verlauf.length > 0 && (
+                      <div className="mt-4 border-t pt-3">
+                        <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('messages.history')}</p>
+                        {verlauf.map((v, i) => <p key={i} className="mt-1 text-xs text-muted-foreground">{datum(v.at)} · {v.text}</p>)}
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </>
             ) : (
-              <CardContent className="flex-1 flex items-center justify-center">
+              <CardContent className="flex flex-1 items-center justify-center">
                 <div className="text-center">
                   <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground/50" />
-                  <h3 className="mt-4 text-lg font-semibold">{t('messages.pickTitle')}</h3>
-                  <p className="text-muted-foreground">
-                    {t('messages.pickText')}
-                  </p>
+                  <h3 className="mt-4 text-lg font-semibold">{t('messages.noneYet')}</h3>
+                  <p className="text-muted-foreground">{t('messages.emptyText')}</p>
                 </div>
               </CardContent>
             )}

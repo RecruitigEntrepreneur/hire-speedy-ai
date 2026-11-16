@@ -123,7 +123,7 @@ const en: Messages<typeof de> = {
   menu: {
     button: 'Add candidates',
     cvTitle: 'Upload CV',
-    cvText: 'PDF or Word. The AI extracts the details, you only review.',
+    cvText: 'PDF or Word, several at once. The AI extracts the details, you only review.',
     textTitle: 'Paste text or LinkedIn profile',
     textText: 'Copy, paste, the AI extracts the details.',
     withoutCvTitle: 'Add without CV',

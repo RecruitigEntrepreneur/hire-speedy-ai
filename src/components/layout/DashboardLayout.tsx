@@ -1,6 +1,7 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
+import { LebenslaufAblageLeiste } from '@/components/candidates/LebenslaufAblageLeiste';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
@@ -14,9 +15,7 @@ import {
   Building2,
   UserCheck,
   Activity,
-  MessageSquare,
   CreditCard,
-  Shield,
   Wallet,
   Target,
   CheckSquare,
@@ -55,6 +54,8 @@ import { languageDef } from '@/i18n/languages';
 import { Flag } from '@/components/language/Flag';
 import { LanguageItems } from '@/components/language/LanguageMenu';
 import { NotificationBell } from './NotificationBell';
+import { PosteingangKnopf } from './PosteingangKnopf';
+import { ansichtAnwenden } from '@/lib/ansicht';
 import { HonorarSchalter } from '@/components/recruiter/Honorar';
 import { GlobalSearch } from './GlobalSearch';
 import { useDashboardKeyboardShortcuts } from '@/hooks/useDashboardKeyboardShortcuts';
@@ -82,6 +83,8 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
   const location = useLocation();
   const navigate = useNavigate();
   const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
+  // Schriftgröße und „weniger Bewegung“ aus Einstellungen › Darstellung (16.11.2026)
+  useEffect(() => { ansichtAnwenden(); }, []);
   
   // Initialize keyboard shortcuts
   const { shortcuts } = useDashboardKeyboardShortcuts(() => setShortcutsHelpOpen(true));
@@ -121,7 +124,7 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
     ...(clientInvoices.data?.canSee ? [{ label: tClient('items.invoices'), href: '/dashboard/rechnungen', icon: <Receipt className="h-4 w-4" />, badge: clientInvoices.data.totals.openCount }] : []),
     { label: tClient('items.analytics'), href: '/dashboard/analytics', icon: <BarChart3 className="h-4 w-4" /> },
     { label: tClient('items.team'), href: '/dashboard/team', icon: <UsersRound className="h-4 w-4" /> },
-    { label: tClient('items.messages'), href: '/dashboard/messages', icon: <MessageSquare className="h-4 w-4" /> },
+    // Nachrichten (15.11.2026): als Sprechblase oben neben der Glocke, kein Menüpunkt mehr
   ];
 
   // Menü des Headhunters in der Sprache der Oberfläche.
@@ -137,10 +140,9 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
     { label: tNav('items.talentPool'), href: '/recruiter/talent-pool', icon: <Database className="h-4 w-4" /> },
     { label: tNav('items.liga'), href: '/recruiter/liga', icon: <Trophy className="h-4 w-4" /> },
     { label: tNav('items.earnings'), href: '/recruiter/earnings', icon: <DollarSign className="h-4 w-4" /> },
-    { label: tNav('items.notifications'), href: '/recruiter/notifications', icon: <Activity className="h-4 w-4" /> },
-    { label: tNav('items.messages'), href: '/recruiter/messages', icon: <MessageSquare className="h-4 w-4" /> },
+    // 15.11.2026: Benachrichtigungen nur noch über „Alle ansehen“ in der Glocke, Nachrichten als
+    // Sprechblase oben (Posteingang), Datenschutz in den Einstellungen.
     { label: tNav('items.profile'), href: '/recruiter/profile', icon: <UserCheck className="h-4 w-4" /> },
-    { label: tNav('items.privacy'), href: '/recruiter/privacy', icon: <Shield className="h-4 w-4" /> },
   ];
 
   const adminNavItems: NavItem[] = [
@@ -205,10 +207,14 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
           </Link>
 
           {/* Search */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 sm:gap-3">
             <GlobalSearch />
+            {/* Hell/Dunkel (15.11.2026): oben neben dem Auge statt unten in der Seitenleiste.
+                Am Handy nicht, sonst fällt das Profilmenü aus dem Bild; dort über Einstellungen › Darstellung. */}
+            <div className="hidden sm:block"><ThemeToggle /></div>
             {/* Honorar ausblenden (21.10.2026): nur für Headhunter, gemerkt auf diesem Gerät. */}
             {role === 'recruiter' && <HonorarSchalter />}
+            {(role === 'recruiter' || role === 'client') && <PosteingangKnopf href={role === 'recruiter' ? '/recruiter/messages' : '/dashboard/messages'} />}
             <NotificationBell />
             
             <DropdownMenu>
@@ -298,7 +304,7 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
                 to={settingsHref}
                 className={cn(
                   'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
-                  location.pathname === settingsHref
+                  location.pathname === settingsHref || (role === 'recruiter' && location.pathname === '/recruiter/integrations')
                     ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                 )}
@@ -306,10 +312,6 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
                 <Settings className="h-4 w-4" />
                 {isRecruiter ? tNav('settings') : isClient ? tClient('settings') : 'Einstellungen'}
               </Link>
-              <div className="flex items-center gap-3 px-3 py-1">
-                <ThemeToggle />
-                <span className="text-xs text-muted-foreground">{isClient ? tClient('theme') : 'Theme'}</span>
-              </div>
             </div>
           </div>
         </aside>
@@ -324,6 +326,8 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
             {children}
           </div>
         </main>
+        {/* Lebenslauf-Ablage (09.11.2026): bleibt beim Seitenwechsel stehen */}
+        {role === 'recruiter' && <LebenslaufAblageLeiste />}
       </div>
 
       {/* Keyboard Shortcuts Help Modal */}

@@ -509,6 +509,8 @@ const en: Messages<typeof de> = {
     stationen: 'Positions',
     ausbildung: 'Education',
     skill_details: 'Skill details',
+    lebenslauf_datei: 'CV file',
+    interviewangaben_sperrliste_motivation_ziele: 'Interview details (block list, motivation, goals)',
     groessere_geschaeftsfuehrung: 'Larger executive role',
     beirat_oder_aufsichtsrat: 'Advisory or supervisory board',
     interim_mandate: 'Interim mandates',

@@ -6,7 +6,7 @@ import {
   toCandidatePayload,
   toNotesPayload,
 } from '@/lib/candidateDossier';
-import { CvEducation, CvExtraction, CvStation } from '@/lib/cvImport';
+import { CvEducation, CvExtraction, CvStation, originsToStore, type StoredOrigins } from '@/lib/cvImport';
 import { CvSnapshot, isCvFileName, snapshotFromCv } from '@/lib/candidateCv';
 import { docxToText, isDocx } from '@/lib/docxText';
 import i18n from '@/i18n';
@@ -35,8 +35,35 @@ async function invokeError(error: unknown): Promise<string> {
   return tl('import.readFailed');
 }
 
-function devMockEnabled(): boolean {
+export function devMockEnabled(): boolean {
   try { return import.meta.env.DEV && localStorage.getItem('cvImportMock') === '1'; } catch { return false; }
+}
+
+/** Datei in den Speicher laden; Word und Text werden gleich im Browser gelesen, PDF liest der Server. */
+export async function uploadCvFile(userId: string, file: File): Promise<{ fileInfo: CvFileInfo; pdfPath?: string; text?: string }> {
+  const path = `${userId}/${Date.now()}-${sanitizeFileName(file.name)}`;
+  const { error: upErr } = await supabase.storage.from('cv-documents').upload(path, file, { contentType: file.type || undefined });
+  if (upErr) throw new Error(tl('cv.uploadFailed', { msg: upErr.message }));
+  const { data: { publicUrl } } = supabase.storage.from('cv-documents').getPublicUrl(path);
+  const fileInfo: CvFileInfo = { fileName: file.name, fileUrl: publicUrl, fileSize: file.size, mimeType: file.type || 'application/octet-stream' };
+  if (isDocx(file)) return { fileInfo, text: await docxToText(file) };
+  if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) return { fileInfo, pdfPath: path };
+  return { fileInfo, text: await file.text() };
+}
+
+/** Hochgeladene PDF (Pfad im Speicher) oder Text von extract-candidate-cv auslesen lassen. */
+export async function readCv(params: { pdfPath?: string; text?: string; notes?: string; candidateId?: string }): Promise<CvExtraction> {
+  if (devMockEnabled()) {
+    const { cvImportMock } = await import('@/dev/cvImportMock');
+    // Wie echtes Lesen ein paar Sekunden, damit die Ablage live zu sehen ist
+    await new Promise((r) => setTimeout(r, 4000 + Math.random() * 4000));
+    return cvImportMock(params.pdfPath ?? '');
+  }
+  const { data, error } = await supabase.functions.invoke('extract-candidate-cv', {
+    body: { pdfPath: params.pdfPath, text: params.pdfPath ? undefined : params.text?.trim() ?? '', notes: params.notes ?? '', candidateId: params.candidateId },
+  });
+  if (error) throw new Error(await invokeError(error));
+  return data as CvExtraction;
 }
 
 /**
@@ -47,26 +74,12 @@ export async function extractCv(params: { userId: string; file?: File | null; te
   let pdfPath: string | undefined;
   let text = params.text?.trim() ?? '';
   let fileInfo: CvFileInfo | null = null;
-  const file = params.file ?? null;
-  if (file) {
-    const path = `${params.userId}/${Date.now()}-${sanitizeFileName(file.name)}`;
-    const { error: upErr } = await supabase.storage.from('cv-documents').upload(path, file, { contentType: file.type || undefined });
-    if (upErr) throw new Error(`Upload fehlgeschlagen: ${upErr.message}`);
-    const { data: { publicUrl } } = supabase.storage.from('cv-documents').getPublicUrl(path);
-    fileInfo = { fileName: file.name, fileUrl: publicUrl, fileSize: file.size, mimeType: file.type || 'application/octet-stream' };
-    if (isDocx(file)) text = await docxToText(file);
-    else if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) pdfPath = path;
-    else text = await file.text();
+  if (params.file) {
+    const up = await uploadCvFile(params.userId, params.file);
+    fileInfo = up.fileInfo; pdfPath = up.pdfPath; if (up.text !== undefined) text = up.text;
   }
-  if (devMockEnabled()) {
-    const { cvImportMock } = await import('@/dev/cvImportMock');
-    return { cv: cvImportMock(), fileInfo };
-  }
-  const { data, error } = await supabase.functions.invoke('extract-candidate-cv', {
-    body: { pdfPath, text: pdfPath ? undefined : text, notes: params.notes ?? '', candidateId: params.candidateId },
-  });
-  if (error) throw new Error(await invokeError(error));
-  return { cv: data as CvExtraction, fileInfo };
+  const cv = await readCv({ pdfPath, text, notes: params.notes, candidateId: params.candidateId });
+  return { cv, fileInfo };
 }
 
 const monthDate = (ym: string | null) => (ym ? `${ym}-01` : null);
@@ -193,8 +206,25 @@ export async function saveNewCandidateFromCv(p: { userId: string; form: DossierF
     const docFail = await insertCvDocument(candidateId, userId, fileInfo, snapshotFromCv(cv));
     if (docFail) failed.push(docFail);
   }
+  await saveOrigins(candidateId, originsToStore(cv, form));
   await logConsent(userId, candidateId);
   return { candidateId, failed };
+}
+
+/**
+ * Herkunft aus dem Lebenslauf merken (09.11.2026). Eigener Schritt und Fehler werden
+ * geschluckt: Fehlt die Spalte noch (Migration 20261109120000), legt das Anlegen
+ * trotzdem an, das Interview zeigt dann nur keinen Vermerk.
+ */
+async function saveOrigins(candidateId: string, origins: StoredOrigins, merge = false) {
+  if (!Object.keys(origins).length) return;
+  let next: StoredOrigins = origins;
+  if (merge) {
+    const { data, error } = await supabase.from('candidates').select('cv_field_origins').eq('id', candidateId).maybeSingle();
+    if (error) return;
+    next = { ...((data?.cv_field_origins as StoredOrigins | null) ?? {}), ...origins };
+  }
+  await supabase.from('candidates').update({ cv_field_origins: next } as never).eq('id', candidateId);
 }
 
 /** Neuer Lebenslauf für einen bestehenden Kandidaten: nur Ergänzungen, nichts löschen. */
@@ -231,6 +261,9 @@ export async function saveCvIntoExisting(p: {
     const docFail = await insertCvDocument(candidateId, userId, fileInfo, snapshotFromCv(cv));
     if (docFail) failed.push(docFail);
   }
+  // Nur die Felder, die dieser Lebenslauf gerade geändert hat.
+  const geaendert = (Object.keys(merged) as (keyof DossierForm)[]).filter((k) => JSON.stringify(merged[k]) !== JSON.stringify(before[k]));
+  await saveOrigins(candidateId, originsToStore(cv, merged, geaendert), true);
   return { candidateId, failed };
 }
 

@@ -1,188 +1,103 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { intlLocale } from '@/i18n/languages';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { Bell, Check, ChevronRight, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Loader2,
-  Bell,
-  CheckCircle2,
-  XCircle,
-  Calendar,
-  MessageSquare,
-  DollarSign,
-  UserCheck,
-  Check,
-  Trash2,
-  Shield,
-  Lock,
-  Unlock
-} from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Honorar } from '@/components/recruiter/Honorar';
+import { HinweisIcon } from '@/components/notifications/HinweisIcon';
+import { hinweisPfad, hinweisZiel } from '@/lib/hinweisZiel';
+import { cn } from '@/lib/utils';
 
 interface Notification {
   id: string;
   type: string;
   title: string;
-  message: string;
-  related_id: string;
-  related_type: string;
+  message: string | null;
+  related_id: string | null;
+  related_type: string | null;
   is_read: boolean;
   created_at: string;
 }
 
-const NOTIFICATION_ICONS: Record<string, any> = {
-  candidate_accepted: CheckCircle2,
-  candidate_rejected: XCircle,
-  interview_scheduled: Calendar,
-  feedback_required: MessageSquare,
-  placement_confirmed: DollarSign,
-  payout_processed: DollarSign,
-  opt_in_request: Shield,
-  opt_in_approved: Unlock,
-  opt_in_denied: Lock,
-  booking_created: Calendar,
-  booking_moved: Calendar,
-  booking_cancelled: XCircle,
-  default: Bell
-};
-
-const NOTIFICATION_COLORS: Record<string, string> = {
-  candidate_accepted: 'text-emerald bg-emerald/10',
-  candidate_rejected: 'text-destructive bg-destructive/10',
-  interview_scheduled: 'text-purple-500 bg-purple-500/10',
-  feedback_required: 'text-amber-500 bg-amber-500/10',
-  placement_confirmed: 'text-emerald bg-emerald/10',
-  payout_processed: 'text-blue-500 bg-blue-500/10',
-  opt_in_request: 'text-primary bg-primary/10',
-  opt_in_approved: 'text-emerald bg-emerald/10',
-  opt_in_denied: 'text-destructive bg-destructive/10',
-  booking_created: 'text-primary bg-primary/10',
-  booking_moved: 'text-amber-500 bg-amber-500/10',
-  booking_cancelled: 'text-destructive bg-destructive/10',
-  default: 'text-muted-foreground bg-muted'
-};
-
+/**
+ * „Alle ansehen“ aus der Glocke (15.11.2026), für Headhunter (/recruiter/notifications) und Kunden
+ * (/dashboard/notifications, bisher „Seite nicht gefunden“). Gleiche Ziele wie die Glocke: Klick
+ * öffnet die Seite mit dem passenden Fenster, der Hinweis und alle zum selben Vorgang gelten als gelesen.
+ */
 export default function RecruiterNotifications() {
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const { t, i18n } = useTranslation('recruiterInbox');
+  // notifications: Zeitangaben und „Alle gelesen“ wie in der Glocke (gilt für Headhunter und Kunden)
+  const { t, i18n } = useTranslation(['recruiterInbox', 'notifications']);
+  const { user, role } = useAuth();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
+  const sie = role !== 'recruiter';
 
   useEffect(() => {
-    if (user) {
-      fetchNotifications();
-    }
+    if (!user) return;
+    let alive = true;
+    supabase
+      .from('notifications')
+      .select('id, type, title, message, related_id, related_type, is_read, created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .then(({ data, error }) => {
+        if (!alive) return;
+        if (error) console.error('Benachrichtigungen konnten nicht geladen werden:', error);
+        setNotifications((data ?? []) as Notification[]);
+        setLoading(false);
+      });
+    return () => { alive = false; };
   }, [user]);
 
-  const fetchNotifications = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false });
-
-      if (!error && data) {
-        setNotifications(data);
-      }
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-    } finally {
-      setLoading(false);
-    }
+  const markiereGelesen = async (n: Notification) => {
+    if (!user) return;
+    const verwandt = (x: Notification) => x.id === n.id || (!!n.related_type && !!n.related_id && x.related_type === n.related_type && x.related_id === n.related_id);
+    let query = supabase.from('notifications').update({ is_read: true }).eq('user_id', user.id).eq('is_read', false);
+    query = n.related_type && n.related_id
+      ? query.or(`id.eq.${n.id},and(related_type.eq.${n.related_type},related_id.eq.${n.related_id})`)
+      : query.eq('id', n.id);
+    const { error } = await query;
+    if (!error) setNotifications((prev) => prev.map((x) => (verwandt(x) ? { ...x, is_read: true } : x)));
   };
 
-  const markAsRead = async (id: string) => {
-    try {
-      await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('id', id);
-
-      setNotifications(prev => 
-        prev.map(n => n.id === id ? { ...n, is_read: true } : n)
-      );
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
-    }
+  const alleGelesen = async () => {
+    if (!user) return;
+    const { error } = await supabase.from('notifications').update({ is_read: true }).eq('user_id', user.id).eq('is_read', false);
+    if (!error) setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
   };
 
-  const markAllAsRead = async () => {
-    try {
-      await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('user_id', user?.id)
-        .eq('is_read', false);
-
-      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-      toast({ title: t('notifications.markedAll') });
-    } catch (error) {
-      console.error('Error marking all as read:', error);
-    }
+  const oeffnen = async (n: Notification) => {
+    if (!n.is_read) void markiereGelesen(n);
+    const pfad = await hinweisPfad(n, role);
+    if (pfad) navigate(pfad);
   };
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
-    const now = new Date();
-    const diffMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-    
-    if (diffMinutes < 1) return t('time.justNow');
-    if (diffMinutes < 60) return t('time.minutes', { count: diffMinutes });
-    if (diffMinutes < 1440) return t('time.hours', { count: Math.floor(diffMinutes / 60) });
+    const diffMinutes = Math.floor((Date.now() - date.getTime()) / 60000);
+    if (diffMinutes < 1) return t('notifications:justNow');
+    if (diffMinutes < 60) return t('notifications:minutesAgo', { count: diffMinutes });
+    if (diffMinutes < 1440) return t('notifications:hoursAgo', { count: Math.floor(diffMinutes / 60) });
     if (diffMinutes < 2880) return t('time.yesterday');
     return date.toLocaleDateString(intlLocale(i18n.language), { day: '2-digit', month: '2-digit' });
   };
 
-  const getNotificationLink = (notification: Notification) => {
-    if (!notification.related_id) return null;
-    
-    // Don't link opt_in_request - handle with dialog instead
-    if (notification.type === 'opt_in_request') return null;
-    
-    switch (notification.related_type) {
-      case 'job':
-        return `/recruiter/jobs/${notification.related_id}`;
-      case 'submission':
-        // Direkt auf die Einreichung statt auf die Pipeline-Liste.
-        return `/recruiter/submissions/${notification.related_id}`;
-      case 'conversation':
-        // Frage des Kunden zu einem Kandidaten
-        return `/recruiter/messages?c=${notification.related_id}`;
-      case 'interview':
-        // Fehlte komplett: Interview-Meldungen fielen in den default-Zweig und
-        // waren dadurch nicht anklickbar.
-        return `/recruiter/interviews?interview=${notification.related_id}`;
-      case 'placement':
-        return '/recruiter/earnings';
-      case 'candidate':
-        // Terminseite (21.10.2026): Termin gebucht, verschoben oder abgesagt → Akte
-        return `/recruiter/candidates/${notification.related_id}`;
-      default:
-        return null;
-    }
-  };
-
-  const filteredNotifications = notifications.filter(n => 
-    filter === 'all' || !n.is_read
-  );
-
-  const unreadCount = notifications.filter(n => !n.is_read).length;
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
+  const liste = notifications.filter((n) => filter === 'all' || !n.is_read);
 
   if (loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
+        <div className="flex h-64 items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       </DashboardLayout>
@@ -192,23 +107,19 @@ export default function RecruiterNotifications() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">{t('notifications.title')}</h1>
-            <p className="text-muted-foreground">
-              {unreadCount > 0 ? t('notifications.unread', { count: unreadCount }) : t('notifications.allRead')}
-            </p>
+            <p className="text-muted-foreground">{unreadCount > 0 ? t('notifications.unreadShort', { count: unreadCount }) : t('notifications.allReadShort')}</p>
           </div>
           {unreadCount > 0 && (
-            <Button variant="outline" onClick={markAllAsRead}>
-              <Check className="h-4 w-4 mr-2" />
-              {t('notifications.markAll')}
+            <Button variant="outline" onClick={() => void alleGelesen()}>
+              <Check className="mr-2 h-4 w-4" />
+              {t('notifications:markAllRead')}
             </Button>
           )}
         </div>
 
-        {/* Filter Tabs */}
         <Tabs value={filter} onValueChange={(v) => setFilter(v as 'all' | 'unread')}>
           <TabsList>
             <TabsTrigger value="all">
@@ -217,89 +128,64 @@ export default function RecruiterNotifications() {
             </TabsTrigger>
             <TabsTrigger value="unread">
               {t('notifications.unreadTab')}
-              {unreadCount > 0 && (
-                <Badge className="ml-2 bg-destructive">{unreadCount}</Badge>
-              )}
+              {unreadCount > 0 && <Badge className="ml-2 bg-destructive">{unreadCount}</Badge>}
             </TabsTrigger>
           </TabsList>
         </Tabs>
 
-        {/* Notifications List */}
         <Card>
           <CardContent className="p-0">
-            {filteredNotifications.length === 0 ? (
-              <div className="text-center py-16">
+            {liste.length === 0 ? (
+              <div className="py-16 text-center">
                 <Bell className="mx-auto h-12 w-12 text-muted-foreground/50" />
                 <h3 className="mt-4 text-lg font-semibold">{t('notifications.emptyTitle')}</h3>
                 <p className="text-muted-foreground">
-                  {filter === 'unread' 
-                    ? t('notifications.emptyUnread')
-                    : t('notifications.emptyAll')}
+                  {filter === 'unread' ? t('notifications.emptyUnreadShort') : sie ? t('notifications.emptyAllSie') : t('notifications.emptyAllDu')}
                 </p>
               </div>
             ) : (
               <div className="divide-y">
-                {filteredNotifications.map((notification) => {
-                  const Icon = NOTIFICATION_ICONS[notification.type] || NOTIFICATION_ICONS.default;
-                  const colorClass = NOTIFICATION_COLORS[notification.type] || NOTIFICATION_COLORS.default;
-                  const link = getNotificationLink(notification);
-
-                  const content = (
-                    <div 
-                      className={`p-4 flex items-start gap-4 transition-colors ${
-                        !notification.is_read ? 'bg-primary/5' : 'hover:bg-muted/30'
-                      }`}
-                      onClick={() => !notification.is_read && markAsRead(notification.id)}
+                {liste.map((n) => {
+                  const hatZiel = !!hinweisZiel(n, role);
+                  return (
+                    <button
+                      key={n.id}
+                      type="button"
+                      onClick={() => void oeffnen(n)}
+                      className={cn(
+                        'flex w-full items-start gap-4 p-4 text-left transition-colors',
+                        !n.is_read ? 'bg-primary/5' : 'hover:bg-muted/30',
+                        !hatZiel && 'cursor-default',
+                      )}
                     >
-                      <div className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 ${colorClass}`}>
-                        <Icon className="h-5 w-5" />
-                      </div>
-                      <div className="flex-1 min-w-0">
+                      <HinweisIcon type={n.type} className="h-10 w-10 [&>svg]:h-5 [&>svg]:w-5" />
+                      <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <p className={`font-medium ${!notification.is_read ? 'text-foreground' : 'text-muted-foreground'}`}>
-                              {notification.title}
-                            </p>
-                            {notification.message && (
-                              <p className="text-sm text-muted-foreground mt-1">
-                                {notification.type === 'placement_created' ? <Honorar>{notification.message}</Honorar> : notification.message}
+                          <div className="min-w-0">
+                            <p className={cn('font-medium', n.is_read && 'text-muted-foreground')}>{n.title}</p>
+                            {n.message && (
+                              <p className="mt-1 line-clamp-3 text-sm text-muted-foreground">
+                                {n.type === 'placement_created' ? <Honorar>{n.message}</Honorar> : n.message}
                               </p>
                             )}
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <span className="text-xs text-muted-foreground">
-                              {formatTime(notification.created_at)}
-                            </span>
-                            {!notification.is_read && (
-                              <div className="h-2 w-2 rounded-full bg-primary" />
+                            {n.type === 'opt_in_request' && (
+                              <p className="mt-2 text-xs text-muted-foreground">{t('notifications.optInNote')}</p>
                             )}
                           </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <span className="text-xs text-muted-foreground">{formatTime(n.created_at)}</span>
+                            {!n.is_read && <div className="h-2 w-2 rounded-full bg-primary" />}
+                            {hatZiel && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                          </div>
                         </div>
-                        
-                        {notification.type === 'opt_in_request' && (
-                          <p className="mt-2 text-xs text-muted-foreground">
-                            {t('notifications.optInNote')}
-                          </p>
-                        )}
                       </div>
-                    </div>
-                  );
-
-                  return link ? (
-                    <Link key={notification.id} to={link}>
-                      {content}
-                    </Link>
-                  ) : (
-                    <div key={notification.id} className="cursor-pointer">
-                      {content}
-                    </div>
+                    </button>
                   );
                 })}
               </div>
             )}
           </CardContent>
         </Card>
-
       </div>
     </DashboardLayout>
   );

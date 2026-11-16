@@ -83,6 +83,9 @@ const nb: Messages<typeof de> = {
     reminderSend: 'Påminnelsen kunne ikke sendes.',
     requestSend: 'Forespørselen kunne ikke sendes.',
     slugTaken: 'Denne adressen er allerede i bruk.',
+    proofSave: 'Bekreftelsen kunne ikke lagres.',
+    linkedinRead: 'LinkedIn kunne ikke leses akkurat nå. Prøv igjen om litt.',
+    photoAdopt: 'Bildet kunne ikke legges til.',
   },
 };
 

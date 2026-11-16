@@ -1,4 +1,4 @@
-import { Bell, Check, CheckCheck } from "lucide-react";
+import { Bell, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,97 +11,48 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRealtimeNotifications } from "@/hooks/useRealtimeNotifications";
 import { cn } from "@/lib/utils";
 import { Honorar } from '@/components/recruiter/Honorar';
-import { Link } from "react-router-dom";
+import { HinweisIcon } from '@/components/notifications/HinweisIcon';
+import { hinweisPfad, hinweisZiel } from '@/lib/hinweisZiel';
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { useTranslation } from "react-i18next";
 import { fmtDate } from "@/lib/localeFormat";
 
+/** Relative Zeit wie „vor 3 Std.“, ab einer Woche das Datum (Texte: notifications). */
+function hinweisZeit(dateString: string, t: (k: string, o?: Record<string, unknown>) => string) {
+  const date = new Date(dateString);
+  const diffMs = Date.now() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  if (diffMins < 1) return t("justNow");
+  if (diffMins < 60) return t("minutesAgo", { count: diffMins });
+  if (diffHours < 24) return t("hoursAgo", { count: diffHours });
+  if (diffDays < 7) return t("daysAgo", { count: diffDays });
+  return fmtDate(date);
+}
+
+/**
+ * Glocke (Etappe 1, 15.11.2026): Ein Klick führt auf die Seite, auf der man weitermacht, und das
+ * passende Fenster liegt offen darüber (Ziele in lib/hinweisZiel). Der Hinweis und alle zum selben
+ * Vorgang gelten dann als gelesen. „Alle ansehen“ führt auch beim Kunden auf eine echte Liste.
+ */
 export function NotificationBell() {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useRealtimeNotifications();
   const { role } = useAuth();
   const { t } = useTranslation("notifications");
+  const navigate = useNavigate();
 
-  const getNotificationLink = (notification: {
-    related_type?: string | null;
-    related_id?: string | null;
-  }) => {
-    if (!notification.related_type || !notification.related_id) return null;
-
-    switch (notification.related_type) {
-      case "submission":
-        // related_id ist die submission_id — vorher landete der Recruiter auf
-        // der Pipeline-Liste und musste den Vorgang selbst suchen.
-        return role === "recruiter"
-          ? `/recruiter/submissions/${notification.related_id}`
-          : `/dashboard/candidates/${notification.related_id}`;
-      case "candidate":
-        // Terminseite (21.10.2026): neuer, verschobener oder abgesagter Termin → Akte
-        return role === "recruiter" ? `/recruiter/candidates/${notification.related_id}` : null;
-      case "job":
-        return role === "recruiter"
-          ? `/recruiter/jobs/${notification.related_id}`
-          : `/dashboard/jobs/${notification.related_id}`;
-      case "conversation":
-        // Frage des Kunden bzw. Antwort des Headhunters: direkt ins Gespräch
-        return role === "recruiter"
-          ? `/recruiter/messages?c=${notification.related_id}`
-          : `/dashboard/messages?c=${notification.related_id}`;
-      case "interview":
-        // related_id ist die interview_id: ?interview= öffnet in der Recruiter-
-        // Agenda das Termin-Sheet für genau diesen Termin. Die Client-Agenda
-        // wertet den Parameter noch nicht aus — dort deshalb ohne.
-        return role === "recruiter"
-          ? `/recruiter/interviews?interview=${notification.related_id}`
-          : `/dashboard/interviews`;
-      case "placement":
-        // Buchhaltung (11.11.2026): direkt zur Besetzung (Verdienste-Fenster bzw. Admin-Fahrplan)
-        return role === "recruiter"
-          ? `/recruiter/earnings?besetzung=${notification.related_id}`
-          : role === "admin"
-            ? `/admin/besetzungen?reiter=faelle`
-            : `/dashboard/besetzungen`;
-      case "invoice":
-        return role === "admin" ? `/admin/besetzungen?reiter=rechnungen` : `/dashboard/rechnungen?beleg=${notification.related_id}`;
-      case "payout":
-        return `/recruiter/earnings?reiter=gutschriften`;
-      case "client_company":
-        // Firma beantragt (an Matchunt) bzw. entschieden (an den Kunden)
-        return role === "admin"
-          ? `/admin?firma=${notification.related_id}`
-          : `/dashboard/settings#firmendaten`;
-      case "feedback":
-        // Feedback aus der Lasche: Admins landen im Eingang, Absender haben keine eigene Seite dafür.
-        return role === "admin" ? `/admin/feedback/${notification.related_id}` : null;
-      case "contract":
-        // Arbeitsvertrag: Fall für Matchunt (Tag 21, Gegenprobe weicht ab)
-        return role === "admin" ? `/admin/vertraege` : null;
-      case "admin_review":
-        // Prüfungen in der Recruiterverwaltung (Direktkontakte, Bestandskunden, Schließungen)
-        return `/admin/recruiters#pruefungen`;
-      default:
-        return null;
-    }
-  };
-
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return t("justNow");
-    if (diffMins < 60) return t("minutesAgo", { count: diffMins });
-    if (diffHours < 24) return t("hoursAgo", { count: diffHours });
-    if (diffDays < 7) return t("daysAgo", { count: diffDays });
-    return fmtDate(date);
+  const oeffnen = async (n: (typeof notifications)[number]) => {
+    if (!n.is_read) void markAsRead(n);
+    const pfad = await hinweisPfad(n, role);
+    if (pfad) navigate(pfad);
   };
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
+        <Button variant="ghost" size="icon" className="relative" aria-label={t("title")}>
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
             <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center font-medium">
@@ -110,68 +61,46 @@ export function NotificationBell() {
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80">
+      <DropdownMenuContent align="end" className="w-80 p-0">
         <div className="flex items-center justify-between px-4 py-2 border-b">
           <span className="font-semibold">{t("title")}</span>
           {unreadCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-auto p-1 text-xs"
-              onClick={() => markAllAsRead()}
-            >
+            <Button variant="ghost" size="sm" className="h-auto p-1 text-xs" onClick={() => markAllAsRead()}>
               <CheckCheck className="h-3 w-3 mr-1" />
               {t("markAllRead")}
             </Button>
           )}
         </div>
-        <ScrollArea className="h-[300px]">
+        <ScrollArea className="h-[320px]">
           {notifications.length === 0 ? (
             <div className="p-4 text-center text-muted-foreground text-sm">
               {t("empty")}
             </div>
           ) : (
-            notifications.slice(0, 10).map((notification) => {
-              const link = getNotificationLink(notification);
-              const content = (
-                <div
+            notifications.slice(0, 10).map((n) => {
+              const hatZiel = !!hinweisZiel(n, role);
+              return (
+                <DropdownMenuItem
+                  key={n.id}
+                  onSelect={() => void oeffnen(n)}
                   className={cn(
-                    "flex items-start gap-3 p-3 cursor-pointer transition-colors",
-                    !notification.is_read && "bg-muted/50"
+                    "flex items-start gap-3 rounded-none border-b border-border/60 px-3 py-2.5 last:border-b-0",
+                    hatZiel ? "cursor-pointer" : "cursor-default",
+                    !n.is_read && "bg-muted/50",
                   )}
-                  onClick={() => {
-                    if (!notification.is_read) {
-                      markAsRead(notification.id);
-                    }
-                  }}
                 >
+                  <HinweisIcon type={n.type} className="mt-0.5" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{notification.title}</p>
-                    {notification.message && (
+                    <p className="text-sm font-medium truncate">{n.title}</p>
+                    {n.message && (
                       <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
                         {/* „Provision: … €“ nach einer Platzierung folgt dem Auge in der Kopfleiste. */}
-                        {notification.type === 'placement_created' ? <Honorar>{notification.message}</Honorar> : notification.message}
+                        {n.type === 'placement_created' ? <Honorar>{n.message}</Honorar> : n.message}
                       </p>
                     )}
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {formatTime(notification.created_at)}
-                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">{hinweisZeit(n.created_at, t)}</p>
                   </div>
-                  {!notification.is_read && (
-                    <div className="h-2 w-2 rounded-full bg-primary mt-1.5 flex-shrink-0" />
-                  )}
-                </div>
-              );
-
-              return (
-                <DropdownMenuItem key={notification.id} asChild className="p-0 focus:bg-transparent">
-                  {link ? (
-                    <Link to={link} className="block w-full">
-                      {content}
-                    </Link>
-                  ) : (
-                    <div>{content}</div>
-                  )}
+                  {!n.is_read && <div className="h-2 w-2 rounded-full bg-primary mt-1.5 flex-shrink-0" />}
                 </DropdownMenuItem>
               );
             })
@@ -179,11 +108,9 @@ export function NotificationBell() {
         </ScrollArea>
         {notifications.length > 0 && (
           <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild className="text-center justify-center text-sm text-muted-foreground">
-              <Link to={role === "recruiter" ? "/recruiter/notifications" : "/dashboard/notifications"}>
-                {t("showAll")}
-              </Link>
+            <DropdownMenuSeparator className="m-0" />
+            <DropdownMenuItem asChild className="justify-center py-2.5 text-sm text-muted-foreground">
+              <Link to={role === "recruiter" ? "/recruiter/notifications" : "/dashboard/notifications"}>{t("showAll")}</Link>
             </DropdownMenuItem>
           </>
         )}
