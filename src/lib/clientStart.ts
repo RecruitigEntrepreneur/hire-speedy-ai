@@ -12,13 +12,38 @@ import i18n from '@/i18n';
 import { intlLocale } from '@/i18n/languages';
 import type { CalendarState } from '@/lib/interviewScheduling';
 
-export type ClientStepId = 'contract' | 'position' | 'company' | 'calendar' | 'tour';
+export type ClientStepId = 'contract' | 'position' | 'company' | 'password' | 'calendar' | 'tour';
 /** done: erledigt · waiting: liegt bei Matchunt · open: der Kunde ist dran */
 export type ClientStepState = 'done' | 'waiting' | 'open';
 export interface ClientStep { id: ClientStepId; label: string; state: ClientStepState; detail: string; action?: string }
 
 export interface StartFramework { agreement_number: string | null; status: string; countersigned_at: string | null }
 export interface StartJob { title: string | null; status: string }
+
+/**
+ * Wartezustand (Entscheidung 30.10.2026): Der Kunde ist direkt nach der Aufnahme im
+ * Dashboard, sein Vertrag gilt aber erst mit unserer Gegenzeichnung. Noch ohne wirksamen
+ * Rahmenvertrag und ohne Stelle gibt es nichts zu arbeiten, nur Start, Passwort, Vertrag,
+ * Firmendaten. Bestehende Kunden mit Stellen sperrt das nie.
+ */
+export function clientIsWaiting(rows: StartFramework[], jobCount: number): boolean {
+  if (jobCount > 0) return false;
+  const rv = currentFramework(rows);
+  return rv?.status === 'customer_signed' || rv?.status === 'sent';
+}
+
+/** Hat schon eine Position aufgenommen: Der Rundgang muss keine erste Stelle mehr mit ihm anlegen. */
+export const clientHasPosition = (rows: StartFramework[], jobCount: number) => jobCount > 0 || !!currentFramework(rows);
+
+/** Bleibt im Wartezustand offen. */
+export const clientPathOpenWhileWaiting = (path: string) =>
+  path === '/dashboard' || path === '/dashboard/vertrag-unterschreiben'
+  || path.startsWith('/dashboard/settings') || path.startsWith('/dashboard/privacy');
+
+/** Bleibt gesperrt, auch wenn gerade der Rundgang läuft: Sonst entstünde eine zweite Position unter einem noch nicht wirksamen Vertrag. */
+export const clientPathClosedDuringTour = (path: string) => path.startsWith('/dashboard/aufnahme');
+
+export interface ClientWaitingInfo { title: string | null; signerEmail: string | null; self: boolean; closed: boolean }
 
 /** Merker im Konto: Die „Alles eingerichtet“-Zeile wurde ausgeblendet. */
 export const CLIENT_START_HIDDEN_KEY = 'client_start_hidden_at';
@@ -37,10 +62,19 @@ export function clientStartSteps(input: {
   /** Stand der Kalender-Verbindung; null = unbekannt (noch nicht geladen oder Fehler). */
   calendar: CalendarState | null;
   tourDone: boolean;
+  /** Stand aus dem Wartezustand; ohne Angabe wie für jeden bestehenden Kunden. */
+  waiting?: ClientWaitingInfo | null;
+  passwordSet?: boolean;
 }): ClientStep[] {
-  const { framework: rv, jobs } = input;
+  const { framework: rv, jobs, waiting } = input;
 
-  const contract: ClientStep = !rv
+  const contract: ClientStep = waiting?.closed
+    ? { id: 'contract', label: t('contract'), state: 'open', detail: t('contractClosed') }
+    : waiting && rv?.status === 'sent' && waiting.self
+    ? { id: 'contract', label: t('contract'), state: 'open', detail: t('contractWaitsForYou'), action: t('contractSignNow') }
+    : waiting && rv?.status === 'sent'
+    ? { id: 'contract', label: t('contract'), state: 'waiting', detail: waiting.signerEmail ? t('contractWithSigner', { email: waiting.signerEmail }) : t('contractWithSignerUnknown') }
+    : !rv
     ? { id: 'contract', label: t('contract'), state: 'open', detail: t('contractNone') }
     : rv.status === 'active'
     ? { id: 'contract', label: t('contract'), state: 'done',
@@ -54,7 +88,9 @@ export function clientStartSteps(input: {
 
   const live = jobs.find(j => j.status === 'published');
   const inReview = jobs.find(j => j.status === 'pending_approval');
-  const position: ClientStep = live
+  const position: ClientStep = waiting && !waiting.closed
+    ? { id: 'position', label: t('position'), state: 'waiting', detail: t('positionWaiting', { title: waiting.title?.trim() || t('yourPosition') }) }
+    : live
     ? { id: 'position', label: t('position'), state: 'done', detail: t('positionLive', { title: titel(live) }) }
     : inReview
     ? { id: 'position', label: t('position'), state: 'waiting', detail: t('positionReview', { title: titel(inReview) }) }
@@ -80,6 +116,13 @@ export function clientStartSteps(input: {
     ? { id: 'tour', label: t('tour'), state: 'done', detail: t('tourDetail'), action: t('tourAgain') }
     : { id: 'tour', label: t('tour'), state: 'open', detail: t('tourDetail'), action: t('tourStart') };
 
+  // Im Wartezustand Passwort statt Kalender: Interviews gibt es noch nicht, die Anmeldung schon.
+  if (waiting && !waiting.closed) {
+    const password: ClientStep = input.passwordSet
+      ? { id: 'password', label: t('password'), state: 'done', detail: t('passwordDone') }
+      : { id: 'password', label: t('passwordSet'), state: 'open', detail: t('passwordOptional'), action: t('passwordAction') };
+    return [contract, position, company, password, tour];
+  }
   return calendar ? [contract, position, company, calendar, tour] : [contract, position, company, tour];
 }
 

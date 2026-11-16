@@ -30,6 +30,9 @@ import { useJobTerms } from '@/lib/abrechnungApi';
 import { KundeMeldenDialog } from './verdienste/KundeMeldenDialog';
 import { useTranslation } from 'react-i18next';
 import { intlLocale } from '@/i18n/languages';
+import { useToast } from '@/hooks/use-toast';
+import { pendingText } from './RecruiterWaiting';
+import { useRecruiterPending } from '@/components/verification/RecruiterAccessGate';
 
 export interface WorkspaceJob extends BriefingJob {
   id: string;
@@ -122,6 +125,14 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
   const [aufhaenger, setAufhaenger] = useState('');
   const [kanal, setKanal] = useState<Kanal>('linkedin');
   const [teilenOffen, setTeilenOffen] = useState(false);
+  // Vertrag noch nicht gegengezeichnet: lesen ja, Kandidaten ansprechen nein. Eine Stelle für alle Wege in dieses Fenster.
+  const pending = useRecruiterPending();
+  const { toast } = useToast();
+  useEffect(() => {
+    if (!pending || !teilenOffen) return;
+    setTeilenOffen(false);
+    toast({ title: pendingText('notYet'), description: pendingText('hint') });
+  }, [pending, teilenOffen, toast]);
   const [kopiert, setKopiert] = useState<'ok' | 'fehler' | null>(null);
   const roh = buildAnsprache(job, posting, vorname);
   // Der Aufhänger gilt für LinkedIn und E-Mail; Telefon bleibt Spickzettel.

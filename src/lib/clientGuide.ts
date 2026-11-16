@@ -79,6 +79,29 @@ export const CLIENT_GUIDE_STEPS: GuideStep[] = [
   step({ id: 'c-done', chapter: 4, route: '/dashboard/team' }),
 ];
 
+/**
+ * Für alle, die schon eine Position aufgenommen haben: Der Rundgang legt keine erste
+ * Stelle mehr mit ihnen an. Wer die Aufnahme gerade durchlaufen hat, soll sie nicht noch
+ * einmal machen (Live-Fall Kanna Medics), und im Wartezustand entstünde sonst eine zweite
+ * Position unter einem noch nicht wirksamen Vertrag. Der Rest läuft mit Beispielen auch
+ * durch leere Seiten, deshalb lässt die Sperre im Wartezustand ihn durch (Marko, 31.10.2026).
+ */
+export const CLIENT_GUIDE_CHAPTERS_WITH_POSITION = ['welcome', 'after', 'candidates'] as const;
+export const clientGuideChaptersWithPosition = (): string[] => CLIENT_GUIDE_CHAPTERS_WITH_POSITION.map((key) => i18n.t(`clientGuide:chapters.${key}`));
+const CHAPTER_WITH_POSITION: Record<number, number> = { 1: 1, 3: 2, 4: 3 };
+export const CLIENT_GUIDE_STEPS_WITH_POSITION: GuideStep[] = CLIENT_GUIDE_STEPS
+  .filter(s => s.chapter !== 2 && s.id !== 'c-entry')
+  .map((src) => {
+    // Eigenschaften samt Getter übernehmen, damit die Texte weiter in der aktuellen Sprache gelesen werden.
+    const props = Object.getOwnPropertyDescriptors(src) as Record<string, PropertyDescriptor>;
+    delete props.hold; delete props.holdWhile;
+    props.chapter = { value: CHAPTER_WITH_POSITION[src.chapter], enumerable: true, writable: true };
+    if (src.id === 'c-welcome') props.body = { enumerable: true, get: () => tx('steps.c-welcome.bodyWithPosition') };
+    // Im Wartezustand gibt es die Kachel noch nicht: dann gleich weiter.
+    if (src.id === 'c-decide') props.autoSkip = { value: true, enumerable: true, writable: true };
+    return Object.defineProperties({}, props) as GuideStep;
+  });
+
 /** Laufender Rundgang je Browser-Tab. */
 export const CLIENT_GUIDE_STATE_KEY = 'matchunt.clientGuide';
 /** Merker im Konto (user_metadata). */

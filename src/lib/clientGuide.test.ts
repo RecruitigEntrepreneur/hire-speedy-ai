@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CLIENT_GUIDE_CHAPTERS, CLIENT_GUIDE_STATE_KEY, CLIENT_GUIDE_STEPS, CLIENT_TOUR_SEEN_KEY, clientTourSeen, clientTourStorageKey } from './clientGuide';
 import { concretePath, matchRoute, readGuideState } from './recruiterGuide';
+import { CLIENT_GUIDE_CHAPTERS_WITH_POSITION, CLIENT_GUIDE_STEPS as ALLE_SCHRITTE, CLIENT_GUIDE_STEPS_WITH_POSITION } from './clientGuide';
 
 const steps = CLIENT_GUIDE_STEPS;
 
@@ -72,5 +73,41 @@ describe('Kunden-Rundgang: gesehen', () => {
     expect(clientTourSeen({ id: 'u1', user_metadata: { [CLIENT_TOUR_SEEN_KEY]: '2026-09-24' } }, null)).toBe(true);
     expect(clientTourSeen({ id: 'u1', user_metadata: {} }, { getItem: (k: string) => (k === clientTourStorageKey('u1') ? 'x' : null) })).toBe(true);
     expect(clientTourSeen({ id: 'u1', user_metadata: {} }, { getItem: () => null })).toBe(false);
+  });
+});
+
+
+describe('Kunden-Rundgang für alle, die schon eine Position aufgenommen haben', () => {
+  const steps = CLIENT_GUIDE_STEPS_WITH_POSITION;
+
+  it('legt keine Stelle mehr an und führt nie in die Aufnahme', () => {
+    expect(steps.some(s => s.route.includes('aufnahme') || s.click?.to?.includes('aufnahme') || s.target?.includes('intake.') || s.target?.includes('client.entry'))).toBe(false);
+    expect(steps.length).toBeLessThan(ALLE_SCHRITTE.length);
+  });
+
+  it('kann durchlaufen: Kein Schritt wartet darauf, dass der Kunde erst etwas einreicht oder ausfüllt', () => {
+    for (const s of steps) {
+      expect(s.hold).toBeUndefined();
+      expect(s.holdWhile).toBeUndefined();
+      expect(s.wait).toBeUndefined();
+    }
+  });
+
+  it('überspringt die Entscheidungs-Kachel, wenn sie im Wartezustand fehlt, und zeigt sonst Beispiele', () => {
+    expect(steps.find(s => s.id === 'c-decide')?.autoSkip).toBe(true);
+    expect(steps.find(s => s.id === 'c-jobs')).toMatchObject({ example: 'clientStatus', exampleWhenMissing: true });
+    expect(steps.find(s => s.id === 'c-candidates')?.example).toBe('clientCandidate');
+  });
+
+  it('verspricht zur Begrüßung keine erste Stelle und nummeriert die Kapitel lückenlos', () => {
+    expect(steps[0].id).toBe('c-welcome');
+    expect(steps[0].body).not.toContain('erste Stelle an');
+    expect([...new Set(steps.map(s => s.chapter))]).toEqual([1, 2, 3]);
+    expect(CLIENT_GUIDE_CHAPTERS_WITH_POSITION.length).toBe(3);
+    expect(steps.at(-1)?.id).toBe('c-done');
+  });
+
+  it('lässt den Rundgang für Kunden ohne Position unverändert', () => {
+    expect(ALLE_SCHRITTE.some(s => s.id === 'c-start' && s.click?.to?.includes('aufnahme'))).toBe(true);
   });
 });

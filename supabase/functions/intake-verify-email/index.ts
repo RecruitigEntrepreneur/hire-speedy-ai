@@ -9,6 +9,7 @@ import { serviceClient, resolveDraft, touchDraft, logEvent, publicDraft } from '
 import { sendIntakeMail, layout, esc } from '../_shared/intake-mail.ts';
 import { callLanguage, customerMailLanguage, rememberDraftLanguage, withIntakeLang } from '../_shared/intake-language.ts';
 import { verifyCodeMailTexts } from '../_shared/intake-i18n.ts';
+import { issueSessionTicket } from '../_shared/client-session-ticket.ts';
 
 /**
  * intake-verify-email — Nachweis der Geschaefts-E-Mail. Ohne Login.
@@ -309,6 +310,8 @@ serve(withIntakeLang(async (req) => {
 
     return json({
       verified: true,
+      // Bindet die Anmeldung beim Absenden an diesen Browser (client-session-ticket.ts).
+      session_ticket: fresh?.contact_email ? await issueSessionTicket(draft.id, fresh.contact_email) : null,
       // Nur die Tatsache, dass wir das Unternehmen kennen — nie, dass es im
       // Akquise-Bestand liegt. Das ist Innensicht.
       known_company: knownCompany ? { name: knownCompany.name } : null,

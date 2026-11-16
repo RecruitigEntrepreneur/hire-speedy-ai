@@ -116,7 +116,7 @@ export function nextAction(c: StoredOnboarding, contract: StoredContract | null,
   if (c.activated) return { kind: 'done', label: 'Freigeschaltet' };
   if (!c.claimed_at && c.entry_source !== 'website') return { kind: 'wait', label: 'Einladung noch nicht angenommen' };
   if (c.state === 'draft') return { kind: 'wait', label: 'Der Headhunter ergänzt seine Angaben' };
-  if (c.state === 'review') return { kind: 'review', label: 'Prüfung abschließen', hint: contract?.recruiter_signed_at ? 'Der Headhunter hat schon unterschrieben.' : undefined };
+  if (c.state === 'review') return { kind: 'review', label: 'Prüfung abschließen', hint: contract?.recruiter_signed_at ? 'Der Headhunter hat schon unterschrieben und ist im Dashboard, nur Ansehen.' : undefined };
   if (!contract) return { kind: 'wait', label: 'Der Headhunter startet den Vertrag' };
   if (contract.state === 'completed') return { kind: 'activate', label: 'Freischalten und Zugang senden' };
   if (contract.state === 'manual_review') return { kind: 'closed', label: 'Manuelle Klärung nötig' };
@@ -124,5 +124,5 @@ export function nextAction(c: StoredOnboarding, contract: StoredContract | null,
   if (contract.state !== 'sent') return { kind: 'wait', label: 'Vertrag wird an DocuSign übergeben' };
   if (!contract.recruiter_signed_at) return { kind: 'wait', label: 'Wartet auf die Unterschrift des Headhunters' };
   if (now >= Date.parse(recruiterCounterDeadline(contract.recruiter_signed_at))) return { kind: 'closed', label: 'Frist zum Gegenzeichnen abgelaufen', hint: 'Der Vertrag muss neu vereinbart werden.' };
-  return { kind: 'counter', label: 'In DocuSign gegenzeichnen' };
+  return { kind: 'counter', label: 'In DocuSign gegenzeichnen', hint: 'Der Headhunter ist schon im Dashboard, nur Ansehen.' };
 }

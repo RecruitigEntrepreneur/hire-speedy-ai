@@ -90,6 +90,7 @@ import ClientAnalytics from "./pages/dashboard/ClientAnalytics";
 
 // Onboarding
 import RecruiterAccessGate from "./components/verification/RecruiterAccessGate";
+import ClientWaitingGate from "./components/client/ClientWaiting";
 import { AppClientGuide, AppRecruiterGuide } from "./components/recruiter/guide/RecruiterGuide";
 import { AppFeedback } from "./components/feedback/AppFeedback";
 
@@ -126,6 +127,7 @@ import { CookieConsentBanner } from "@/components/gdpr/CookieConsentBanner";
 const GuestIntake = lazy(() => import("./pages/intake/GuestIntake"));
 const ClarifyAnswer = lazy(() => import("./pages/intake/ClarifyAnswer"));
 const SignReturn = lazy(() => import("./pages/intake/SignReturn"));
+const ClientContractSign = lazy(() => import("./pages/dashboard/ClientContractSign"));
 // Zugang einrichten nach der Annahme einer Beauftragungsanfrage. Vorher gab es
 // im ganzen Projekt keinen Passwort-Weg — ein serverseitig angelegtes Konto
 // hätte keinen Weg hinein gehabt.
@@ -194,7 +196,8 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode;
     return <Navigate to={dashboardPath} replace />;
   }
 
-  return role === 'recruiter' ? <RecruiterAccessGate>{children}</RecruiterAccessGate> : <>{children}</>;
+  if (role === 'recruiter') return <RecruiterAccessGate>{children}</RecruiterAccessGate>;
+  return role === 'client' ? <ClientWaitingGate>{children}</ClientWaitingGate> : <>{children}</>;
 }
 
 function AppRoutes() {
@@ -280,6 +283,11 @@ function AppRoutes() {
       <Route path="/dashboard/aufnahme/:jobId" element={
         <ProtectedRoute allowedRoles={['client']}>
           <ClientIntake />
+        </ProtectedRoute>
+      } />
+      <Route path="/dashboard/vertrag-unterschreiben" element={
+        <ProtectedRoute allowedRoles={['client']}>
+          <Suspense fallback={<RouteFallback />}><ClientContractSign /></Suspense>
         </ProtectedRoute>
       } />
       <Route path="/dashboard/settings" element={
@@ -622,6 +630,7 @@ function AppRoutes() {
       {/* Vor der allgemeinen Entwurfsroute, sonst faengt :draftToken das Wort
           "rueckfrage" als Token ab. */}
       <Route path="/aufnahme/unterschrift-fertig" element={<Suspense fallback={<RouteFallback />}><SignReturn /></Suspense>} />
+      <Route path="/recruiter/unterschrift-fertig" element={<Suspense fallback={<RouteFallback />}><SignReturn du /></Suspense>} />
       <Route path="/aufnahme/rueckfrage/:token" element={<Suspense fallback={<RouteFallback />}><ClarifyAnswer /></Suspense>} />
       <Route path="/aufnahme/:draftToken" element={<Suspense fallback={<RouteFallback />}><GuestIntake /></Suspense>} />
       <Route path="/interview/select/:token" element={<SelectSlot />} />

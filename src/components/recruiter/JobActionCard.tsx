@@ -11,6 +11,8 @@ import { dateFnsLocale } from './search/dateLocale';
 import { Honorar } from './Honorar';
 import { useJobEarning, euroKurz } from './verdienste/useJobEarning';
 import { runningSince } from '../../../supabase/functions/_shared/abrechnung-view';
+import { pendingText } from './RecruiterWaiting';
+import { useRecruiterPending } from '@/components/verification/RecruiterAccessGate';
 
 interface JobActionCardProps {
   job: {
@@ -83,6 +85,7 @@ export function JobActionCard({
 }: JobActionCardProps) {
   const { t, i18n } = useTranslation('recruiterJobs');
   const locale = intlLocale(i18n.language);
+  const pending = useRecruiterPending();
   const salaryRange = formatSalaryRange(job.salary_min, job.salary_max, t);
   const tagVerdienst = verdienstJeTag(job);
   const monatVerdienst = verdienstImMonat(job);
@@ -182,10 +185,11 @@ export function JobActionCard({
             size="sm"
             data-tour={tourId ? `${tourId}.activate` : undefined}
             className="h-7 shrink-0 px-2.5 text-xs"
-            disabled={!!pausedUntil}
+            disabled={!!pausedUntil || pending}
+            title={pending ? pendingText('hint') : undefined}
             onClick={onToggleActive}
           >
-            <Search className="mr-1 h-3 w-3" />
+            {pending ? <Lock className="mr-1 h-3 w-3" /> : <Search className="mr-1 h-3 w-3" />}
             {t('card.iSearch')}
           </Button>
         )}

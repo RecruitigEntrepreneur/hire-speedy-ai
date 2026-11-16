@@ -70,11 +70,11 @@ describe('Vorgangsseite: Prozess und nächster Schritt', () => {
     expect(steps.map(s => s.state)).toEqual(['done', 'done', 'done', 'done', 'current', 'open']);
     expect(steps[1].at).toBe('2026-09-21T09:10:00Z');
     expect(steps[4].note).toBe('bis 21.10.2026');
-    expect(nextAction(onboarding(), contract())).toEqual({ kind: 'counter', label: 'In DocuSign gegenzeichnen' });
+    expect(nextAction(onboarding(), contract(), Date.parse('2026-09-22T09:00:00Z'))).toEqual({ kind: 'counter', label: 'In DocuSign gegenzeichnen', hint: 'Der Headhunter ist schon im Dashboard, nur Ansehen.' });
   });
 
   it('führt durch Prüfung, Warten, Freischalten und Abschluss', () => {
-    expect(nextAction(onboarding({ state: 'review' }), contract())).toMatchObject({ kind: 'review', hint: 'Der Headhunter hat schon unterschrieben.' });
+    expect(nextAction(onboarding({ state: 'review' }), contract())).toMatchObject({ kind: 'review', hint: 'Der Headhunter hat schon unterschrieben und ist im Dashboard, nur Ansehen.' });
     expect(nextAction(onboarding(), contract({ recruiter_signed_at: null }))).toMatchObject({ kind: 'wait', label: 'Wartet auf die Unterschrift des Headhunters' });
     expect(nextAction(onboarding(), null)).toMatchObject({ kind: 'wait', label: 'Der Headhunter startet den Vertrag' });
     expect(nextAction(onboarding(), contract({ state: 'completed', countersigned_at: '2026-09-22T08:00:00Z' }))).toMatchObject({ kind: 'activate' });

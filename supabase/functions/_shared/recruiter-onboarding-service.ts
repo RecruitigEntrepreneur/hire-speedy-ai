@@ -3,7 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { fail, type FailureReason, isMissingRelation } from './http.ts';
 import { type ContractDocument, type RecruiterProfile, signingEvidence } from './recruiter-contract-policy.ts';
 import { accessToken, docusignConfig, type DocuSignConfig } from './docusign.ts';
-import { noticeRecruiterSigned } from './recruiter-signed-notice.ts';
+import { noticeDashboardOpen, noticeRecruiterSigned } from './recruiter-signed-notice.ts';
 import { autoActivateRecruiter } from './recruiter-activation.ts';
 import { normLang, type Lang } from './i18n.ts';
 import { localizeMessage } from './recruiter-i18n.ts';
@@ -111,6 +111,8 @@ export async function syncEnvelope(db: SupabaseClient, e: RecruiterEnvelope, cfg
   const updated = await patchEnvelope(db, e, patch);
   // Headhunter hat unterschrieben: Matchunt per Mail zum Gegenzeichnen auffordern (einmal je Vertrag, wirft nie).
   await noticeRecruiterSigned(db, updated, cfg);
+  // Und ihm selbst: Sein Dashboard ist offen, nur Ansehen (einmal je Vertrag, wirft nie).
+  await noticeDashboardOpen(db, updated);
   // Beide Unterschriften bestätigt: Headhunter freischalten und begrüßen (wirft nie; sonst bleibt der Admin-Knopf).
   await autoActivateRecruiter(db, updated);
   return updated;

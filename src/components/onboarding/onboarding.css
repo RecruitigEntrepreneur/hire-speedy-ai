@@ -228,6 +228,29 @@
 .mh-ui .mh-note strong {
   color: var(--mh-text);
 }
+/* Rückkehr aus DocuSign: Unterschrift bestätigt (grün) oder Bestätigung dauert länger (gelb). */
+.mh-ui .mh-note > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.mh-ui .mh-note ol {
+  margin: 2px 0 6px;
+  padding-left: 18px;
+  list-style: decimal;
+}
+.mh-ui .mh-note-ok {
+  border-color: hsl(var(--success) / 0.5);
+}
+.mh-ui .mh-note-ok svg {
+  color: hsl(var(--success));
+}
+.mh-ui .mh-note-warn {
+  border-color: hsl(var(--warning) / 0.5);
+}
+.mh-ui .mh-note-warn svg {
+  color: hsl(var(--warning));
+}
 .mh-ui .mh-alert {
   padding: 15px 18px;
   border: 1px solid var(--mh-line);
@@ -1108,4 +1131,9 @@
   .mh-onboarding .mh-main.mh-login {
     padding-top: 32px;
   }
+}
+
+/* Vertrag im Rahmen: die volle Breite, ohne Seitenleiste. */
+.mh-ui .mh-panel iframe {
+  display: block;
 }

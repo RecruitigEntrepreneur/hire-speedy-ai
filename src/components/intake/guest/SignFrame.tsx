@@ -35,6 +35,8 @@ import { CheckCircle2, ExternalLink, Loader2, TriangleAlert } from 'lucide-react
 
 interface Props {
   url: string;
+  /** Anrede für die Hinweise um den Rahmen; ohne Angabe „Sie“. */
+  du?: boolean;
   onDone: () => void;
   /**
    * Der Lauf endete OHNE Unterschrift -- abgelaufen, abgebrochen, abgelehnt.
@@ -70,8 +72,10 @@ interface Props {
   onPruefen?: () => Promise<'offen' | 'unterschrieben' | 'abgelehnt'>;
 }
 
-export function SignFrame({ url, onDone, onAbbruch, onNeuerLink, onPruefen }: Props) {
+export function SignFrame({ url, du = false, onDone, onAbbruch, onNeuerLink, onPruefen }: Props) {
   const { t } = useTranslation('clientFunnel');
+  // Beim Headhunter (du) die eigenen Texte, sonst die des Kunden (Sie).
+  const tx = (key: string) => t(du ? [`signDu.${key}`, `sign.${key}`] : `sign.${key}`);
   const [ready, setReady] = useState(false);
   const [done, setDone] = useState(false);
   /**
@@ -92,12 +96,13 @@ export function SignFrame({ url, onDone, onAbbruch, onNeuerLink, onPruefen }: Pr
    * eigene Fehlerseite. `ready` wurde also true, der Hinweis blieb aus, und
    * uebrig blieb eine schwarze Flaeche. Auf ein Ladeereignis ist an dieser
    * Stelle kein Verlass; der Weg nach draussen steht deshalb nach sechs
-   * Sekunden IMMER da, ueber dem Rahmen statt klein darunter. Traegt der
-   * Rahmen, kostet die Zeile eine Zeile.
+   * Sekunden da, ueber dem Rahmen statt klein darunter. Meldet sich DocuSign aus
+   * dem Rahmen, traegt er: dann bleibt oder verschwindet die Zeile (30.10.2026).
    */
   const [haengt, setHaengt] = useState(false);
+  const rahmenLebt = useRef(false);
   useEffect(() => {
-    const t = setTimeout(() => setHaengt(true), 6000);
+    const t = setTimeout(() => { if (!rahmenLebt.current) setHaengt(true); }, 6000);
     return () => clearTimeout(t);
   }, []);
 
@@ -209,6 +214,7 @@ export function SignFrame({ url, onDone, onAbbruch, onNeuerLink, onPruefen }: Pr
       const erlaubt = /^https:\/\/apps(-d)?\.docusign\.com$/.test(e.origin)
         || e.origin === window.location.origin;
       if (!erlaubt) return;
+      if (e.origin !== window.location.origin) { rahmenLebt.current = true; setHaengt(false); }
 
       const event = typeof e.data === 'string' ? e.data : (e.data?.event ?? e.data?.type);
       if (typeof event !== 'string') return;
@@ -249,7 +255,7 @@ export function SignFrame({ url, onDone, onAbbruch, onNeuerLink, onPruefen }: Pr
       <Alert>
         <CheckCircle2 className="h-4 w-4" />
         <AlertDescription className="text-sm">
-          {t('sign.done')}
+          {tx('done')}
         </AlertDescription>
       </Alert>
     );
@@ -261,7 +267,7 @@ export function SignFrame({ url, onDone, onAbbruch, onNeuerLink, onPruefen }: Pr
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-amber-500/40 bg-amber-500/5 px-3 py-2">
           <TriangleAlert className="h-4 w-4 shrink-0 text-amber-600" />
           <p className="min-w-0 flex-1 text-xs">
-            <span className="font-medium">{t('sign.noContractQuestion')}</span>{' '}
+            <span className="font-medium">{tx('noContractQuestion')}</span>{' '}
             {t('sign.noContractText')}
           </p>
           <Button size="sm" className="shrink-0" onClick={extern} disabled={externBusy}>
@@ -277,7 +283,7 @@ export function SignFrame({ url, onDone, onAbbruch, onNeuerLink, onPruefen }: Pr
       {frischerLink && (
         <div className="flex flex-wrap items-center gap-3 rounded-lg border px-3 py-2">
           <p className="min-w-0 flex-1 text-xs">
-            {t('sign.popupBlocked')}
+            {tx('popupBlocked')}
           </p>
           <Button asChild size="sm" className="shrink-0">
             <a href={frischerLink} target="_blank" rel="noreferrer"
@@ -291,7 +297,7 @@ export function SignFrame({ url, onDone, onAbbruch, onNeuerLink, onPruefen }: Pr
       {externFehler && (
         <Alert variant="destructive">
           <TriangleAlert className="h-4 w-4" />
-          <AlertDescription className="text-sm">{t('sign.linkError')}</AlertDescription>
+          <AlertDescription className="text-sm">{tx('linkError')}</AlertDescription>
         </Alert>
       )}
 
@@ -300,7 +306,7 @@ export function SignFrame({ url, onDone, onAbbruch, onNeuerLink, onPruefen }: Pr
       {wartetExtern && !externFehler && (
         <p className="flex items-center gap-2 text-xs text-muted-foreground">
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          {t('sign.waitingExternal')}
+            {tx('waitingExternal')}
         </p>
       )}
       <div className="relative overflow-hidden rounded-lg border" style={{ height: '78vh', minHeight: 520 }}>

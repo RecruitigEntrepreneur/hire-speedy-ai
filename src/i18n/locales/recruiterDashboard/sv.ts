@@ -114,6 +114,7 @@ const sv: Messages<typeof de> = {
     hide: 'Dölj',
     steps: {
       contract: 'Avtal',
+      contractWaiting: 'Avtal: väntar på kontrasignering',
       tour: 'Rundtur',
       company: 'Företagsuppgifter',
       bank: 'Bankuppgifter',
@@ -132,6 +133,18 @@ const sv: Messages<typeof de> = {
       companyBank: 'Återstår: företagsuppgifter och bankuppgifter. Vi behöver dem innan vi betalar ut din första provision.',
       all: 'Återstår: rundtur, företagsuppgifter och bankuppgifter. Företags- och bankuppgifterna behöver vi innan vi betalar ut din första provision.',
     },
+  },
+  pending: {
+    hint: 'Går igång så snart vi har kontrasignerat.',
+    notYet: 'Inte möjligt än',
+    search: 'Jag söker',
+    adCopy: 'Annons och kontakt',
+    addCandidate: 'Lägg till kandidat',
+    addCandidates: 'Lägg till kandidater',
+    emptyNote: 'Kandidatuppgifter först när avtalet är undertecknat av båda parter.',
+    banner: 'Vi har din underskrift. Vi granskar dina uppgifter och kontrasignerar. Titta gärna runt redan nu. Sökning och inskickning går sedan.',
+    freed: 'Ditt avtal är klart. Nu kan du söka och skicka in kandidater.',
+    close: 'Stäng meddelandet',
   },
 };
 

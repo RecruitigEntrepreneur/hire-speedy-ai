@@ -10,6 +10,8 @@ import { useAuth } from '@/lib/auth';
 import { clientTourSeen } from '@/lib/clientGuide';
 import { ladeFirmendaten } from '@/lib/firmendaten';
 import { useCalendarStatus } from '@/components/interview/calendar/useCalendarStatus';
+import { useClientWaiting } from '@/hooks/useClientWaiting';
+import { PASSWORD_SET_KEY } from '@/lib/recruiterLogin';
 import {
   CLIENT_START_HIDDEN_KEY, clientStartDone, clientStartSteps, currentFramework,
   type ClientStep, type ClientStepId, type StartFramework, type StartJob,
@@ -22,7 +24,7 @@ const PFLICHT: (keyof Awaited<ReturnType<typeof ladeFirmendaten>>['firma'])[] = 
 
 const ICON: Record<ClientStep['state'], JSX.Element> = {
   done: <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-success/15 text-success"><Check className="h-3 w-3" /></span>,
-  waiting: <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-warning/15 text-warning"><Clock className="h-3 w-3" /></span>,
+  waiting: <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"><Clock className="h-3 w-3" /></span>,
   open: <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground"><Circle className="h-2.5 w-2.5" /></span>,
 };
 
@@ -37,6 +39,7 @@ export function ClientStartChecklist({ onTour }: { onTour: () => void }) {
   const navigate = useNavigate();
   const [hidden, setHidden] = useState(false);
   const calendar = useCalendarStatus();
+  const contract = useClientWaiting();
 
   const { data } = useQuery({
     queryKey: ['client-start', user?.id],
@@ -62,11 +65,15 @@ export function ClientStartChecklist({ onTour }: { onTour: () => void }) {
   const steps = clientStartSteps({
     framework: data.framework, jobs: data.jobs,
     missingCompany: data.missingKeys.map((key) => t(`start.field.${key}`)),
-    calendar: calendar.state, tourDone: clientTourSeen(user, browserStorage()) });
+    calendar: calendar.state, tourDone: clientTourSeen(user, browserStorage()),
+    waiting: contract.info, passwordSet: !!user.user_metadata?.[PASSWORD_SET_KEY],
+  });
   const done = clientStartDone(steps);
 
   const act = (id: ClientStepId) => {
     if (id === 'tour') onTour();
+    else if (id === 'contract') navigate('/dashboard/vertrag-unterschreiben');
+    else if (id === 'password') navigate('/dashboard/settings?bereich=konto');
     else if (id === 'position') navigate('/dashboard/aufnahme');
     else if (id === 'company') navigate('/dashboard/settings#firmendaten');
     else if (id === 'calendar') navigate('/dashboard/settings#kalender');
@@ -113,6 +120,11 @@ export function ClientStartChecklist({ onTour }: { onTour: () => void }) {
             </li>
           ))}
         </ul>
+        {contract.waiting && (
+          <p className="text-xs text-muted-foreground">
+            {t('waiting.checklistNote')}
+          </p>
+        )}
       </CardContent>
     </Card>
   );

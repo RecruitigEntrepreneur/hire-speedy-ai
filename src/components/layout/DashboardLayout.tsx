@@ -1,3 +1,4 @@
+import i18n from '@/i18n';
 import { ReactNode, useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
@@ -35,6 +36,7 @@ import {
   MessageSquareWarning,
   Trophy,
   Handshake,
+  Lock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
@@ -64,6 +66,7 @@ import { KeyboardShortcutsHelp } from '@/components/dashboard/KeyboardShortcutsH
 import { useNewFeedbackCount } from '@/hooks/useAdminFeedback';
 import { useClientTasks } from '@/lib/clientTasksApi';
 import { useClientInvoices } from '@/lib/billingApi';
+import { useClientWaiting } from '@/hooks/useClientWaiting';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -92,6 +95,7 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
   const { data: newFeedback = 0 } = useNewFeedbackCount(role === 'admin');
   const clientTasks = useClientTasks();
   const clientInvoices = useClientInvoices();
+  const clientWaiting = useClientWaiting().waiting;
 
   const handleSignOut = async () => {
     await signOut();
@@ -284,6 +288,8 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
                   >
                     {item.icon}
                     {item.label}
+                    {/* Bleibt ein Link: Der Rundgang führt im Wartezustand hindurch, sonst erklärt die Seite die Sperre. */}
+                    {clientWaiting && item.href !== '/dashboard' && <Lock className="ml-auto h-3.5 w-3.5 opacity-60" aria-label={i18n.t('clientDashboard:waiting.lockedTitle')} />}
                     {!!item.badge && (
                       <span
                         className={cn(

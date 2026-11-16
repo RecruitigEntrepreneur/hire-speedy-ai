@@ -113,6 +113,7 @@ const de = {
     hide: 'Ausblenden',
     steps: {
       contract: 'Vertrag',
+      contractWaiting: 'Vertrag: wartet auf Gegenzeichnung',
       tour: 'Rundgang',
       company: 'Firmendaten',
       bank: 'Bankverbindung',
@@ -131,6 +132,18 @@ const de = {
       companyBank: 'Noch offen: Firmendaten und Bankverbindung. Die brauchen wir, bevor wir dir deine erste Provision überweisen.',
       all: 'Noch offen: Rundgang, Firmendaten und Bankverbindung. Firmendaten und Bankverbindung brauchen wir, bevor wir dir deine erste Provision überweisen.',
     },
+  },
+  pending: {
+    hint: 'Geht los, sobald wir gegengezeichnet haben.',
+    notYet: 'Noch nicht möglich',
+    search: 'Ich suche',
+    adCopy: 'Anzeige & Ansprache',
+    addCandidate: 'Kandidat hinzufügen',
+    addCandidates: 'Kandidaten anlegen',
+    emptyNote: 'Kandidatendaten erst, wenn der Vertrag von beiden Seiten steht.',
+    banner: 'Deine Unterschrift ist da. Wir prüfen deine Angaben und zeichnen gegen. Schau dich schon um. Suchen und einreichen geht danach.',
+    freed: 'Dein Vertrag ist komplett. Du kannst jetzt suchen und einreichen.',
+    close: 'Meldung schließen',
   },
 };
 

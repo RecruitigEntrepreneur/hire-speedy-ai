@@ -2,6 +2,7 @@ import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { logEvent } from '../_shared/intake-core.ts';
 import { docusignConfig, completedDocument } from './docusign.ts';
 import { rahmenvertragWirksam } from './framework-activate.ts';
+import { noticeClientDashboardReady } from './client-dashboard-mail.ts';
 
 /**
  * Den Zustand eines Umschlags auf unsere Daten anwenden.
@@ -114,6 +115,14 @@ export async function applyEnvelopeState(
       }).eq('id', mandate.id);
       await logEvent(supabase, { type: 'contract_signed', draftId,
         meta: { envelope: envelopeId, party: 'customer' } });
+      // Rahmenvertrag unterschrieben: Die Kontaktperson bekommt ihren Weg ins Dashboard (einmal, wirft nie).
+      if (framework) {
+        await noticeClientDashboardReady(supabase, {
+          mandateId: mandate.id, draftId,
+          signerEmail: kunde?.email ?? mandate.customer_signer_email ?? null,
+          signerName: kunde?.name ?? mandate.customer_signer_name ?? null,
+        });
+      }
     }
   }
 

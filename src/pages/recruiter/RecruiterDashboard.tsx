@@ -40,6 +40,8 @@ import {
 
 import { usePageViewTracking } from '@/hooks/useEventTracking';
 import { RecruiterStartChecklist } from '@/components/recruiter/RecruiterStartChecklist';
+import { PendingButton, RecruiterWaitingBanner, pendingText } from '@/components/recruiter/RecruiterWaiting';
+import { useRecruiterPending } from '@/components/verification/RecruiterAccessGate';
 import { useMinutenTakt, useUnifiedTaskInbox, type UnifiedTaskItem } from '@/hooks/useUnifiedTaskInbox';
 import { buildGuide, prepTexts } from '@/components/recruiter/tasks/taskWindow';
 import { dfLocale, loc } from '@/components/recruiter/tasks/sprache';
@@ -162,6 +164,7 @@ export default function RecruiterDashboard() {
   const [loading, setLoading] = useState(true);
   // Begleiteter Rundgang: startet beim ersten Besuch von selbst, oben im Kopf jederzeit neu.
   const guide = useRecruiterGuide();
+  const pending = useRecruiterPending();
   useEffect(() => { if (!loading) guide.offer(); }, [loading, guide]);
   const [recentJobs, setRecentJobs] = useState<any[]>([]);
   const [hubspotDialogOpen, setHubspotDialogOpen] = useState(false);
@@ -486,6 +489,7 @@ export default function RecruiterDashboard() {
   return (
     <DashboardLayout>
       <div className="space-y-5 max-w-5xl">
+        <RecruiterWaitingBanner />
         <RecruiterStartChecklist />
 
         {/* ═══ HEADER ═══ Lebenslauf hineinziehen (05.11.2026) */}
@@ -508,13 +512,15 @@ export default function RecruiterDashboard() {
                   <Compass className="mr-1.5 h-3.5 w-3.5" />
                   {t('header.tour')}
                 </Button>
-<KandidatAnlegenMenu
+{pending
+                  ? <PendingButton size="sm" label={pendingText('addCandidates')} />
+                  : <KandidatAnlegenMenu
                   onLebenslauf={lebenslaufWaehlen}
                   onText={() => { setCvStartText(true); setCvUploadDialogOpen(true); }}
                   onOhneLebenslauf={() => setKurzOpen(true)}
                   onHubspot={() => setHubspotDialogOpen(true)}
                   onPerMail={() => setEmailDialogOpen(true)}
-                />
+                />}
               </div>
             </div>
           </CardContent>

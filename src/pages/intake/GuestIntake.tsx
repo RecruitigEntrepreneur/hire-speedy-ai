@@ -6,7 +6,7 @@ import { intlLocale } from '@/i18n/languages';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, CheckCircle2, FileSignature, Mail } from 'lucide-react';
+import { Loader2, CheckCircle2, Clock, FileSignature, Mail } from 'lucide-react';
 import { MatchuntWordmark } from '@/components/ui/MatchuntWordmark';
 import { IntakeShell, IntakeFailurePage, PageLanguageMenu, type StepDef } from '@/components/intake/guest/IntakeShell';
 import { CaptureStep, emptyCapture, captureBriefingText, type CaptureState } from '@/components/intake/guest/CaptureStep';
@@ -20,6 +20,7 @@ import { ForwardDialog, ResumeDialog } from '@/components/intake/guest/IntakeDia
 import { buildIntakePayload, remoteLabel, levelLabel } from '@/lib/intakeMapping';
 import { completeness as katalogCompleteness, knownFromForm } from '@/lib/briefCatalog';
 import { useGuestIntake, isFailure } from '@/hooks/useGuestIntake';
+import { RETURN_CHECKS_MS } from '@/lib/recruiterSignatureReturn';
 import { toast } from 'sonner';
 
 /**
@@ -45,7 +46,7 @@ export default function GuestIntake() {
   const { t, i18n } = useTranslation('clientFunnel');
   const bold = { bold: <strong className="text-foreground" /> };
   const intake = useGuestIntake(token, draftToken);
-  const { state, save, sendCode, confirmCode, loadPackages, selectPackage, sendContract, checkSignature, submit, forward,
+  const { state, save, sendCode, confirmCode, openSession, loadPackages, selectPackage, sendContract, checkSignature, submit, forward,
           askAi, parseText, parseUrl, parsePdf, enrichCompany } = intake;
 
   const [step, setStep] = useState<StepKey>('capture');
@@ -62,6 +63,34 @@ export default function GuestIntake() {
   const [signerSentTo, setSignerSentTo] = useState<string | null>(null);
   const [signBusy, setSignBusy] = useState(false);
   const [signError, setSignError] = useState<string | null>(null);
+  // „Ihr Vertrag wird vorbereitet“: vom Absenden bis der Vertrag offen ist, ohne Zwischenseite.
+  const [vorbereitung, setVorbereitung] = useState(false);
+  // Nach der Unterschrift: bestätigen, dann ins Dashboard. `mail`: ohne Anmeldung geht der Zugang per Mail raus.
+  const [abschluss, setAbschluss] = useState<'pruefen' | 'spaet' | 'mail'>('pruefen');
+  const [pruefLauf, setPruefLauf] = useState(0);
+
+  const zumDashboard = () => window.location.assign('/dashboard');
+
+  const waehlen = async (args: { self: boolean; name?: string; email?: string }) => {
+    setSignBusy(true);
+    setSignError(null);
+    const res = await sendContract(args);
+    if (isFailure(res)) {
+      setSignBusy(false);
+      setSignError(res.message);
+      return;
+    }
+    // Vor dem Vertrag anmelden: Schließt er danach das Fenster, ist sein Zugang trotzdem da.
+    const angemeldet = await openSession(state.draft?.contact_email);
+    setSignBusy(false);
+    if (res.customer_signed) setSigned(true);
+    else if (res.sign_url) setSignUrl(res.sign_url);
+    else {
+      setSignerSentTo(res.signer?.email ?? null);
+      // Jemand anderes unterschreibt: Die Kontaktperson wartet im Dashboard, nicht auf einer Endseite.
+      if (angemeldet) zumDashboard();
+    }
+  };
 
   const draft = state.draft;
 
@@ -112,6 +141,56 @@ export default function GuestIntake() {
     else if (draft.states.identity === 'contact_provided') setStep('verify');
     else if (draft.built) setStep('capture');
   }, [draft]);
+
+  // ---- Zurück zu einem offenen Vertrag --------------------------------------
+  // Nach einem Neuladen weiß nur DocuSign, ob schon unterschrieben ist. Ohne diese
+  // Frage kam wieder „Wer unterschreibt?“, obwohl der Umschlag längst unterwegs ist.
+  const wiederaufnahme = useRef<string | null>(null);
+  useEffect(() => {
+    if (!draft || wiederaufnahme.current === draft.id) return;
+    wiederaufnahme.current = draft.id;
+    const vertrag = draft.contract;
+    if (!vertrag?.has_envelope || vertrag.customer_signed || vertrag.ordered) return;
+    if (draft.states.review !== 'pending_admin' && draft.states.review !== 'accepted') return;
+    const selbst = !vertrag.signer_email || vertrag.signer_email.toLowerCase() === (draft.contact_email ?? '').toLowerCase();
+    setVorbereitung(true);
+    void (async () => {
+      const res = await checkSignature();
+      if (!isFailure(res) && res.customer_signed) setSigned(true);
+      else if (selbst) await waehlen({ self: true });
+      else if (await openSession(draft.contact_email)) zumDashboard();
+      setVorbereitung(false);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft?.id]);
+
+  // ---- Nach der Unterschrift: bestätigen und ins Dashboard ------------------
+  // Die Rückmeldung aus dem Rahmen ist kein Beweis. Erst wenn der Server die Unterschrift
+  // bei DocuSign gesehen hat, geht es weiter; Konto und Vertrag hängen dann zusammen.
+  const unterschrieben = signed || Boolean(draft?.contract?.customer_signed);
+  useEffect(() => {
+    if (!unterschrieben) return;
+    let aktiv = true;
+    setAbschluss('pruefen');
+    void (async () => {
+      const angemeldet = await openSession(draft?.contact_email);
+      let vorher = 0;
+      for (const warten of RETURN_CHECKS_MS) {
+        await new Promise((r) => setTimeout(r, warten - vorher));
+        vorher = warten;
+        if (!aktiv) return;
+        const res = draft?.contract?.customer_signed ? null : await checkSignature();
+        if (!aktiv) return;
+        if (res === null || (!isFailure(res) && res.customer_signed)) {
+          if (angemeldet) zumDashboard(); else setAbschluss('mail');
+          return;
+        }
+      }
+      setAbschluss('spaet');
+    })();
+    return () => { aktiv = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unterschrieben, pruefLauf]);
 
   // ---- Aufnahme-Zustand fortlaufend sichern -------------------------------
   const updateCapture = useCallback(
@@ -284,20 +363,6 @@ export default function GuestIntake() {
     // Rahmenvertrag und Auftragsbestaetigung gehen per DocuSign raus.
     const requiresSignature = !unterRahmenvertrag;
 
-    const waehlen = async (args: { self: boolean; name?: string; email?: string }) => {
-      setSignBusy(true);
-      setSignError(null);
-      const res = await sendContract(args);
-      setSignBusy(false);
-      if (isFailure(res)) {
-        setSignError(res.message);
-        return;
-      }
-      if (res.customer_signed) setSigned(true);
-      else if (res.sign_url) setSignUrl(res.sign_url);
-      else setSignerSentTo(res.signer?.email ?? null);
-    };
-
     // Was der Server ueber den Vertragslauf weiss. Entscheidend nach einem
     // Neuladen: ohne das saehe ein Kunde, der den Tab geschlossen hat, nur
     // eine Bestaetigung -- und keinen Weg mehr zur Unterschrift.
@@ -307,6 +372,55 @@ export default function GuestIntake() {
       ?? (vertrag?.has_envelope && !vertrag.customer_signed && vertrag.signer_email
           && vertrag.signer_email !== draft.contact_email
           ? vertrag.signer_email : null);
+
+    // Vom Absenden bis der Vertrag offen ist: keine Zwischenseite.
+    const kehrtZurueck = !!vertrag?.has_envelope && !bereitsUnterschrieben && wiederaufnahme.current !== draft.id;
+    if (requiresSignature && (vorbereitung || kehrtZurueck) && !signUrl) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
+          <div className="w-full max-w-lg text-center" role="status">
+            <MatchuntWordmark size="sm" className="mb-8 justify-center" />
+            <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-muted-foreground" />
+            <h1 className="text-xl font-bold tracking-tight">{t('finish.preparingTitle')}</h1>
+            <p className="mt-2 text-sm text-muted-foreground">{mandate ? <Trans t={t} i18nKey="finish.preparingTextMandate" values={{ mandate }} components={{ b: <strong className="text-foreground" /> }} /> : t('finish.preparingText')}</p>
+          </div>
+        </div>
+      );
+    }
+
+    // Unterschrieben: Funnel zu Ende, es geht ins Dashboard. Hier bleibt nur, wer warten muss.
+    if (requiresSignature && bereitsUnterschrieben) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-background px-4">
+          <div className="w-full max-w-lg">
+            <MatchuntWordmark size="sm" className="mb-8 justify-center" />
+            <Card>
+              <CardContent className="p-6 text-center" role="status">
+                {abschluss === 'pruefen' && <>
+                  <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-muted-foreground" />
+                  <h1 className="text-xl font-bold tracking-tight">{t('finish.signedTitle')}</h1>
+                  <p className="mt-2 text-sm text-muted-foreground">{t('finish.opening')}</p>
+                </>}
+                {abschluss === 'spaet' && <>
+                  <Clock className="mx-auto mb-3 h-6 w-6 text-amber-600" />
+                  <h1 className="text-xl font-bold tracking-tight">{t('finish.lateTitle')}</h1>
+                  <p className="mt-2 text-sm text-muted-foreground">{t('finish.lateText')}</p>
+                  <Button variant="outline" className="mt-5" onClick={() => setPruefLauf((n) => n + 1)}>{t('finish.recheck')}</Button>
+                </>}
+                {abschluss === 'mail' && <>
+                  <CheckCircle2 className="mx-auto mb-3 h-6 w-6 text-emerald-600" />
+                  <h1 className="text-xl font-bold tracking-tight">{t('finish.signedTitle')}</h1>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {t('finish.mailText', { email: draft.contact_email })}
+                  </p>
+                  <Button asChild variant="outline" className="mt-5"><Link to="/anmelden">{t('finish.toLogin')}</Link></Button>
+                </>}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      );
+    }
 
     // (1) Die Frage: wer unterschreibt. Solange sie offen ist, ist SIE die
     //     Seite -- der Kunde soll den Lauf abschliessen, solange er hier ist.
@@ -369,7 +483,13 @@ export default function GuestIntake() {
                      : res.customer_signed ? 'unterschrieben'
                      : 'offen';
               }}
-              onAbbruch={(ev) => {
+              onAbbruch={async (ev) => {
+                /* Wer schon unterschrieben hat und den Vertrag noch einmal öffnet,
+                   kommt mit `viewing_complete` zurück: erst nachfragen (FB-0015). */
+                if (ev === 'viewing_complete') {
+                  const res = await checkSignature();
+                  if (!isFailure(res) && res.customer_signed) { setSigned(true); return; }
+                }
                 /* Die alte Adresse ist verbraucht. Sie stehen zu lassen hiesse,
                    den Kunden vor einem toten Rahmen sitzen zu lassen -- die
                    Frage "wer unterschreibt" erscheint nur, solange keine
@@ -547,9 +667,10 @@ export default function GuestIntake() {
           onForward={() => setForwardOpen(true)}
           onRecheckCompany={intake.recheckCompany}
           onRefreshDraft={intake.refreshDraft}
-          onSubmit={async (signerName) => {
+          onSubmit={async (signerName, unterzeichner) => {
             const res = await submit(signerName);
             if (!isFailure(res)) {
+              if (res.requires_signature) setVorbereitung(true);
               setSubmitted({
                 mandate: res.mandate_number ?? '',
                 requiresSignature: res.requires_signature,
@@ -557,6 +678,11 @@ export default function GuestIntake() {
               });
               if (!res.confirmation_sent) {
                 toast.warning(t('flow.mailFailedToast'));
+              }
+              // Ohne Zwischenseite weiter zum Vertrag. Scheitert das, fragt die Seite wie bisher nach.
+              if (res.requires_signature) {
+                await waehlen(unterzeichner);
+                setVorbereitung(false);
               }
             }
             return res;

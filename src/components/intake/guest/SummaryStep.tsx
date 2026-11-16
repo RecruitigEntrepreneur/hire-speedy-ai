@@ -35,7 +35,8 @@ interface Props {
   contracting?: { dayRateMin: number | null; dayRateMax: number | null } | null;
   summary: { label: string; value: string }[];
   openQuestions: number;
-  onSubmit: (signerName: string) => Promise<any>;
+  /** `signer`: wer den Vertrag unterschreibt. Steht hier, damit es danach ohne Zwischenseite weitergeht. */
+  onSubmit: (signerName: string, signer: { self: boolean; name?: string; email?: string }) => Promise<any>;
   onForward: () => void;
   onBack: () => void;
   /** Firmenangaben ergänzen und sofort neu prüfen. */
@@ -51,6 +52,9 @@ export function SummaryStep({ draft, packages, framework, contracting, summary, 
   const chosenPackage = packages?.find((p) => p.key === draft.selected_package_key) ?? null;
   const [signer, setSigner] = useState(draft.contact_name ?? '');
   const [consent, setConsent] = useState(false);
+  const [selbst, setSelbst] = useState(true);
+  const [andererName, setAndererName] = useState('');
+  const [andereMail, setAndereMail] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [missing, setMissing] = useState<string[]>([]);
@@ -59,7 +63,7 @@ export function SummaryStep({ draft, packages, framework, contracting, summary, 
     setBusy(true);
     setError(null);
     setMissing([]);
-    const res = await onSubmit(signer.trim());
+    const res = await onSubmit(signer.trim(), selbst ? { self: true } : { self: false, name: andererName.trim(), email: andereMail.trim() });
     setBusy(false);
     if (isFailure(res)) {
       setError(res.message);
@@ -113,7 +117,10 @@ export function SummaryStep({ draft, packages, framework, contracting, summary, 
   };
   const ustFalsch = kritisch.includes('company_vat_id');
 
-  const canSubmit = consent && signer.trim().length >= 3 && !busy && !firmaOffen && !firmaLaeuft;
+  // Ohne Rahmenvertrag folgt die Unterschrift. Steht er schon, wird die Position nur beauftragt.
+  const fragtUnterzeichner = !framework;
+  const andererOk = selbst || !fragtUnterzeichner || (andererName.trim().length >= 3 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(andereMail.trim()));
+  const canSubmit = consent && signer.trim().length >= 3 && andererOk && !busy && !firmaOffen && !firmaLaeuft;
 
   return (
     <div className="mx-auto max-w-2xl space-y-5">
@@ -275,6 +282,38 @@ export function SummaryStep({ draft, packages, framework, contracting, summary, 
               </span>
             </label>
           </div>
+
+          {fragtUnterzeichner && (
+            <fieldset className="space-y-2">
+              <legend className="text-sm font-medium">{t('signerChoice.question')}</legend>
+              <label className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 ${selbst ? 'border-foreground' : ''}`}>
+                <input type="radio" name="unterzeichner" className="mt-1" checked={selbst} onChange={() => setSelbst(true)} />
+                <span className="text-sm">
+                  <span className="block font-medium">{signer.trim() ? t('signerChoice.selfName', { name: signer.trim() }) : t('signerChoice.self')}</span>
+                  <span className="block text-xs text-muted-foreground">{t('signerChoice.selfText')}</span>
+                </span>
+              </label>
+              <label className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 ${selbst ? '' : 'border-foreground'}`}>
+                <input type="radio" name="unterzeichner" className="mt-1" checked={!selbst} onChange={() => setSelbst(false)} />
+                <span className="text-sm">
+                  <span className="block font-medium">{t('signerChoice.other')}</span>
+                  <span className="block text-xs text-muted-foreground">{t('signerChoice.otherText')}</span>
+                </span>
+              </label>
+              {!selbst && (
+                <div className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2">
+                  <div>
+                    <Label htmlFor="anderer-name" className="text-xs text-muted-foreground">{t('signerChoice.name')}</Label>
+                    <Input id="anderer-name" value={andererName} onChange={(e) => setAndererName(e.target.value)} placeholder={t('signerChoice.namePlaceholder')} className="mt-1" />
+                  </div>
+                  <div>
+                    <Label htmlFor="andere-mail" className="text-xs text-muted-foreground">{t('signerChoice.email')}</Label>
+                    <Input id="andere-mail" type="email" value={andereMail} onChange={(e) => setAndereMail(e.target.value)} placeholder={t('signerChoice.emailPlaceholder')} className="mt-1" />
+                  </div>
+                </div>
+              )}
+            </fieldset>
+          )}
 
           {error && (
             <Alert variant="destructive">

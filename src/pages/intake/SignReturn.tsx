@@ -35,7 +35,8 @@ const TEXTE: Record<Ausgang, 'signed' | 'declined' | 'aborted'> = {
   abgebrochen: 'aborted',
 };
 
-export default function SignReturn() {
+/** Headhunter unterschreiben auf /recruiter/unterschrift-fertig: gleiche Seite, du-Form (signReturnDu.*). Im Rahmen ist sie kaum zu sehen. */
+export default function SignReturn({ du = false }: { du?: boolean }) {
   const { t } = useTranslation('clientFunnel');
   const event = useMemo(
     () => new URLSearchParams(window.location.search).get('event') ?? '',
@@ -55,8 +56,9 @@ export default function SignReturn() {
     }
   }, [event]);
 
-  const titel = t(`signReturn.${TEXTE[ausgang]}Title`);
-  const text = t(`signReturn.${TEXTE[ausgang]}Text`);
+  const gruppe = du ? 'signReturnDu' : 'signReturn';
+  const titel = t(`${gruppe}.${TEXTE[ausgang]}Title`);
+  const text = t(`${gruppe}.${TEXTE[ausgang]}Text`);
   const Symbol = ausgang === 'unterschrieben' ? CheckCircle2
                : ausgang === 'abgelehnt' ? XCircle : TriangleAlert;
   const farbe = ausgang === 'unterschrieben' ? 'text-emerald-600'

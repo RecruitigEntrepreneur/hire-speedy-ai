@@ -114,6 +114,7 @@ const nb: Messages<typeof de> = {
     hide: 'Skjul',
     steps: {
       contract: 'Avtale',
+      contractWaiting: 'Avtale: venter på kontrasignering',
       tour: 'Omvisning',
       company: 'Firmaopplysninger',
       bank: 'Bankopplysninger',
@@ -132,6 +133,18 @@ const nb: Messages<typeof de> = {
       companyBank: 'Gjenstår: firmaopplysninger og bankopplysninger. Vi trenger dem før vi utbetaler din første provisjon.',
       all: 'Gjenstår: omvisning, firmaopplysninger og bankopplysninger. Firma- og bankopplysningene trenger vi før vi utbetaler din første provisjon.',
     },
+  },
+  pending: {
+    hint: 'Kommer i gang så snart vi har kontrasignert.',
+    notYet: 'Ikke mulig ennå',
+    search: 'Jeg søker',
+    adCopy: 'Annonse og kontakt',
+    addCandidate: 'Legg til kandidat',
+    addCandidates: 'Legg til kandidater',
+    emptyNote: 'Kandidatopplysninger først når avtalen er signert av begge parter.',
+    banner: 'Vi har signaturen din. Vi går gjennom opplysningene dine og kontrasignerer. Se deg gjerne om allerede nå. Søk og innsending kommer etterpå.',
+    freed: 'Avtalen din er komplett. Nå kan du søke og sende inn kandidater.',
+    close: 'Lukk meldingen',
   },
 };
 

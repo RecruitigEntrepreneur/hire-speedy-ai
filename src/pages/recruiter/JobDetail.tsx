@@ -14,6 +14,8 @@ import { EndSearchDialog, JobPausedBadge, SearchHeroAction, SearchHeroStatus, Se
 import { CandidateJobStrip } from '@/components/recruiter/search/CandidateJobStrip';
 import { useCandidateForJob } from '@/hooks/useCandidateForJob';
 import { useToast } from '@/hooks/use-toast';
+import { PendingButton, pendingText } from '@/components/recruiter/RecruiterWaiting';
+import { useRecruiterPending } from '@/components/verification/RecruiterAccessGate';
 import { endJobSearch, errorText, fmtDayShort } from '@/lib/jobSearch';
 import { useTranslation } from 'react-i18next';
 
@@ -39,6 +41,7 @@ export default function JobDetail() {
   const [showEnd, setShowEnd] = useState(false);
   const [ending, setEnding] = useState(false);
   const { toast } = useToast();
+  const pending = useRecruiterPending();
   const reload = useCallback(() => setRevision(value => value + 1), []);
   const gate = useActivationGate();
   const search = useMySearch(id, revision);
@@ -50,6 +53,7 @@ export default function JobDetail() {
   const jobPaused = !!job?.paused_at;
   // Einreichen nur mit laufender Suche, nicht während einer Pause und erst nach der Kundenfrage
   const openSubmit = useCallback(() => {
+    if (pending) { toast({ title: pendingText('notYet'), description: pendingText('hint') }); return; }
     if (jobPaused) {
       toast({ title: job?.pause_until ? t('page.pausedUntil', { date: fmtDayShort(job.pause_until) }) : t('page.paused'), description: t('page.pausedText') });
       return;
@@ -61,7 +65,7 @@ export default function JobDetail() {
     if (!search.searching && !(id && gate.isActivated(id))) { setActivateMode('submit'); return; }
     if (search.openQuestion) { setSubmitAfterQuestion(true); setShowQuestion(true); return; }
     setShowSubmit(true);
-  }, [id, gate, search.row, search.searching, search.openQuestion, jobPaused, job?.pause_until, toast, t]);
+  }, [pending, id, gate, search.row, search.searching, search.openQuestion, jobPaused, job?.pause_until, toast, t]);
   const endSearch = async () => {
     if (!id) return;
     setEnding(true);
@@ -126,12 +130,12 @@ export default function JobDetail() {
     {/* Bereich für den Rundgang (Kopf, Reiter, Aktionen); „contents“ lässt das Layout unberührt. */}
     <div data-tour-scope="job" className="contents">
       {fuer && <CandidateJobStrip ctx={forCtx} candidateId={fuer} />}
-      <RecruiterJobWorkspace key={job.id} job={job} companyRevealed={companyRevealed} fullAccess={fullAccess} submissionCount={submissions.length} onSubmit={openSubmit} onExpose={() => setShowExpose(true)} candidates={<JobCandidateProcessCards submissions={submissions} onOpenSubmitForm={openSubmit} />}
+      <RecruiterJobWorkspace key={job.id} job={job} companyRevealed={companyRevealed} fullAccess={fullAccess} submissionCount={submissions.length} onSubmit={openSubmit} onExpose={() => { if (pending) toast({ title: pendingText('notYet'), description: pendingText('hint') }); else setShowExpose(true); }} candidates={<JobCandidateProcessCards submissions={submissions} onOpenSubmitForm={openSubmit} />}
         headerBadge={jobPaused ? <JobPausedBadge until={job.pause_until} /> : null}
-        heroAction={<SearchHeroAction search={search} jobPaused={jobPaused} pausedUntil={job.pause_until} onStart={forCandidate ? openSubmit : startSearch} onSubmit={openSubmit} candidateName={forCandidate?.firstName} />}
+        heroAction={pending ? <PendingButton size="lg" label={pendingText('search')} /> : <SearchHeroAction search={search} jobPaused={jobPaused} pausedUntil={job.pause_until} onStart={forCandidate ? openSubmit : startSearch} onSubmit={openSubmit} candidateName={forCandidate?.firstName} />}
         heroStatus={<SearchHeroStatus search={search} jobPaused={jobPaused} pausedUntil={job.pause_until} companyName={companyName} capacity={{ used: gate.activeCount, limit: gate.maxSlots }} onAnswer={() => { setSubmitAfterQuestion(false); setShowQuestion(true); }} onEnd={() => setShowEnd(true)} />}
         kannPosten={search.searching && !jobPaused}
-        mobileAction={<SearchMobileAction search={search} jobPaused={jobPaused} pausedUntil={job.pause_until} onStart={forCandidate ? openSubmit : startSearch} onSubmit={openSubmit} candidateName={forCandidate?.firstName} />} />
+        mobileAction={pending ? <PendingButton className="flex-1" label={pendingText('search')} /> : <SearchMobileAction search={search} jobPaused={jobPaused} pausedUntil={job.pause_until} onStart={forCandidate ? openSubmit : startSearch} onSubmit={openSubmit} candidateName={forCandidate?.firstName} />} />
     </div>
     <VorstellenFenster open={showSubmit} onOpenChange={setShowSubmit} job={job as unknown as Record<string, unknown> & { id: string; title: string }}
       candidate={forCandidate ? { id: forCandidate.id, name: forCandidate.full_name } : null} onSubmitted={() => reload()} />

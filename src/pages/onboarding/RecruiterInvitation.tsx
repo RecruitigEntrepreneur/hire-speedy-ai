@@ -1,6 +1,6 @@
 import RecruiterProfileForm from '@/components/onboarding/RecruiterProfileForm';
 import OnboardingFrame from '@/components/onboarding/OnboardingFrame';
-import { ArrowRight, Building2, UserRound, FileText, ArrowUpRight, ShieldCheck, CheckCircle2, RefreshCw, Mail, Loader2, KeyRound } from 'lucide-react';
+import { ArrowRight, Building2, UserRound, FileText, ArrowUpRight, ShieldCheck, CheckCircle2, RefreshCw, Mail, Loader2, KeyRound, Clock, XCircle } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { REGEXP_ONLY_DIGITS } from 'input-otp';
@@ -10,6 +10,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { onboardingApi, documentLabels, stateLabels, type StoredOnboarding, type RecruiterProfile, type InvitationPeek, type CodeSession } from '@/lib/recruiterOnboardingApi';
 import { PASSWORD_SET_KEY } from '@/lib/recruiterLogin';
 import { applyLinkLanguage } from '@/i18n';
+import { intlLocale } from '@/i18n/languages';
+import { needsSignatureCheck, RETURN_CHECKS_MS, signatureReturnView } from '@/lib/recruiterSignatureReturn';
+import { SignFrame } from '@/components/intake/guest/SignFrame';
 import { cleanProfile } from '../../../supabase/functions/_shared/recruiter-contract-policy';
 import type { CompanySuggestion } from '../../../supabase/functions/_shared/recruiter-company';
 
@@ -35,7 +38,7 @@ function rememberedVia() {
   } catch { return fromUrl; }
 }
 export default function RecruiterInvitation() {
-  const { t } = useTranslation(NS);
+  const { t, i18n } = useTranslation(NS);
   const [token] = useState(invitationToken);
   const [via] = useState(() => invitationToken() ? '' : rememberedVia());
   const viaChecked = useRef(false);
@@ -59,8 +62,13 @@ export default function RecruiterInvitation() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  // Rückkehr von DocuSign: Der Hinweis steht, bis die nächste Aktion ihn ablöst.
-  const [returned, setReturned] = useState(() => new URLSearchParams(location.search).has('event'));
+  // Der Ausgang der Unterschrift: aus dem Rahmen, oder ?event=… bei einem noch offenen Tab von vor der Umstellung.
+  // Nach der letzten Nachfrage ohne Bestätigung gilt „dauert länger“.
+  const [returnEvent, setReturnEvent] = useState(() => new URLSearchParams(location.search).get('event') ?? '');
+  const [returnLate, setReturnLate] = useState(false);
+  // Die Unterschrift läuft im Rahmen auf dieser Seite, nicht mehr im ganzen Tab bei DocuSign.
+  const [signUrl, setSignUrl] = useState<string | null>(null);
+  const [preparing, setPreparing] = useState(false);
   useEffect(() => {
     let active = true;
     void supabase.auth.getSession().then(({ data }) => { if (active) { setUser(data.session?.user ?? null); setAuthReady(true); } });
@@ -96,7 +104,7 @@ export default function RecruiterInvitation() {
     }).catch(e => { if (active) setError(e instanceof Error ? e.message : t('invitation.loadFailed')); }).finally(() => { if (active) { setBusy(false); setLoadedFor(userId); } });
     return () => { active = false; };
   }, [user?.id, token]); // eslint-disable-line react-hooks/exhaustive-deps
-  const run = async (work: () => Promise<void>) => { setBusy(true); setError(''); setMessage(''); setReturned(false); try { await work(); } catch (e) { setError(e instanceof Error ? e.message : t('common.requestFailed')); } finally { setBusy(false); } };
+  const run = async (work: () => Promise<void>) => { setBusy(true); setError(''); setMessage(''); try { await work(); } catch (e) { setError(e instanceof Error ? e.message : t('common.requestFailed')); } finally { setBusy(false); } };
   const identity = token ? { token } : { case_id: c?.id };
   // Wohin der Code geht: bei Einladungen entscheidet der Server, sonst die eingetippte Adresse.
   const codeIdentity = token ? { token } : { email, ...(via ? { via } : {}) };
@@ -104,14 +112,35 @@ export default function RecruiterInvitation() {
     const result = await onboardingApi<StoredOnboarding>(false, { action, ...identity, ...extra }); setCase(result); setProfile(result.profile);
   };
   const packet = c?.contracts.find(p => !['declined','voided'].includes(p.state));
+  // Zurück aus der eigenen Unterschrift: Der Server fragt bei DocuSign nach (RETURN_CHECKS_MS).
+  // Sobald die Unterschrift erkannt ist, fällt `pending` weg und die restlichen Nachfragen entfallen.
+  const pending = needsSignatureCheck(returnEvent) && packet?.state === 'sent' && !packet.recruiter_signed_at ? packet.id : null;
   useEffect(() => {
-    if (!user?.id || !c?.id || !new URLSearchParams(location.search).has('event') || packet?.state === 'completed') return;
-    const timer = window.setInterval(() => {
-      void onboardingApi<StoredOnboarding>(false, {action:'load', ...(token ? {token} : {case_id:c?.id})}).then(result => setCase(result)).catch(() => { /* Keep the explicit refresh available. */ });
-    }, 5000);
-    const stop = window.setTimeout(() => window.clearInterval(timer), 120000);
-    return () => { window.clearInterval(timer); window.clearTimeout(stop); };
-  }, [user?.id, token, c?.id, packet?.state]);
+    if (!user?.id || !c?.id || !pending) return;
+    let active = true;
+    const timers = RETURN_CHECKS_MS.map((delay, i) => window.setTimeout(() => {
+      void onboardingApi<StoredOnboarding>(false, { action: 'sync', ...(token ? { token } : { case_id: c.id }), contract_id: pending, returned: true, event: returnEvent })
+        .then(result => { if (active) setCase(result); })
+        .catch(() => { /* Nächste Nachfrage oder „Nochmal prüfen“. */ })
+        .finally(() => { if (active && i === RETURN_CHECKS_MS.length - 1) setReturnLate(true); });
+    }, delay));
+    return () => { active = false; timers.forEach(t => window.clearTimeout(t)); };
+  }, [user?.id, token, c?.id, pending, returnEvent]);
+  const back = signatureReturnView({ event: returnEvent, state: packet?.state, signedAt: packet?.recruiter_signed_at, late: returnLate });
+  // Unterschrieben, Gegenzeichnung offen: „Deine Unterschrift ist bestätigt“ mit Zeitpunkt und nächsten Schritten.
+  const signedOpen = packet?.state === 'sent' && !!packet.recruiter_signed_at;
+  // Unterschrift erkannt: direkt ins Dashboard, auch während Matchunt prüft. Der Server entscheidet (Frist, Rückfrage);
+  // sagt er nein, bleibt die Seite und zeigt den Stand.
+  useEffect(() => {
+    if (!signedOpen || !c || c.state === 'draft') return;
+    let active = true;
+    void onboardingApi<{ allowed: boolean }>(false, { action: 'access' })
+      .then(result => { if (active && result.allowed) window.location.assign('/recruiter'); })
+      .catch(() => { /* Die Seite zeigt den Stand; „Stand aktualisieren“ versucht es erneut. */ });
+    return () => { active = false; };
+  }, [signedOpen, c?.state]);
+  const freshSignUrl = async () => (await onboardingApi<{url: string}>(false, { action: 'signature', ...identity, contract_id: packet!.id })).url;
+  const signAgain = () => run(async () => { const url = await freshSignUrl(); setReturnEvent(''); setReturnLate(false); setSignUrl(url); });
   // Schritt 1 meldet Fehler direkt unter den Kästchen, nicht oben auf der Seite.
   const verifyStep = async (work: () => Promise<void>) => { setBusy(true); setCodeError(''); try { await work(); } catch (e) { setCodeError(e instanceof Error ? e.message : t('common.requestFailed')); } finally { setBusy(false); } };
   const requestCode = () => verifyStep(async () => {
@@ -134,11 +163,16 @@ export default function RecruiterInvitation() {
     const { error } = await supabase.auth.updateUser({ password, data: { [PASSWORD_SET_KEY]: new Date().toISOString() } }); if (error) throw error;
     window.location.assign('/recruiter');
   });
-  const startSignature = () => run(async () => {
-    const result=await onboardingApi<{url?:string;remote?:boolean}>(false,{action:'start',...identity});
-    if(result.url) { window.location.assign(result.url); return; }
-    await load(); setMessage(t(result.remote ? 'invitation.remoteRequested' : 'invitation.contractUpdated'));
-  });
+  const beginSigning = async () => {
+    setPreparing(true);
+    try {
+      const result=await onboardingApi<{url?:string;remote?:boolean}>(false,{action:'start',...identity});
+      await load();
+      if(result.url) { setReturnEvent(''); setReturnLate(false); setSignUrl(result.url); return; }
+      setMessage(t(result.remote ? 'invitation.remoteRequested' : 'invitation.contractUpdated'));
+    } finally { setPreparing(false); }
+  };
+  const startSignature = () => run(beginSigning);
   const document = (role: string) => run(async () => {
     const result = await onboardingApi<{ url: string }>(false, { action: 'document', ...identity, contract_id: packet?.id, document: role });
     window.location.assign(result.url);
@@ -150,10 +184,19 @@ export default function RecruiterInvitation() {
   const completedDescription = c?.activated ? t('invitation.description.activated') : t('invitation.description.completed');
   const stateLabel = (state: string) => t(`states.${state}`, { defaultValue: stateLabels[state] ?? '' });
   const documentLabel = (role: string) => t(`documents.${role}`, { defaultValue: documentLabels[role] || role });
-  return <OnboardingFrame stage={stage} title={titles[stage]} description={packet?.state === 'completed' ? completedDescription : descriptions[stage]} email={user?.email}
+  // „Unterschrieben am 25.09.2026 um 14:12 Uhr · Firma“, Zeit in deutscher Zeit, Datum in der Sprache der Seite.
+  const signedAtLine = (signedAt: string, company?: string) => {
+    const at = new Date(signedAt); const loc = intlLocale(i18n.language);
+    const line = t('invitation.contract.signedAt', {
+      date: at.toLocaleDateString(loc, { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', year: 'numeric' }),
+      time: at.toLocaleTimeString(loc, { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' }),
+    });
+    return company?.trim() ? `${line} · ${company.trim()}` : line;
+  };
+  return <OnboardingFrame stage={stage} title={titles[stage]} description={packet?.state === 'completed' ? completedDescription : descriptions[stage]} email={user?.email} wide={!!signUrl}
     accountAction={user && <button className="mh-link" disabled={busy} onClick={() => void run(async () => { const { error } = await supabase.auth.signOut(); if (error) throw error; })}>{t('invitation.restart')}</button>}>
     {error && <p role="alert" className="mh-alert mh-error">{error}</p>}
-    {(message || returned) && <p role="status" className="mh-alert">{message || t('invitation.eventReturn')}</p>}
+    {message && <p role="status" className="mh-alert">{message}</p>}
     {!authReady ? <section className="mh-panel" role="status">{t('invitation.checkingAccess')}</section> : !user ? <section className="mh-panel">
       <div className="mh-verify">
         <div className="mh-verify-icon"><Mail size={20}/></div>
@@ -191,6 +234,21 @@ export default function RecruiterInvitation() {
         if (token) { await load(); return; }
         const result = await onboardingApi<{onboarding: StoredOnboarding}>(false, { action: 'begin', kind, ...(via ? { via } : {}) }); setCase(result.onboarding); setProfile(result.onboarding.profile);
       })}>{busy ? t('invitation.confirmed.loading') : token ? t('invitation.confirmed.reload') : t('invitation.confirmed.start')}<ArrowRight size={16}/></button></div>
+    </section> : preparing ? <section className="mh-panel mh-stack" role="status" style={{ textAlign: 'center', alignItems: 'center' }}>
+      <Loader2 size={24} className="animate-spin"/><div><h2>{t('invitation.sign.preparingTitle')}</h2><p className="mh-muted">{t('invitation.sign.preparingText')}</p></div>
+    </section> : signUrl ? <section className="mh-panel mh-stack">
+      <div className="mh-panel-head"><FileText size={24}/><div><h2>{t('invitation.sign.frameTitle')}</h2><p>{t('invitation.sign.frameText')}</p></div></div>
+      <SignFrame url={signUrl} du
+        onDone={() => { setSignUrl(null); setReturnLate(false); setReturnEvent('signing_complete'); }}
+        onAbbruch={event => { setSignUrl(null); setReturnLate(false); setReturnEvent(event); }}
+        onNeuerLink={freshSignUrl}
+        onPruefen={async () => {
+          // Das Netz, falls der Rahmen hängt oder im eigenen Fenster unterschrieben wird: unsere Seite bleibt offen und merkt es.
+          const result = await onboardingApi<StoredOnboarding>(false, { action: 'sync', ...identity, contract_id: packet!.id, returned: true, event: 'signing_complete' });
+          setCase(result);
+          const stand = result.contracts.find(p => p.id === packet!.id);
+          return stand?.state === 'declined' ? 'abgelehnt' : stand?.recruiter_signed_at ? 'unterschrieben' : 'offen';
+        }}/>
     </section> : <>
       {c.feedback && <div className="mh-alert"><strong>{t('invitation.feedbackTitle')}</strong><p className="whitespace-pre-wrap">{c.feedback}</p></div>}
       {c.state === 'draft' ? <RecruiterProfileForm profile={profile} kind={c.kind} busy={busy} email={user.email ?? ''} onChange={setProfile}
@@ -204,14 +262,33 @@ export default function RecruiterInvitation() {
           }
           await run(async () => { await load('save', { revision: c.revision, profile }); setMessage(t('invitation.draftSaved')); });
         }}
-        onSubmit={() => run(async () => { await load('submit', { revision: c.revision, profile }); setMessage(t('invitation.detailsConfirmed')); })}/>
+        onSubmit={() => run(async () => {
+          // Kein Zwischenschritt: Mit der Bestätigung entsteht der Vertrag und öffnet sich zur Unterschrift.
+          const result = await onboardingApi<StoredOnboarding>(false, { action: 'submit', ...identity, revision: c.revision, profile });
+          setPreparing(true); setCase(result); setProfile(result.profile);
+          await beginSigning();
+        })}/>
       : <section className="mh-panel mh-stack">
-        <div className="mh-panel-head">{stage === 3 ? <CheckCircle2 size={24}/> : <FileText size={24}/>}<div><h2>{packet?.state === 'completed' ? (c.activated ? t('invitation.contract.activatedTitle') : t('invitation.contract.signedTitle')) : packet?.recruiter_signed_at ? t('invitation.contract.thanksTitle') : t('invitation.contract.readyTitle')}</h2><p>{c.activated && packet?.state === 'completed' ? t('invitation.contract.activatedState') : stateLabel(packet?.state || c.state)}</p></div></div>
-        <div className="mh-note"><ShieldCheck size={21}/><p>{packet?.state === 'completed' ? (c.activated ? t('invitation.contract.noteActivated') : t('invitation.contract.noteCompleted')) : packet?.recruiter_signed_at ? t('invitation.contract.noteSigned') : t('invitation.contract.noteReady')}</p></div>
+        {/* Zurück aus DocuSign, Unterschrift noch nicht erkannt: nur der Stand, kein zweiter Unterschreiben-Knopf. */}
+        {back ? <>
+          {back === 'checking' && <div className="mh-note" role="status"><Loader2 size={21} className="animate-spin"/><div><strong>{t('invitation.back.checkingTitle')}</strong><p>{t('invitation.back.checkingText')}</p></div></div>}
+          {back === 'late' && <>
+            <div className="mh-note mh-note-warn" role="status"><Clock size={21}/><div><strong>{t('invitation.back.lateTitle')}</strong><p>{t('invitation.back.lateText')}</p></div></div>
+            <div className="mh-actions"><button className="mh-button" disabled={busy} onClick={() => void run(() => load('sync', { contract_id: packet!.id, returned: true, event: returnEvent }))}><RefreshCw size={15}/>{t('invitation.back.recheck')}</button></div>
+          </>}
+          {back === 'cancelled' && <>
+            <div className="mh-note"><FileText size={21}/><div><strong>{t('invitation.back.cancelledTitle')}</strong><p>{t('invitation.back.cancelledText')}</p></div></div>
+            {packet!.recruiter_client_user_id === user.id && <button className="mh-button mh-primary" disabled={busy} onClick={() => void signAgain()}>{t('invitation.back.signNow')}<ArrowUpRight size={17}/></button>}
+          </>}
+          {back === 'declined' && <div className="mh-note"><XCircle size={21}/><div><strong>{t('invitation.back.declinedTitle')}</strong><p>{t('invitation.back.declinedText')}</p></div></div>}
+        </> : <>
+        <div className="mh-panel-head">{stage === 3 ? <CheckCircle2 size={24}/> : <FileText size={24}/>}<div><h2>{packet?.state === 'completed' ? (c.activated ? t('invitation.contract.activatedTitle') : t('invitation.contract.signedTitle')) : packet?.recruiter_signed_at ? t('invitation.contract.confirmedTitle') : t('invitation.contract.readyTitle')}</h2><p>{c.activated && packet?.state === 'completed' ? t('invitation.contract.activatedState') : signedOpen ? signedAtLine(packet!.recruiter_signed_at!, c.profile.company) : stateLabel(packet?.state || c.state)}</p></div></div>
+        {signedOpen ? <div className="mh-note mh-note-ok"><ShieldCheck size={21}/><div><strong>{t('invitation.next.title')}</strong><ol><li>{t('invitation.next.review')}</li><li>{t('invitation.next.countersign')}</li><li>{t('invitation.next.dashboard')}</li></ol><a className="mh-button mh-primary" href="/recruiter">{t('invitation.next.toDashboard')}<ArrowRight size={16}/></a></div></div>
+        : <div className="mh-note"><ShieldCheck size={21}/><p>{packet?.state === 'completed' ? (c.activated ? t('invitation.contract.noteActivated') : t('invitation.contract.noteCompleted')) : t('invitation.contract.noteReady')}</p></div>}
         {(!packet || ['prepared', 'creating'].includes(packet.state)) && <button className="mh-button mh-primary" disabled={busy} onClick={() => void startSignature()}>{busy ? t('invitation.contract.preparing') : t('invitation.contract.create')}<ArrowUpRight size={17}/></button>}
         {packet && <>
           <details><summary>{t('invitation.contract.packet', { version: packet.package_version })}</summary>{packet.documents.map(d => <button className="mh-doc" key={d.role} disabled={busy} onClick={() => void document(d.role)}><FileText size={19}/><span>{documentLabel(d.role)}<small>{t('invitation.contract.personalDocument')}</small></span><ArrowUpRight size={16}/></button>)}</details>
-          {packet.state === 'sent' && <>{!packet.recruiter_signed_at && (packet.recruiter_client_user_id === user.id ? <button className="mh-button mh-primary" disabled={busy} onClick={() => void run(async () => { const { url } = await onboardingApi<{url: string}>(false, { action: 'signature', ...identity, contract_id: packet.id }); window.location.assign(url); })}>{t('invitation.contract.sign')}<ArrowUpRight size={17}/></button> : <p>{t('invitation.contract.remoteSigner')}</p>)}<button className="mh-button" disabled={busy} onClick={() => void run(() => load('sync', { contract_id: packet.id }))}><RefreshCw size={15}/>{t('invitation.contract.refreshSignature')}</button></>}
+          {packet.state === 'sent' && !packet.recruiter_signed_at && <>{packet.recruiter_client_user_id === user.id ? <button className="mh-button mh-primary" disabled={busy} onClick={() => void signAgain()}>{t('invitation.contract.sign')}<ArrowUpRight size={17}/></button> : <p>{t('invitation.contract.remoteSigner')}</p>}<button className="mh-button" disabled={busy} onClick={() => void run(() => load('sync', { contract_id: packet.id }))}><RefreshCw size={15}/>{t('invitation.contract.refreshSignature')}</button></>}
           {packet.state === 'completed' && <div className="mh-stack">
             <button className="mh-button mh-primary" disabled={busy} onClick={() => void document('signed')}>{t('invitation.contract.openSigned')}<ArrowUpRight size={16}/></button>
             <button className="mh-button" disabled={busy} onClick={() => void document('certificate')}>{t('invitation.contract.openCertificate')}</button>
@@ -228,6 +305,7 @@ export default function RecruiterInvitation() {
           {packet.state === 'manual_review' && <p className="mh-alert">{t('invitation.contract.manualReview')}</p>}
         </>}
         <button className="mh-link" disabled={busy} onClick={() => void run(() => load())}><RefreshCw size={14}/>{t('invitation.contract.refresh')}</button>
+        </>}
       </section>}
     </>}
   </OnboardingFrame>;

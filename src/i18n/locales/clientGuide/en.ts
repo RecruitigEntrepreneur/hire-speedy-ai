@@ -13,6 +13,7 @@ const en: Messages<typeof de> = {
     'c-welcome': {
       title: 'Welcome to Matchunt',
       body: 'In a few minutes we will show you how to hand a position to our headhunters and receive matching candidates. Along the way you create your first position. You click, we explain.',
+      bodyWithPosition: 'In a few minutes we will show you what happens after your first position: where you see the status, how candidates reach you and how you bring in your team. You click, we explain.',
     },
     'c-entry': {
       title: 'Every position starts here',

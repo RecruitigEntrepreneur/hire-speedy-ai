@@ -12,6 +12,8 @@ import { spezialistenGrenze, verdienstJeTag } from '@/lib/recruiterContracting';
 import { Honorar } from './Honorar';
 import { useJobEarning, euroKurz } from './verdienste/useJobEarning';
 import { runningSince } from '../../../supabase/functions/_shared/abrechnung-view';
+import { PendingButton, pendingText } from './RecruiterWaiting';
+import { useRecruiterPending } from '@/components/verification/RecruiterAccessGate';
 
 interface JobPreviewPanelProps {
   job: {
@@ -114,6 +116,7 @@ export function JobPreviewPanel({
   onToggleActive,
   onClose,
 }: JobPreviewPanelProps) {
+  const pending = useRecruiterPending();
   const [descExpanded, setDescExpanded] = useState(false);
   const { t, i18n } = useTranslation('recruiterJobs');
   const locale = intlLocale(i18n.language);
@@ -163,13 +166,13 @@ export function JobPreviewPanel({
         {/* Zwei Knöpfe, einer davon der nächste Schritt. */}
         <div className="mt-3 grid grid-cols-2 gap-2">
           {/* Direkt aus der Liste an Anzeige und Ansprachetexte (29.09.2026), seit 19.10. im Briefing. */}
-          <Button variant="outline" size="sm" className="h-8 text-xs" asChild>
+          {pending ? <PendingButton variant="outline" size="sm" className="h-8 text-xs" label={pendingText('adCopy')} /> : <Button variant="outline" size="sm" className="h-8 text-xs" asChild>
             <Link to={`/recruiter/jobs/${job.id}?teilen=1`}>
               <FileText className="mr-1 h-3.5 w-3.5" />
               {t('preview.adAndOutreach')}
             </Link>
-          </Button>
-          {isActive ? (
+          </Button>}
+          {pending ? <PendingButton size="sm" className="h-8 text-xs" label={pendingText('search')} /> : isActive ? (
             <Button size="sm" className="h-8 text-xs" asChild>
               <Link to={`/recruiter/jobs/${job.id}`}>
                 <Rocket className="mr-1 h-3.5 w-3.5" />

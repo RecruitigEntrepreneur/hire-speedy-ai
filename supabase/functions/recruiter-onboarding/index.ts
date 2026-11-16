@@ -3,7 +3,7 @@ import { beginRecruiterCase, resumeRecruiterCase } from '../_shared/recruiter-en
 import { ensureRecruiterPackage } from '../_shared/recruiter-package.ts';
 import { sendRecruiterEnvelope } from '../_shared/recruiter-envelope-send.ts';
 import { contractDataIssues } from '../_shared/recruiter-contract-data.ts';
-import { recipientView } from '../_shared/docusign.ts';
+import { docusignAppOrigin, recipientView, type DocuSignConfig } from '../_shared/docusign.ts';
 import { getPublicAppUrl } from '../_shared/app-url.ts';
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { preflight, json, clientIp } from '../_shared/http.ts';
@@ -11,6 +11,7 @@ import { serviceClient } from '../_shared/intake-core.ts';
 import { hashToken } from '../_shared/tokens.ts';
 import { peekCase, peekLoginLink, sendCode, verifyCode } from '../_shared/recruiter-code.ts';
 import { enrichCase } from '../_shared/recruiter-enrich.ts';
+import { syncDue } from '../_shared/recruiter-contract-refresh.ts';
 import { saveBilling } from '../_shared/recruiter-billing-service.ts';
 import { declareIncome, submitEvidence } from '../_shared/recruiter-evidence-service.ts';
 import { partnerSettings, partnerSignatureTest } from '../_shared/recruiter-partner-service.ts';
@@ -22,6 +23,21 @@ import { localizeMessage } from '../_shared/recruiter-i18n.ts';
 import { openPublicLink } from '../_shared/recruiter-language.ts';
 import { checkLimits, LIMITS } from '../_shared/intake-limits.ts';
 import { must, verifiedUser, dbError, patchCase, publicCase, workflowFailure, type OnboardingCase, caseById, envelopeById, signatureConfig, syncEnvelope } from '../_shared/recruiter-onboarding-service.ts';
+
+/**
+ * Die Unterschrift im Rahmen auf unserer Seite, wie beim Kunden (Entscheidung 30.10.2026).
+ * Vorher wechselte der ganze Tab zu DocuSign: Hing DocuSign nach „Fertigstellen“ (Luca,
+ * zweimal), war unsere Seite weg und merkte nichts. Ohne frameAncestors und messageOrigins
+ * verbietet DocuSign das Einbetten.
+ */
+function signingView(cfg: DocuSignConfig, contract: { envelope_id: string | null; snapshot: { signer: string; signerEmail: string } }, userId: string) {
+  const appUrl = getPublicAppUrl();
+  return recipientView(cfg, {
+    envelopeId: contract.envelope_id!, name: contract.snapshot.signer, email: contract.snapshot.signerEmail, clientUserId: userId,
+    returnUrl: `${appUrl}/recruiter/unterschrift-fertig`,
+    frameAncestors: [appUrl, docusignAppOrigin(cfg)], messageOrigins: [docusignAppOrigin(cfg)],
+  });
+}
 
 serve(async req => {
   const pre = preflight(req); if (pre) return pre;
@@ -85,7 +101,7 @@ serve(async req => {
       let contract=await ensureRecruiterPackage(db,c);
       if(['prepared','creating','sent'].includes(contract.state)) contract=await sendRecruiterEnvelope(db,contract,cfg);
       if(canOpenRecruiterSignature({userId:user.id,userEmail:user.email!,claimedBy:c.claimed_by,clientUserId:contract.recruiter_client_user_id,signerEmail:contract.snapshot.signerEmail,state:contract.state,signedAt:contract.recruiter_signed_at})) {
-        const url=await recipientView(cfg,{envelopeId:contract.envelope_id!,name:contract.snapshot.signer,email:contract.snapshot.signerEmail,clientUserId:user.id,returnUrl:`${getPublicAppUrl()}/recruiter/onboarding`});
+        const url=await signingView(cfg,contract,user.id);
         return json({url});
       }
       return json({remote:contract.recruiter_client_user_id !== user.id,contract_id:contract.id});
@@ -94,10 +110,12 @@ serve(async req => {
       must(contract.case_id === c.id, 'Keine Berechtigung.', 'not_allowed');
       if (body.action === 'signature') {
         must(['review','approved'].includes(c.state) && contract.envelope_id && canOpenRecruiterSignature({ userId: user.id, userEmail: user.email!, claimedBy: c.claimed_by, clientUserId: contract.recruiter_client_user_id, signerEmail: contract.snapshot.signerEmail, state: contract.state, signedAt: contract.recruiter_signed_at }), 'Der Signaturzugang gehört ausschließlich der benannten unterzeichnenden Person und muss noch offen sein.', 'not_allowed');
-        const url = await recipientView(signatureConfig(), { envelopeId: contract.envelope_id, name: contract.snapshot.signer, email: contract.snapshot.signerEmail, clientUserId: user.id, returnUrl: `${getPublicAppUrl()}/recruiter/onboarding` });
+        const url = await signingView(signatureConfig(), contract, user.id);
         return json({ url });
       } else if (body.action === 'sync') {
-        if (!contract.last_synced_at || Date.now() - Date.parse(contract.last_synced_at) >= 15 * 60000) await syncEnvelope(db, contract, signatureConfig());
+        // Regulär höchstens alle 15 Minuten; zurück aus der eigenen Unterschrift (returned) alle 3 Sekunden.
+        const returned = body.returned === true ? { event: body.event, userId: user.id } : undefined;
+        if (syncDue(contract, Date.now(), returned)) await syncEnvelope(db, contract, signatureConfig());
       } else {
         const path = body.document === 'signed' ? contract.signed_document_path : body.document === 'certificate' ? contract.certificate_path
           : contract.documents.find(d => d.role === body.document)?.path;

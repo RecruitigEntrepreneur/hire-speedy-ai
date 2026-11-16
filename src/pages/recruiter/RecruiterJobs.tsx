@@ -33,6 +33,7 @@ import {
   Lock,
   Unlock,
 } from 'lucide-react';
+import { useRecruiterPending } from '@/components/verification/RecruiterAccessGate';
 import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { JobActionCard } from '@/components/recruiter/JobActionCard';
@@ -192,6 +193,7 @@ interface ActiveJobSubmission {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function RecruiterJobs() {
+  const pending = useRecruiterPending();
   const { user } = useAuth();
   const navigate = useNavigate();
   const { t, i18n } = useTranslation('recruiterJobs');
@@ -340,6 +342,7 @@ export default function RecruiterJobs() {
   // ─── Actions ────────────────────────────────────────────────────────────
 
   const handleActivateClick = useCallback((jobId: string) => {
+    if (pending) return; // Vertrag noch nicht gegengezeichnet: nur Ansehen
     if (isSearching(jobId)) return; // Sucht schon (beenden geht in „Meine Suchen“)
     const job = jobs.find(j => j.id === jobId);
     if (job?.paused_at) return; // Pausierte Stelle: kein „Ich suche“
@@ -348,7 +351,7 @@ export default function RecruiterJobs() {
       return;
     }
     setActivationDialogJobId(jobId);
-  }, [isSearching, effectiveCanActivate, jobs]);
+  }, [pending, isSearching, effectiveCanActivate, jobs]);
 
   const handleConfirmActivation = useCallback(async (): Promise<ConfirmResult> => {
     if (!activationDialogJobId) return { ok: false, error: t('list.noJobChosen') };

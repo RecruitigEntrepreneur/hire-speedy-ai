@@ -10,20 +10,26 @@ import '@/index.css';
 // Separate Vite-Entwicklungsseite. Sie meldet niemanden an und lädt keine
 // echten Daten: Onboarding-API und Auth werden hier nachgestellt.
 //   /__preview/recruiter-onboarding.html?scenario=invite|website|expired|claimed|completed|activated
+//     |returned|returned-late|returned-cancel|signed
 // Der Code lautet immer 123456.
+// Rückkehr aus DocuSign: `returned` bestätigt bei der ersten Nachfrage, `returned-late` nie
+// (nach 2 Minuten „dauert länger“), `returned-cancel` kommt mit event=cancel, `signed` ohne event.
 if (!import.meta.env.DEV) throw new Error('This preview is only available in development.');
 
 const scenario = new URLSearchParams(location.search).get('scenario') ?? 'invite';
-const withToken = scenario !== 'website';
+const RETURN_EVENTS: Record<string, string> = { returned: 'signing_complete', 'returned-late': 'signing_complete', 'returned-cancel': 'cancel' };
+const contractScenario = scenario in RETURN_EVENTS || scenario === 'signed';
+const withToken = scenario !== 'website' && !contractScenario;
 const TOKEN = 'Dulvku-GjoMLCexGNWKqHx5OP74-HKw69DktxuGcr_4';
 // Die Seite liest den Token aus dem Fragment, wenn der Pfad auf /invitation endet.
+// DocuSign kehrt wie live auf /recruiter/onboarding zurück, also ohne Token.
 if (withToken) history.replaceState(null, '', `/__preview/invitation?scenario=${scenario}#${TOKEN}`);
-else history.replaceState(null, '', `/__preview/onboarding?scenario=${scenario}`);
+else history.replaceState(null, '', `/__preview/onboarding?scenario=${scenario}${RETURN_EVENTS[scenario] ? `&event=${RETURN_EVENTS[scenario]}` : ''}`);
 
 const user = { id: 'user-1', email: 'marko.benko@freenet.de', email_confirmed_at: '2026-09-15T09:00:00Z', user_metadata: { full_name: 'Marko Benko' }, app_metadata: {}, aud: 'authenticated', created_at: '2026-09-15T09:00:00Z' } as User;
 const makeSession = (): Session => ({ access_token: 'preview-access', refresh_token: 'preview-refresh', expires_in: 3600, token_type: 'bearer', user } as Session);
 // Späte Szenarien starten angemeldet, damit der Vertragsteil direkt sichtbar ist.
-let session: Session | null = ['completed', 'activated'].includes(scenario) ? makeSession() : null;
+let session: Session | null = ['completed', 'activated'].includes(scenario) || contractScenario ? makeSession() : null;
 const listeners: ((event: string, session: Session | null) => void)[] = [];
 const emit = (event: string) => listeners.forEach(l => l(event, session));
 
@@ -33,11 +39,18 @@ const completedContract: StoredContract = {
   recruiter_client_user_id: 'user-1', recruiter_signed_at: '2026-09-15T10:00:00Z', countersigned_at: '2026-09-15T11:00:00Z',
   signed_document_path: 'x/combined.pdf', certificate_path: 'x/certificate.pdf',
 };
+// Statt DocuSign: eine Seite im Rahmen, die wie DocuSign `signing_complete` meldet.
+const signingMock = () => URL.createObjectURL(new Blob([`<!doctype html><meta charset="utf-8"><body style="font:15px sans-serif;background:#fff;color:#111;padding:40px"><h2>DocuSign (Nachbildung)</h2><p>Rahmenvertrag und sechs Anlagen</p><button onclick="parent.postMessage({event:'signing_complete'},'*')" style="padding:10px 18px">Fertigstellen</button> <button onclick="parent.postMessage({type:'matchunt:sign-return',event:'cancel'},location.origin)" style="padding:10px 18px">Abbrechen</button>`], { type: 'text/html' }));
+// Versendet, Headhunter-Unterschrift offen (bzw. bei `signed` schon erkannt).
+const sentContract: StoredContract = {
+  ...completedContract, state: 'sent', countersigned_at: null, signed_document_path: null, certificate_path: null,
+  recruiter_signed_at: scenario === 'signed' ? '2026-09-25T12:12:00Z' : null,
+};
 let onboarding: StoredOnboarding = {
   id: 'case-1', revision: 3, entry_source: withToken ? 'invitation' : 'website', kind: 'individual', email: 'marko.benko@freenet.de',
-  profile: cleanProfile({ name: 'Marko Benko', company: 'Bluewater Bridge', country: 'Deutschland', specialty: 'Finance & Controlling', region: 'DACH', signer: 'Marko Benko', signerEmail: 'marko.benko@freenet.de' }),
-  state: ['completed', 'activated'].includes(scenario) ? 'approved' : 'draft', feedback: '',
-  contracts: ['completed', 'activated'].includes(scenario) ? [completedContract] : [],
+  profile: cleanProfile({ name: 'Luca Beispiel', company: 'Greeners GmbH', country: 'Deutschland', specialty: 'Finance & Controlling', region: 'DACH', signer: 'Luca Beispiel', signerEmail: 'marko.benko@freenet.de' }),
+  state: ['completed', 'activated'].includes(scenario) ? 'approved' : contractScenario ? 'review' : 'draft', feedback: '',
+  contracts: ['completed', 'activated'].includes(scenario) ? [completedContract] : contractScenario ? [sentContract] : [],
   activated: scenario === 'activated',
 };
 
@@ -76,8 +89,24 @@ Object.defineProperty(supabase, 'functions', { configurable: true, value: {
         const source = body.website ? String(body.website).replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0] : 'bluewater-bridge.de';
         return { data: { suggestion: { company: 'Bluewater Bridge GmbH', legalForm: 'GmbH', address: 'Musterstraße 1, 20095 Hamburg', country: 'Deutschland', taxStatus: 'regular', vatId: 'DE123456789', registration: 'HRB 12345', ceo: 'Marko Benko', source } }, error: null };
       }
-      case 'start':
-        return fail('Vorschau: DocuSign wird hier nicht aufgerufen.');
+      case 'sync': {
+        // Nachfrage bei DocuSign: `returned` erkennt die Unterschrift gleich beim ersten Mal.
+        await wait(2500);
+        if (scenario === 'returned' && body.returned === true) {
+          onboarding = { ...onboarding, contracts: onboarding.contracts.map(k => ({ ...k, recruiter_signed_at: new Date().toISOString() })) };
+        }
+        return { data: onboarding, error: null };
+      }
+      case 'start': {
+        await wait(1500);
+        onboarding = { ...onboarding, contracts: [sentContract] };
+        return { data: { url: signingMock() }, error: null };
+      }
+      case 'signature':
+        return { data: { url: signingMock() }, error: null };
+      case 'access':
+        // Nicht weiterleiten: Hier soll der Stand sichtbar bleiben.
+        return { data: { allowed: false, pending: false }, error: null };
       case 'document':
         return fail('Vorschau: Dokumente werden hier nicht geöffnet.');
       default:

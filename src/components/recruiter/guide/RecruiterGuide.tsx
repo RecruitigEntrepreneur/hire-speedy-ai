@@ -4,7 +4,8 @@ import type { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { concretePath, guideChapters, GUIDE_STATE_KEY, GUIDE_STEPS, matchRoute, readGuideState, TOUR_SEEN_KEY, tourSeen, tourStorageKey, type GuideState, type GuideStep } from '@/lib/recruiterGuide';
-import { clientGuideChapters, CLIENT_GUIDE_STATE_KEY, CLIENT_GUIDE_STEPS, CLIENT_TOUR_SEEN_KEY, clientTourSeen, clientTourStorageKey } from '@/lib/clientGuide';
+import { clientGuideChapters, clientGuideChaptersWithPosition, CLIENT_GUIDE_STATE_KEY, CLIENT_GUIDE_STEPS, CLIENT_GUIDE_STEPS_WITH_POSITION, CLIENT_TOUR_SEEN_KEY, clientTourSeen, clientTourStorageKey } from '@/lib/clientGuide';
+import { useClientWaiting } from '@/hooks/useClientWaiting';
 import { GuideOverlay, GuidePausePill, type GuideTextsKey } from './GuideOverlay';
 import { useGuideTarget } from './useGuideTarget';
 
@@ -14,8 +15,10 @@ interface GuideApi {
   start: () => void;
   /** Beim ersten Besuch im Dashboard: startet nur, wenn der Rundgang noch nie lief. */
   offer: () => void;
+  /** Der Rundgang läuft gerade, auch pausiert. Die Sperre im Wartezustand lässt ihn durch. */
+  running: boolean;
 }
-const NOOP: GuideApi = { start: () => undefined, offer: () => undefined };
+const NOOP: GuideApi = { start: () => undefined, offer: () => undefined, running: false };
 const GuideContext = createContext<GuideApi>(NOOP);
 export const useRecruiterGuide = () => useContext(GuideContext);
 /** Eigener Kontext: sonst sähe das Headhunter-Dashboard den Kunden-Rundgang, sobald beide Provider verschachtelt sind. */
@@ -215,7 +218,8 @@ export function GuideProvider({ config, identity, isSeen, onFinished, children }
     window.setTimeout(() => update({ userId, stepId: allSteps[0].id, paused: false }), 500);
   }, [userId, state, isSeen, update, allSteps]);
 
-  const api = useMemo(() => ({ start, offer }), [start, offer]);
+  const running = !!state;
+  const api = useMemo(() => ({ start, offer, running }), [start, offer, running]);
 
   const holdHere = !!step?.hold && !!step.holdWhile && matchRoute(step.holdWhile, location.pathname);
   return <Context.Provider value={api}>
@@ -281,6 +285,10 @@ export function AppRecruiterGuide({ children }: { children: ReactNode }) {
  */
 export function AppClientGuide({ children }: { children: ReactNode }) {
   const { user, role } = useAuth();
+  const { hasPosition } = useClientWaiting();
+  const config = useMemo<GuideConfig>(() => (hasPosition
+    ? { ...CLIENT_GUIDE, steps: CLIENT_GUIDE_STEPS_WITH_POSITION, chapters: clientGuideChaptersWithPosition }
+    : CLIENT_GUIDE), [hasPosition]);
   const identity = useMemo(() => (user && role === 'client' ? { userId: user.id } : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- neu nur bei anderem Konto, nicht bei jedem Token-Refresh
     [user?.id, role]);
@@ -295,5 +303,5 @@ export function AppClientGuide({ children }: { children: ReactNode }) {
       });
     }
   }, [user]);
-  return <GuideProvider config={CLIENT_GUIDE} identity={identity} isSeen={isSeen} onFinished={onFinished}>{children}</GuideProvider>;
+  return <GuideProvider config={config} identity={identity} isSeen={isSeen} onFinished={onFinished}>{children}</GuideProvider>;
 }

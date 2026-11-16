@@ -22,6 +22,10 @@ import { legalLinkTexts, localizeMessage as recruiterMessage } from './recruiter
 const MESSAGES: Record<string, [string, string, string]> = {
   // intake-core.ts (Zugriff auf den Entwurf, Zustand des Links)
   'Ungültiger Zugriffslink.': ['Invalid access link.', 'Ogiltig åtkomstlänk.', 'Ugyldig tilgangslenke.'],
+  // client-contract.ts (Vertrag aus dem Dashboard unterschreiben)
+  'DocuSign ist nicht eingerichtet.': ['DocuSign is not set up.', 'DocuSign är inte konfigurerat.', 'DocuSign er ikke satt opp.'],
+  'Zu Ihrem Konto liegt kein offener Vertrag vor.': ['There is no open contract for your account.', 'Det finns inget öppet avtal för ditt konto.', 'Det finnes ingen åpen avtale for kontoen din.'],
+  'Der Vertrag liegt bei der benannten unterzeichnenden Person.': ['The contract is with the named signatory.', 'Avtalet ligger hos den angivna undertecknaren.', 'Avtalen ligger hos den oppgitte signataren.'],
   'Die Jobaufnahme ist noch nicht freigeschaltet. Bitte melden Sie sich bei uns.': [
     'The job intake is not available yet. Please get in touch with us.',
     'Tjänsteregistreringen är inte tillgänglig ännu. Hör av dig till oss.',
@@ -563,6 +567,62 @@ export function clientAccessMailTexts(lang: Lang | null | undefined, input: { da
       nb: 'Har du spørsmål? Bare svar på denne e-posten.',
     }),
     /** HTML (Zeilenumbruch). */
+    regards: t({ de: 'Viele Grüße<br>Ihr Matchunt-Team', en: 'Best regards<br>Your Matchunt team', sv: 'Vänliga hälsningar<br>Ditt Matchunt-team', nb: 'Vennlig hilsen<br>Matchunt-teamet' }),
+    ...legalLinkTexts(lang),
+  };
+}
+
+/** Mail „Ihr Dashboard ist bereit“, sobald der Kunde den Rahmenvertrag unterschrieben hat (client-dashboard-mail.ts). */
+export function clientDashboardMailTexts(lang: Lang | null | undefined, input: { days: number }) {
+  const t = texter(lang);
+  return {
+    subject: t({ de: 'Ihr Rahmenvertrag ist unterschrieben – Ihr Dashboard ist bereit', en: 'Your framework agreement is signed – your dashboard is ready', sv: 'Ditt ramavtal är undertecknat – din översikt är klar', nb: 'Rammeavtalen din er signert – dashbordet ditt er klart' }),
+    preheader: t({ de: 'Den Stand sehen Sie jederzeit in Ihrem Dashboard.', en: 'You can see the status in your dashboard at any time.', sv: 'Läget ser du när som helst i din översikt.', nb: 'Status ser du når som helst i dashbordet ditt.' }),
+    heading: t({ de: 'Ihr Rahmenvertrag ist unterschrieben', en: 'Your framework agreement is signed', sv: 'Ditt ramavtal är undertecknat', nb: 'Rammeavtalen din er signert' }),
+    hello: helloText(lang),
+    signed: t({
+      de: 'Ihr Rahmenvertrag mit Matchunt ist unterschrieben. Er gilt für alle Positionen, die Sie künftig über Matchunt beauftragen.',
+      en: 'Your framework agreement with Matchunt is signed. It applies to all positions you commission through Matchunt in the future.',
+      sv: 'Ditt ramavtal med Matchunt är undertecknat. Det gäller alla tjänster som du framöver ger i uppdrag via Matchunt.',
+      nb: 'Rammeavtalen din med Matchunt er signert. Den gjelder alle stillinger du fremover gir i oppdrag via Matchunt.',
+    }),
+    /** `name` ist escaped. */
+    signedBy: (name: string) => t({
+      de: 'Ihr Rahmenvertrag mit Matchunt ist von {name} unterschrieben. Er gilt für alle Positionen, die Sie künftig über Matchunt beauftragen.',
+      en: 'Your framework agreement with Matchunt has been signed by {name}. It applies to all positions you commission through Matchunt in the future.',
+      sv: 'Ditt ramavtal med Matchunt är undertecknat av {name}. Det gäller alla tjänster som du framöver ger i uppdrag via Matchunt.',
+      nb: 'Rammeavtalen din med Matchunt er signert av {name}. Den gjelder alle stillinger du fremover gir i oppdrag via Matchunt.',
+    }, { name }),
+    position: t({ de: 'Ihre erste Position', en: 'your first position', sv: 'din första tjänst', nb: 'den første stillingen din' }),
+    /** `title` ist HTML (fett, escaped). */
+    positionNamed: (title: string) => t({ de: 'Ihre erste Position {title}', en: 'your first position {title}', sv: 'din första tjänst {title}', nb: 'den første stillingen din {title}' }, { title }),
+    /** `position` ist HTML. */
+    next: (position: string) => t({
+      de: 'Jetzt zeichnen wir gegen. Danach prüfen wir {position} und geben sie für unsere Headhunter frei.',
+      en: 'We will now countersign. Then we review {position} and release it to our headhunters.',
+      sv: 'Nu kontrasignerar vi. Därefter granskar vi {position} och släpper den till våra headhunters.',
+      nb: 'Nå kontrasignerer vi. Deretter går vi gjennom {position} og frigir den for headhunterne våre.',
+    }, { position }),
+    status: t({ de: 'Den Stand sehen Sie jederzeit in Ihrem Dashboard.', en: 'You can see the status in your dashboard at any time.', sv: 'Läget ser du när som helst i din översikt.', nb: 'Status ser du når som helst i dashbordet ditt.' }),
+    cta: t({ de: 'Zum Dashboard', en: 'Go to dashboard', sv: 'Till översikten', nb: 'Til dashbordet' }),
+    withLink: t({
+      de: 'Der Link ist persönlich und {days} Tage gültig. Beim Öffnen senden wir Ihnen einen Anmeldecode an diese Adresse.',
+      en: 'The link is personal and valid for {days} days. When you open it, we send a sign-in code to this address.',
+      sv: 'Länken är personlig och gäller i {days} dagar. När du öppnar den skickar vi en inloggningskod till den här adressen.',
+      nb: 'Lenken er personlig og gyldig i {days} dager. Når du åpner den, sender vi en påloggingskode til denne adressen.',
+    }, input),
+    withoutLink: t({
+      de: 'Auf der Seite geben Sie Ihre Adresse ein, wir senden Ihnen einen Anmeldecode.',
+      en: 'On the page, enter your address and we will send you a sign-in code.',
+      sv: 'På sidan anger du din adress, så skickar vi en inloggningskod.',
+      nb: 'På siden skriver du inn adressen din, så sender vi deg en påloggingskode.',
+    }),
+    questions: t({
+      de: 'Bei Fragen antworten Sie einfach auf diese Mail.',
+      en: 'If you have any questions, just reply to this email.',
+      sv: 'Har du frågor? Svara bara på det här mejlet.',
+      nb: 'Har du spørsmål? Bare svar på denne e-posten.',
+    }),
     regards: t({ de: 'Viele Grüße<br>Ihr Matchunt-Team', en: 'Best regards<br>Your Matchunt team', sv: 'Vänliga hälsningar<br>Ditt Matchunt-team', nb: 'Vennlig hilsen<br>Matchunt-teamet' }),
     ...legalLinkTexts(lang),
   };

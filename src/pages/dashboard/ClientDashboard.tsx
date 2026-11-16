@@ -2,6 +2,8 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ClientStartChecklist } from '@/components/dashboard/ClientStartChecklist';
+import { ClientWaitingBanner } from '@/components/client/ClientWaiting';
+import { useClientWaiting } from '@/hooks/useClientWaiting';
 import { CalendarConnectCard } from '@/components/interview/calendar/CalendarConnectCard';
 import { PositionEntry } from '@/components/dashboard/PositionEntry';
 import { BewerbungenTile } from '@/components/dashboard/bento/BewerbungenTile';
@@ -41,6 +43,7 @@ export default function ClientDashboard() {
      auch bei der ersten Anmeldung über /anmelden: Kunden aus der Jobaufnahme
      haben dann schon eine Stelle. */
   const guide = useClientGuide();
+  const { waiting } = useClientWaiting();
   const [searchParams] = useSearchParams();
   const ersterBesuch = searchParams.has(FIRST_VISIT_PARAM);
   const { data: stellenAnzahl } = useQuery({
@@ -82,11 +85,12 @@ export default function ClientDashboard() {
         {/* Ihr Start bei Matchunt: Vertrag, erste Position, Firmendaten, Rundgang
             (lib/clientStart.ts). Ersetzt den alten Kasten „Verifikation
             erforderlich“, der AGB und KYC aus dem früheren Onboarding verlangte. */}
+        <ClientWaitingBanner onTour={() => guide.start()} />
         <ClientStartChecklist onTour={() => guide.start()} />
 
         {/* Kalender verbinden, bevor die ersten Kandidaten kommen -- nur solange
             nicht verbunden (oder abgelaufen / wartet auf die IT), wegklickbar. */}
-        <CalendarConnectCard variant="dashboard" />
+        {!waiting && <CalendarConnectCard variant="dashboard" />}
 
         {/* Header / Begrüßung */}
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -94,13 +98,15 @@ export default function ClientDashboard() {
             <h1 className="text-2xl font-bold">
               {firstName ? t(`page.greetingName.${greetingKey()}`, { name: firstName }) : t(`page.greeting.${greetingKey()}`)}
             </h1>
-            <p className="text-sm text-muted-foreground">{t('page.subtitle')}</p>
+            <p className="text-sm text-muted-foreground">{waiting ? t('page.subtitleWaiting') : t('page.subtitle')}</p>
           </div>
           <Button variant="outline" size="sm" className="gap-1.5" onClick={() => guide.start()}>
             <Compass className="h-4 w-4" /> {t('page.tour')}
           </Button>
         </div>
 
+        {/* Im Wartezustand gibt es noch nichts zu zählen: Kennzahlen und leere Listen kommen mit der Gegenzeichnung. */}
+        {!waiting && <>
         {/* Neuigkeit: Meilensteine (Zusage, Gegenwunsch …) mit dem nächsten Schritt (24.10.2026) */}
         <MilestoneBand />
 
@@ -120,6 +126,7 @@ export default function ClientDashboard() {
             <AnstehendeInterviewsTile />
           </div>
         </TooltipProvider>
+        </>}
       </div>
     </DashboardLayout>
   );

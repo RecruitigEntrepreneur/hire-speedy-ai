@@ -6,6 +6,8 @@ import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, User } from 'lucide-react';
+import { PendingButton, pendingText } from '@/components/recruiter/RecruiterWaiting';
+import { useRecruiterPending } from '@/components/verification/RecruiterAccessGate';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 
@@ -38,6 +40,7 @@ interface SubmissionsByCandidate {
 
 export default function RecruiterCandidates() {
   const { t } = useTranslation('recruiterCandidates');
+  const pending = useRecruiterPending();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -266,15 +269,17 @@ export default function RecruiterCandidates() {
             <Button variant="outline" onClick={() => { setTagManagerCandidateId(null); setTagManagerOpen(true); }}>
               {t('list.manageTags')}
             </Button>
-            <KandidatAnlegenMenu
-              size="default"
-              tour="candidates.add"
-              onLebenslauf={lebenslaufWaehlen}
-              onText={() => { setCvStartText(true); setCvUploadDialogOpen(true); }}
-              onOhneLebenslauf={() => setKurzOpen(true)}
-              onHubspot={() => setHubspotDialogOpen(true)}
-              onPerMail={() => setPerMailOpen(true)}
-            />
+            {pending
+              ? <PendingButton label={pendingText('addCandidate')} data-tour="candidates.add" />
+              : <KandidatAnlegenMenu
+                size="default"
+                tour="candidates.add"
+                onLebenslauf={lebenslaufWaehlen}
+                onText={() => { setCvStartText(true); setCvUploadDialogOpen(true); }}
+                onOhneLebenslauf={() => setKurzOpen(true)}
+                onHubspot={() => setHubspotDialogOpen(true)}
+                onPerMail={() => setPerMailOpen(true)}
+              />}
           </div>
         </div>
 
@@ -297,7 +302,9 @@ export default function RecruiterCandidates() {
                     <p className="mt-1 max-w-sm text-center text-sm text-muted-foreground">{t('list.emptyText')}</p>
                   </> : <p className="text-muted-foreground">{t('list.noneFound')}</p>}
                   {!filters.search && (
-                    <div className="mt-4">
+                    pending
+                      ? <div className="mt-4 text-center"><PendingButton label={pendingText('addCandidate')} /><p className="mt-2 text-sm text-muted-foreground">{pendingText('emptyNote')}</p></div>
+                      : <div className="mt-4">
                       <KandidatAnlegenMenu
                         size="default"
                         onLebenslauf={lebenslaufWaehlen}

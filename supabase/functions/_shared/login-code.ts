@@ -62,6 +62,12 @@ export async function redeemCode(db: SupabaseClient, email: string, code: string
   }
   const cleared = await db.auth.admin.updateUserById(user.id, { app_metadata: { [key]: null } });
   if (cleared.error) return { ok: false, failure: 'unsaved' };
+  const session = await sessionFromToken(tokenHash, deps);
+  return session ? { ok: true, session } : { ok: false, failure: 'failed' };
+}
+
+/** Das Einmal-Token aus generateLink in eine Sitzung tauschen. */
+async function sessionFromToken(tokenHash: string, deps: SessionDeps): Promise<CodeSession | null> {
   const url = deps.env('SUPABASE_URL');
   const anon = deps.env('SUPABASE_ANON_KEY');
   // Serverseitig, damit die Adresse bei Einladungen im Browser nie auftaucht.
@@ -74,7 +80,18 @@ export async function redeemCode(db: SupabaseClient, email: string, code: string
   const session = res.ok ? await res.json().catch(() => null) : null;
   if (!session?.access_token || !session?.refresh_token) {
     console.error('[login-code] Sitzung nicht ausgestellt', res.status);
-    return { ok: false, failure: 'failed' };
+    return null;
   }
-  return { ok: true, session: { access_token: session.access_token, refresh_token: session.refresh_token, expires_in: session.expires_in ?? null } };
+  return { access_token: session.access_token, refresh_token: session.refresh_token, expires_in: session.expires_in ?? null };
+}
+
+/**
+ * Sitzung ohne Code, nur für Abläufe, die die Adresse schon anders bewiesen haben
+ * (client-start-session.ts: Code-Bestätigung in der Aufnahme, gleicher Browser).
+ */
+export async function issueSession(db: SupabaseClient, email: string, deps: SessionDeps): Promise<CodeSession | null> {
+  const link = await db.auth.admin.generateLink({ type: 'magiclink', email });
+  const tokenHash = link.data?.properties?.hashed_token;
+  if (link.error || !tokenHash) return null;
+  return await sessionFromToken(tokenHash, deps);
 }

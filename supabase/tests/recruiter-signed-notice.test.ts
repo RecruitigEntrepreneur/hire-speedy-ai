@@ -1,5 +1,5 @@
 import type { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { noticeRecipients, noticeRecruiterSigned, signedNoticeMail, SIGNED_NOTICE_TEMPLATE, type NoticeDeps } from '../functions/_shared/recruiter-signed-notice.ts';
+import { DASHBOARD_OPEN_TEMPLATE, noticeDashboardOpen, noticeRecipients, noticeRecruiterSigned, signedNoticeMail, SIGNED_NOTICE_TEMPLATE, type NoticeDeps, type OpenDeps } from '../functions/_shared/recruiter-signed-notice.ts';
 import type { RecruiterEnvelope } from '../functions/_shared/recruiter-onboarding-service.ts';
 const assert=(v:unknown,m='Assertion failed')=>{if(!v)throw Error(m);};
 const SIGNED='2026-09-21T08:12:00.000Z'; // 10:12 Uhr in Berlin
@@ -61,4 +61,34 @@ Deno.test('headhunter data is escaped and a different signer is named',()=>{
  const {html,subject}=signedNoticeMail(e,{approved:false,demo:false,appUrl:'https://matchunt.ai'});
  assert(!html.includes('<b>Eve</b>')&&html.includes('&lt;b&gt;Eve&lt;/b&gt; (A &amp; B)')&&!html.includes('<script>'));
  assert(html.includes('Unterschrieben hat Max &lt;script&gt;, GF.'));assert(subject==='<b>Eve</b> hat unterschrieben – bitte gegenzeichnen');
+});
+function openFixture(options:{sent?:boolean;caseRow?:Record<string,unknown>|null;role?:Record<string,unknown>|null;now?:number}={}) {
+ const mails:MailArgs[]=[];const links:string[]=[];
+ const db={from:(table:string)=>{
+  const q={select:()=>q,eq:()=>q,
+   maybeSingle:async()=>({data:table==='user_roles'?(options.role===undefined?{verified:false}:options.role):(options.caseRow===undefined?{email:'danny@example.test',profile:{name:'Danny Beispiel'},state:'review',revoked_at:null,claimed_by:'user-1'}:options.caseRow),error:null}),
+   then:(resolve:(v:unknown)=>unknown)=>Promise.resolve({data:options.sent?[{id:'x'}]:[],error:null}).then(resolve)};
+  return q;}} as unknown as SupabaseClient;
+ const deps={mail:(async(_db:unknown,args:MailArgs)=>{mails.push(args);return {sent:true};}) as NoticeDeps['mail'],now:()=>options.now??Date.parse('2026-09-22T09:00:00Z'),appUrl:()=>'https://matchunt.ai',
+  issueLink:(async(_db:unknown,userId:string)=>{links.push(userId);return 'schluessel';}) as OpenDeps['issueLink']};
+ return {db,deps,mails,links};
+}
+Deno.test('tells the headhunter once that the dashboard is open, with a personal link',async()=>{
+ const f=openFixture();await noticeDashboardOpen(f.db,envelope(),f.deps);
+ assert(f.mails.length===1&&f.links[0]==='user-1');const m=f.mails[0];
+ assert(m.to==='danny@example.test'&&m.template===DASHBOARD_OPEN_TEMPLATE);
+ assert(m.subject==='Deine Unterschrift ist da – dein Dashboard ist offen',m.subject);
+ assert(m.html.includes('https://matchunt.ai/recruiter/login#schluessel'),'personal link');
+ assert(m.html.includes('Hallo Danny,')&&m.html.includes('suchen und Kandidaten einreichen'));
+ assert(m.meta?.contract_id==='contract-1'&&m.meta?.case_id==='case-1','listed in the file');
+});
+Deno.test('stays quiet when it went out already, nothing is signed, the account is free or the case is closed',async()=>{
+ const cases:[Partial<RecruiterEnvelope>,Parameters<typeof openFixture>[0]][]=[
+  [{},{sent:true}],[{recruiter_signed_at:null},{}],[{countersigned_at:'2026-09-22T08:00:00Z'},{}],[{state:'completed'},{}],
+  [{},{role:{verified:true}}],[{},{role:null}],[{},{caseRow:null}],
+  [{},{caseRow:{email:'d@x.test',profile:{},state:'review',revoked_at:'2026-09-21T09:00:00Z',claimed_by:'u'}}],
+  [{},{caseRow:{email:'d@x.test',profile:{},state:'draft',revoked_at:null,claimed_by:'u'}}],
+  [{},{now:Date.parse('2026-10-21T22:00:00Z')}],
+ ];
+ for(const [over,options] of cases){const f=openFixture(options);await noticeDashboardOpen(f.db,envelope(over),f.deps);assert(f.mails.length===0,JSON.stringify(over)+JSON.stringify(options));}
 });

@@ -32,4 +32,11 @@ describe('Dein Start bei Matchunt', () => {
     expect(contractSuggestion(full, contract)).toBeNull();
     expect(contractSuggestion({}, { company: ' ', address: '' })).toBeNull();
   });
+
+  it('zeigt im Wartezustand den Vertrag als offen bei Matchunt, ohne ihn als Aufgabe zu nennen', () => {
+    const steps = startSteps({ company_name: 'A', company_address: 'B', tax_id: 'C', bank_iban: 'D' }, true, true);
+    expect(steps[0]).toMatchObject({ id: 'contract', done: false, waiting: true, label: 'Vertrag: wartet auf Gegenzeichnung' });
+    expect(openSummary(steps)).toBe('');
+    expect(startSteps({}, false)[0]).toMatchObject({ id: 'contract', done: true });
+  });
 });

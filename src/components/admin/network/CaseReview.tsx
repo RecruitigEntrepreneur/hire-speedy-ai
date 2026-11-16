@@ -152,6 +152,7 @@ export function CaseReview({ c, contract, history, timeline, isCountersigner, do
           {contract?.recruiter_signed_at && !contract.countersigned_at && contract.state === 'sent' && <p className="text-xs text-muted-foreground">Gegenzeichnen bis einschließlich {day(counterDeadlineDay(contract.recruiter_signed_at))}</p>}
           {primary}
           {checkError && <p role="alert" className="text-sm text-destructive">{checkError}</p>}
+          {next.kind === 'counter' && next.hint && <p className="text-xs text-muted-foreground">{next.hint}</p>}
           {next.kind === 'review' && next.hint && <p className="text-xs text-muted-foreground">{next.hint} Danach erscheint hier „In DocuSign gegenzeichnen“.</p>}
           <div className="flex flex-wrap gap-2">
             {contract?.state === 'sent' && <Button size="sm" variant="outline" disabled={busy} onClick={() => onAction('sync')}><RefreshCw className="mr-1.5 h-3.5 w-3.5"/>Signaturstatus prüfen</Button>}

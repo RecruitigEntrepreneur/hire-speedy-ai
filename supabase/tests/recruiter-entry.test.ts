@@ -30,12 +30,13 @@ Deno.test('does not claim expired or unrelated invitations; rejects unconfirmed 
   let rejected=false;try{await beginRecruiterCase(db,u,'individual');}catch{rejected=true;}assert(rejected);
  }
 });
-Deno.test('new account needs completed contract and separate admin activation; existing approved accounts retain access',async()=>{
+Deno.test('with the own signature the account may look around, acting needs the countersignature; existing approved accounts retain access',async()=>{
  const f=fixture();assert(!(await recruiterAccess(f.db,user)).allowed);
  f.tables.user_roles[0].verified=true;assert((await recruiterAccess(f.db,user)).allowed);
  await beginRecruiterCase(f.db,user,'individual');assert(!(await recruiterAccess(f.db,user)).allowed);
  f.tables.recruiter_onboarding_cases[0].state='approved';f.tables.recruiter_contract_envelopes.push({id:'contract',case_id:'case',state:'sent'});assert(!(await recruiterAccess(f.db,user)).allowed);
  f.tables.recruiter_contract_envelopes[0].state='completed';assert((await recruiterAccess(f.db,user)).allowed);
- f.tables.user_roles[0].verified=false;assert(!(await recruiterAccess(f.db,user)).allowed);
+ f.tables.user_roles[0].verified=false;const waiting=await recruiterAccess(f.db,user);assert(waiting.allowed&&waiting.pending,'countersigned, activation open: view only');
+ f.tables.recruiter_contract_envelopes[0].state='sent';f.tables.recruiter_contract_envelopes[0].recruiter_signed_at=new Date().toISOString();const signed=await recruiterAccess(f.db,user);assert(signed.allowed&&signed.pending,'signed: dashboard, view only');
  f.tables.user_roles[0].verified=true;f.tables.user_roles[0].status='suspended';assert(!(await recruiterAccess(f.db,user)).allowed);
 });

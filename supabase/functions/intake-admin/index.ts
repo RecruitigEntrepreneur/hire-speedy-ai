@@ -10,6 +10,7 @@ import { intakeResumeUrl } from '../_shared/app-url.ts';
 import { accountForEmail, lastAccessMail, notifyAccessProblem, sendClientAccess } from '../_shared/client-access.ts';
 import { linkFramework, notifyFrameworkConflict } from '../_shared/framework-link.ts';
 import { firmenprofilAusAufnahme, firmaAusAufnahme } from '../_shared/firmenprofil.ts';
+import { createClientAccount } from '../_shared/client-account.ts';
 import { holeFirmenlogo } from '../_shared/firmenlogo.ts';
 import { customerMailLanguage, profileLanguage, seedProfileLanguage } from '../_shared/intake-language.ts';
 import { reviewMailTexts } from '../_shared/intake-i18n.ts';
@@ -171,37 +172,14 @@ serve(async (req) => {
           return fail('conflict',
             'Für diese Adresse existiert kein Konto. Ohne Konto kann keine Stelle angelegt werden.');
         }
-        const { data: created, error: createErr } = await supabase.auth.admin.createUser({
-          email: draft.contact_email,
-          email_confirm: true,
-          user_metadata: { full_name: draft.contact_name, role: 'client' },
-        });
-        if (createErr || !created?.user) {
-          console.error('[intake-admin] Konto nicht angelegt:', createErr?.message);
-          return fail('internal_error', `Konto konnte nicht angelegt werden: ${createErr?.message ?? 'unbekannt'}`);
+        try {
+          clientUserId = await createClientAccount(supabase, draft);
+        } catch (e) {
+          const grund = e instanceof Error ? e.message : 'unbekannt';
+          console.error('[intake-admin] Konto nicht angelegt:', grund);
+          return fail('internal_error', `Konto konnte nicht angelegt werden: ${grund}`);
         }
-        clientUserId = created.user.id;
         accountCreated = true;
-
-        // handle_new_user() vergibt die Rolle 'client'. Der Trigger kann je
-        // nach Fassung ausbleiben; deshalb hier absichern -- aber nur genau
-        // eine Rollenzeile, sonst liefert das maybeSingle() in
-        // src/lib/auth.tsx:53-63 einen Fehler und der Login haengt.
-        const { data: roles } = await supabase
-          .from('user_roles').select('id, role').eq('user_id', clientUserId);
-        if (!roles || roles.length === 0) {
-          await supabase.from('user_roles').insert({ user_id: clientUserId, role: 'client' });
-        }
-        const { data: prof } = await supabase
-          .from('profiles').select('id').eq('user_id', clientUserId).maybeSingle();
-        if (!prof) {
-          await supabase.from('profiles').insert({
-            user_id: clientUserId,
-            email: draft.contact_email,
-            full_name: draft.contact_name,
-            company_name: draft.company_name,
-          });
-        }
       }
 
       // Sprache der Aufnahme ans Profil, wenn dort noch keine steht: In ihr

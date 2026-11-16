@@ -11,6 +11,7 @@ const de = {
     'c-welcome': {
       title: 'Willkommen bei Matchunt',
       body: 'In wenigen Minuten zeigen wir Ihnen, wie Sie eine Stelle an unsere Headhunter geben und passende Kandidaten bekommen. Dabei legen Sie gleich Ihre erste Stelle an. Sie klicken selbst, wir erklären.',
+      bodyWithPosition: 'In wenigen Minuten zeigen wir Ihnen, wie es nach Ihrer ersten Stelle weitergeht: wo Sie den Stand sehen, wie Kandidaten zu Ihnen kommen und wie Sie Ihr Team dazuholen. Sie klicken selbst, wir erklären.',
     },
     'c-entry': {
       title: 'Hier beginnt jede Stelle',

@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
+import { PASSWORD_SET_KEY } from '@/lib/recruiterLogin';
 import { useToast } from '@/hooks/use-toast';
 import { SettingsBlock, SettingsSubpage } from './SettingsShell';
 import type { SaveState } from './useCompanyProfile';
@@ -154,7 +155,7 @@ function PasswortDialog({ open, onOpenChange, onDone }: { open: boolean; onOpenC
     if (pw.length < 10 || pw !== pw2) return;
     setBusy(true);
     setFehler('');
-    const { error } = await supabase.auth.updateUser({ password: pw });
+    const { error } = await supabase.auth.updateUser({ password: pw, data: { [PASSWORD_SET_KEY]: new Date().toISOString() } });
     setBusy(false);
     if (error) { setFehler(error.message.includes('same') ? t('konto.pw.same') : t('konto.pw.failed')); return; }
     setPw(''); setPw2('');

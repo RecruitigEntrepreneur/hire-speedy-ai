@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowRight, Check, CheckCircle2, Circle } from 'lucide-react';
+import { ArrowRight, Check, CheckCircle2, Circle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { useRecruiterGuide } from '@/components/recruiter/guide/RecruiterGuide';
+import { useRecruiterPending } from '@/components/verification/RecruiterAccessGate';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { tourSeen } from '@/lib/recruiterGuide';
@@ -19,6 +20,7 @@ export function RecruiterStartChecklist() {
   const { t } = useTranslation('recruiterDashboard');
   const { user } = useAuth();
   const guide = useRecruiterGuide();
+  const pending = useRecruiterPending();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<StartProfile | null>(null);
   const [hidden, setHidden] = useState(false);
@@ -36,14 +38,14 @@ export function RecruiterStartChecklist() {
   }, [userId]);
 
   if (!user || !profile) return null;
-  const steps = startSteps(profile, tourSeen(user, browserStorage()));
-  const next = steps.find(s => !s.done);
+  const steps = startSteps(profile, tourSeen(user, browserStorage()), pending);
+  const next = steps.find(s => !s.done && !s.waiting);
   const act = (id: StartStepId) => {
     if (id === 'tour') guide.start();
     else navigate(`/recruiter/profile/abrechnung#${id === 'bank' ? 'bankverbindung' : 'firmendaten'}`);
   };
 
-  if (!next) {
+  if (!next && !pending) {
     if (hidden || user.user_metadata?.[START_HIDDEN_KEY]) return null;
     const hide = () => {
       setHidden(true);
@@ -66,12 +68,14 @@ export function RecruiterStartChecklist() {
       </div>
       <Progress value={startPercent(steps)} className="h-1.5" aria-label={t('start.percentAria', { percent: startPercent(steps) })}/>
       <div className="flex flex-wrap gap-2">
-        {steps.map(s => s.done
+        {steps.map(s => s.waiting
+          ? <span key={s.id} className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground"><Clock className="h-3 w-3"/>{s.label}</span>
+          : s.done
           ? <span key={s.id} className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2.5 py-1 text-xs text-success"><Check className="h-3 w-3"/>{s.label}</span>
           : <button key={s.id} type="button" onClick={() => act(s.id)} className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-xs text-foreground hover:bg-muted"><Circle className="h-3 w-3"/>{s.label}</button>)}
       </div>
       <p className="text-sm text-muted-foreground">{openSummary(steps)}</p>
-      <Button size="sm" onClick={() => act(next.id)}>{next.id === 'contract' ? '' : t(`start.actions.${next.id}`)}<ArrowRight className="ml-1 h-4 w-4"/></Button>
+      {next && <Button size="sm" onClick={() => act(next.id)}>{next.id === 'contract' ? '' : t(`start.actions.${next.id}`)}<ArrowRight className="ml-1 h-4 w-4"/></Button>}
     </CardContent>
   </Card>;
 }

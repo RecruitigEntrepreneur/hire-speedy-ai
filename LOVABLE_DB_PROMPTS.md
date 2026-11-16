@@ -1679,6 +1679,46 @@ nur noch am Handy. Texte in Deutsch, Englisch, Schwedisch, Norwegisch.
 
 ---
 
+## 56 — Nach der Unterschrift direkt ins Dashboard: Kunde und Headhunter (16.11.2026)
+
+Commit siehe `git log` („Nach der Unterschrift direkt ins Dashboard …“). **1 Migration, 22 Edge Functions, Publish.**
+Erst nach Nr. 55. Kunde: „Wer unterschreibt?“ steht in der Zusammenfassung, der Vertrag öffnet sich ohne Zwischenseite,
+nach der Unterschrift ist der Kunde angemeldet im Dashboard (nur Start, Vertrag, Einstellungen offen, Rest „Verfügbar nach
+der Gegenzeichnung“), dazu die Mail „Ihr Dashboard ist bereit“. Headhunter: unterschreibt im Fenster auf unserer Seite und
+landet danach im Dashboard, nur zum Ansehen; Suchen, Kandidaten anlegen und Einreichen sind bis zur Gegenzeichnung gesperrt
+(Seite und Datenbank). Alle neuen Texte und die neue Mail in Deutsch, Englisch, Schwedisch, Norwegisch.
+
+> 1. Aktuellen Stand von `main` übernehmen.
+> 2. Genau diese eine Migration über den Migrations-Flow ausführen: `supabase/migrations/20261116130000_wartezustand_headhunter.sql`.
+>    Keine andere Datei, die noch nicht im Journal steht. Inhalt: zwei Funktionen und drei Trigger, keine Tabelle, keine
+>    Spalte, keine Daten-Einfügungen, kein BEGIN/COMMIT, kein Cron.
+>    - `public.recruiter_waits_for_countersign(uuid)`: `LANGUAGE sql STABLE SECURITY DEFINER SET search_path = ''`.
+>      SECURITY DEFINER ist hier Absicht und steht so in der Datei (sie liest `user_roles` und
+>      `recruiter_onboarding_cases` für den Trigger). Rechte: `REVOKE ALL … FROM PUBLIC` und `FROM anon`,
+>      `GRANT EXECUTE … TO authenticated, service_role`.
+>    - `public.block_recruiter_action_while_waiting()`: Trigger-Funktion, `SECURITY DEFINER SET search_path = ''`.
+>    - Trigger `BEFORE INSERT` auf `public.candidates`, `public.submissions`, `public.recruiter_job_activations`
+>      (je `DROP TRIGGER IF EXISTS` vorher).
+>    So ausführen, wie sie in der Datei steht.
+> 3. Diese 22 Edge Functions deployen (Code geändert oder gemeinsame Dateien geändert; Einstellungen unverändert,
+>    `verify_jwt` steht in `supabase/config.toml`):
+>    `client-login`, `intake-verify-email`, `intake-admin`, `contract-admin`, `docusign-status`, `docusign-sync`,
+>    `docusign-webhook`, `recruiter-onboarding`, `recruiter-onboarding-admin`, `recruiter-docusign-webhook`,
+>    `recruiter-evidence-reminder`, `partner-check`, `abrechnung`, `buchhaltung-taeglich`, `intake-clarify`,
+>    `intake-draft`, `intake-forward`, `intake-link-admin`, `intake-packages`, `intake-resume`, `intake-start`,
+>    `intake-submit`.
+>    Neu sind nur gemeinsame Dateien: `_shared/client-account.ts`, `_shared/client-contract.ts`,
+>    `_shared/client-dashboard-mail.ts`, `_shared/client-session-ticket.ts`, `_shared/client-start-session.ts`.
+> 4. Danach Publish. Reihenfolge ist wichtig: erst Migration, dann Functions, dann Publish – die neue Oberfläche ruft
+>    neue Aktionen von `client-login` und `recruiter-onboarding` auf.
+> 5. Keine Secrets anlegen oder ändern.
+> 6. Am Code nichts ändern. Keine Function überspringen. Falls etwas nicht durchläuft, alle Befunde gesammelt mit Grund
+>    melden. Am Ende melden: Migration gelaufen (Journal-Eintrag), welche Functions deployt sind, und dass Publish durch ist.
+
+Danach: `drizzle/migrations/meta/_journal.json` prüfen (neuer Eintrag `…_wartezustand_headhunter` nach `0059_cv_field_origins`).
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über

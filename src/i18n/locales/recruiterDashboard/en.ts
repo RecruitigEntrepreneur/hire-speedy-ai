@@ -114,6 +114,7 @@ const en: Messages<typeof de> = {
     hide: 'Hide',
     steps: {
       contract: 'Agreement',
+      contractWaiting: 'Contract: awaiting countersignature',
       tour: 'Tour',
       company: 'Company details',
       bank: 'Bank details',
@@ -132,6 +133,18 @@ const en: Messages<typeof de> = {
       companyBank: 'Still open: company details and bank details. We need them before we transfer your first commission.',
       all: 'Still open: tour, company details and bank details. We need the company details and bank details before we transfer your first commission.',
     },
+  },
+  pending: {
+    hint: 'Available as soon as we have countersigned.',
+    notYet: 'Not possible yet',
+    search: 'I\'m searching',
+    adCopy: 'Job ad and outreach',
+    addCandidate: 'Add candidate',
+    addCandidates: 'Add candidates',
+    emptyNote: 'Candidate data only once the contract is signed by both sides.',
+    banner: 'We have your signature. We are reviewing your details and will countersign. Feel free to look around. Searching and submitting start after that.',
+    freed: 'Your contract is complete. You can now search and submit candidates.',
+    close: 'Close message',
   },
 };
 

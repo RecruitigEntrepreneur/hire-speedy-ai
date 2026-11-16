@@ -16,6 +16,8 @@ import i18n, { currentLanguage } from '@/i18n';
  */
 
 const STORAGE_PREFIX = 'matchunt.intake.';
+/** Marke aus der Code-Bestätigung: Nur dieser Browser darf sich beim Absenden anmelden (client-session-ticket.ts). */
+const ticketKey = (draftToken: string | null) => `${STORAGE_PREFIX}ticket.${(draftToken ?? '').slice(0, 16)}`;
 
 /** Fehlertexte, die im Frontend entstehen (clientFunnel: errors.*). Was der Server
  *  als Text liefert, bleibt wie es kommt: er übersetzt anhand von `lang`. */
@@ -379,13 +381,34 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
 
   const confirmCode = useCallback(
     async (code: string) => {
-      const res = await withToken<{ verified: boolean; known_company: { name: string } | null; draft: GuestDraft | null }>(
+      const res = await withToken<{ verified: boolean; known_company: { name: string } | null; draft: GuestDraft | null; session_ticket?: string | null }>(
         'intake-verify-email', { action: 'confirm', code });
       if (!isFailure(res) && res.draft) setState((s) => ({ ...s, draft: res.draft! }));
+      if (!isFailure(res) && res.session_ticket) {
+        try { localStorage.setItem(ticketKey(tokenRef.current), res.session_ticket); } catch { /* dann geht der Zugang per Mail */ }
+      }
       return res;
     },
     [],
   );
+
+  /**
+   * Anmelden, bevor der Vertrag aufgeht (Entscheidung 30.10.2026): So landet der Kunde
+   * danach im Dashboard, auch wenn er das Fenster schließt. Nie eine andere Sitzung
+   * überschreiben, etwa wenn Matchunt in diesem Browser als Admin angemeldet ist.
+   * false heißt: Der Zugang kommt per Mail.
+   */
+  const openSession = useCallback(async (contactEmail: string | null | undefined): Promise<boolean> => {
+    const { data } = await supabase.auth.getSession();
+    if (data.session) return !!contactEmail && data.session.user.email?.toLowerCase() === contactEmail.toLowerCase();
+    let ticket: string | null = null;
+    try { ticket = localStorage.getItem(ticketKey(tokenRef.current)); } catch { /* unten: kein Zugang ohne Marke */ }
+    if (!ticket) return false;
+    const res = await withToken<{ session: { access_token: string; refresh_token: string } | null }>('client-login', { action: 'draft-session', ticket });
+    if (isFailure(res) || !res.session) return false;
+    const { error } = await supabase.auth.setSession(res.session);
+    return !error;
+  }, []);
 
   const loadPackages = useCallback(
     () => withToken<IntakePackageOffer>('intake-packages', { action: 'get' }),
@@ -609,7 +632,7 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
     return res;
   }, []);
 
-  return { state, save, flush, sendCode, confirmCode, loadPackages, selectPackage, sendContract, checkSignature, submit, forward, askAi, parseText, parseUrl, parsePdf, enrichCompany, recheckCompany, refreshDraft };
+  return { state, save, flush, sendCode, confirmCode, openSession, loadPackages, selectPackage, sendContract, checkSignature, submit, forward, askAi, parseText, parseUrl, parsePdf, enrichCompany, recheckCompany, refreshDraft };
 }
 
 /** „Später fortsetzen" per Mail — braucht keinen Entwurfs-Token. */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clientStartDone, clientStartSteps, currentFramework } from './clientStart';
+import { clientStartDone, clientStartSteps, currentFramework, clientHasPosition, clientIsWaiting, clientPathClosedDuringTour, clientPathOpenWhileWaiting } from './clientStart';
 
 const lucaHeute = {
   framework: { agreement_number: 'RV-2026-001002', status: 'active', countersigned_at: '2026-09-25T12:17:23Z' },
@@ -66,5 +66,56 @@ describe('Ihr Start bei Matchunt', () => {
     ];
     expect(currentFramework(rows)?.agreement_number).toBe('gilt');
     expect(currentFramework([rows[0]])).toBeNull();
+  });
+
+  describe('Wartezustand', () => {
+    const rv = (status: string) => ({ agreement_number: 'RV-1', status, countersigned_at: null });
+    const base = { jobs: [], missingCompany: [], calendar: 'connected' as const, tourDone: false };
+    const waiting = { title: 'Servicetechniker', signerEmail: 'k@firma.test', self: true, closed: false };
+
+    it('wartet nur ohne wirksamen Vertrag und ohne Stelle, bestehende Kunden nie', () => {
+      expect(clientIsWaiting([rv('customer_signed')], 0)).toBe(true);
+      expect(clientIsWaiting([rv('sent')], 0)).toBe(true);
+      expect(clientIsWaiting([rv('customer_signed')], 1)).toBe(false);
+      expect(clientIsWaiting([rv('active'), rv('sent')], 0)).toBe(false);
+      expect(clientIsWaiting([rv('declined')], 0)).toBe(false);
+      expect(clientIsWaiting([], 0)).toBe(false);
+    });
+
+    it('kennt bereits aufgenommene Positionen für den Rundgang', () => {
+      expect(clientHasPosition([], 0)).toBe(false);
+      expect(clientHasPosition([], 2)).toBe(true);
+      expect(clientHasPosition([rv('sent')], 0)).toBe(true);
+    });
+
+    it('lässt Start, Vertrag, Passwort und Firmendaten offen und die Aufnahme immer zu', () => {
+      for (const p of ['/dashboard', '/dashboard/settings', '/dashboard/vertrag-unterschreiben', '/dashboard/privacy']) expect(clientPathOpenWhileWaiting(p)).toBe(true);
+      for (const p of ['/dashboard/jobs', '/dashboard/candidates', '/dashboard/team', '/dashboard/aufnahme']) expect(clientPathOpenWhileWaiting(p)).toBe(false);
+      expect(clientPathClosedDuringTour('/dashboard/aufnahme/abc')).toBe(true);
+      expect(clientPathClosedDuringTour('/dashboard/jobs')).toBe(false);
+    });
+
+    it('zeigt Unterschrift, Position, Firmendaten, Passwort und Rundgang, ohne Kalender', () => {
+      const steps = clientStartSteps({ ...base, framework: rv('customer_signed'), waiting });
+      expect(steps.map(s => s.id)).toEqual(['contract', 'position', 'company', 'password', 'tour']);
+      expect(steps[0]).toMatchObject({ state: 'waiting', detail: 'Ihre Unterschrift liegt vor. Matchunt zeichnet gegen.' });
+      expect(steps[1]).toMatchObject({ state: 'waiting', detail: 'Servicetechniker wartet auf die Gegenzeichnung' });
+      expect(steps[1].action).toBeUndefined();
+      expect(clientStartSteps({ ...base, framework: rv('customer_signed'), waiting, passwordSet: true })[3]).toMatchObject({ state: 'done' });
+    });
+
+    it('führt zur Unterschrift oder nennt die Person, bei der der Vertrag liegt', () => {
+      expect(clientStartSteps({ ...base, framework: rv('sent'), waiting })[0]).toMatchObject({ state: 'open', action: 'Jetzt unterschreiben' });
+      const anders = clientStartSteps({ ...base, framework: rv('sent'), waiting: { ...waiting, self: false } })[0];
+      expect(anders.state).toBe('waiting');
+      expect(anders.detail).toContain('k@firma.test');
+      expect(anders.action).toBeUndefined();
+    });
+
+    it('sagt ehrlich, wenn kein Vertrag zustande kam', () => {
+      const steps = clientStartSteps({ ...base, framework: rv('sent'), waiting: { ...waiting, closed: true } });
+      expect(steps[0].detail).toContain('kein Vertrag zustande');
+      expect(steps.map(s => s.id)).toContain('calendar');
+    });
   });
 });

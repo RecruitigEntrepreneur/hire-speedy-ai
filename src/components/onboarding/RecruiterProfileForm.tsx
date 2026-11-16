@@ -159,6 +159,8 @@ export default function RecruiterProfileForm({ profile, kind, busy, email, onCha
   // Karte 3: Unterschrift, vorbelegt mit der Person selbst.
   const ceoMatch = personMatches(d.responsiblePerson, profile.name);
   const [signSelf, setSignSelf] = useState<boolean>(() => !profile.signer || personMatches(profile.signer, profile.name));
+  // Öffentlicher Link: Das Konto kennt noch keinen Namen. Dann fragt „Ja, ich unterschreibe“ danach, sonst ginge es hier nicht weiter.
+  const [askName] = useState(() => !profile.name.trim());
   const chooseSelf = () => {
     setSignSelf(true);
     patch({ signer: profile.name, signerEmail: email, signerRole: profile.signerRole && personMatches(profile.signer, profile.name) ? profile.signerRole : (solo ? 'Inhaber' : 'Geschäftsführer') });
@@ -303,7 +305,7 @@ export default function RecruiterProfileForm({ profile, kind, busy, email, onCha
           <button type="button" className="mh-choice" aria-pressed={signSelf} onClick={chooseSelf}><PenLine size={21}/><span><strong>{t('form.signer.self')}</strong><small>{profile.name}{profile.signerRole && signSelf ? ` · ${roleLabel(profile.signerRole)}` : ''}{ceoMatch ? ` · ${t('form.signer.authorisedPerImprint')}` : ''}</small></span></button>
           <button type="button" className="mh-choice" aria-pressed={!signSelf} onClick={chooseOther}><Building2 size={21}/><span><strong>{t('form.signer.other')}</strong><small>{t('form.signer.otherText')}</small></span></button>
         </div>
-        {signSelf ? <div className="mh-field"><span>{t('form.signer.yourRole')}</span><Chips options={SIGNER_ROLES} label={roleLabel} value={[profile.signerRole]} onToggle={v => patch({ signerRole: v })}/></div>
+        {signSelf ? <>{askName && <label className="mh-field">{t('form.signer.yourName')}<input type="text" autoComplete="name" value={profile.name} onChange={e => patch({ name: e.target.value, signer: e.target.value })}/></label>}<div className="mh-field"><span>{t('form.signer.yourRole')}</span><Chips options={SIGNER_ROLES} label={roleLabel} value={[profile.signerRole]} onToggle={v => patch({ signerRole: v })}/></div></>
         : <div className="mh-grid">
           <label className="mh-field">{t('form.signer.name')}<input type="text" value={profile.signer} onChange={e => patch({ signer: e.target.value })}/></label>
           <label className="mh-field">{t('form.signer.email')}<input type="email" value={profile.signerEmail} onChange={e => patch({ signerEmail: e.target.value })}/></label>

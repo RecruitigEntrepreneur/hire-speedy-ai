@@ -9,7 +9,7 @@ import i18n from '@/i18n';
 
 export type StartStepId = 'contract' | 'tour' | 'company' | 'bank';
 export interface StartProfile { company_name?: string | null; company_address?: string | null; tax_id?: string | null; bank_iban?: string | null }
-export interface StartStep { id: StartStepId; label: string; done: boolean }
+export interface StartStep { id: StartStepId; label: string; done: boolean; /** Liegt bei Matchunt, der Headhunter muss nichts tun. */ waiting?: boolean }
 
 /** Merker im Konto: Die 100-%-Zeile wurde ausgeblendet. */
 export const START_HIDDEN_KEY = 'recruiter_start_hidden_at';
@@ -19,9 +19,12 @@ const filled = (value?: string | null) => !!value && value.trim().length > 0;
 // Texte: src/i18n/locales/recruiterDashboard (start.*), gelesen beim Aufruf (README Regel 7).
 const tx = (key: string): string => i18n.t(`recruiterDashboard:start.${key}`);
 
-export function startSteps(profile: StartProfile, tourDone: boolean): StartStep[] {
+/** contractWaiting: unterschrieben, Matchunt hat noch nicht gegengezeichnet. Liegt bei uns, zählt nicht als offen. */
+export function startSteps(profile: StartProfile, tourDone: boolean, contractWaiting = false): StartStep[] {
   return [
-    { id: 'contract', label: tx('steps.contract'), done: true },
+    contractWaiting
+      ? { id: 'contract', label: tx('steps.contractWaiting'), done: false, waiting: true }
+      : { id: 'contract', label: tx('steps.contract'), done: true },
     { id: 'tour', label: tx('steps.tour'), done: tourDone },
     { id: 'company', label: tx('steps.company'), done: filled(profile.company_name) && filled(profile.company_address) && filled(profile.tax_id) },
     { id: 'bank', label: tx('steps.bank'), done: filled(profile.bank_iban) },
