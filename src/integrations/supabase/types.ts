@@ -17360,6 +17360,10 @@ export type Database = {
         }[]
       }
       recruiter_tier_metrics: { Args: { p_user_id: string }; Returns: Json }
+      recruiter_waits_for_countersign: {
+        Args: { _user: string }
+        Returns: boolean
+      }
       report_direct_contact: {
         Args: {
           p_channel: string

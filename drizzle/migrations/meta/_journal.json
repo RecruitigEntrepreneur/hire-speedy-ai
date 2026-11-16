@@ -421,6 +421,13 @@
       "when": 1794833258270,
       "tag": "0059_cv_field_origins",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1794849542462,
+      "tag": "0060_wartezustand_headhunter",
+      "breakpoints": true
     }
   ]
 }
