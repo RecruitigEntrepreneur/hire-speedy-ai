@@ -2586,7 +2586,6 @@ export type Database = {
           current_salary: number | null
           cv_ai_bullets: Json | null
           cv_ai_summary: string | null
-          cv_field_origins: Json | null
           cv_parsed_at: string | null
           cv_parser_version: string | null
           cv_raw_text: string | null
@@ -2666,7 +2665,6 @@ export type Database = {
           current_salary?: number | null
           cv_ai_bullets?: Json | null
           cv_ai_summary?: string | null
-          cv_field_origins?: Json | null
           cv_parsed_at?: string | null
           cv_parser_version?: string | null
           cv_raw_text?: string | null
@@ -2746,7 +2744,6 @@ export type Database = {
           current_salary?: number | null
           cv_ai_bullets?: Json | null
           cv_ai_summary?: string | null
-          cv_field_origins?: Json | null
           cv_parsed_at?: string | null
           cv_parser_version?: string | null
           cv_raw_text?: string | null
