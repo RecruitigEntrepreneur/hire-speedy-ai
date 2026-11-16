@@ -526,7 +526,8 @@ export default function RecruiterDashboard() {
 
         {/* Kalender verbinden (16.11.2026): dieselbe Leiste wie beim Kunden, mit du; weg, sobald verbunden oder ausgeblendet */}
         <CalendarConnectCard variant="dashboard" fuer="headhunter" />
-        <LigaDashboardCard />
+        {/* Liga: auf dem Computer unten in der Seitenleiste, hier nur noch am Handy (16.11.2026) */}
+        <LigaDashboardCard className="md:hidden" />
         <LigaAwardDialog />
 
         {/* ═══ BENTO GRID: 2x2 ═══ */}

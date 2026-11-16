@@ -4,12 +4,15 @@ import { ChevronRight, Info } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent } from '@/components/ui/card';
 import { ligaMe } from '@/lib/liga';
+import { cn } from '@/lib/utils';
 
 /**
  * H1: schmale Liga-Karte auf der Übersicht. Nur für Teilnehmer mit laufender Saison,
  * eine Zeile Stand, eine Zeile Abstand und Preis. Nicht größer als nötig.
+ * Seit 16.11.2026 nur noch am Handy (className="md:hidden"); auf dem Computer steht die Liga
+ * unten in der Seitenleiste (LigaSeitenleiste).
  */
-export function LigaDashboardCard() {
+export function LigaDashboardCard({ className }: { className?: string }) {
   const q = useQuery({ queryKey: ['liga', 'me', null], queryFn: () => ligaMe(null), staleTime: 60_000, retry: false });
   const { t } = useTranslation('recruiterLiga');
   const d = q.data;
@@ -19,7 +22,7 @@ export function LigaDashboardCard() {
   const winner = d.awards.find(a => a.kind === 'season_winner');
   const gap = m.rank && m.rank > 1 && m.gap_above !== null ? t('card.gap', { count: m.gap_above, rank: m.rank - 1 }) : null;
   const days = s.days_left > 0 ? t('card.daysLeft', { count: s.days_left }) : t('card.grace');
-  return <Card className="border-border/30 shadow-sm">
+  return <Card className={cn('border-border/30 shadow-sm', className)}>
     <CardContent className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">

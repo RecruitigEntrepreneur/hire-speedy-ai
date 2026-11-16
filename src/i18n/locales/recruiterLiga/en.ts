@@ -167,5 +167,10 @@ const en: Messages<typeof de> = {
     prize: 'Prize for rank 1: {{prize}}',
     toLiga: 'Go to the league',
   },
+  // Seitenleiste (16.11.2026): ohne Teilnahme bzw. Saison
+  side: {
+    notIn: 'Ranking, prizes, rules',
+    running: '{{season}} is running · {{days}}',
+  },
 };
 export default en;

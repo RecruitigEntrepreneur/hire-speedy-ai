@@ -165,5 +165,10 @@ const de = {
     prize: 'Preis für Platz 1: {{prize}}',
     toLiga: 'Zur Liga',
   },
+  // Seitenleiste (16.11.2026): ohne Teilnahme bzw. Saison
+  side: {
+    notIn: 'Rangliste, Preise, Regeln',
+    running: '{{season}} läuft · {{days}}',
+  },
 };
 export default de;

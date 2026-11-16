@@ -2,6 +2,7 @@ import { ReactNode, useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { LebenslaufAblageLeiste } from '@/components/candidates/LebenslaufAblageLeiste';
+import { LigaSeitenleiste } from '@/components/recruiter/liga/LigaSeitenleiste';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
@@ -138,7 +139,7 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
     { label: tNav('items.candidates'), href: '/recruiter/candidates', icon: <Users className="h-4 w-4" /> },
     { label: tNav('items.pipeline'), href: '/recruiter/submissions', icon: <FileText className="h-4 w-4" /> },
     { label: tNav('items.talentPool'), href: '/recruiter/talent-pool', icon: <Database className="h-4 w-4" /> },
-    { label: tNav('items.liga'), href: '/recruiter/liga', icon: <Trophy className="h-4 w-4" /> },
+    // Matchunt Liga (16.11.2026): kein Menüpunkt mehr, sondern das Kärtchen unten über den Einstellungen
     { label: tNav('items.earnings'), href: '/recruiter/earnings', icon: <DollarSign className="h-4 w-4" /> },
     // 15.11.2026: Benachrichtigungen nur noch über „Alle ansehen“ in der Glocke, Nachrichten als
     // Sprechblase oben (Posteingang), Datenschutz in den Einstellungen.
@@ -298,6 +299,8 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
                 );
               })}
             </nav>
+
+            {isRecruiter && <LigaSeitenleiste />}
 
             <div className="border-t border-border pt-4 space-y-1">
               <Link

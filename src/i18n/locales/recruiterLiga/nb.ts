@@ -167,5 +167,10 @@ const nb: Messages<typeof de> = {
     prize: 'Premie for plass 1: {{prize}}',
     toLiga: 'Til ligaen',
   },
+  // Seitenleiste (16.11.2026): ohne Teilnahme bzw. Saison
+  side: {
+    notIn: 'Rangering, premier, regler',
+    running: '{{season}} pågår · {{days}}',
+  },
 };
 export default nb;

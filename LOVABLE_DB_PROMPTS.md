@@ -1665,6 +1665,20 @@ Hinten (Profil › Terminseite, Einstellungen › Kalender) zwei App-Kacheln unt
 
 ---
 
+## 55 — Matchunt Liga unten in der Seitenleiste (16.11.2026)
+
+Commit siehe `git log` („Liga unten in der Seitenleiste …“). **Keine Migration, keine Edge Function, nur Publish.**
+Erst nach Nr. 54. Headhunter: Der Menüpunkt „Matchunt Liga“ entfällt; stattdessen steht unten in der Seitenleiste über
+„Einstellungen“ ein klickbares Liga-Kärtchen (Platz, Punkte, Saison, Resttage). Die Liga-Karte in der Übersicht gibt es
+nur noch am Handy. Texte in Deutsch, Englisch, Schwedisch, Norwegisch.
+
+> 1. Aktuellen Stand von `main` übernehmen.
+> 2. Keine Migration ausführen, keine Edge Function deployen, keine Secrets ändern.
+> 3. Publish.
+> 4. Am Code nichts ändern. Am Ende melden, dass Publish durch ist.
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über

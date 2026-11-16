@@ -167,5 +167,10 @@ const sv: Messages<typeof de> = {
     prize: 'Pris för plats 1: {{prize}}',
     toLiga: 'Till ligan',
   },
+  // Seitenleiste (16.11.2026): ohne Teilnahme bzw. Saison
+  side: {
+    notIn: 'Rankning, priser, regler',
+    running: '{{season}} pågår · {{days}}',
+  },
 };
 export default sv;
