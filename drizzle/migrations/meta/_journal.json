@@ -414,6 +414,13 @@
       "when": 1794711957542,
       "tag": "0058_stellen_anfragen",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1794833258270,
+      "tag": "0059_cv_field_origins",
+      "breakpoints": true
     }
   ]
 }
