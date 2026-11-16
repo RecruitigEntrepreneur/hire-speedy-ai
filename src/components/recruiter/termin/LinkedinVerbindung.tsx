@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Linkedin, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import { LinkedinLogo } from '@/components/brand/MarkenLogos';
 import { Button } from '@/components/ui/button';
 import { intlLocale } from '@/i18n/languages';
 import type { Aktuell } from '@/lib/linkedinAbgleich';
@@ -30,17 +31,21 @@ export function LinkedinVerbindung({ aktuell, onUebernommen }: { aktuell: Aktuel
   if (isLoading) return <p className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin"/>{t('linkedin.checking')}</p>;
 
   const rahmen = 'flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border px-3 py-2.5';
+  // Ohne LinkedIn-App bei Matchunt: der Knopf steht schon da, ausgegraut mit „Bald“ (16.11.2026).
   if (!status?.eingerichtet) return <div id="linkedin" className={`${rahmen} border-dashed`}>
-    <div className="text-sm text-muted-foreground">
-      <p className="flex items-center gap-1.5"><Linkedin className="h-4 w-4"/>{t('linkedin.connectTitle')}</p>
-      <p className="text-xs">{t('linkedin.notReady')}</p>
+    <div className="min-w-0 flex-1 text-sm">
+      <p className="font-medium">{t('linkedin.connectTitle')}</p>
+      <p className="text-xs text-muted-foreground">{t('linkedin.notReady')}</p>
     </div>
-    <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">{t('linkedin.soon')}</span>
+    <div className="flex items-center gap-2">
+      <Button size="sm" disabled className="bg-[#0A66C2] text-white"><LinkedinLogo weiss className="mr-1.5 h-3.5 w-3.5"/>{t('linkedin.connectTitle')}</Button>
+      <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">{t('linkedin.soon')}</span>
+    </div>
   </div>;
 
   return <div id="linkedin" className={rahmen}>
     {status.verbunden ? <div className="text-sm">
-      <p className="flex items-center gap-1.5"><Linkedin className="h-4 w-4 text-[#0A66C2]"/>{status.name ? t('linkedin.connectedAs', { name: status.name }) : t('linkedin.connected')}</p>
+      <p className="flex items-center gap-1.5"><LinkedinLogo/>{status.name ? t('linkedin.connectedAs', { name: status.name }) : t('linkedin.connected')}</p>
       <p className="text-xs text-muted-foreground">{status.gueltig_bis ? t('linkedin.validUntil', { date: datum(status.gueltig_bis, i18n.language) }) : t('linkedin.privacyNote')}</p>
     </div> : <div className="text-sm">
       <p className="font-medium">{status.abgelaufen ? t('linkedin.reconfirmTitle') : t('linkedin.connectTitle')}</p>
@@ -52,7 +57,7 @@ export function LinkedinVerbindung({ aktuell, onUebernommen }: { aktuell: Aktuel
         <Button variant="ghost" size="sm" className="text-muted-foreground" disabled={trennen.isPending} onClick={() => trennen.mutate()}>{t('linkedin.disconnect')}</Button>
       </div>
       : <Button size="sm" className="bg-[#0A66C2] text-white hover:bg-[#004182]" disabled={verbinden.isPending} onClick={() => verbinden.mutate(RUECKSPRUNG)}>
-        {verbinden.isPending ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin"/> : <Linkedin className="mr-1.5 h-3.5 w-3.5"/>}{status.abgelaufen ? t('linkedin.reconfirm') : t('linkedin.connectTitle')}
+        {verbinden.isPending ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin"/> : <LinkedinLogo weiss className="mr-1.5 h-3.5 w-3.5"/>}{status.abgelaufen ? t('linkedin.reconfirm') : t('linkedin.connectTitle')}
       </Button>}
     <LinkedinAbgleichDialog open={offen} onOpenChange={setOffen} aktuell={aktuell} onUebernommen={onUebernommen} onFreigeben={() => verbinden.mutate(RUECKSPRUNG)}/>
   </div>;

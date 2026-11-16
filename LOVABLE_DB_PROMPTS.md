@@ -1625,6 +1625,19 @@ Danach: `drizzle/migrations/meta/_journal.json` prüfen (neuer Eintrag `…_cv_f
 
 ---
 
+## 52 — Echte Logos in „Mit Outlook verbinden“ und „Mit LinkedIn verbinden“ (16.11.2026)
+
+Commit siehe `git log` („Logos von Outlook und LinkedIn …“). **Keine Migration, keine Edge Function, nur Publish.**
+Erst nach Nr. 51. Terminseite: Outlook-Logo im Knopf. Profil › Über dich: LinkedIn-Logo im Knopf; solange die
+LinkedIn-App fehlt, steht der Knopf ausgegraut mit „Bald“ da.
+
+> 1. Aktuellen Stand von `main` übernehmen.
+> 2. Keine Migration ausführen, keine Edge Function deployen, keine Secrets ändern.
+> 3. Publish.
+> 4. Am Code nichts ändern. Am Ende melden, dass Publish durch ist.
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über

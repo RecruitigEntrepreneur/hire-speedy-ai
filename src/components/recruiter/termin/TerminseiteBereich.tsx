@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { OutlookLogo } from '@/components/brand/MarkenLogos';
 import { InterviewHoursEditor } from '@/components/interview/calendar/InterviewHoursEditor';
 import { useCalendarStatus } from '@/components/interview/calendar/useCalendarStatus';
 import { normalizeRules, type InterviewHoursRules } from '@/lib/interviewScheduling';
@@ -113,12 +114,19 @@ export function TerminseiteBereich({ zurueck }: { zurueck?: string | null }) {
           {verbunden
             ? <p className="flex items-center gap-1.5 text-sm text-emerald-600"><CheckCircle2 className="h-4 w-4"/>{kal.status?.accountEmail ? t('seite.outlookConnectedAs', { email: kal.status.accountEmail }) : t('seite.outlookConnected')}</p>
             : kal.state === 'not_configured'
-              ? <p className="text-sm text-muted-foreground">{t('seite.notConfigured')}</p>
+              // Ohne Microsoft-App bei Matchunt: Knopf ausgegraut mit „Bald“ (16.11.2026)
+              ? <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Button size="sm" disabled><span className="mr-1.5 flex h-5 w-5 items-center justify-center rounded-[4px] bg-white"><OutlookLogo className="h-3.5 w-3.5"/></span>{t('seite.connectOutlook')}</Button>
+                  <span className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">{t('linkedin.soon')}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">{t('seite.notConfigured')}</p>
+              </div>
               : <div className="space-y-2">
                 {kal.state === 'expired' && <p className="text-sm text-amber-700">{t('seite.expired')}</p>}
                 {kal.state === 'it_pending' && <p className="text-sm text-amber-700">{t('seite.itPending')}</p>}
                 <Button size="sm" disabled={kal.connect.isPending} onClick={() => kal.connect.mutate(zurueck ? `${RUECKSPRUNG}?zurueck=${encodeURIComponent(zurueck)}` : RUECKSPRUNG)}>
-                  {kal.connect.isPending ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin"/> : null}{t('seite.connectOutlook')}
+                  {kal.connect.isPending ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin"/> : <span className="mr-1.5 flex h-5 w-5 items-center justify-center rounded-[4px] bg-white"><OutlookLogo className="h-3.5 w-3.5"/></span>}{t('seite.connectOutlook')}
                 </Button>
               </div>}
           <p className="text-xs text-muted-foreground">{t('seite.privacy')}</p>
