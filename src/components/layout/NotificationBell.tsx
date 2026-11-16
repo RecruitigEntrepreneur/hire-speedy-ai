@@ -71,7 +71,9 @@ export function NotificationBell() {
             </Button>
           )}
         </div>
-        <ScrollArea className="h-[320px]">
+        {/* Radix legt um den Inhalt eine Tabelle, die mit langen Titeln breiter wird als das Fenster:
+            als Block bleibt sie so breit wie die Glocke, Titel brechen um (16.11.2026). */}
+        <ScrollArea className="h-[320px] [&_[data-radix-scroll-area-viewport]>div]:!block">
           {notifications.length === 0 ? (
             <div className="p-4 text-center text-muted-foreground text-sm">
               {t("empty")}
@@ -91,9 +93,9 @@ export function NotificationBell() {
                 >
                   <HinweisIcon type={n.type} className="mt-0.5" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{n.title}</p>
+                    <p className="text-sm font-medium leading-snug line-clamp-2 break-words">{n.title}</p>
                     {n.message && (
-                      <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+                      <p className="text-xs text-muted-foreground line-clamp-2 break-words mt-0.5">
                         {/* „Provision: … €“ nach einer Platzierung folgt dem Auge in der Kopfleiste. */}
                         {n.type === 'placement_created' ? <Honorar>{n.message}</Honorar> : n.message}
                       </p>
