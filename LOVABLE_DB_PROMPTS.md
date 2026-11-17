@@ -1732,6 +1732,24 @@ Erst nach Nr. 56. Inter wird jetzt in `index.html` geladen; der bisherige `@impo
 
 ---
 
+## 58 — Kunden-Rundgang neu: einmal durch die App, echte Seiten mit Beispieldaten (17.11.2026)
+
+Commit siehe `git log` („Kunden-Rundgang neu …“). **Keine Migration, keine Edge Function, nur Publish.**
+Erst nach Nr. 57. Der Rundgang für Kunden führt einmal durch die ganze App an der eigenen Stelle: Neue Stelle und
+Art der Besetzung, Meine Stellen mit Beispielstellen, Beispielkandidat bis zur Einstellung (bzw. „Der Einsatz“ bei
+Contracting), Team einladen, Glocke. Er zeigt die echten Seiten und Fenster mit Beispieldaten auf einer Bühne unter
+`/dashboard/rundgang`; dort wird nichts gespeichert und nichts verschickt. Ein Zeiger zeigt die Klicks einmal vor, dann
+klickt der Kunde selbst. Neue Bilddateien `public/tour/hh-julia.jpg`, `hh-tobias.jpg`, `hh-lukas.jpg` (fiktive
+Beispiel-Headhunter). Merker im Konto (`user_metadata`), keine neue Tabelle. Texte in Deutsch, Englisch, Schwedisch,
+Norwegisch.
+
+> 1. Aktuellen Stand von `main` übernehmen.
+> 2. Keine Migration ausführen, keine Edge Function deployen, keine Secrets ändern.
+> 3. Publish.
+> 4. Am Code nichts ändern. Am Ende melden, dass Publish durch ist.
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über
