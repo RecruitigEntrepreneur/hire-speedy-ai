@@ -110,7 +110,7 @@ export function ProposalGrid({
   const unchecked = !notConnected && !!data && data.selfVisible === false;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" data-tour="request.grid">
       {notConnected && (
         <div className="flex flex-col gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm sm:flex-row sm:items-center">
           <AlertTriangle className="hidden h-4 w-4 shrink-0 text-warning sm:block" />

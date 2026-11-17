@@ -169,7 +169,7 @@ export function ContractDialog({ ctx, open, onOpenChange, initialWay = null, inl
       <span>{label}</span>
       <div className="inline-flex rounded-md border border-border/60 bg-muted/30 p-0.5">
         {[true, false].map((v) => (
-          <button key={String(v)} type="button" onClick={() => set(v)}
+          <button key={String(v)} type="button" onClick={() => set(v)} data-yes-no={v ? 'yes' : 'no'}
             className={cn('rounded px-3 py-1 text-xs', value === v ? 'bg-background font-medium shadow-sm' : 'text-muted-foreground')}>{v ? td('yes') : td('no')}</button>
         ))}
       </div>
@@ -185,12 +185,13 @@ export function ContractDialog({ ctx, open, onOpenChange, initialWay = null, inl
         {step === 'choose' ? (
           <>
             <div className="grid gap-2 sm:grid-cols-2">
-              <button type="button" disabled={!ctx.digitalAvailable} onClick={() => setWay('digital')}
+              {/* data-tour: Ziele des Kunden-Rundgangs, der das Fenster einmal vorführt (lib/clientGuide.ts) */}
+              <button type="button" disabled={!ctx.digitalAvailable} onClick={() => setWay('digital')} data-tour="contract.digital"
                 className={cn('rounded-lg border p-3 text-left text-sm transition-colors', way === 'digital' ? 'border-primary bg-primary/[0.04]' : 'border-border/60 hover:bg-muted/40', !ctx.digitalAvailable && 'opacity-50')}>
                 <p className="font-medium">{td('digital')} <span className="ml-1 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-600">{td('recommended')}</span></p>
                 <p className="mt-1 text-muted-foreground">{ctx.digitalAvailable ? td('digitalHint', { first }) : td('digitalOff')}</p>
               </button>
-              <button type="button" onClick={() => { setWay('self'); if (!sentOn) setSentOn(todayIso()); }}
+              <button type="button" onClick={() => { setWay('self'); if (!sentOn) setSentOn(todayIso()); }} data-tour="contract.self"
                 className={cn('rounded-lg border p-3 text-left text-sm transition-colors', way === 'self' ? 'border-primary bg-primary/[0.04]' : 'border-border/60 hover:bg-muted/40')}>
                 <p className="font-medium">{td('self')}</p>
                 <p className="mt-1 text-muted-foreground">{td('selfHint')}</p>
@@ -230,8 +231,8 @@ export function ContractDialog({ ctx, open, onOpenChange, initialWay = null, inl
               {inline && footerExtra && <div className="mr-auto flex flex-wrap gap-3 text-xs">{footerExtra}</div>}
               <Button variant="ghost" onClick={() => onOpenChange(false)}>{t('common.cancel')}</Button>
               {way === 'digital'
-                ? <Button disabled={!ctx.digitalAvailable} onClick={() => setStep('upload')}>{td('nextUpload')}</Button>
-                : <Button disabled={busy || !sentOn} onClick={saveSelf}>{busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}{td('saveSent')}</Button>}
+                ? <Button disabled={!ctx.digitalAvailable} onClick={() => setStep('upload')} data-tour="contract.next">{td('nextUpload')}</Button>
+                : <Button disabled={busy || !sentOn} onClick={saveSelf} data-tour="contract.saveSelf">{busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}{td('saveSent')}</Button>}
             </div>
           </>
         ) : (
@@ -277,7 +278,7 @@ export function ContractDialog({ ctx, open, onOpenChange, initialWay = null, inl
                 <Input value={candidateEmail} onChange={(e) => setCandidateEmail(e.target.value)} placeholder={td('mail')} className="mt-1 h-9" />
                 <span className="mt-1 block text-xs text-muted-foreground">{td('candidateMailHint', { first })}</span></label>
             </div>
-            <div className="space-y-2 rounded-lg border border-border/60 bg-muted/30 p-3">
+            <div className="space-y-2 rounded-lg border border-border/60 bg-muted/30 p-3" data-tour="contract.questions">
               {yesNo(fixedTerm, setFixedTerm, td('fixedTermQ'))}
               {yesNo(nonCompete, setNonCompete, td('nonCompeteQ'))}
               {strict && (

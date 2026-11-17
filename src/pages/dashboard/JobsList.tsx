@@ -292,16 +292,17 @@ export default function JobsList() {
       <div className="mx-auto max-w-5xl">
         {/* Kopf: ein Satz statt einer Zahlenzeile */}
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
+          {/* data-tour: Ziel des Kunden-Rundgangs ohne eigene Stelle (lib/clientGuide.ts) */}
+          <div className="min-w-0" data-tour="jobs.head">
             <h1 className="text-3xl font-semibold tracking-tight">{t('list.title')}</h1>
             <p className="mt-2 max-w-2xl text-base text-muted-foreground">{sentence}</p>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button className="gap-1.5 rounded-full px-4"><Plus className="h-4 w-4" />{t('list.newJob')}<ChevronDown className="h-3.5 w-3.5 opacity-70" /></Button>
+              <Button data-tour="jobs.new" className="gap-1.5 rounded-full px-4"><Plus className="h-4 w-4" />{t('list.newJob')}<ChevronDown className="h-3.5 w-3.5 opacity-70" /></Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-72">
-              <DropdownMenuItem onClick={newJob}><Plus className="mr-2 h-4 w-4" />{t('jobs2.new.blank')}</DropdownMenuItem>
+            <DropdownMenuContent align="end" className="w-72" data-tour="jobs.menu">
+              <DropdownMenuItem onClick={newJob} data-tour="jobs.newBlank"><Plus className="mr-2 h-4 w-4" />{t('jobs2.new.blank')}</DropdownMenuItem>
               {copySources.length > 0 && (
                 <>
                   <DropdownMenuSeparator />
@@ -467,10 +468,11 @@ function FaceButton({ label, initials, on, onClick }: { label: string; initials:
   );
 }
 
-function CardShell({ children, to }: { children: ReactNode; to?: string }) {
+function CardShell({ children, to, jobId }: { children: ReactNode; to?: string; jobId?: string }) {
   const navigate = useNavigate();
   return (
-    <div role={to ? 'link' : undefined} tabIndex={to ? 0 : undefined}
+    // data-tour-job: Ziel des Kunden-Rundgangs für die eigene Stelle (lib/clientGuide.ts).
+    <div data-tour-job={jobId} role={to ? 'link' : undefined} tabIndex={to ? 0 : undefined}
       onClick={to ? (e) => { if ((e.target as HTMLElement).closest('button,a,[role=menuitem],[role=checkbox]')) return; navigate(to); } : undefined}
       onKeyDown={to ? (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) navigate(to); } : undefined}
       className={cn('rounded-2xl border bg-card px-5 py-4 transition-colors', to && 'cursor-pointer hover:border-foreground/20')}>
@@ -560,12 +562,12 @@ function ActiveCard({ job, owner, ownerFull, items, news, searchers, nextIntervi
 
   const shown = running.slice(0, 4);
   return (
-    <CardShell to={`/dashboard/jobs/${job.id}`}>
+    <CardShell to={`/dashboard/jobs/${job.id}`} jobId={job.id}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <h3 className="truncate text-base font-semibold tracking-tight">{job.title}</h3>
           <p className="text-[13px] text-muted-foreground">{metaLine(job, t('jobs2.since', { count: live }))}</p>
-          <div className="mt-3 w-72 max-w-full">
+          <div className="mt-3 w-72 max-w-full" data-card="steps">
             <div className="flex gap-1">{STEPS.map((st, i) => <span key={st} className={cn('h-1 flex-1 rounded-full', i <= stage ? 'bg-foreground' : 'bg-border')} />)}</div>
             <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
               {STEPS.map((st, i) => <span key={st} className={cn(i === stage && 'font-medium text-foreground')}>{t(`jobs2.step.${st}`)}</span>)}
@@ -574,7 +576,7 @@ function ActiveCard({ job, owner, ownerFull, items, news, searchers, nextIntervi
         </div>
         <div className="flex shrink-0 items-start gap-3">
           {running.length > 0 && (
-            <div className="hidden text-right sm:block">
+            <div className="hidden text-right sm:block" data-card="people">
               <div className="flex justify-end -space-x-1.5">
                 {shown.map((i) => {
                   const ini = initialsOf(i);
@@ -612,8 +614,8 @@ function ActiveCard({ job, owner, ownerFull, items, news, searchers, nextIntervi
       </div>
 
       <div className="mt-3 flex items-center justify-between gap-3 border-t pt-3 text-[13px] text-muted-foreground">
-        <div className="flex min-w-0 items-center gap-2">{highlight}</div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2" data-card="news">{highlight}</div>
+        <div className="flex shrink-0 items-center gap-2" data-card="searchers">
           {n > 0 && (
             <span className="flex -space-x-2">
               {(searchers?.photos.length ? searchers.photos : Array.from({ length: Math.min(n, 3) }, () => null)).map((p, i) => (
@@ -641,7 +643,7 @@ function ReviewCard({ job, owner, ownerFull, onWithdraw }: { job: JobRow; owner:
   const overdue = !!etaRaw && etaRaw.getTime() < new Date().setHours(0, 0, 0, 0);
   const eta = overdue ? null : etaRaw;
   return (
-    <CardShell>
+    <CardShell jobId={job.id}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <h3 className="truncate text-base font-semibold tracking-tight">{job.title}</h3>

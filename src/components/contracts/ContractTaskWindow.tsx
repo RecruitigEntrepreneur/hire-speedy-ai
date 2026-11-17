@@ -118,7 +118,7 @@ export function ContractTaskWindow({ submissionId, open, onOpenChange, intent = 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl" data-tour="contract.window">
         {!ctx ? (
           <>
             <DialogHeader className="text-left"><DialogTitle>{tk('title')}</DialogTitle><DialogDescription>{t('common.loading')}</DialogDescription></DialogHeader>

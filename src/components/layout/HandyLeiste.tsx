@@ -28,6 +28,8 @@ interface Props {
   /** Zusatz im Blatt, z. B. die Liga-Karte des Headhunters. */
   zusatz?: ReactNode;
   feedback: boolean;
+  /** Markierter Weg, wenn er nicht aus der Adresse folgt (Beispiel-Bühne des Kunden-Rundgangs). */
+  aktivHref?: string;
 }
 
 /** Feld hinter dem Symbol: zeigt, auf welcher Seite man ist (16.11.2026, Marko: 1A). */
@@ -38,7 +40,7 @@ const feld = 'relative flex h-7 w-14 items-center justify-center rounded-full tr
  * Am Computer unsichtbar, dort bleibt die Seitenleiste. Die Höhe steht als --handy-leiste
  * bereit, damit eigene Leisten am unteren Rand (z. B. „Vorstellung vorbereiten“) darüber sitzen.
  */
-export function HandyLeiste({ haupt, mehr, einstellungen, zusatz, feedback }: Props) {
+export function HandyLeiste({ haupt, mehr, einstellungen, zusatz, feedback, aktivHref }: Props) {
   const { t } = useTranslation('common');
   const { pathname } = useLocation();
   const { theme, toggleTheme } = useTheme();
@@ -51,8 +53,9 @@ export function HandyLeiste({ haupt, mehr, einstellungen, zusatz, feedback }: Pr
   }, []);
   // Beim Seitenwechsel schließt das Blatt.
   useEffect(() => { setOffen(false); }, [pathname]);
+  const istHier = (href: string) => (aktivHref ? href === aktivHref : istAktiv(pathname, href));
 
-  const mehrAktiv = einstellungen.aktiv || mehr.some((e) => istAktiv(pathname, e.href)) || (!!zusatz && pathname.startsWith('/recruiter/liga'));
+  const mehrAktiv = einstellungen.aktiv || mehr.some((e) => istHier(e.href)) || (!!zusatz && pathname.startsWith('/recruiter/liga'));
   const zeile = 'flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors';
 
   return (
@@ -63,7 +66,7 @@ export function HandyLeiste({ haupt, mehr, einstellungen, zusatz, feedback }: Pr
       >
         <div className="grid h-14" style={{ gridTemplateColumns: `repeat(${haupt.length + 1}, minmax(0, 1fr))` }}>
           {haupt.map((e) => {
-            const aktiv = istAktiv(pathname, e.href);
+            const aktiv = istHier(e.href);
             return (
               <Link
                 key={e.href}
@@ -115,7 +118,7 @@ export function HandyLeiste({ haupt, mehr, einstellungen, zusatz, feedback }: Pr
           <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-muted" aria-hidden />
           <nav className="space-y-0.5">
             {mehr.map((e) => {
-              const aktiv = istAktiv(pathname, e.href);
+              const aktiv = istHier(e.href);
               return (
                 <Link
                   key={e.href}

@@ -80,34 +80,5 @@ export function GuideExampleView({ kind }: { kind: GuideExample }) {
         <p className="mt-2 text-muted-foreground">{t('interview.after')}</p>
       </div>
     </Frame>;
-
-    // ---- Kunden-Rundgang (lib/clientGuide.ts) ------------------------------
-    case 'clientSubmit': return <Frame>
-      <div className="rounded-md border border-border bg-card p-3 text-xs">
-        <p className="text-sm font-semibold">{t('clientSubmit.title')}</p>
-        <p className="mt-1 text-muted-foreground">{t('clientSubmit.text')}</p>
-        <div className="mt-2 flex flex-wrap items-center gap-2"><Chip>{t('clientSubmit.topUp')}</Chip><Chip strong>{t('clientSubmit.submit')}</Chip></div>
-      </div>
-    </Frame>;
-    case 'clientStatus': return <Frame>
-      <div className="rounded-md border border-border bg-card p-3 text-xs">
-        <p className="flex flex-wrap items-center gap-1.5 text-sm font-medium">{t('clientStatus.title')} <Chip>{t('clientStatus.state')}</Chip></p>
-        <div className="mt-2 grid grid-cols-4 gap-1.5">
-          {[['submitted', 'done'], ['review', 'now'], ['live', ''], ['candidates', '']].map(([label, st]) =>
-            <div key={label} className={st === 'done' ? 'border-t-[3px] border-emerald-500 pt-1' : st === 'now' ? 'border-t-[3px] border-primary pt-1 font-medium' : 'border-t-[3px] border-border pt-1 text-muted-foreground'}>{st === 'done' ? '✓ ' : ''}{t(`clientStatus.${label}`)}</div>)}
-        </div>
-      </div>
-    </Frame>;
-    case 'clientCandidate': return <Frame>
-      <div className="rounded-md border border-border bg-card p-3 text-xs">
-        <div className="flex items-start justify-between gap-3">
-          <p className="text-sm font-semibold">{t('clientCandidate.title')}</p>
-          <p className="shrink-0 text-sm font-semibold text-emerald-600">{t('clientCandidate.match')}</p>
-        </div>
-        <p className="mt-1 text-muted-foreground">{t('clientCandidate.quote')}</p>
-        <p className="mt-1.5 flex items-center gap-1 text-muted-foreground"><Lock className="h-3 w-3 shrink-0" />{t('clientCandidate.locked')}</p>
-        <div className="mt-2 flex items-center gap-2"><Chip strong>{t('clientCandidate.meet')}</Chip><Chip>{t('clientCandidate.decline')}</Chip></div>
-      </div>
-    </Frame>;
   }
 }

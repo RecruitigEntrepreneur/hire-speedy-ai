@@ -37,7 +37,7 @@ export function JobTabsBar({ jobId, active, counts, dots }: {
 }) {
   const { t } = useTranslation('clientJobs');
   return (
-    <nav className="-mb-px mt-4 flex gap-1 overflow-x-auto border-b" aria-label={t('tabs.label')}>
+    <nav data-tour="job.tabs" className="-mb-px mt-4 flex gap-1 overflow-x-auto border-b" aria-label={t('tabs.label')}>
       {JOB_TABS.map((tab) => (
         <Link
           key={tab}

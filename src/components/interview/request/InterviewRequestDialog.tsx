@@ -103,7 +103,7 @@ export function InterviewRequestDialog({ open, onOpenChange, submissionId, onSen
   const { t } = useTranslation('clientInterviews');
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[92vh] max-w-3xl flex-col gap-0 overflow-hidden p-0">
+      <DialogContent className="flex max-h-[92vh] max-w-3xl flex-col gap-0 overflow-hidden p-0" data-tour="request.window">
         {open && submissionId ? (
           <DialogBody
             submissionId={submissionId}

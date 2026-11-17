@@ -45,7 +45,7 @@ export function TaskRow({ task, onOpen, compact = false, active = false }: { tas
   // Etikett direkt hinter den Wert, zu dem es gehört (Wunsch, Fälligkeit), sonst ans Ende
   const chipAt = facts && c?.chip ? (() => { const i = facts.findIndex((p) => /^(Wunsch|fällig)/.test(p)); return i >= 0 ? i : facts.length - 1; })() : -1;
   return (
-    <div className={cn('flex items-center gap-3 rounded-lg px-2.5 py-2 transition-colors', task.urgent ? 'bg-destructive/[0.04] hover:bg-destructive/[0.08]' : 'hover:bg-accent/50', active && 'ring-1 ring-primary')}>
+    <div className={cn('flex items-center gap-3 rounded-lg px-2.5 py-2 transition-colors', task.urgent ? 'bg-destructive/[0.04] hover:bg-destructive/[0.08]' : 'hover:bg-accent/50', active && 'ring-1 ring-primary')} data-tour-task-row={task.kind}>
       <span className={cn('h-2 w-2 shrink-0 rounded-full', task.urgent ? 'bg-destructive' : 'bg-amber-500')} />
       <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
       <button type="button" className="min-w-0 flex-1 text-left" onClick={() => onOpen(task)}>
@@ -73,7 +73,7 @@ export function TaskRow({ task, onOpen, compact = false, active = false }: { tas
       {/* „seit 33 Tagen“ statt „33 Tagen“ (17.11.2026) */}
       {compact && <span className="shrink-0 text-xs text-muted-foreground">{sinceLabel(task.since)}</span>}
       {/* Auf dem Handy reicht die Zeile als Knopf, der Text bekommt den Platz */}
-      <Button size="sm" variant={task.urgent ? 'default' : 'outline'} className="hidden h-7 shrink-0 text-xs sm:inline-flex" onClick={() => onOpen(task)}>{TASK_ACTION[task.kind]}</Button>
+      <Button size="sm" variant={task.urgent ? 'default' : 'outline'} className="hidden h-7 shrink-0 text-xs sm:inline-flex" onClick={() => onOpen(task)} data-tour-task={task.kind}>{TASK_ACTION[task.kind]}</Button>
     </div>
   );
 }

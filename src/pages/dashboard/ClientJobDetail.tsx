@@ -414,8 +414,8 @@ export default function ClientJobDetail() {
             </div>
           )}
 
-          {/* Phasen-Hero */}
-          <div className="rounded-xl border bg-card p-5">
+          {/* Phasen-Hero; data-tour: Ziel des Kunden-Rundgangs bei einer Stelle in Prüfung (lib/clientGuide.ts) */}
+          <div className="rounded-xl border bg-card p-5" data-tour="job.review">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-bold capitalize md:text-2xl">{job.title}</h1>
               {(phase === 'review' || phase === 'client_approval') && verlauf ? (

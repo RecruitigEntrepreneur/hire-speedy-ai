@@ -46,5 +46,7 @@ export function useClientWaiting() {
   const info: ClientWaitingInfo | null = isWaiting
     ? { title: detail.data?.title ?? null, signerEmail: detail.data?.signer_email ?? null, self: detail.data?.self ?? true, closed }
     : null;
-  return { waiting: isWaiting && !closed, hasPosition: base.data?.hasPosition === true, info };
+  // Der Rundgang wartet darauf: sonst spielte die Bühne kurz an der Beispielstelle statt an der eingereichten.
+  const infoLoading = base.isLoading || (isWaiting && detail.isLoading);
+  return { waiting: isWaiting && !closed, hasPosition: base.data?.hasPosition === true, info, infoLoading };
 }

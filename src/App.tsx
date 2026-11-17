@@ -20,6 +20,7 @@ import ClientJobDetail from "./pages/dashboard/ClientJobDetail";
 import CandidateDetail from "./pages/dashboard/CandidateDetail";
 import ClientBewerberPage from "./pages/dashboard/ClientBewerberPage";
 import ClientAufgaben from "./pages/dashboard/ClientAufgaben";
+import ClientTour from "./pages/dashboard/ClientTour";
 import ClientBesetzungen from "./pages/dashboard/ClientBesetzungen";
 import ClientMessages from "./pages/dashboard/ClientMessages";
 import ClientSettings from "./pages/dashboard/ClientSettings";
@@ -249,6 +250,12 @@ function AppRoutes() {
       <Route path="/dashboard/candidates" element={
         <ProtectedRoute allowedRoles={['client']}>
           <ClientBewerberPage />
+        </ProtectedRoute>
+      } />
+      {/* Beispiel-Bühne des Kunden-Rundgangs (lib/clientGuide.ts): nichts wird gespeichert. */}
+      <Route path="/dashboard/rundgang" element={
+        <ProtectedRoute allowedRoles={['client']}>
+          <ClientTour />
         </ProtectedRoute>
       } />
       <Route path="/dashboard/command-center" element={<Navigate to="/dashboard" replace />} />

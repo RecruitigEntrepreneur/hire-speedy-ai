@@ -298,7 +298,8 @@ export default function ClientInterviews() {
           <>
             {/* Als Nächstes */}
             {focus === null && viewMode === 'agenda' && data?.nextUp && (
-              <NextInterviewHero interview={data.nextUp} onOpen={(iv) => openWindow(iv)} onOpenGuide={handleOpenGuide} onEdit={(iv) => openWindow(iv, 'reschedule')} />
+              // data-tour: Ziel des Kunden-Rundgangs (lib/clientGuide.ts)
+              <div data-tour="interviews.next"><NextInterviewHero interview={data.nextUp} onOpen={(iv) => openWindow(iv)} onOpenGuide={handleOpenGuide} onEdit={(iv) => openWindow(iv, 'reschedule')} /></div>
             )}
 
             {/* Filterleiste */}

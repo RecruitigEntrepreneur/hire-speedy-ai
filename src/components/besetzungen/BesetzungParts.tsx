@@ -79,7 +79,7 @@ export function BesetzungCard({ item, hasTask, onOpen }: { item: BesetzungItem; 
   const status = statusOf(item);
   const dran = dranOf(item, hasTask);
   return (
-    <button type="button" onClick={onOpen} className="w-full rounded-xl border bg-card p-4 text-left transition-colors hover:border-foreground/30">
+    <button type="button" onClick={onOpen} className="w-full rounded-xl border bg-card p-4 text-left transition-colors hover:border-foreground/30" data-tour="besetzung.card">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <p className="min-w-0 text-sm">
           <span className="font-semibold">{titleOf(item)}</span>
@@ -90,7 +90,7 @@ export function BesetzungCard({ item, hasTask, onOpen }: { item: BesetzungItem; 
           <StatusPill text={status.text} tone={status.tone} />
         </div>
       </div>
-      <div className="mt-2"><StepRow steps={stepsOf(item)} /></div>
+      <div className="mt-2" data-tour="besetzung.steps"><StepRow steps={stepsOf(item)} /></div>
       <div className="mt-3"><FactGrid facts={factsOf(item)} limit={4} /></div>
     </button>
   );
