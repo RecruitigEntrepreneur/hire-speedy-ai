@@ -68,6 +68,7 @@ const nb: Messages<typeof de> = {
       pay: 'Lønn / dagsats',
       region: 'Region',
       stage: 'Status',
+      swipe: 'sveip til siden',
     },
     status: {
       title: 'Slik går søket',

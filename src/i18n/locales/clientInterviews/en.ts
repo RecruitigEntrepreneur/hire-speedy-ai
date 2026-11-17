@@ -334,6 +334,12 @@ const en: Messages<typeof de> = {
     max: 'At most {{n}} proposals',
     time: 'Time',
     selected: 'Selected {{n}} of {{max}}',
+    dayFree_one: '{{count}} free',
+    dayFree_other: '{{count}} free',
+    dayPicked_one: '{{count}} picked',
+    dayPicked_other: '{{count}} picked',
+    dayFull: 'busy',
+    dayEmpty: 'No times on this day within your interview hours.',
     removeAria: 'Remove {{slot}}',
     legendGreen: 'green = everyone free',
     legendYellow: 'yellow = all required attendees free',
@@ -620,6 +626,9 @@ const en: Messages<typeof de> = {
 
   calendarView: {
     none: 'No appointments',
+    noneDay: 'No appointments on this day.',
+    prevWeek: 'Previous week',
+    nextWeek: 'Next week',
   },
 };
 

@@ -110,8 +110,8 @@ export function AgendaRow({
   return (
     <div
       className={cn(
-        'group flex items-center gap-3 rounded-lg px-2.5 py-2 transition-colors hover:bg-accent/40',
-        variant === 'counter' && 'flex-wrap sm:flex-nowrap',
+        // Am Handy bricht die Zeile um (16.11.2026): Termin, Bild, Name oben, Stand und Knöpfe darunter
+        'group flex flex-wrap items-center gap-3 rounded-lg px-2.5 py-2 transition-colors hover:bg-accent/40 sm:flex-nowrap',
       )}
     >
       {leftBlock}
@@ -138,13 +138,26 @@ export function AgendaRow({
       ) : (
         <button onClick={() => onDetails(iv)} className="min-w-0 flex-1 text-left">
           <CandidateName iv={iv} />
-          <p className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-muted-foreground">
+          <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
             <MeetingTypeIcon type={iv.meetingType} className="h-3 w-3 shrink-0" />
-            {meetingTypeLabel(iv.meetingType)}
-            {iv.onsiteAddress ? `, ${iv.onsiteAddress}` : ''} · {iv.jobTitle}
+            {/* eigener Text-Span, sonst endet der abgeschnittene Titel ohne „…“ */}
+            <span className="truncate">
+              {meetingTypeLabel(iv.meetingType)}
+              {iv.onsiteAddress ? `, ${iv.onsiteAddress}` : ''} · {iv.jobTitle}
+            </span>
           </p>
+          {/* Handy: der Stand als Zeile unter dem Namen, damit die Knöpfe in eine Reihe passen */}
+          {variant === 'awaiting' && (
+            <p className={cn('mt-0.5 truncate text-xs sm:hidden', iv.slotsExpired ? 'font-medium text-foreground' : 'text-muted-foreground')}>
+              {iv.slotsExpired ? t('row.slotsExpired') : awaitingLabel(iv)}
+            </p>
+          )}
         </button>
       )}
+
+      {/* Am Handy: Umbruch, dann Platzhalter, damit Stand und Knöpfe rechtsbündig in der zweiten Zeile stehen */}
+      {variant !== 'counter' && <span className="h-0 basis-full sm:hidden" aria-hidden />}
+      {variant !== 'counter' && <span className="flex-1 sm:hidden" aria-hidden />}
 
       {/* Status/Zusatz je Variante */}
       {variant === 'agenda' && !iv.confirmed && (
@@ -160,7 +173,7 @@ export function AgendaRow({
         <span className="hidden shrink-0 text-xs text-muted-foreground lg:inline">{waitLabel(iv.waitingHours)}</span>
       )}
       {variant === 'awaiting' && (
-        <span className={cn('shrink-0 text-xs', iv.slotsExpired ? 'font-medium text-foreground' : 'text-muted-foreground')}>
+        <span className={cn('shrink-0 text-xs max-sm:hidden', iv.slotsExpired ? 'font-medium text-foreground' : 'text-muted-foreground')}>
           {iv.slotsExpired ? t('row.slotsExpired') : awaitingLabel(iv)}
         </span>
       )}

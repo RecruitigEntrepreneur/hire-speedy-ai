@@ -50,6 +50,7 @@ const en: Messages<typeof de> = {
     pickTitle: 'Choose a conversation',
     pickText: 'Click a conversation on the left to show messages',
     inboxTitle: 'Inbox',
+    backToList: 'All messages',
     inboxSubtitle: 'Conversations with clients',
     noneYet: 'No conversations yet',
     emptyText: 'Questions from clients about your candidates land here.',

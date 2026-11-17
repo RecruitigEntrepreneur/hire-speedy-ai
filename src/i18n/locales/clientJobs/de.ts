@@ -66,6 +66,7 @@ const de = {
       pay: 'Gehalt / Tagessatz',
       region: 'Region',
       stage: 'Stand',
+      swipe: 'seitlich wischen',
     },
     status: {
       title: 'So läuft die Suche',

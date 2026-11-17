@@ -41,10 +41,10 @@ export function TalentPoolDashboard() {
   if (loadingEntries) {
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i}>
-              <CardContent className="pt-6">
+              <CardContent className="p-4 md:p-6">
                 <Skeleton className="h-8 w-16 mb-2" />
                 <Skeleton className="h-4 w-24" />
               </CardContent>
@@ -52,7 +52,7 @@ export function TalentPoolDashboard() {
           ))}
         </div>
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="p-4 md:p-6">
             <div className="space-y-4">
               {[1, 2, 3].map((i) => (
                 <Skeleton key={i} className="h-24 w-full" />
@@ -67,9 +67,9 @@ export function TalentPoolDashboard() {
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-muted-foreground" />
               <div>
@@ -81,7 +81,7 @@ export function TalentPoolDashboard() {
         </Card>
 
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center gap-2">
               <Star className="h-5 w-5 text-amber-500" />
               <div>
@@ -93,7 +93,7 @@ export function TalentPoolDashboard() {
         </Card>
 
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center gap-2">
               <Clock className="h-5 w-5 text-orange-500" />
               <div>
@@ -105,7 +105,7 @@ export function TalentPoolDashboard() {
         </Card>
 
         <Card>
-          <CardContent className="pt-6">
+          <CardContent className="p-4 md:p-6">
             <div className="flex items-center gap-2">
               <Bell className="h-5 w-5 text-blue-500" />
               <div>

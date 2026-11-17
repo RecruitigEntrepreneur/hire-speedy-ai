@@ -14,6 +14,10 @@ const sv: Messages<typeof de> = {
     team: 'Team',
     messages: 'Meddelanden',
   },
+  short: {
+    dashboard: 'Översikt',
+    jobs: 'Tjänster',
+  },
   settings: 'Inställningar',
   signOut: 'Logga ut',
   theme: 'Tema',

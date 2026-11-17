@@ -407,7 +407,7 @@ export default function RecruiterSubmissions() {
         {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold tracking-tight">{t('page.title')}</h1>
+              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t('page.title')}</h1>
               <p className="text-muted-foreground">
                 {t('page.active', { count: activeCount })}
                 {submissions.length > activeCount && (
@@ -418,8 +418,10 @@ export default function RecruiterSubmissions() {
                 )}
               </p>
             </div>
-            <div className="flex gap-2">
-              <Link to="/recruiter/influence">
+            {/* Umbrechen nur, solange Titel und Knöpfe untereinander stehen (unter md) */}
+            <div className="flex flex-wrap gap-2 md:shrink-0 md:flex-nowrap">
+              {/* Am Handy führt „Aufgaben“ in der Leiste unten auf dieselbe Seite (17.11.2026) */}
+              <Link to="/recruiter/influence" className="max-sm:hidden">
                 <Button variant="outline" size="sm">
                   <Zap className="h-4 w-4 mr-2" />
                   {t('page.influence')}

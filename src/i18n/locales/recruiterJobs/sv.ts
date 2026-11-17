@@ -3,6 +3,7 @@ import type { Messages } from '../../types';
 
 const sv: Messages<typeof de> = {
   list: {
+    pageTitle: 'Lediga uppdrag',
     noJobChosen: 'Ingen tjänst vald.',
     failed: 'Det gick inte.',
     greeting: {

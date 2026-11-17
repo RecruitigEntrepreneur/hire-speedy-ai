@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { DoneRow, TaskRow, WaitingRow } from '@/components/client/tasks/ClientTaskParts';
 import { ClientTaskWindow } from '@/components/client/tasks/ClientTaskWindow';
 import { taskHref, useClientTasks, type ClientTask } from '@/lib/clientTasksApi';
+import { StellenTitelKurz } from '@/components/client/StellenTitelKurz';
 
 /**
  * Seite „Aufgaben“ des Kunden (23.10.2026): alles, wo der Kunde dran ist, an einem Ort –
@@ -118,14 +119,17 @@ export default function ClientAufgaben() {
                   <Kpi value={String(doneToday)} label={t('tasks.kpiDoneToday')} />
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <Button size="sm" variant={jobFilter ? 'outline' : 'default'} className="h-7 text-xs" onClick={() => setJobFilter(null)}>{t('tasks.allJobs', { count: allTasks.length })}</Button>
-                  {jobs.map((j) => (
-                    <Button key={j.id} size="sm" variant={jobFilter === j.id ? 'default' : 'outline'} className="h-7 max-w-[16rem] text-xs" onClick={() => setJobFilter(jobFilter === j.id ? null : j.id)}>
-                      <span className="truncate">{j.title}</span>&nbsp;· {j.n}
-                    </Button>
-                  ))}
+                  {/* Handy: Stellen-Knöpfe in einer Zeile zum Wischen, der Schalter darunter */}
+                  <div className="handy-wischen contents max-md:flex max-md:w-full max-md:gap-1.5">
+                    <Button size="sm" variant={jobFilter ? 'outline' : 'default'} className="h-7 text-xs" onClick={() => setJobFilter(null)}>{t('tasks.allJobs', { count: allTasks.length })}</Button>
+                    {jobs.map((j) => (
+                      <Button key={j.id} size="sm" variant={jobFilter === j.id ? 'default' : 'outline'} className="h-7 max-w-[16rem] text-xs" onClick={() => setJobFilter(jobFilter === j.id ? null : j.id)}>
+                        <span className="truncate"><StellenTitelKurz titel={j.title} /></span>&nbsp;· {j.n}
+                      </Button>
+                    ))}
+                  </div>
                   {jobs.length > 1 && !jobFilter && (
-                    <label className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+                    <label className="ml-auto flex items-center gap-2 text-xs text-muted-foreground max-md:ml-0 max-md:mt-1">
                       <Switch checked={byJob} onCheckedChange={toggleGroup} aria-label={t('tasks.byJob')} />
                       {t('tasks.byJob')}
                     </label>

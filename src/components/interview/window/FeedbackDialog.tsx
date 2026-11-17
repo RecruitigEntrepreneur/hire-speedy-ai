@@ -36,7 +36,8 @@ export function FeedbackDialog({ interviewId, open, onOpenChange, candidateName,
   });
   const notes = useLiveInterviewNotes(open ? interviewId : null);
   const d = details.data;
-  const first = candidateName.split(' ')[0] || candidateName;
+  // Geschützter Bindestrich: „PR-000000“ bricht am Handy nicht mehr in zwei Zeilen (17.11.2026)
+  const first = (candidateName.split(' ')[0] || candidateName).replace(/-/g, '\u2011');
   const people = d?.attendees.map((a) => a.name).filter(Boolean).join(', ');
 
   return (

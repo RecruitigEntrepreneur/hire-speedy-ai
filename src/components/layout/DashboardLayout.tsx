@@ -61,6 +61,9 @@ import { PosteingangKnopf } from './PosteingangKnopf';
 import { ansichtAnwenden } from '@/lib/ansicht';
 import { HonorarSchalter } from '@/components/recruiter/Honorar';
 import { GlobalSearch } from './GlobalSearch';
+import { HandyLeiste } from './HandyLeiste';
+import { istAktiv } from '@/lib/navAktiv';
+import { useFeedbackEnabled } from '@/lib/feedback/api';
 import { useDashboardKeyboardShortcuts } from '@/hooks/useDashboardKeyboardShortcuts';
 import { KeyboardShortcutsHelp } from '@/components/dashboard/KeyboardShortcutsHelp';
 import { useNewFeedbackCount } from '@/hooks/useAdminFeedback';
@@ -76,6 +79,8 @@ interface DashboardLayoutProps {
 
 interface NavItem {
   label: string;
+  /** Kurzfassung für die Handy-Leiste unten. */
+  kurz?: string;
   href: string;
   icon: ReactNode;
   /** Zähler rechts neben dem Eintrag, z. B. neues Feedback. */
@@ -87,6 +92,8 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
   const location = useLocation();
   const navigate = useNavigate();
   const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
+  // Handy: Sprache im Profilmenü eingeklappt, ein Tipp klappt die Liste auf (16.11.2026)
+  const [spracheOffen, setSpracheOffen] = useState(false);
   // Schriftgröße und „weniger Bewegung“ aus Einstellungen › Darstellung (16.11.2026)
   useEffect(() => { ansichtAnwenden(); }, []);
   
@@ -117,10 +124,10 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
   // Menü des Kunden in der Sprache der Oberfläche (clientNav); Admin-Menü bleibt deutsch.
   const { t: tClient } = useTranslation('clientNav');
   const clientNavItems: NavItem[] = [
-    { label: tClient('items.dashboard'), href: '/dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
+    { label: tClient('items.dashboard'), kurz: tClient('short.dashboard'), href: '/dashboard', icon: <LayoutDashboard className="h-4 w-4" /> },
     // Kunden-Aufgaben (23.10.2026): Zahl bleibt, bis alles erledigt ist
     { label: tClient('items.tasks'), href: '/dashboard/aufgaben', icon: <CheckSquare className="h-4 w-4" />, badge: clientTasks.data?.counts.total ?? 0 },
-    { label: tClient('items.jobs'), href: '/dashboard/jobs', icon: <Briefcase className="h-4 w-4" /> },
+    { label: tClient('items.jobs'), kurz: tClient('short.jobs'), href: '/dashboard/jobs', icon: <Briefcase className="h-4 w-4" /> },
     { label: tClient('items.candidates'), href: '/dashboard/candidates', icon: <Users className="h-4 w-4" /> },
     { label: tClient('items.interviews'), href: '/dashboard/interviews', icon: <Calendar className="h-4 w-4" /> },
     // Besetzungen (Etappe 2, 25.10.2026): ersetzt „Angebote“ und „Placements“
@@ -139,8 +146,8 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
     { label: tNav('items.overview'), href: '/recruiter', icon: <LayoutDashboard className="h-4 w-4" /> },
     { label: tNav('items.tasks'), href: '/recruiter/influence', icon: <CheckSquare className="h-4 w-4" /> },
     { label: tNav('items.interviews'), href: '/recruiter/interviews', icon: <Calendar className="h-4 w-4" /> },
-    { label: tNav('items.jobs'), href: '/recruiter/jobs', icon: <Briefcase className="h-4 w-4" /> },
-    { label: tNav('items.candidates'), href: '/recruiter/candidates', icon: <Users className="h-4 w-4" /> },
+    { label: tNav('items.jobs'), kurz: tNav('short.jobs'), href: '/recruiter/jobs', icon: <Briefcase className="h-4 w-4" /> },
+    { label: tNav('items.candidates'), kurz: tNav('short.candidates'), href: '/recruiter/candidates', icon: <Users className="h-4 w-4" /> },
     { label: tNav('items.pipeline'), href: '/recruiter/submissions', icon: <FileText className="h-4 w-4" /> },
     { label: tNav('items.talentPool'), href: '/recruiter/talent-pool', icon: <Database className="h-4 w-4" /> },
     // Matchunt Liga (16.11.2026): kein Menüpunkt mehr, sondern das Kärtchen unten über den Einstellungen
@@ -191,6 +198,21 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
     ? (financeOnly ? clientNavItems.filter((i) => i.href === '/dashboard/rechnungen') : clientNavItems)
     : [];
 
+  // Handy (16.11.2026, Variante A): vier Wege unten, der Rest unter „Mehr“.
+  // Headhunter: Übersicht, Aufgaben, Kandidaten, Jobs. Kunde: Dashboard, Aufgaben, Jobs, Bewerber.
+  const handyHauptHrefs = role === 'recruiter'
+    ? ['/recruiter', '/recruiter/influence', '/recruiter/candidates', '/recruiter/jobs']
+    : role === 'client'
+    ? ['/dashboard', '/dashboard/aufgaben', '/dashboard/jobs', '/dashboard/candidates']
+    : navItems.slice(0, 4).map((i) => i.href);
+  const handyGesucht = handyHauptHrefs.map((h) => navItems.find((i) => i.href === h)).filter((i): i is NavItem => !!i);
+  // Buchhaltung sieht nur „Rechnungen“: dann steht das unten statt der vier Wege.
+  const handyHaupt = handyGesucht.length ? handyGesucht : navItems.slice(0, 4);
+  const handyMehr = navItems.filter((i) => !handyHaupt.includes(i));
+  // Wartezustand des Kunden: dasselbe Schloss wie in der Seitenleiste
+  const mitSchloss = (i: NavItem) => ({ ...i, gesperrt: clientWaiting && i.href !== '/dashboard' });
+  const { data: feedbackAn = false } = useFeedbackEnabled();
+
   const { t: tCommon } = useTranslation('common');
   const isClient = role === 'client';
   const { language } = useLanguageState();
@@ -222,7 +244,7 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
             {(role === 'recruiter' || role === 'client') && <PosteingangKnopf href={role === 'recruiter' ? '/recruiter/messages' : '/dashboard/messages'} />}
             <NotificationBell />
             
-            <DropdownMenu>
+            <DropdownMenu onOpenChange={(o) => { if (!o) setSpracheOffen(false); }}>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="icon" className="rounded-full">
                   <User className="h-4 w-4" />
@@ -240,14 +262,31 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
                     {isRecruiter ? tNav('settings') : isClient ? tClient('settings') : 'Einstellungen'}
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger className="cursor-pointer" data-testid="account-language">
+                {/* Sprache: am Computer als Untermenü; am Handy einklappbar im selben Menü, weil das
+                    Untermenü dort links aus dem Bild ragte (16.11.2026). */}
+                <div className="hidden md:block">
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger className="cursor-pointer" data-testid="account-language">
+                      <Flag code={languageDef(language).flag} className="mr-2" />
+                      <span className="flex-1">{tCommon('language.label')}</span>
+                      <span className="text-xs text-muted-foreground">{languageDef(language).label}</span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="min-w-[13rem]"><LanguageItems /></DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                </div>
+                <div className="md:hidden">
+                  <DropdownMenuItem
+                    className="cursor-pointer"
+                    aria-expanded={spracheOffen}
+                    onSelect={(e) => { e.preventDefault(); setSpracheOffen((v) => !v); }}
+                  >
                     <Flag code={languageDef(language).flag} className="mr-2" />
                     <span className="flex-1">{tCommon('language.label')}</span>
                     <span className="text-xs text-muted-foreground">{languageDef(language).label}</span>
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent className="min-w-[13rem]"><LanguageItems /></DropdownMenuSubContent>
-                </DropdownMenuSub>
+                    <ChevronRight className={cn('ml-1 h-4 w-4 text-muted-foreground transition-transform', spracheOffen && 'rotate-90')} aria-hidden />
+                  </DropdownMenuItem>
+                  {spracheOffen && <div className="ml-3 border-l border-border pl-1"><LanguageItems /></div>}
+                </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />
@@ -271,8 +310,7 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
                 </div>
               ))}
               {navItems.map((item) => {
-                const isActive = location.pathname === item.href || 
-                  (item.href !== '/dashboard' && item.href !== '/recruiter' && item.href !== '/admin' && location.pathname.startsWith(item.href));
+                const isActive = istAktiv(location.pathname, item.href);
                 
                 return (
                   <Link
@@ -330,7 +368,8 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
             min-w-max) auf dessen Breite aufgeblaeht — dann sprengt die Seite
             den Viewport und innere overflow-x-auto-Container koennen nicht
             mehr scrollen. */}
-        <main className="min-w-0 flex-1 md:ml-64">
+        {/* pb: am Handy Platz für die Leiste unten (--handy-leiste, index.css) */}
+        <main className="min-w-0 flex-1 pb-[var(--handy-leiste,0px)] md:ml-64 md:pb-0">
           <div className={cn(fluid ? 'w-full px-4 md:px-6' : 'container', 'py-6')}>
             {children}
           </div>
@@ -338,6 +377,20 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
         {/* Lebenslauf-Ablage (09.11.2026): bleibt beim Seitenwechsel stehen */}
         {role === 'recruiter' && <LebenslaufAblageLeiste />}
       </div>
+
+      {role && (
+        <HandyLeiste
+          haupt={handyHaupt.map(mitSchloss)}
+          mehr={handyMehr.map(mitSchloss)}
+          einstellungen={{
+            label: isRecruiter ? tNav('settings') : isClient ? tClient('settings') : 'Einstellungen',
+            href: settingsHref,
+            aktiv: location.pathname === settingsHref || (role === 'recruiter' && location.pathname === '/recruiter/integrations'),
+          }}
+          zusatz={isRecruiter ? <LigaSeitenleiste /> : undefined}
+          feedback={feedbackAn || role === 'admin'}
+        />
+      )}
 
       {/* Keyboard Shortcuts Help Modal */}
       <KeyboardShortcutsHelp 

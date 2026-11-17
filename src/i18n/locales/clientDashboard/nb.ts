@@ -102,6 +102,7 @@ const nb: Messages<typeof de> = {
     previewOnly: '{{what}} er ennå ikke tilkoblet i denne forhåndsvisningen.',
     continue: 'Fortsett:',
     untitled: 'Utkast uten navn',
+    continueDrafts: 'Fortsett med utkast',
     allDrafts: 'alle utkast',
     newTitle: 'Legg til ny stilling',
     newLead: 'Lim inn annonse, last opp eller beskriv selv',
@@ -492,6 +493,7 @@ const nb: Messages<typeof de> = {
     done7: 'Fullført · siste 7 dager · {{count}}',
   },
   messages: {
+    backToList: 'Alle meldinger',
     title: 'Meldinger',
     subtitle: 'Spørsmålene dine til headhunterne, per kandidat',
     unknown: 'Ukjent',

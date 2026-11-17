@@ -56,6 +56,7 @@ import { de } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { useInterviewTypes } from '@/hooks/useInterviewTypes';
 import { ParticipantRole } from '@/hooks/useInterviewParticipants';
+import { initialen } from '@/lib/initialen';
 
 interface CandidateInfo {
   id: string;
@@ -468,7 +469,7 @@ export function InterviewSchedulingDialog({
                           <div className="flex items-center gap-2">
                             <Avatar className="h-6 w-6">
                               <AvatarFallback className="text-xs">
-                                {participant.name.split(' ').map(n => n[0]).join('')}
+                                {initialen(participant.name)}
                               </AvatarFallback>
                             </Avatar>
                             <span className="text-sm">{participant.name}</span>
@@ -524,7 +525,7 @@ export function InterviewSchedulingDialog({
                                 >
                                   <Avatar className="h-6 w-6 mr-2">
                                     <AvatarFallback className="text-xs">
-                                      {member.name.split(' ').map(n => n[0]).join('')}
+                                      {initialen(member.name)}
                                     </AvatarFallback>
                                   </Avatar>
                                   <div>

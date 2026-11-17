@@ -109,6 +109,8 @@ const en: Messages<typeof de> = {
     reportedAccept: 'You reported the acceptance. {{name}} still needs to confirm it by email.',
     reportedAcceptAt: 'You reported the acceptance ({{when}}). {{name}} still needs to confirm it by email.',
     reportedLong: ' No click for 24 hrs: call {{name}}.',
+    reportedLongDays_one: ' No click for {{count}} day: call {{name}}.',
+    reportedLongDays_other: ' No click for {{count}} days: call {{name}}.',
     counterWithClient: 'Your counter-request is with {{company}}.',
     acceptedSelf: '{{name}} accepted directly. {{company}} is sending the contract.',
     accepted: '{{name}} accepted. {{company}} is sending the contract.',

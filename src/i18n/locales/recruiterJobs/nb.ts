@@ -3,6 +3,7 @@ import type { Messages } from '../../types';
 
 const nb: Messages<typeof de> = {
   list: {
+    pageTitle: 'Ledige oppdrag',
     noJobChosen: 'Ingen stilling valgt.',
     failed: 'Det gikk ikke.',
     greeting: {

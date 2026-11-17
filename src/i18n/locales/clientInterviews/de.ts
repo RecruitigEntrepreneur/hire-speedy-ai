@@ -336,6 +336,13 @@ const de = {
     max: 'Höchstens {{n}} Vorschläge',
     time: 'Uhrzeit',
     selected: 'Ausgewählt {{n}} von {{max}}',
+    // Handy: Tage als Reiter, Zeiten als Kacheln (17.11.2026)
+    dayFree_one: '{{count}} frei',
+    dayFree_other: '{{count}} frei',
+    dayPicked_one: '{{count}} gewählt',
+    dayPicked_other: '{{count}} gewählt',
+    dayFull: 'belegt',
+    dayEmpty: 'An diesem Tag gibt es keine Zeiten in Ihren Interview-Zeiten.',
     removeAria: '{{slot}} entfernen',
     legendGreen: 'grün = alle frei',
     legendYellow: 'gelb = alle Pflicht-Teilnehmer frei',
@@ -626,6 +633,9 @@ const de = {
 
   calendarView: {
     none: 'Keine Termine',
+    noneDay: 'Keine Termine an diesem Tag.',
+    prevWeek: 'Vorige Woche',
+    nextWeek: 'Nächste Woche',
   },
 };
 

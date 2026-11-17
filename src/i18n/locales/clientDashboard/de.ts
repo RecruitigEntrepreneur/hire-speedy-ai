@@ -101,6 +101,7 @@ const de = {
     previewOnly: '{{what}} ist in dieser Vorschau noch nicht angeschlossen.',
     continue: 'Weitermachen:',
     untitled: 'Unbenannter Entwurf',
+    continueDrafts: 'Entwürfe weitermachen',
     allDrafts: 'alle Entwürfe',
     newTitle: 'Neue Position aufnehmen',
     newLead: 'Anzeige einfügen, hochladen oder von Hand beschreiben',
@@ -494,6 +495,7 @@ const de = {
     done7: 'Erledigt · letzte 7 Tage · {{count}}',
   },
   messages: {
+    backToList: 'Alle Nachrichten',
     title: 'Nachrichten',
     subtitle: 'Ihre Fragen an die Headhunter, je Kandidat',
     unknown: 'Unbekannt',

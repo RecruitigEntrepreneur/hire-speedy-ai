@@ -107,7 +107,7 @@ const de = {
     now: 'Sofort',
     from: 'Ab {{date}}',
     remotePossible: 'Remote möglich',
-    labelSeniority: 'Seniority',
+    labelSeniority: 'Seniorität',
     labelSalary: 'Gehalt',
     labelAvailable: 'Verfügbar',
     labelWorkModel: 'Arbeitsmodell',

@@ -8,6 +8,19 @@ const en: Messages<typeof de> = {
     settingsHintRecruiter: 'Applies to the interface and to emails we send you. Positions, candidate profiles and contracts stay in their own language.',
   },
   search: {
+    cPh: 'Job, applicant or reference …',
+    cHint: 'Search by job, location, applicant, role or reference.',
+    cApplicants: 'Applicants',
+    forJob: 'for {{job}}',
+    running_one: '{{count}} active candidate',
+    running_other: '{{count}} active candidates',
+    jobState: { published: 'active', paused: 'paused', pending_approval: 'in review', draft: 'draft', filled: 'filled', closed: 'closed', cancelled: 'closed' },
+    hhPh: 'Name, phone number, email or job …',
+    hhHint: 'Search by name, phone number, email or job.',
+    myCandidates: 'My candidates',
+    jobs: 'Jobs',
+    call: 'Call {{name}}',
+    none: 'Nothing found for “{{q}}”.',
     open: 'Search...',
     ph: 'Search jobs, candidates or actions...',
     loading: 'Searching...',
@@ -24,6 +37,13 @@ const en: Messages<typeof de> = {
   candidateHero: {
     at: ' at {{company}}',
     years: '{{count}} yrs experience',
+  },
+  mobileNav: {
+    label: 'Main menu',
+    more: 'Menu',
+    feedback: 'Give feedback',
+    light: 'Light',
+    dark: 'Dark',
   },
   ui: {
     close: 'Close',

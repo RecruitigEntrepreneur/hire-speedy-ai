@@ -94,7 +94,8 @@
     --cv-border: 213 72% 74%;
     --cv-fg: 213 74% 34%;
 
-    --background: 0 0% 98%;
+    /* Fassung C (17.11.2026): warmgrauer Grund, weiße Karten, feine Linie, weicher Schatten */
+    --background: 60 5% 96%;
     --foreground: 0 0% 4%;
 
     --card: 0 0% 100%;
@@ -106,13 +107,13 @@
     --primary: 0 0% 4%;
     --primary-foreground: 0 0% 98%;
 
-    --secondary: 0 0% 96%;
+    --secondary: 30 6% 93%;
     --secondary-foreground: 0 0% 4%;
 
-    --muted: 0 0% 96%;
+    --muted: 30 6% 93%;
     --muted-foreground: 0 0% 45%;
 
-    --accent: 0 0% 96%;
+    --accent: 30 6% 93%;
     --accent-foreground: 0 0% 4%;
 
     --success: 152 69% 40%;
@@ -124,31 +125,31 @@
     --destructive: 0 72% 50%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 90%;
-    --input: 0 0% 90%;
+    --border: 20 6% 90%;
+    --input: 20 6% 86%;
     --ring: 0 0% 45%;
 
     --gradient-navy: linear-gradient(135deg, hsl(0 0% 96%) 0%, hsl(0 0% 100%) 100%);
     --gradient-hero: linear-gradient(135deg, hsl(0 0% 98%) 0%, hsl(0 0% 100%) 100%);
     --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(0 0% 98%) 100%);
 
-    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.05);
-    --shadow-md: 0 2px 4px -1px hsl(0 0% 0% / 0.06);
-    --shadow-lg: 0 4px 6px -1px hsl(0 0% 0% / 0.07);
+    --shadow-sm: 0 1px 3px 0 hsl(24 10% 10% / 0.08), 0 1px 2px -1px hsl(24 10% 10% / 0.05);
+    --shadow-md: 0 4px 8px -2px hsl(24 10% 10% / 0.08), 0 2px 4px -2px hsl(24 10% 10% / 0.05);
+    --shadow-lg: 0 10px 18px -4px hsl(24 10% 10% / 0.09), 0 4px 8px -4px hsl(24 10% 10% / 0.05);
     --shadow-xl: 0 8px 16px -2px hsl(0 0% 0% / 0.08);
     --shadow-glow: 0 0 40px hsl(0 0% 0% / 0.03);
     --shadow-navy: 0 10px 30px -10px hsl(0 0% 0% / 0.08);
-    --shadow-2xs: 0 1px 2px 0 hsl(0 0% 0% / 0.03);
-    --shadow-xs: 0 1px 2px 0 hsl(0 0% 0% / 0.03);
+    --shadow-2xs: 0 1px 2px 0 hsl(24 10% 10% / 0.05);
+    --shadow-xs: 0 1px 2px 0 hsl(24 10% 10% / 0.06);
     --shadow-2xl: 0 16px 32px -4px hsl(0 0% 0% / 0.1);
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 0 0% 4%;
     --sidebar-primary: 0 0% 4%;
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 0 0% 96%;
+    --sidebar-accent: 30 6% 93%;
     --sidebar-accent-foreground: 0 0% 4%;
-    --sidebar-border: 0 0% 90%;
+    --sidebar-border: 20 6% 90%;
     --sidebar-ring: 0 0% 45%;
 
     --chart-1: 0 0% 4%;
@@ -499,4 +500,73 @@
   animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important;
   scroll-behavior: auto !important;
+}
+
+/* Handy-Menü unten (HandyLeiste, 16.11.2026): Höhe der Leiste, nur am Handy und nur,
+   wenn sie da ist. Eigene Leisten am unteren Rand nutzen bottom-[var(--handy-leiste,0px)]. */
+@layer base {
+  @media (max-width: 767px) {
+    html.mit-handy-leiste {
+      --handy-leiste: calc(3.5rem + env(safe-area-inset-bottom));
+    }
+    /* Netz unter allen Rastern: Ein Rasterfeld darf schmaler werden als seine längste Zeile,
+       sonst schiebt eine einzige lange Zeile die ganze Seite über den Rand. min-w-* gewinnt. */
+    .grid > * {
+      min-width: 0;
+    }
+    /* Ragt doch einmal etwas über den Rand, verkleinert das Handy sonst die ganze Seite und Fenster
+       sitzen schief (Paul Kurztest, 16.11.2026). clip statt hidden: die Kopfzeile bleibt sticky. */
+    html, body {
+      overflow-x: clip;
+    }
+  }
+}
+
+/* Handy 16 px Seitenrand statt 32 px (16.11.2026); ab 768 px bleibt alles wie bisher. */
+@layer components {
+  @media (max-width: 767px) {
+    .container {
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+  }
+}
+
+/* Handy: Filter-Knöpfe in einer Zeile zum Wischen statt über viele Zeilen umzubrechen
+   (Kunden-Durchklick 16.11.2026). !important, weil flex-wrap als Utility sonst gewinnt. */
+@layer utilities {
+  @media (max-width: 767px) {
+    .handy-wischen {
+      flex-wrap: nowrap !important;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .handy-wischen::-webkit-scrollbar {
+      display: none;
+    }
+    .handy-wischen > * {
+      flex-shrink: 0;
+    }
+  }
+}
+
+/* Handy (17.11.2026): Das iPhone zoomt beim Antippen eines Felds unter 16 px hinein und bleibt
+   danach vergrößert. Am Handy haben deshalb alle Eingabefelder 16 px, am Desktop bleibt alles. */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* Heller Modus, Fassung C (17.11.2026): halb durchsichtige Rahmen verschwinden auf Weiß.
+   Im hellen Modus zeigen sie die volle Rahmenfarbe; der dunkle Modus bleibt, wie er ist. */
+.light .border-border\/10,
+.light .border-border\/20,
+.light .border-border\/30,
+.light .border-border\/40,
+.light .border-border\/50,
+.light .border-border\/60 {
+  border-color: hsl(var(--border));
 }

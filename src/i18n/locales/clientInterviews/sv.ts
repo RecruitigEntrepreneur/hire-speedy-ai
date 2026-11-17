@@ -334,6 +334,12 @@ const sv: Messages<typeof de> = {
     max: 'Högst {{n}} förslag',
     time: 'Tid',
     selected: 'Valt {{n}} av {{max}}',
+    dayFree_one: '{{count}} ledig',
+    dayFree_other: '{{count}} lediga',
+    dayPicked_one: '{{count}} vald',
+    dayPicked_other: '{{count}} valda',
+    dayFull: 'upptagen',
+    dayEmpty: 'Inga tider den här dagen inom dina intervjutider.',
     removeAria: 'Ta bort {{slot}}',
     legendGreen: 'grön = alla lediga',
     legendYellow: 'gul = alla obligatoriska deltagare lediga',
@@ -620,6 +626,9 @@ const sv: Messages<typeof de> = {
 
   calendarView: {
     none: 'Inga möten',
+    noneDay: 'Inga möten den här dagen.',
+    prevWeek: 'Föregående vecka',
+    nextWeek: 'Nästa vecka',
   },
 };
 

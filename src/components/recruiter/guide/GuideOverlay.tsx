@@ -164,7 +164,7 @@ export function GuidePausePill({ onResume, onClose, text, texts = 'texts' }: {
 }) {
   const { t } = useTranslation('recruiterGuide');
   return createPortal(
-    <div role="status" className="pointer-events-auto fixed bottom-4 right-4 z-[102] flex max-w-[calc(100vw-2rem)] items-center gap-2 rounded-full border border-border bg-popover py-1.5 pl-4 pr-1.5 text-popover-foreground shadow-lg">
+    <div role="status" className="pointer-events-auto fixed bottom-[calc(var(--handy-leiste,0px)+1rem)] right-4 z-[102] flex max-w-[calc(100vw-2rem)] items-center gap-2 rounded-full border border-border bg-popover py-1.5 pl-4 pr-1.5 text-popover-foreground shadow-lg">
       <Compass className="h-4 w-4 shrink-0 text-primary" />
       <span className="text-sm">{text ?? t(`${texts}.paused`)}</span>
       {onResume && <Button size="sm" className="h-8 rounded-full" onClick={onResume}>{t(`${texts}.resume`)}</Button>}

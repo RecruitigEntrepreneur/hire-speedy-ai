@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
+  ArrowLeft,
   Loader2,
   MessageSquare,
   Send,
@@ -64,6 +65,8 @@ export default function RecruiterMessages() {
   // Link aus Glocke und Mail: /recruiter/messages?c=<Gespräch>
   const [searchParams] = useSearchParams();
   const linkedConversation = searchParams.get('c');
+  // Handy (16.11.2026): erst die Liste, ein Tipp öffnet das Gespräch; über einen Link (?c=) gleich das Gespräch.
+  const [handyGespraech, setHandyGespraech] = useState(!!linkedConversation);
 
   useEffect(() => {
     if (user) {
@@ -282,7 +285,7 @@ export default function RecruiterMessages() {
     <button
       key={conv.id}
       type="button"
-      onClick={() => setSelectedConversation(conv.id)}
+      onClick={() => { setSelectedConversation(conv.id); setHandyGespraech(true); }}
       className={`w-full p-3 text-left transition-colors ${selectedConversation === conv.id ? 'bg-muted' : 'hover:bg-muted/50'}`}
     >
       <div className="flex items-start gap-3">
@@ -320,15 +323,15 @@ export default function RecruiterMessages() {
       <div className="space-y-6">
         {/* Posteingang (15.11.2026): erreichbar über die Sprechblase oben, kein Menüpunkt */}
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">{t('messages.inboxTitle')}</h1>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t('messages.inboxTitle')}</h1>
           <p className="text-muted-foreground">{t('messages.inboxSubtitle')}</p>
         </div>
 
-        <div className="grid min-h-[500px] gap-6 md:h-[calc(100vh-280px)] md:grid-cols-3">
+        <div className="grid gap-6 md:h-[calc(100vh-280px)] md:min-h-[500px] md:grid-cols-3">
           {/* Links: was auf dich wartet, darunter Beantwortetes */}
-          <Card className="md:col-span-1">
+          <Card className={handyGespraech ? 'max-md:hidden md:col-span-1' : 'md:col-span-1'}>
             <CardContent className="p-0">
-              <ScrollArea className="h-[calc(100vh-300px)] min-h-[450px] [&_[data-radix-scroll-area-viewport]>div]:!block">
+              <ScrollArea className="md:h-[calc(100vh-300px)] md:min-h-[450px] [&_[data-radix-scroll-area-viewport]>div]:!block">
                 {conversations.length === 0 ? (
                   <div className="px-4 py-8 text-center">
                     <MessageSquare className="mx-auto h-8 w-8 text-muted-foreground/50" />
@@ -347,10 +350,13 @@ export default function RecruiterMessages() {
           </Card>
 
           {/* Rechts: das Gespräch mit Antwortfeld und Verlauf */}
-          <Card className="flex flex-col md:col-span-2">
+          <Card className={handyGespraech ? 'flex flex-col md:col-span-2' : 'flex flex-col max-md:hidden md:col-span-2'}>
             {aktiv ? (
               <>
                 <CardHeader className="border-b pb-4">
+                  <button type="button" onClick={() => setHandyGespraech(false)} className="-mt-1 mb-2 inline-flex items-center gap-1.5 self-start text-sm text-muted-foreground hover:text-foreground md:hidden">
+                    <ArrowLeft className="h-4 w-4" />{t('messages.backToList')}
+                  </button>
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <Avatar>
@@ -384,7 +390,7 @@ export default function RecruiterMessages() {
                     <div className="space-y-4">
                       {messages.map((msg) => (
                         <div key={msg.id} className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}>
-                          <div className={`max-w-[70%] rounded-lg p-3 ${msg.sender_id === user?.id ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                          <div className={`max-w-[85%] sm:max-w-[70%] rounded-lg p-3 ${msg.sender_id === user?.id ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
                             <p className="text-sm">{msg.content}</p>
                             <p className={`mt-1 text-xs ${msg.sender_id === user?.id ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{formatTime(msg.created_at)}</p>
                           </div>

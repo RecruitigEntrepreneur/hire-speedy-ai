@@ -109,7 +109,7 @@ export default function RecruiterNotifications() {
       <div className="space-y-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">{t('notifications.title')}</h1>
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t('notifications.title')}</h1>
             <p className="text-muted-foreground">{unreadCount > 0 ? t('notifications.unreadShort', { count: unreadCount }) : t('notifications.allReadShort')}</p>
           </div>
           {unreadCount > 0 && (
@@ -153,12 +153,12 @@ export default function RecruiterNotifications() {
                       type="button"
                       onClick={() => void oeffnen(n)}
                       className={cn(
-                        'flex w-full items-start gap-4 p-4 text-left transition-colors',
+                        'flex w-full items-start gap-3 p-3 text-left transition-colors sm:gap-4 sm:p-4',
                         !n.is_read ? 'bg-primary/5' : 'hover:bg-muted/30',
                         !hatZiel && 'cursor-default',
                       )}
                     >
-                      <HinweisIcon type={n.type} className="h-10 w-10 [&>svg]:h-5 [&>svg]:w-5" />
+                      <HinweisIcon type={n.type} className="h-8 w-8 sm:h-10 sm:w-10 [&>svg]:h-4 [&>svg]:w-4 sm:[&>svg]:h-5 sm:[&>svg]:w-5" />
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
@@ -171,9 +171,11 @@ export default function RecruiterNotifications() {
                             {n.type === 'opt_in_request' && (
                               <p className="mt-2 text-xs text-muted-foreground">{t('notifications.optInNote')}</p>
                             )}
+                            {/* Am Handy steht die Zeit unter dem Text, damit der Titel die Breite bekommt */}
+                            <p className="mt-1 text-xs text-muted-foreground sm:hidden">{formatTime(n.created_at)}</p>
                           </div>
-                          <div className="flex shrink-0 items-center gap-2">
-                            <span className="text-xs text-muted-foreground">{formatTime(n.created_at)}</span>
+                          <div className="flex shrink-0 items-center gap-2 pt-1 sm:pt-0">
+                            <span className="hidden text-xs text-muted-foreground sm:inline">{formatTime(n.created_at)}</span>
                             {!n.is_read && <div className="h-2 w-2 rounded-full bg-primary" />}
                             {hatZiel && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                           </div>

@@ -188,3 +188,15 @@ export function isValidEmail(value: string): boolean {
 export function isValidWindow(from: string, to: string): boolean {
   return /^\d{2}:\d{2}$/.test(from) && /^\d{2}:\d{2}$/.test(to) && from < to;
 }
+
+/** Handy-Reiter (17.11.2026): Wochentag „Mi“ und Tag „18“ getrennt. */
+export function dayChipParts(dateKey: string): { wd: string; d: number } {
+  return { wd: WEEKDAY_LABELS[String(weekdayOfKey(dateKey)) as Weekday], d: dayNum(dateKey) };
+}
+
+/** Text nach der Uhrzeit („belegt“, „Interview“, „ohne Anna“), leer bei einer freien Zeit. */
+export function slotSuffix(slot: ScheduleSlot, peopleCount: number): string {
+  const full = slotText(slot, peopleCount);
+  const time = fmtTime(slot.start);
+  return full.startsWith(time) ? full.slice(time.length).replace(/^\s*·\s*/, '') : '';
+}

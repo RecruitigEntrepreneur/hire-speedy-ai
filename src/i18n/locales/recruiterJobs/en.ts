@@ -3,6 +3,7 @@ import type { Messages } from '../../types';
 
 const en: Messages<typeof de> = {
   list: {
+    pageTitle: 'Open jobs',
     noJobChosen: 'No role selected.',
     failed: 'That didn\'t work.',
     greeting: {

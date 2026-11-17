@@ -219,6 +219,7 @@ const nb: Messages<typeof de> = {
   },
   nav: {
     points: 'Punkter',
+    stepOf: 'Del {{n}} av {{total}} · sveip til siden',
     answered: ' (besvart)',
     layout: 'Visning',
     showAll: 'Vis alle spørsmål',

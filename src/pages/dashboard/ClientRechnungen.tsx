@@ -1,3 +1,4 @@
+import { cn } from '@/lib/utils';
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Loader2, Search } from 'lucide-react';
@@ -23,10 +24,10 @@ type Tab = 'op' | 'alle' | 'zahl' | 'exp' | 'daten';
 
 function Kpi({ label, value, sub, tone }: { label: string; value: string; sub?: string | null; tone?: 'bad' }) {
   return (
-    <div className="rounded-xl border bg-card px-4 py-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={tone === 'bad' ? 'text-xl font-semibold text-destructive' : 'text-xl font-semibold'}>{value}</p>
-      {sub && <p className="truncate text-xs text-muted-foreground">{sub}</p>}
+    <div className="rounded-xl border bg-card px-4 py-3 max-sm:px-2 max-sm:py-2">
+      <p className="text-xs text-muted-foreground max-sm:text-[10.5px] max-sm:leading-tight">{label}</p>
+      <p className={cn('text-xl font-semibold max-sm:text-sm max-sm:tabular-nums', tone === 'bad' && 'text-destructive')}>{value}</p>
+      {sub && <p className="truncate text-xs text-muted-foreground max-sm:text-[10.5px]">{sub}</p>}
     </div>
   );
 }
@@ -95,7 +96,8 @@ export default function ClientRechnungen() {
           <p className="rounded-xl border bg-muted/30 px-4 py-6 text-sm text-muted-foreground">{t('page.noAccess')}</p>
         ) : (
           <>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {/* Handy (17.11.2026): drei kleine Kacheln nebeneinander statt untereinander */}
+            <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
               <Kpi label={t('page.open')} value={eurCents(d.totals.openCents)} sub={subs?.open} />
               <Kpi label={t('page.overdue')} value={eurCents(d.totals.overdueCents)} tone={d.totals.overdueCents ? 'bad' : undefined} sub={subs?.overdue} />
               <Kpi label={t('page.paidYear', { year: new Date().getFullYear() })} value={eurCents(d.totals.paidYearCents)} sub={subs?.paid} />
@@ -110,7 +112,7 @@ export default function ClientRechnungen() {
               </div>
             )}
 
-            <div className="flex flex-wrap items-center gap-1.5">
+            <div className="handy-wischen flex flex-wrap items-center gap-1.5">
               {TABS.map((x) => <Button key={x.key} size="sm" variant={tab === x.key ? 'default' : 'outline'} className="h-8" onClick={() => setTab(x.key)}>{x.label}</Button>)}
             </div>
 

@@ -68,6 +68,7 @@ const sv: Messages<typeof de> = {
       pay: 'Lön / dagsarvode',
       region: 'Region',
       stage: 'Status',
+      swipe: 'svep i sidled',
     },
     status: {
       title: 'Så går sökningen',

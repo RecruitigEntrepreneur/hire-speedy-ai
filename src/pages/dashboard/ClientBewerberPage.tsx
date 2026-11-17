@@ -127,8 +127,8 @@ export default function ClientBewerberPage() {
           <p className="text-muted-foreground text-sm">{subtitle}</p>
         </div>
 
-        {/* Reiter: laufende Bewerbungen | Abgelehnt und Beendet (abgesetzt) */}
-        <div className="flex flex-wrap items-center gap-1">
+        {/* Reiter: laufende Bewerbungen | Abgelehnt und Beendet (abgesetzt); am Handy eine Zeile zum Wischen */}
+        <div className="handy-wischen flex flex-wrap items-center gap-1">
           {PIPELINE_TABS.filter((tab) => tab.key !== 'pruefung' || listTabCounts.pruefung > 0 || filters.listTab === 'pruefung').map((tab) => {
             const count = tab.key === null ? activeCount : listTabCounts[tab.key];
             const isActive = filters.listTab === tab.key;
@@ -188,7 +188,7 @@ export default function ClientBewerberPage() {
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-3">
           {/* Search */}
-          <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <div className="relative min-w-[200px] max-w-sm flex-1 max-sm:min-w-0 max-sm:max-w-none max-sm:basis-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder={t('bewerber.filter.search')}
@@ -203,7 +203,7 @@ export default function ClientBewerberPage() {
             value={filters.jobId || 'all'}
             onValueChange={(v) => updateFilter('jobId', v === 'all' ? null : v)}
           >
-            <SelectTrigger className="w-[200px]">
+            <SelectTrigger className="w-[200px] max-sm:w-[calc(50%-0.375rem)]">
               <SelectValue placeholder={t('bewerber.filter.all_jobs')} />
             </SelectTrigger>
             <SelectContent>
@@ -221,7 +221,7 @@ export default function ClientBewerberPage() {
             value={filters.sort}
             onValueChange={(v) => updateFilter('sort', v as BewerberSortOption)}
           >
-            <SelectTrigger className="w-[170px]">
+            <SelectTrigger className="w-[170px] max-sm:w-[calc(50%-0.375rem)]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

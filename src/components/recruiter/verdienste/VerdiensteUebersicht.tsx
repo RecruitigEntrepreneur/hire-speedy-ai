@@ -24,7 +24,7 @@ export function VerdiensteUebersicht({ data, onOpen, onAbrechnungsdaten }: { dat
   return (
     <div className="space-y-4">
       <Card>
-        <CardContent className="flex flex-wrap items-start justify-between gap-4 p-5">
+        <CardContent className="flex flex-wrap items-start justify-between gap-4 p-4 sm:p-5">
           {next ? (
             <>
               <div>
@@ -35,7 +35,8 @@ export function VerdiensteUebersicht({ data, onOpen, onAbrechnungsdaten }: { dat
                   {naechsteZeile(next)}
                 </p>
               </div>
-              <div className="text-right">
+              {/* Bricht am Handy unter den Betrag um: dann links bündig */}
+              <div className="sm:text-right">
                 <p className="font-medium">{next.slot.label}</p>
                 <p className="text-sm text-muted-foreground">{t('overview.latest', { date: dm(next.slot.latest, i18n.language) })}</p>
               </div>

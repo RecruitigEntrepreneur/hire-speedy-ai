@@ -17,6 +17,10 @@ const nb: Messages<typeof de> = {
     profile: 'Profil',
     privacy: 'Personvern',
   },
+  short: {
+    candidates: 'Kandidater',
+    jobs: 'Jobber',
+  },
   settings: 'Innstillinger',
   signOut: 'Logg ut',
 };

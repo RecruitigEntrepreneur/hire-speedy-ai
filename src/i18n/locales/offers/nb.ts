@@ -109,6 +109,8 @@ const nb: Messages<typeof de> = {
     reportedAccept: 'Du har meldt ja. {{name}} bekrefter det fortsatt på e-post.',
     reportedAcceptAt: 'Du har meldt ja ({{when}}). {{name}} bekrefter det fortsatt på e-post.',
     reportedLong: ' Ingen klikk på 24 t: ring {{name}}.',
+    reportedLongDays_one: ' Ingen klikk på {{count}} dag: ring {{name}}.',
+    reportedLongDays_other: ' Ingen klikk på {{count}} dager: ring {{name}}.',
     counterWithClient: 'Motforslaget ditt ligger hos {{company}}.',
     acceptedSelf: '{{name}} har selv takket ja. {{company}} sender kontrakten.',
     accepted: '{{name}} har takket ja. {{company}} sender kontrakten.',

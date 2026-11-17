@@ -17,6 +17,10 @@ const sv: Messages<typeof de> = {
     profile: 'Profil',
     privacy: 'Dataskydd',
   },
+  short: {
+    candidates: 'Kandidater',
+    jobs: 'Jobb',
+  },
   settings: 'Inställningar',
   signOut: 'Logga ut',
 };

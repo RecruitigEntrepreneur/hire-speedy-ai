@@ -24,6 +24,7 @@ import {
   HIDDEN_FIELD_PLACEHOLDER,
   AnonymizedCandidate 
 } from '@/lib/anonymization';
+import { initialen } from '@/lib/initialen';
 
 interface CandidateData {
   id: string;
@@ -89,7 +90,7 @@ export function AnonymizedCandidateCard({
           <div className="flex items-start gap-4">
             <Avatar className={compact ? 'h-10 w-10' : 'h-12 w-12'}>
               <AvatarFallback>
-                {candidate.full_name.split(' ').map(n => n[0]).join('')}
+                {initialen(candidate.full_name)}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">

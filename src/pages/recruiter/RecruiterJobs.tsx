@@ -466,18 +466,6 @@ export default function RecruiterJobs() {
 
   const urgentCount = tabCounts.urgent;
 
-  // Smart greeting: extract first name from full_name or email
-  const rawName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || '';
-  const firstName = rawName.split(/[\s.]+/)[0]; // "Marko Benko" → "Marko", "marko.benko" → "marko"
-  const capitalizedName = firstName ? firstName.charAt(0).toUpperCase() + firstName.slice(1) : '';
-
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return t('list.greeting.morning');
-    if (hour < 17) return t('list.greeting.day');
-    return t('list.greeting.evening');
-  };
-
   // ─── Render ─────────────────────────────────────────────────────────────
 
   if (loading) {
@@ -500,14 +488,16 @@ export default function RecruiterJobs() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col h-[calc(100vh-4rem)] max-w-7xl">
+      {/* Am Handy scrollt die ganze Seite (keine Liste im Kasten), ab md feste Höhe mit eigenem Scrollen */}
+      <div className="flex flex-col max-w-7xl md:h-[calc(100vh-4rem)]">
         {/* ── Hero: Compact KPI Strip + Process Cards ── */}
         <div className="shrink-0 py-3 space-y-3">
-          {/* Kopf: Begrüßung und eine ruhige Zeile statt drei bunter Pillen (19.10.2026).
+          {/* Kopf: Titel und eine ruhige Zeile statt drei bunter Pillen (19.10.2026).
               Farbe nur mit Bedeutung: Rot dringend, Grün Geld. */}
           <div>
             <h1 className="truncate text-xl font-semibold tracking-tight">
-              {capitalizedName ? t('list.greeting.withName', { greeting: getGreeting(), name: capitalizedName }) : getGreeting()}
+              {/* Seitentitel wie im Menü statt einer zweiten Begrüßung neben der Übersicht (17.11.2026) */}
+              {t('list.pageTitle')}
             </h1>
             <p className="mt-0.5 text-sm text-muted-foreground">
               {t('list.openJobs', { count: jobs.length })}
@@ -707,8 +697,8 @@ export default function RecruiterJobs() {
           {/* Feed — scrolls independently */}
           <div
             className={cn(
-              'overflow-y-auto space-y-2 pr-1 transition-all duration-300',
-              isPanelOpen ? 'w-1/2' : 'w-full',
+              'space-y-2 transition-all duration-300 md:overflow-y-auto md:pr-1',
+              isPanelOpen ? 'w-full lg:w-1/2' : 'w-full',
             )}
           >
             {activeTab === 'mine' ? (

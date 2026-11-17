@@ -26,6 +26,7 @@ import { CandidateTasksSection } from './CandidateTasksSection';
 import { CandidateActiveProcesses } from './CandidateActiveProcesses';
 import { Candidate } from './CandidateCard';
 import { useCandidateDocuments } from '@/hooks/useCandidateDocuments';
+import { initialen } from '@/lib/initialen';
 
 interface CandidateHeroHeaderProps {
   candidate: Candidate;
@@ -52,7 +53,7 @@ export function CandidateHeroHeader({
   onLebenslaufAnfragen,
 }: CandidateHeroHeaderProps) {
   const { t } = useTranslation(['candidateDetail', 'candidateTerms', 'common']);
-  const initials = candidate.full_name.split(' ').map((n) => n[0]).join('');
+  const initials = initialen(candidate.full_name);
   const { getCurrentDocuments } = useCandidateDocuments(candidateId);
   const currentCv = getCurrentDocuments().find(d => d.document_type === 'cv');
 
@@ -70,7 +71,9 @@ export function CandidateHeroHeader({
       {/* Compact Hero Card */}
       <div className="rounded-xl border bg-card shadow-sm">
         <div className="p-4 md:p-5">
-          <div className="flex items-start gap-4">
+          {/* Raster statt Flex (16.11.2026): am Handy stehen die Knöpfe unter Bild und Name über die
+              volle Breite, ab sm rechts daneben wie bisher. Vorher verdeckten sie am Handy den Namen. */}
+          <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-4 gap-y-3 sm:grid-cols-[auto_minmax(0,1fr)_auto]">
             {/* Avatar */}
             <div className="relative shrink-0">
               <Avatar className="h-14 w-14 ring-2 ring-primary/20">
@@ -86,8 +89,6 @@ export function CandidateHeroHeader({
             </div>
             
             {/* Name + Meta + Badges */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h1 className="text-xl md:text-2xl font-bold truncate">{candidate.full_name}</h1>
                   <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-muted-foreground">
@@ -140,7 +141,7 @@ export function CandidateHeroHeader({
                 </div>
                 
                 {/* Actions Row */}
-                <div className="flex flex-wrap items-center justify-end gap-1.5 shrink-0">
+                <div className="col-span-2 flex flex-wrap items-center gap-1.5 sm:col-span-1 sm:justify-end">
                   <Button variant="outline" size="sm" className="h-8" onClick={onEdit}>
                     <Pencil className="h-3.5 w-3.5 mr-1.5" />
                     {t('common.edit')}
@@ -199,8 +200,6 @@ export function CandidateHeroHeader({
                     </Tooltip>
                   )}
                 </div>
-              </div>
-            </div>
           </div>
           
           {/* Key Facts Grid - compact inline */}

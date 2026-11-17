@@ -219,6 +219,7 @@ const en: Messages<typeof de> = {
   },
   nav: {
     points: 'Points',
+    stepOf: 'Section {{n}} of {{total}} · swipe sideways',
     answered: ' (answered)',
     layout: 'View',
     showAll: 'Show all questions',

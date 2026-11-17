@@ -346,6 +346,8 @@ const en: Messages<typeof de> = {
     careerEmptyTitle: 'No positions recorded yet',
     careerEmptyText: 'The headhunter has not entered the career history yet. Feel free to ask.',
     careerAsk: 'Ask {{name}} for the career history',
+    factShort: { open: 'open', interview: 'in interview' },
+    bar: { offer: 'View offer', contract: 'View contract' },
     questionsTo: 'Questions to {{name}}',
     noQuestions: 'No questions yet. {{name}} submitted the candidate and knows them from the conversation.',
     notePlaceholderMention: 'Add a note … (@ mentions team members)',

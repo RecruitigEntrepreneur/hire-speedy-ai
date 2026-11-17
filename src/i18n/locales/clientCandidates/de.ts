@@ -345,6 +345,8 @@ const de = {
     careerEmptyTitle: 'Noch keine Stationen hinterlegt',
     careerEmptyText: 'Der Headhunter hat den Werdegang noch nicht eingetragen. Fragen Sie gern nach.',
     careerAsk: 'Werdegang bei {{name}} anfragen',
+    factShort: { open: 'offen', interview: 'im Interview' },
+    bar: { offer: 'Angebot ansehen', contract: 'Vertrag ansehen' },
     questionsTo: 'Fragen an {{name}}',
     noQuestions: 'Noch keine Fragen. {{name}} hat den Kandidaten eingereicht und kennt ihn aus dem Gespräch.',
     notePlaceholderMention: 'Notiz hinzufügen … (@ erwähnt Teammitglieder)',

@@ -68,6 +68,7 @@ const en: Messages<typeof de> = {
       pay: 'Salary / day rate',
       region: 'Region',
       stage: 'Status',
+      swipe: 'swipe sideways',
     },
     status: {
       title: 'How the search is going',

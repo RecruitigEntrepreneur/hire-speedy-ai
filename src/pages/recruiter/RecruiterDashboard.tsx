@@ -495,7 +495,7 @@ export default function RecruiterDashboard() {
         {/* ═══ HEADER ═══ Lebenslauf hineinziehen (05.11.2026) */}
         <LebenslaufAblage onFiles={(fs) => ablageMelden(ablageAnfragen(fs))}>
         <Card className="border-border/30 shadow-sm" data-tour="dashboard.header">
-          <CardContent className="p-5">
+          <CardContent className="p-4 sm:p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h1 className="text-2xl font-bold tracking-tight">
@@ -507,14 +507,17 @@ export default function RecruiterDashboard() {
                 </p>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm" onClick={guide.start}>
-                  <Compass className="mr-1.5 h-3.5 w-3.5" />
+              {/* Am Handy (16.11.2026, Marko: 2A): „Kandidaten anlegen“ breit, „Rundgang“ als Rahmenknopf
+                  daneben in derselben Zeile; auf sehr schmalen Handys bricht der Rundgang um. */}
+              <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:flex-nowrap">
+                <Button variant="ghost" size="sm" className="max-sm:border max-sm:border-border" onClick={guide.start}>
+                  <Compass className="mr-1.5 h-3.5 w-3.5 max-sm:hidden" />
                   {t('header.tour')}
                 </Button>
 {pending
-                  ? <PendingButton size="sm" label={pendingText('addCandidates')} />
+                  ? <PendingButton size="sm" label={pendingText('addCandidates')} className="order-first flex-1 sm:order-none sm:flex-none" />
                   : <KandidatAnlegenMenu
+                  className="order-first flex-1 sm:order-none sm:flex-none"
                   onLebenslauf={lebenslaufWaehlen}
                   onText={() => { setCvStartText(true); setCvUploadDialogOpen(true); }}
                   onOhneLebenslauf={() => setKurzOpen(true)}
@@ -541,9 +544,9 @@ export default function RecruiterDashboard() {
 
           {/* ─── CELL 1: Aufgaben (top-left) ─── */}
           <Card className="border-border/30 shadow-sm">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="flex min-w-0 items-center gap-2">
                   <h2 className="font-semibold">{t('tasks.title')}</h2>
                   {totalPendingAlerts > 0 && (
                     <Badge variant="secondary" className="text-xs">
@@ -551,17 +554,19 @@ export default function RecruiterDashboard() {
                     </Badge>
                   )}
                   {urgentCount > 0 && (
-                    <Badge className="text-xs bg-destructive/10 text-destructive border-0">
+                    <Badge className="whitespace-nowrap text-xs bg-destructive/10 text-destructive border-0">
                       {t('tasks.urgent', { count: urgentCount })}
                     </Badge>
                   )}
                 </div>
                 <Button
-                  variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground"
+                  variant="ghost" size="sm" className="h-8 shrink-0 px-2 text-xs text-muted-foreground sm:h-7 sm:px-3"
                   onClick={() => navigate('/recruiter/influence')}
+                  aria-label={t('tasks.all')}
                 >
-                  {t('tasks.all')}
-                  <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                  {/* Am Handy nur der Pfeil: „Aufgaben“ steht ohnehin unten in der Leiste */}
+                  <span className="hidden sm:inline">{t('tasks.all')}</span>
+                  <ChevronRight className="h-4 w-4 sm:ml-1 sm:h-3.5 sm:w-3.5" />
                 </Button>
               </div>
 
@@ -643,7 +648,7 @@ export default function RecruiterDashboard() {
                           {item.prep?.art === 'termin' && item.prep.termin?.joinUrl ? (
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" asChild>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 md:h-6 md:w-6" asChild>
                                   <a href={item.prep.termin.joinUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} aria-label={t('tasks.join')}><Video className="h-3 w-3" /></a>
                                 </Button>
                               </TooltipTrigger>
@@ -653,7 +658,7 @@ export default function RecruiterDashboard() {
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button
-                                  variant="ghost" size="sm" className="h-6 w-6 p-0"
+                                  variant="ghost" size="sm" className="h-8 w-8 p-0 md:h-6 md:w-6"
                                   onClick={(e) => { e.stopPropagation(); window.location.href = `tel:${item.candidatePhone}`; }}
                                 >
                                   <Phone className="h-3 w-3" />
@@ -667,7 +672,7 @@ export default function RecruiterDashboard() {
                               <TooltipTrigger asChild>
                                 <Button
                                   variant="ghost" size="sm"
-                                  className="h-6 w-6 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
+                                  className="h-8 w-8 p-0 md:h-6 md:w-6 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
                                   onClick={(e) => { e.stopPropagation(); handleMarkDone(item); }}
                                 >
                                   <Check className="h-3 w-3" />
@@ -700,7 +705,7 @@ export default function RecruiterDashboard() {
 
           {/* ─── CELL 2: Pipeline (top-right) ─── */}
           <Card className="border-border/30 shadow-sm">
-            <CardContent className="p-5">
+            <CardContent className="p-4 sm:p-5">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="font-semibold">{t('pipeline.title')}</h2>
                 <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" asChild>
@@ -805,7 +810,7 @@ export default function RecruiterDashboard() {
 
           {/* ─── CELL 3: Top Jobs (bottom-left) ─── */}
           <Card className="border-border/30 shadow-sm" data-tour="dashboard.topJobs">
-            <CardContent className="p-5">
+            <CardContent className="p-4 sm:p-5">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="font-semibold">{t('topJobs.title')}</h2>
                 <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" asChild>
@@ -874,7 +879,7 @@ export default function RecruiterDashboard() {
 
           {/* ─── CELL 4: Quick Stats & Actions (bottom-right) ─── */}
           <Card className="border-border/30 shadow-sm">
-            <CardContent className="p-5">
+            <CardContent className="p-4 sm:p-5">
               <h2 className="font-semibold mb-3">{t('overview.title')}</h2>
 
               <div className="grid grid-cols-2 gap-3 mb-4">

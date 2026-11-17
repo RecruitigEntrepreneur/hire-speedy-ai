@@ -17,6 +17,10 @@ const en: Messages<typeof de> = {
     profile: 'Profile',
     privacy: 'Privacy',
   },
+  short: {
+    candidates: 'Candidates',
+    jobs: 'Jobs',
+  },
   settings: 'Settings',
   signOut: 'Sign out',
 };

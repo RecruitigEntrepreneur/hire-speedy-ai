@@ -17,16 +17,17 @@ export interface FunnelEntry {
  *  src/lib/submissionStage.ts — diese Uebersicht hatte vorher eine eigene
  *  Stage-Liste (forwarded, screening, interview_1/2, hired) und zeigte deshalb
  *  andere Zahlen als der Kanban direkt darunter. */
+// Grundklasse = Dunkelmodus, dark: = Hellmodus (tailwind darkMode ['class', '.light']); vorher vertauscht (16.11.2026)
 const TONE: Record<string, { text: string; bg: string }> = {
-  submitted: { text: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-950/30' },
-  in_review: { text: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-950/30' },
-  interview_requested: { text: 'text-orange-600', bg: 'bg-orange-50 dark:bg-orange-950/30' },
-  candidate_opted_in: { text: 'text-cyan-600', bg: 'bg-cyan-50 dark:bg-cyan-950/30' },
-  interview_scheduled: { text: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-950/30' },
-  interview_counter_proposed: { text: 'text-violet-600', bg: 'bg-violet-50 dark:bg-violet-950/30' },
-  interview_completed: { text: 'text-indigo-600', bg: 'bg-indigo-50 dark:bg-indigo-950/30' },
-  offer: { text: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/30' },
-  placed: { text: 'text-emerald-700', bg: 'bg-emerald-100 dark:bg-emerald-950/50' },
+  submitted: { text: 'text-amber-400 dark:text-amber-600', bg: 'bg-amber-950/30 dark:bg-amber-50' },
+  in_review: { text: 'text-blue-400 dark:text-blue-600', bg: 'bg-blue-950/30 dark:bg-blue-50' },
+  interview_requested: { text: 'text-orange-400 dark:text-orange-600', bg: 'bg-orange-950/30 dark:bg-orange-50' },
+  candidate_opted_in: { text: 'text-cyan-400 dark:text-cyan-600', bg: 'bg-cyan-950/30 dark:bg-cyan-50' },
+  interview_scheduled: { text: 'text-purple-400 dark:text-purple-600', bg: 'bg-purple-950/30 dark:bg-purple-50' },
+  interview_counter_proposed: { text: 'text-violet-400 dark:text-violet-600', bg: 'bg-violet-950/30 dark:bg-violet-50' },
+  interview_completed: { text: 'text-indigo-400 dark:text-indigo-600', bg: 'bg-indigo-950/30 dark:bg-indigo-50' },
+  offer: { text: 'text-emerald-400 dark:text-emerald-600', bg: 'bg-emerald-950/30 dark:bg-emerald-50' },
+  placed: { text: 'text-emerald-400 dark:text-emerald-700', bg: 'bg-emerald-950/50 dark:bg-emerald-100' },
   interview_declined: { text: 'text-muted-foreground', bg: 'bg-muted/50' },
   client_rejected: { text: 'text-destructive', bg: 'bg-destructive/10' },
   rejected: { text: 'text-destructive', bg: 'bg-destructive/10' },

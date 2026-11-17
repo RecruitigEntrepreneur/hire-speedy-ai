@@ -1,5 +1,6 @@
 const de = {
   list: {
+    pageTitle: 'Offene Jobs',
     noJobChosen: 'Keine Stelle gewählt.',
     failed: 'Das hat nicht geklappt.',
     greeting: {

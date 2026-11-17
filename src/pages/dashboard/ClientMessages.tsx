@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { 
+  ArrowLeft,
   Loader2, 
   Send, 
   Search,
@@ -61,6 +62,8 @@ export default function ClientMessages() {
   
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  // Handy und Tablet (16.11.2026): erst die Liste, ein Tipp öffnet das Gespräch, „Alle Nachrichten“ führt zurück
+  const [handyGespraech, setHandyGespraech] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [messagesLoading, setMessagesLoading] = useState(false);
@@ -172,6 +175,7 @@ export default function ClientMessages() {
       const linked = linkedConversation ? convList.find((c) => c.id === linkedConversation) : null;
       if (linked) {
         setSelectedConversation(linked);
+        setHandyGespraech(true);
         fetchMessages(linked.id);
       }
     } catch (error) {
@@ -214,6 +218,7 @@ export default function ClientMessages() {
 
   const handleSelectConversation = (conv: Conversation) => {
     setSelectedConversation(conv);
+    setHandyGespraech(true);
     fetchMessages(conv.id);
   };
 
@@ -272,13 +277,13 @@ export default function ClientMessages() {
     <DashboardLayout>
         <div className="space-y-6">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">{t('messages.title')}</h1>
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t('messages.title')}</h1>
             <p className="text-muted-foreground">{t('messages.subtitle')}</p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-250px)]">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:h-[calc(100vh-250px)]">
             {/* Conversations List */}
-            <Card className="lg:col-span-1">
+            <Card className={handyGespraech ? 'max-lg:hidden lg:col-span-1' : 'lg:col-span-1'}>
               <CardHeader className="pb-3">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -291,7 +296,8 @@ export default function ClientMessages() {
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                <ScrollArea className="h-[calc(100vh-380px)]">
+                {/* Handy: Radix legt den Inhalt in eine display:table-Hülle, die mit langen Texten breiter wird als die Liste; als Block kürzt „truncate“ wieder mit „…“. */}
+                <ScrollArea className="lg:h-[calc(100vh-380px)] max-lg:[&_[data-radix-scroll-area-viewport]>div]:!block">
                   {filteredConversations.length === 0 ? (
                     <div className="text-center py-8">
                       <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground/50" />
@@ -350,11 +356,14 @@ export default function ClientMessages() {
             </Card>
 
             {/* Messages Area */}
-            <Card className="lg:col-span-2 flex flex-col">
+            <Card className={handyGespraech ? 'lg:col-span-2 flex flex-col' : 'lg:col-span-2 flex flex-col max-lg:hidden'}>
               {selectedConversation ? (
                 <>
                   <CardHeader className="border-b">
-                    <div className="flex items-center gap-3">
+                    <button type="button" onClick={() => setHandyGespraech(false)} className="-mt-1 mb-3 inline-flex items-center gap-1.5 self-start text-sm text-muted-foreground hover:text-foreground lg:hidden">
+                      <ArrowLeft className="h-4 w-4" />{t('messages.backToList')}
+                    </button>
+                    <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
                       <Avatar>
                         <AvatarFallback>
                           {(selectedConversation.participant.full_name || selectedConversation.participant.email)
@@ -365,7 +374,8 @@ export default function ClientMessages() {
                             .slice(0, 2)}
                         </AvatarFallback>
                       </Avatar>
-                      <div>
+                      {/* Handy: Name und Stelle nehmen die ganze Zeile, der Knopf rutscht darunter */}
+                      <div className="min-w-0 flex-1 max-sm:basis-[calc(100%-3.25rem)]">
                         <CardTitle className="text-base">
                           {selectedConversation.participant.full_name || selectedConversation.participant.email}
                         </CardTitle>
@@ -375,14 +385,14 @@ export default function ClientMessages() {
                         </p>
                       </div>
                       {selectedConversation.submissionId && (
-                        <Button asChild variant="outline" size="sm" className="ml-auto">
+                        <Button asChild variant="outline" size="sm" className="ml-auto max-sm:ml-[3.25rem]">
                           <Link to={`/dashboard/candidates/${selectedConversation.submissionId}`}>{t('messages.toProfile')}</Link>
                         </Button>
                       )}
                     </div>
                   </CardHeader>
                   <CardContent className="flex-1 p-4 overflow-hidden">
-                    <ScrollArea className="h-[calc(100vh-480px)] pr-4">
+                    <ScrollArea className="lg:h-[calc(100vh-480px)] pr-4">
                       {messagesLoading ? (
                         <div className="flex items-center justify-center h-full">
                           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -397,7 +407,7 @@ export default function ClientMessages() {
                                 className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}
                               >
                                 <div
-                                  className={`max-w-[70%] rounded-lg px-4 py-2 ${
+                                  className={`max-w-[85%] sm:max-w-[70%] rounded-lg px-4 py-2 ${
                                     isMine
                                       ? 'bg-primary text-primary-foreground'
                                       : 'bg-muted'

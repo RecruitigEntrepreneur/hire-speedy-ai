@@ -217,6 +217,7 @@ const de = {
   },
   nav: {
     points: 'Punkte',
+    stepOf: 'Abschnitt {{n}} von {{total}} · seitlich wischen',
     answered: ' (beantwortet)',
     layout: 'Darstellung',
     showAll: 'Alle Fragen zeigen',

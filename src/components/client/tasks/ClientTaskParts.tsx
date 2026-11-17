@@ -55,8 +55,10 @@ export function TaskRow({ task, onOpen, compact = false, active = false }: { tas
         </p>
         {facts && (
           <p className="truncate text-xs">
+            {/* Handy (17.11.2026): Etikett vorn, sonst verschwindet es hinter „…“ */}
+            {chipAt >= 0 && c?.chip && <Chip chip={c.chip} className="mr-1.5 sm:hidden" />}
             {facts.map((p, i) => (
-              <Fragment key={i}>{i > 0 && ' · '}{p}{i === chipAt && c?.chip && <Chip chip={c.chip} className="mx-1" />}</Fragment>
+              <Fragment key={i}>{i > 0 && ' · '}{p}{i === chipAt && c?.chip && <Chip chip={c.chip} className="mx-1 max-sm:hidden" />}</Fragment>
             ))}
           </p>
         )}
@@ -68,7 +70,8 @@ export function TaskRow({ task, onOpen, compact = false, active = false }: { tas
         {!compact && task.note && <p className="truncate text-xs text-amber-600 dark:text-amber-400">{task.note}</p>}
       </button>
       {!compact && <span className="hidden shrink-0 text-xs text-muted-foreground sm:block">{waitingLabel(task)}</span>}
-      {compact && <span className="shrink-0 text-xs text-muted-foreground">{sinceLabel(task.since).replace(/^(seit|since|sedan|for|i) /, '')}</span>}
+      {/* „seit 33 Tagen“ statt „33 Tagen“ (17.11.2026) */}
+      {compact && <span className="shrink-0 text-xs text-muted-foreground">{sinceLabel(task.since)}</span>}
       {/* Auf dem Handy reicht die Zeile als Knopf, der Text bekommt den Platz */}
       <Button size="sm" variant={task.urgent ? 'default' : 'outline'} className="hidden h-7 shrink-0 text-xs sm:inline-flex" onClick={() => onOpen(task)}>{TASK_ACTION[task.kind]}</Button>
     </div>

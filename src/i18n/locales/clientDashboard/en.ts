@@ -102,6 +102,7 @@ const en: Messages<typeof de> = {
     previewOnly: '{{what}} is not yet connected in this preview.',
     continue: 'Continue:',
     untitled: 'Untitled draft',
+    continueDrafts: 'Continue drafts',
     allDrafts: 'all drafts',
     newTitle: 'Add a new position',
     newLead: 'Paste an ad, upload one or describe it manually',
@@ -492,6 +493,7 @@ const en: Messages<typeof de> = {
     done7: 'Done · last 7 days · {{count}}',
   },
   messages: {
+    backToList: 'All messages',
     title: 'Messages',
     subtitle: 'Your questions to the headhunters, per candidate',
     unknown: 'Unknown',

@@ -288,6 +288,14 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
   const versionRef = useRef(0);
   const timerRef = useRef<number>();
   const mainRef = useRef<HTMLDivElement>(null);
+  // Handy: Der aktuelle Abschnitt rückt in der Wischzeile von selbst ins Bild (17.11.2026).
+  const navRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!window.matchMedia?.('(max-width: 767px)').matches) return;
+    const el = navRef.current?.querySelector<HTMLElement>('[aria-current="step"]');
+    const nav = navRef.current;
+    if (el && nav) nav.scrollBy({ left: el.getBoundingClientRect().left - nav.getBoundingClientRect().left - 16, behavior: 'smooth' });
+  }, [view]);
   const notesRef = useRef<HTMLTextAreaElement>(null);
   const baselineNotesRef = useRef('');
   // Erst mit der ersten Antwort entsteht ein Entwurf; bloßes Öffnen schreibt nichts.
@@ -1503,8 +1511,12 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
           )}
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto md:grid md:grid-cols-[160px_minmax(0,1fr)_230px] md:overflow-hidden lg:grid-cols-[180px_minmax(0,1fr)_300px]">
-          {/* Links nur die Punkte, ohne Ampel: ✓ heißt beantwortet, hell ist der aktuelle Punkt. */}
-          <nav aria-label={t('nav.points')} className="flex flex-wrap items-center gap-1 border-b border-border p-3 text-sm md:min-h-0 md:flex-col md:flex-nowrap md:items-stretch md:overflow-y-auto md:border-b-0 md:border-r">
+          {/* Links nur die Punkte, ohne Ampel: ✓ heißt beantwortet, hell ist der aktuelle Punkt.
+              Handy (17.11.2026): eine Zeile zum Wischen, nummeriert, mit „Abschnitt n von 6“ darüber. */}
+          {!onlyMissing && !finished && (
+            <p className="px-4 pt-2 text-[11px] text-muted-foreground md:hidden">{t('nav.stepOf', { n: view + 1, total: INTERVIEW_VIEWS.length })}</p>
+          )}
+          <nav ref={navRef} aria-label={t('nav.points')} className="handy-wischen flex flex-wrap items-center gap-1 border-b border-border p-3 text-sm md:min-h-0 md:flex-col md:flex-nowrap md:items-stretch md:overflow-y-auto md:border-b-0 md:border-r">
             {onlyMissing ? (
               <>
                 <p className="px-2 pb-1 text-xs text-muted-foreground">{t('gaps.title')}</p>
@@ -1535,6 +1547,7 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
                     >
                       <span aria-hidden className="w-3 shrink-0 text-xs text-muted-foreground">{done ? '✓' : ''}</span>
                       <span>
+                        <span className="tabular-nums md:hidden">{i + 1} </span>
                         {term(v.label)}
                         {offen > 0 && <span className="whitespace-nowrap text-xs font-normal text-muted-foreground"> · {t('nav.openCount', { count: offen })}</span>}
                       </span>

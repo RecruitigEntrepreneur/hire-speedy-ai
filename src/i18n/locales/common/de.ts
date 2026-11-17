@@ -5,6 +5,19 @@ const de = {
     settingsHintRecruiter: 'Gilt für die Oberfläche und für E-Mails an dich. Stellen, Kandidatenprofile und Verträge bleiben in ihrer eigenen Sprache.',
   },
   search: {
+    cPh: 'Stelle, Bewerber oder Kürzel …',
+    cHint: 'Suche nach Stelle, Ort, Bewerber, Rolle oder Kürzel.',
+    cApplicants: 'Bewerber',
+    forJob: 'für {{job}}',
+    running_one: '{{count}} laufender Kandidat',
+    running_other: '{{count}} laufende Kandidaten',
+    jobState: { published: 'aktiv', paused: 'pausiert', pending_approval: 'in Prüfung', draft: 'Entwurf', filled: 'besetzt', closed: 'geschlossen', cancelled: 'geschlossen' },
+    hhPh: 'Name, Telefonnummer, E-Mail oder Stelle …',
+    hhHint: 'Suche nach Name, Telefonnummer, E-Mail oder Stelle.',
+    myCandidates: 'Meine Kandidaten',
+    jobs: 'Stellen',
+    call: '{{name}} anrufen',
+    none: 'Nichts gefunden für „{{q}}“.',
     open: 'Suchen...',
     ph: 'Jobs, Kandidaten oder Aktionen suchen...',
     loading: 'Suche...',
@@ -21,6 +34,13 @@ const de = {
   candidateHero: {
     at: ' bei {{company}}',
     years: '{{count}}J Erfahrung',
+  },
+  mobileNav: {
+    label: 'Hauptmenü',
+    more: 'Menü',
+    feedback: 'Feedback geben',
+    light: 'Hell',
+    dark: 'Dunkel',
   },
   ui: {
     close: 'Schließen',

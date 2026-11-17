@@ -109,6 +109,8 @@ const sv: Messages<typeof de> = {
     reportedAccept: 'Du har meddelat ja. {{name}} bekräftar det fortfarande via mejl.',
     reportedAcceptAt: 'Du har meddelat ja ({{when}}). {{name}} bekräftar det fortfarande via mejl.',
     reportedLong: ' Inget klick på 24 tim: ring {{name}}.',
+    reportedLongDays_one: ' Inget klick på {{count}} dag: ring {{name}}.',
+    reportedLongDays_other: ' Inget klick på {{count}} dagar: ring {{name}}.',
     counterWithClient: 'Ditt motförslag ligger hos {{company}}.',
     acceptedSelf: '{{name}} har själv tackat ja. {{company}} skickar avtalet.',
     accepted: '{{name}} har tackat ja. {{company}} skickar avtalet.',

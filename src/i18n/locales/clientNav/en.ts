@@ -14,6 +14,10 @@ const en: Messages<typeof de> = {
     team: 'Team',
     messages: 'Messages',
   },
+  short: {
+    dashboard: 'Dashboard',
+    jobs: 'Jobs',
+  },
   settings: 'Settings',
   signOut: 'Sign out',
   theme: 'Theme',

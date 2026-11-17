@@ -50,6 +50,7 @@ const nb: Messages<typeof de> = {
     pickTitle: 'Velg en samtale',
     pickText: 'Klikk på en samtale til venstre for å vise meldinger',
     inboxTitle: 'Innboks',
+    backToList: 'Alle meldinger',
     inboxSubtitle: 'Samtaler med kunder',
     noneYet: 'Ingen samtaler ennå',
     emptyText: 'Spørsmål fra kunder om kandidatene dine havner her.',

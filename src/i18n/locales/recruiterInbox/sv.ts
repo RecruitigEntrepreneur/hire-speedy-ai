@@ -50,6 +50,7 @@ const sv: Messages<typeof de> = {
     pickTitle: 'Välj en konversation',
     pickText: 'Klicka på en konversation till vänster för att visa meddelanden',
     inboxTitle: 'Inkorg',
+    backToList: 'Alla meddelanden',
     inboxSubtitle: 'Samtal med kunder',
     noneYet: 'Inga samtal än',
     emptyText: 'Frågor från kunder om dina kandidater hamnar här.',

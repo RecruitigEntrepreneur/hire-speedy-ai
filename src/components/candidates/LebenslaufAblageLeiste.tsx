@@ -94,7 +94,8 @@ function useZiehen() {
       setPos(p); merken(p);
     },
   };
-  return { style: { right: pos.right, bottom: pos.bottom }, boxRef, griff, gezogen };
+  // Am Handy über der Leiste unten (--handy-leiste), sonst wie gespeichert.
+  return { style: { right: pos.right, bottom: `calc(${pos.bottom}px + var(--handy-leiste, 0px))` }, boxRef, griff, gezogen };
 }
 
 export function LebenslaufAblageLeiste() {

@@ -142,19 +142,21 @@ export function CandidateDocumentsManager({ candidateId }: CandidateDocumentsMan
                   </div>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <div className="mt-2 space-y-2 pl-7">
+                  <div className="mt-2 space-y-2 sm:pl-7">
                     {typeDocs.map(doc => (
                       <div
                         key={doc.id}
-                        className={`flex items-center justify-between p-3 rounded-lg border ${
+                        className={`flex flex-wrap items-center justify-between gap-2 p-3 rounded-lg border sm:flex-nowrap ${
                           doc.is_current ? 'border-primary/30 bg-primary/5' : 'border-border'
                         }`}
                       >
-                        <div className="flex items-center gap-3">
-                          <File className="h-4 w-4 text-muted-foreground" />
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium">{doc.file_name}</span>
+                        {/* Am Handy (16.11.2026): langer Dateiname bricht um, Knöpfe rutschen notfalls darunter.
+                            Vorher machte diese Zeile die Seite 551 px breit, das Handy verkleinerte alles. */}
+                        <div className="flex min-w-0 flex-1 items-center gap-3">
+                          <File className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 sm:flex-nowrap">
+                              <span className="break-all text-sm font-medium">{doc.file_name}</span>
                               {doc.is_current && (
                                 <Badge variant="default" className="text-xs">{t('common.current')}</Badge>
                               )}
@@ -169,7 +171,7 @@ export function CandidateDocumentsManager({ candidateId }: CandidateDocumentsMan
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="ml-auto flex shrink-0 items-center gap-1">
                           <Button
                             variant="ghost"
                             size="icon"

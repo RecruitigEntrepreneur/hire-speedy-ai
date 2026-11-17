@@ -219,6 +219,7 @@ const sv: Messages<typeof de> = {
   },
   nav: {
     points: 'Punkter',
+    stepOf: 'Avsnitt {{n}} av {{total}} · svep i sidled',
     answered: ' (besvarad)',
     layout: 'Visning',
     showAll: 'Visa alla frågor',

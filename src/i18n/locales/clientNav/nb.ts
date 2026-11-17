@@ -14,6 +14,10 @@ const nb: Messages<typeof de> = {
     team: 'Team',
     messages: 'Meldinger',
   },
+  short: {
+    dashboard: 'Oversikt',
+    jobs: 'Stillinger',
+  },
   settings: 'Innstillinger',
   signOut: 'Logg ut',
   theme: 'Tema',

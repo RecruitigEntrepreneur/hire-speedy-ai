@@ -164,7 +164,7 @@ export function RejectionDialog({ open, onOpenChange, submission, onSuccess, not
               </Button>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 max-md:w-full max-md:[&>button]:flex-1">
             <Button variant="outline" onClick={handleClose} disabled={processing}>
               {t('rejection.cancel')}
             </Button>

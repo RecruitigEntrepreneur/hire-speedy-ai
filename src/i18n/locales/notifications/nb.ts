@@ -14,5 +14,17 @@ const nb: Messages<typeof de> = {
   inbox: 'Innboks',
   inboxWaiting: 'Innboks, {{count}} venter på deg',
   inboxWaitingClient: 'Innboks, {{count}} venter på deg',
+  bundle: {
+    searchStartedBy_one: '{{name}} søker nå for {{count}} stilling',
+    searchStartedBy_other: '{{name}} søker nå for {{count}} stillinger',
+    searchStarted_one: 'Headhuntere søker nå for {{count}} stilling',
+    searchStarted_other: 'Headhuntere søker nå for {{count}} stillinger',
+    pauseEnded_one: '{{count}} stilling er i gang igjen',
+    pauseEnded_other: '{{count}} stillinger er i gang igjen',
+    pauseEnding_one: 'Pausen slutter snart for {{count}} stilling',
+    pauseEnding_other: 'Pausen slutter snart for {{count}} stillinger',
+    expand: 'Vis hver for seg',
+    collapse: 'Fell sammen',
+  },
 };
 export default nb;

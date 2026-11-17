@@ -8,6 +8,19 @@ const nb: Messages<typeof de> = {
     settingsHintRecruiter: 'Gjelder grensesnittet og e-post til deg. Stillinger, kandidatprofiler og avtaler beholder sitt eget språk.',
   },
   search: {
+    cPh: 'Stilling, kandidat eller referanse …',
+    cHint: 'Søk på stilling, sted, kandidat, rolle eller referanse.',
+    cApplicants: 'Kandidater',
+    forJob: 'for {{job}}',
+    running_one: '{{count}} aktiv kandidat',
+    running_other: '{{count}} aktive kandidater',
+    jobState: { published: 'aktiv', paused: 'pauset', pending_approval: 'til vurdering', draft: 'utkast', filled: 'besatt', closed: 'lukket', cancelled: 'lukket' },
+    hhPh: 'Navn, telefonnummer, e-post eller stilling …',
+    hhHint: 'Søk på navn, telefonnummer, e-post eller stilling.',
+    myCandidates: 'Mine kandidater',
+    jobs: 'Stillinger',
+    call: 'Ring {{name}}',
+    none: 'Fant ingenting for «{{q}}».',
     open: 'Søk...',
     ph: 'Søk i oppdrag, kandidater eller handlinger...',
     loading: 'Søker...',
@@ -24,6 +37,13 @@ const nb: Messages<typeof de> = {
   candidateHero: {
     at: ' hos {{company}}',
     years: '{{count}} års erfaring',
+  },
+  mobileNav: {
+    label: 'Hovedmeny',
+    more: 'Meny',
+    feedback: 'Gi tilbakemelding',
+    light: 'Lyst',
+    dark: 'Mørkt',
   },
   ui: {
     close: 'Lukk',

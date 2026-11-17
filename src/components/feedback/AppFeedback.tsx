@@ -30,6 +30,7 @@ export function AppFeedback() {
       guestToken={user ? null : guestToken}
       canNotify={!!user}
       adminOnlyHint={isAdmin && !enabled}
+      schmalAmHandy={inApp}
     />
   );
 }

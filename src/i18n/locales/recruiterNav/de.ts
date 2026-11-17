@@ -15,6 +15,10 @@ const de = {
     profile: 'Profil',
     privacy: 'Datenschutz',
   },
+  short: {
+    candidates: 'Kandidaten',
+    jobs: 'Jobs',
+  },
   settings: 'Einstellungen',
   signOut: 'Abmelden',
 };

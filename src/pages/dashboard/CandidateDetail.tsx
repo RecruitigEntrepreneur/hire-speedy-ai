@@ -100,15 +100,19 @@ function buildWorkModelLabel(workModel: string, remoteDays: number | null, reloc
 // Key Fact Chip
 // ============================================================================
 
-function KeyFactChip({ icon: Icon, label, value, faded }: {
-  icon: React.ElementType; label: string; value: string; faded?: boolean;
+/** Am Handy (17.11.2026): Bezeichnung klein über dem Wert, Platzhalter kurz („offen“); ab 640 px wie bisher. */
+function KeyFactChip({ icon: Icon, label, value, faded, kurz }: {
+  icon: React.ElementType; label: string; value: string; faded?: boolean; kurz?: string;
 }) {
+  const wert = value || '–';
   return (
-    <span className="flex items-center gap-1">
-      <Icon className={cn("h-3.5 w-3.5 shrink-0", faded ? "text-muted-foreground/50" : "text-muted-foreground")} />
-      <span className="text-muted-foreground text-sm">{label}:</span>
-      <span className={cn("text-sm font-medium", faded ? "text-muted-foreground/50" : "text-foreground")}>
-        {value || '–'}
+    <span className="flex items-center gap-1 max-sm:items-start max-sm:gap-1.5">
+      <Icon className={cn("h-3.5 w-3.5 shrink-0 max-sm:mt-0.5", faded ? "text-muted-foreground/50" : "text-muted-foreground")} />
+      <span className="contents max-sm:flex max-sm:min-w-0 max-sm:flex-col">
+        <span className="text-muted-foreground text-sm max-sm:text-[11px] max-sm:leading-tight">{label}<span className="max-sm:hidden">:</span></span>
+        <span className={cn("text-sm font-medium", faded ? "text-muted-foreground/50" : "text-foreground")}>
+          {faded && kurz ? <><span className="max-sm:hidden">{wert}</span><span className="sm:hidden">{kurz}</span></> : wert}
+        </span>
       </span>
     </span>
   );
@@ -666,6 +670,16 @@ export default function CandidateDetail() {
         : null;
   // Bis Aufgaben und Stand da sind: Platzhalter statt eines Knopfs, der gleich wechselt
   const mainLoading = !leadTask && (tasksLoading || subStateLoading);
+  // Handy-Leiste (17.11.2026): im Angebot ohne offene Aufgabe das Angebot bzw. den Vertrag öffnen.
+  const barAction = mainAction ?? (!isTerminal && offerFlow
+    ? subState?.offers?.[0]?.status === 'accepted'
+      ? { label: tc('detail.bar.contract'), Icon: FileText, run: () => setContractOpen(null) }
+      : { label: tc('detail.bar.offer'), Icon: FileText, run: () => setOfferWin(true) }
+    : null);
+  // Allgemeine Knopftexte („Öffnen“, „Bestätigen“) brauchen am Handy eine Zeile, worum es geht.
+  const barContext = leadTask && leadTask.kind !== 'review' && leadTask.title.trim().toLowerCase() !== (mainAction?.label ?? '').trim().toLowerCase()
+    ? leadTask.title
+    : null;
 
   // Verlauf: Einreichung, Interviews und Angebote chronologisch — das Gedächtnis der Bewerbung
   const verlauf: { when: string; label: string }[] = [];
@@ -716,21 +730,47 @@ export default function CandidateDetail() {
         {t('bewerber.detail.back')}
       </Link>
 
-      <div className="space-y-4 max-w-5xl">
+      {/* Handy (17.11.2026): Entscheidung fest unten über dem Menü, von Anfang an sichtbar.
+          Zeigt den Schritt, der gerade dran ist, dazu „Ablehnen“; die Knöpfe in der Seite fallen dort weg. */}
+      {!isViewer && (barAction || mainLoading || (!isTerminal && !signedContract)) && (
+        <div className="fixed inset-x-0 bottom-[var(--handy-leiste,0px)] z-30 border-t bg-card/95 px-4 py-2.5 backdrop-blur md:hidden">
+          {barContext && <p className="mb-1.5 truncate text-xs text-muted-foreground">{barContext}</p>}
+          <div className="flex gap-2">
+            {mainLoading ? (
+              <Skeleton className="h-10 flex-[1.4] rounded-md" />
+            ) : barAction && (
+              <Button variant={waitingForRec ? 'outline' : 'default'} onClick={barAction.run} className="h-10 min-w-0 flex-[1.4] gap-1.5">
+                <barAction.Icon className="h-4 w-4 shrink-0" />
+                <span className="truncate">{barAction.label}</span>
+              </Button>
+            )}
+            {!isTerminal && !signedContract && !subStateLoading && (
+              <Button variant="outline" className="h-10 min-w-0 flex-1 gap-1.5" onClick={() => setShowRejectDialog(true)}>
+                <X className="h-4 w-4 shrink-0" />
+                <span className="truncate">{t('bewerber.actions.reject')}</span>
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-4 max-w-5xl max-md:pb-16">
         {/* ================================================================ */}
         {/* ZONE 1 — WER & WIE GUT (bleibt beim Scrollen sichtbar)           */}
         {/* ================================================================ */}
         {/* Schmale Leiste beim Scrollen: nimmt keinen Platz ein, solange der Kopf sichtbar ist */}
         <div
           className={cn(
-            'sticky top-16 z-30 -mb-[52px] h-[52px] transition-opacity',
+            // Am Handy übernimmt die feste Leiste unten (17.11.2026)
+            'sticky top-16 z-30 -mb-[52px] h-[52px] transition-opacity max-md:hidden',
             headVisible ? 'pointer-events-none opacity-0' : 'opacity-100',
           )}
           aria-hidden={headVisible}
         >
           <div className="flex h-full items-center gap-3 rounded-xl border bg-card/95 px-4 shadow-md backdrop-blur">
-            <span className="font-semibold shrink-0">{identityUnlocked ? displayName : anonCode}</span>
-            {subStateLoading ? <Skeleton className="h-5 w-32 rounded-full shrink-0" /> : <StatePill state={state} archiveKind={subState?.archiveKind} className="shrink-0" />}
+            {/* Am Handy nur Name und Hauptknopf, sonst ragt die Leiste über den Rand (16.11.2026) */}
+            <span className="min-w-0 truncate font-semibold sm:shrink-0">{identityUnlocked ? displayName : anonCode}</span>
+            {subStateLoading ? <Skeleton className="h-5 w-32 rounded-full shrink-0 max-sm:hidden" /> : <StatePill state={state} archiveKind={subState?.archiveKind} className="shrink-0 max-sm:hidden" />}
             <span className="hidden lg:inline min-w-0 text-sm text-muted-foreground truncate">{tc('card.for', { job: jobTitle })}</span>
             <div className="ml-auto flex items-center gap-1.5 shrink-0">
               {!isViewer && !mainLoading && mainAction && (
@@ -740,12 +780,12 @@ export default function CandidateDetail() {
                 </Button>
               )}
               {!isViewer && !isTerminal && !signedContract && !subStateLoading && (
-                <Button variant="outline" size="sm" className="h-8 text-muted-foreground" onClick={() => setShowRejectDialog(true)}>
+                <Button variant="outline" size="sm" className="h-8 text-muted-foreground max-sm:hidden" onClick={() => setShowRejectDialog(true)}>
                   {t('bewerber.actions.reject')}
                 </Button>
               )}
               {canAsk && (
-                <Button variant="ghost" size="sm" className="h-8 text-muted-foreground" onClick={() => setShowFrage(true)}>
+                <Button variant="ghost" size="sm" className="h-8 text-muted-foreground max-sm:hidden" onClick={() => setShowFrage(true)}>
                   {tc('preview.askHh', { name: hhName })}
                 </Button>
               )}
@@ -754,8 +794,9 @@ export default function CandidateDetail() {
         </div>
 
         <div ref={headRef}>
-          <div className="rounded-xl border bg-card shadow-md p-5">
-            <div className="flex items-start gap-4">
+          <div className="rounded-xl border bg-card shadow-md p-4 sm:p-5">
+            {/* Raster (16.11.2026): am Handy stehen die Kontakt-Knöpfe unter Bild und Name, ab sm rechts daneben */}
+            <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-4 gap-y-3 sm:grid-cols-[auto_minmax(0,1fr)_auto]">
               <div className="relative shrink-0">
                 <Avatar className="h-14 w-14 ring-2 ring-primary/20">
                   <AvatarFallback className={cn(
@@ -776,7 +817,7 @@ export default function CandidateDetail() {
                 )}
               </div>
 
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="text-xl md:text-2xl font-bold truncate">
                     {identityUnlocked ? displayName : anonCode}
@@ -798,7 +839,7 @@ export default function CandidateDetail() {
 
               {/* Kontaktleiste — nur nach Freigabe; vorher erklärt die Hinweiszeile den Zustand */}
               {identityUnlocked && (
-                <div className="flex items-center gap-1.5 shrink-0">
+                <div className="col-span-2 flex items-center gap-1.5 sm:col-span-1">
                   {phone && (
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -853,14 +894,14 @@ export default function CandidateDetail() {
             </div>
 
             {/* Fakten */}
-            <div className="mt-4 pt-3 border-t flex flex-wrap items-center gap-x-4 gap-y-1.5">
-              <KeyFactChip icon={GraduationCap} label={tc('detail.facts.seniority')} value={fmtSeniority(seniority)} faded={ph.seniority} />
-              <KeyFactChip icon={Briefcase} label={tc('detail.facts.experience')} value={experience} faded={ph.experience} />
-              <KeyFactChip icon={Banknote} label={geld.label} value={gehalt ?? ''} faded={gehaltPlaceholder} />
+            <div className="mt-4 pt-3 border-t flex flex-wrap items-center gap-x-4 gap-y-1.5 max-sm:grid max-sm:grid-cols-2 max-sm:gap-x-3 max-sm:gap-y-2.5">
+              <KeyFactChip icon={GraduationCap} label={tc('detail.facts.seniority')} value={fmtSeniority(seniority)} faded={ph.seniority} kurz={tc('detail.factShort.open')} />
+              <KeyFactChip icon={Briefcase} label={tc('detail.facts.experience')} value={experience} faded={ph.experience} kurz={tc('detail.factShort.open')} />
+              <KeyFactChip icon={Banknote} label={geld.label} value={gehalt ?? ''} faded={gehaltPlaceholder} kurz={tc('detail.factShort.interview')} />
               {budget && <KeyFactChip icon={Banknote} label={tc('detail.facts.yourJob')} value={budget} />}
-              <KeyFactChip icon={Clock} label={tc('cards.available')} value={verfuegbar} faded={verfuegbarPlaceholder} />
-              <KeyFactChip icon={MapPin} label={tc('detail.facts.region')} value={region} faded={ph.region} />
-              <KeyFactChip icon={Globe} label={tc('detail.facts.workModel')} value={enrichedWorkModel} faded={ph.workModel} />
+              <KeyFactChip icon={Clock} label={tc('cards.available')} value={verfuegbar} faded={verfuegbarPlaceholder} kurz={tc('detail.factShort.open')} />
+              <KeyFactChip icon={MapPin} label={tc('detail.facts.region')} value={region} faded={ph.region} kurz={tc('detail.factShort.open')} />
+              <KeyFactChip icon={Globe} label={tc('detail.facts.workModel')} value={enrichedWorkModel} faded={ph.workModel} kurz={tc('detail.factShort.open')} />
             </div>
 
             {/* Skills */}
@@ -939,7 +980,7 @@ export default function CandidateDetail() {
             {!isViewer && (mainLoading ? (
               <Skeleton className="h-9 w-40 rounded-md" />
             ) : mainAction ? (
-              <Button size="sm" variant={waitingForRec ? 'outline' : 'default'} onClick={mainAction.run} className="gap-1.5">
+              <Button size="sm" variant={waitingForRec ? 'outline' : 'default'} onClick={mainAction.run} className="gap-1.5 max-md:hidden">
                 <mainAction.Icon className="h-3.5 w-3.5" />
                 {mainAction.label}
               </Button>
@@ -961,7 +1002,7 @@ export default function CandidateDetail() {
               <Button
                 variant="outline"
                 size="sm"
-                className="gap-1.5 text-muted-foreground"
+                className="gap-1.5 text-muted-foreground max-md:hidden"
                 onClick={() => setShowRejectDialog(true)}
               >
                 <X className="h-3.5 w-3.5" />
@@ -1038,9 +1079,11 @@ export default function CandidateDetail() {
                   title: tc('detail.careerEmptyTitle'),
                   text: tc('detail.careerEmptyText'),
                   action: (
-                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowFrage(true)}>
-                      <MessageSquare className="h-3.5 w-3.5" />
-                      {tc('detail.careerAsk', { name: hhName })}
+                    <Button variant="outline" size="sm" className="gap-1.5 max-sm:h-auto max-sm:w-full max-sm:whitespace-normal max-sm:py-2" onClick={() => setShowFrage(true)}>
+                      <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+                      {/* Handy: nur der Vorname, damit der Knopf in eine Zeile passt */}
+                      <span className="max-sm:hidden">{tc('detail.careerAsk', { name: hhName })}</span>
+                      <span className="sm:hidden">{tc('detail.careerAsk', { name: submitter?.name?.trim() ? hhName.split(' ')[0] : hhName })}</span>
                     </Button>
                   ),
                 }}
@@ -1284,7 +1327,8 @@ export default function CandidateDetail() {
         notice={offerFlow && ['with_recruiter', 'considering', 'accept_reported', 'countered'].includes(subState?.offers?.[0]?.status ?? '') ? tc('detail.rejectWithdrawsOffer') : undefined}
         submission={{
           id: submissionId,
-          candidate: { id: candidateId, full_name: displayName, email: email || '' },
+          // Vor der Freigabe das Kürzel wie im Profil, nicht „Kandidat #…“ (17.11.2026)
+          candidate: { id: candidateId, full_name: identityUnlocked ? displayName : anonCode, email: email || '' },
           job: { id: jobId, title: jobTitle, company_name: '' }
         }}
         onSuccess={() => { setShowRejectDialog(false); refetch(); }}

@@ -5,7 +5,7 @@ import { ClientStartChecklist } from '@/components/dashboard/ClientStartChecklis
 import { ClientWaitingBanner } from '@/components/client/ClientWaiting';
 import { useClientWaiting } from '@/hooks/useClientWaiting';
 import { CalendarConnectCard } from '@/components/interview/calendar/CalendarConnectCard';
-import { PositionEntry } from '@/components/dashboard/PositionEntry';
+import { EntwuerfeHandy, PositionEntry } from '@/components/dashboard/PositionEntry';
 import { BewerbungenTile } from '@/components/dashboard/bento/BewerbungenTile';
 import { AktiveJobsTile } from '@/components/dashboard/bento/AktiveJobsTile';
 import { IhreAufgabenTile } from '@/components/dashboard/bento/IhreAufgabenTile';
@@ -19,9 +19,10 @@ import { useClientGuide } from '@/components/recruiter/guide/RecruiterGuide';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FIRST_VISIT_PARAM } from '@/lib/clientLogin';
-import { Compass, RefreshCw } from 'lucide-react';
+import { Compass, Plus, RefreshCw } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 function greetingKey(): 'morning' | 'day' | 'evening' {
   const h = new Date().getHours();
@@ -64,6 +65,10 @@ export default function ClientDashboard() {
     (user?.user_metadata as { full_name?: string } | undefined)?.full_name || user?.email?.split('@')[0] || '',
   ).split(' ')[0];
   const firstName = rawName ? rawName.charAt(0).toUpperCase() + rawName.slice(1) : '';
+  const navigate = useNavigate();
+  const hatStellen = isLoading || (data?.liveJobs?.length ?? 0) > 0;
+  /** Handy: Knopf „Neue Position aufnehmen“ im Kopf statt der Karte (nur laufende Kunden). */
+  const kopfKnopf = !waiting && hatStellen;
 
   if (error) {
     return (
@@ -92,17 +97,28 @@ export default function ClientDashboard() {
             nicht verbunden (oder abgelaufen / wartet auf die IT), wegklickbar. */}
         {!waiting && <CalendarConnectCard variant="dashboard" />}
 
-        {/* Header / Begrüßung */}
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold">
-              {firstName ? t(`page.greetingName.${greetingKey()}`, { name: firstName }) : t(`page.greeting.${greetingKey()}`)}
-            </h1>
-            <p className="text-sm text-muted-foreground">{waiting ? t('page.subtitleWaiting') : t('page.subtitle')}</p>
+        {/* Header / Begrüßung. Handy, laufender Kunde (17.11.2026): „Neue Position aufnehmen“
+            als Knopf neben „Rundgang“, Entwürfe eingeklappt darunter; die Karte entfällt dort. */}
+        <div>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h1 className="text-2xl font-bold">
+                {firstName ? t(`page.greetingName.${greetingKey()}`, { name: firstName }) : t(`page.greeting.${greetingKey()}`)}
+              </h1>
+              <p className="text-sm text-muted-foreground">{waiting ? t('page.subtitleWaiting') : t('page.subtitle')}</p>
+            </div>
+            <div className={cn('flex gap-2', kopfKnopf && 'max-md:w-full')}>
+              {kopfKnopf && (
+                <Button size="sm" data-tour="client.entry" className="min-w-0 flex-1 gap-1.5 md:hidden" onClick={() => navigate('/dashboard/aufnahme')}>
+                  <Plus className="h-4 w-4 shrink-0" /> <span className="truncate">{t('entry.newTitle')}</span>
+                </Button>
+              )}
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => guide.start()}>
+                <Compass className="h-4 w-4" /> {t('page.tour')}
+              </Button>
+            </div>
           </div>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => guide.start()}>
-            <Compass className="h-4 w-4" /> {t('page.tour')}
-          </Button>
+          {kopfKnopf && <EntwuerfeHandy className="mt-2.5 md:hidden" />}
         </div>
 
         {/* Im Wartezustand gibt es noch nichts zu zählen: Kennzahlen und leere Listen kommen mit der Gegenzeichnung. */}
@@ -111,19 +127,24 @@ export default function ClientDashboard() {
         <MilestoneBand />
 
         {/* Neue Position – fuehrt in dieselbe Aufnahme wie der Link /start */}
-        <div data-tour="client.entry">
-          <PositionEntry hasJobs={isLoading || (data?.liveJobs?.length ?? 0) > 0} />
+        <div data-tour="client.entry" className={cn(hatStellen && 'max-md:hidden')}>
+          <PositionEntry hasJobs={hatStellen} />
         </div>
 
-        {/* 2x2 Bento – vier gleich große Boxen */}
+        {/* 2x2 Bento – vier gleich große Boxen. Handy: Bewerbungen, Ihre Aufgaben, Aktive Jobs,
+            Interviews (17.11.2026); am Desktop lösen sich die Hüllen auf (md:contents). */}
         <TooltipProvider>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <BewerbungenTile />
-            <AktiveJobsTile jobs={data?.liveJobs ?? []} loading={isLoading} />
-            <div data-tour="client.decide">
+            <div className="max-md:order-2 md:contents">
+              <AktiveJobsTile jobs={data?.liveJobs ?? []} loading={isLoading} />
+            </div>
+            <div data-tour="client.decide" className="max-md:order-1">
               <IhreAufgabenTile />
             </div>
-            <AnstehendeInterviewsTile />
+            <div className="max-md:order-3 md:contents">
+              <AnstehendeInterviewsTile />
+            </div>
           </div>
         </TooltipProvider>
         </>}

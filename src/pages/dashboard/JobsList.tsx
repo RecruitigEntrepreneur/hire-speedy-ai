@@ -343,9 +343,10 @@ export default function JobsList() {
                 </button>
               )}
             </div>
-            <div className="ml-auto flex items-center gap-3">
+            {/* Am Handy (16.11.2026): eigene Zeile, darf umbrechen; Schalter-Text in einer Zeile. Ab sm wie bisher rechts. */}
+            <div className="flex flex-wrap items-center gap-3 sm:ml-auto sm:flex-nowrap">
               {(tab === 'active' || tab === 'drafts') && (
-                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <label className="flex cursor-pointer items-center gap-2 text-sm max-sm:w-full max-sm:whitespace-nowrap">
                   <Switch checked={focus} onCheckedChange={setFocus} />{t(tab === 'drafts' ? 'jobs2.filter.focusDrafts' : 'jobs2.filter.focus')}
                 </label>
               )}

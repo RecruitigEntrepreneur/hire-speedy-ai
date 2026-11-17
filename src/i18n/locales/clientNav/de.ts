@@ -12,6 +12,10 @@ const de = {
     team: 'Team',
     messages: 'Nachrichten',
   },
+  short: {
+    dashboard: 'Dashboard',
+    jobs: 'Jobs',
+  },
   settings: 'Einstellungen',
   signOut: 'Abmelden',
   theme: 'Theme',

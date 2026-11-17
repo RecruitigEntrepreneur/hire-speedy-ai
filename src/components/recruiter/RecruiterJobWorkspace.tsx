@@ -103,6 +103,9 @@ function Gruppe({ titel, children }: { titel: string; children: ReactNode }) {
   return <div className="space-y-0.5"><p className="px-2 pb-1 text-xs text-muted-foreground">{titel}</p>{children}</div>;
 }
 
+/** Handy (17.11.2026): Symbol-Knöpfe der unteren Leiste mit kurzem Wort darunter. */
+const HANDY_SYMBOL = 'max-sm:h-12 max-sm:min-w-[3.75rem] max-sm:flex-col max-sm:gap-0.5 max-sm:px-2 max-sm:text-[10.5px] max-sm:font-normal';
+
 export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submissionCount, candidates, onSubmit, onExpose, heroAction, heroStatus, mobileAction, headerBadge, kannPosten = false }: Props) {
   // Erst die Anzeige, dann das Briefing: so liest ein Headhunter eine neue Stelle.
   const [tab, setTab] = useState('beschreibung');
@@ -323,7 +326,7 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
       </div>
     </Tabs>
 
-    <div className="fixed inset-x-0 bottom-0 z-40 flex gap-2 border-t border-border bg-background p-3 pb-[max(12px,env(safe-area-inset-bottom))] md:left-64 min-[1180px]:hidden">{mobileAction ?? <Button className="min-w-0 flex-1" onClick={onSubmit}><Plus />{t('ws.prepare')}</Button>}{kannPosten && <Button aria-label={t('ws.postAria')} className="bg-[#0A66C2] px-3 text-white hover:bg-[#004182]" onClick={() => setBeitragOffen(true)}><Linkedin /></Button>}{hatAnzeige && <Button variant="outline" aria-label={t('ws.approach')} onClick={() => setTeilenOffen(true)}><Share2 /><span className="hidden min-[420px]:inline">{t('ws.approach')}</span></Button>}<Button variant="outline" aria-label={t('ws.openExpose')} onClick={onExpose}><FileText /></Button></div>
+    <div className="fixed inset-x-0 bottom-[var(--handy-leiste,0px)] z-40 flex gap-2 border-t border-border bg-background p-3 max-sm:[&>*]:h-12 md:left-64 md:pb-[max(12px,env(safe-area-inset-bottom))] min-[1180px]:hidden">{mobileAction ?? <Button className="min-w-0 flex-1 max-sm:h-12" onClick={onSubmit}><Plus />{t('ws.prepare')}</Button>}{kannPosten && <Button aria-label={t('ws.postAria')} className={cn('bg-[#0A66C2] px-3 text-white hover:bg-[#004182]', HANDY_SYMBOL)} onClick={() => setBeitragOffen(true)}><Linkedin /><span className="sm:hidden">LinkedIn</span></Button>}{hatAnzeige && <Button variant="outline" aria-label={t('ws.approach')} className={HANDY_SYMBOL} onClick={() => setTeilenOffen(true)}><Share2 /><span>{t('ws.approach')}</span></Button>}<Button variant="outline" aria-label={t('ws.openExpose')} className={HANDY_SYMBOL} onClick={onExpose}><FileText /><span className="sm:hidden">{t('ws.exposeShort')}</span></Button></div>
 
     {/* Ansprechen als Fenster von rechts; die Anzeige bleibt daneben lesbar. Am Handy über die ganze Breite. */}
     <Sheet open={teilenOffen} onOpenChange={setTeilenOffen}>

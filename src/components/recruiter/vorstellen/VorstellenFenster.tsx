@@ -90,14 +90,15 @@ function Rahmen({ schritte, aktuell, rail, children, fuss }: { schritte: Exclude
   const idx = aktuell === 'fertig' ? schritte.length : schritte.indexOf(aktuell as Exclude<Schritt, 'fertig'>);
   return (
     <div className="flex max-h-[88vh] min-h-0 flex-col">
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-border px-5 py-3 pr-12">
-        <DialogTitle className="text-base font-semibold">{t('title')}</DialogTitle>
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-border px-5 py-3 pr-12 max-md:pr-5">
+        <DialogTitle className="text-base font-semibold max-md:pr-8">{t('title')}</DialogTitle>
         <DialogDescription className="sr-only">{t('description')}</DialogDescription>
-        <ol className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+        {/* Handy (17.11.2026): Schritte in einer Zeile, notfalls zum Wischen */}
+        <ol className="handy-wischen flex flex-wrap items-center gap-1 text-xs text-muted-foreground max-md:w-full max-md:min-w-0">
           {schritte.map((s, i) => (
             <li key={s} className="flex items-center gap-1">
-              {i > 0 && <ChevronRight className="h-3 w-3 opacity-50" aria-hidden />}
-              <span className={cn('rounded-full px-2 py-0.5', i === idx ? 'bg-foreground text-background' : i < idx ? 'text-foreground' : '')} aria-current={i === idx ? 'step' : undefined}>
+              {i > 0 && <ChevronRight className="h-3 w-3 opacity-50 max-md:hidden" aria-hidden />}
+              <span className={cn('rounded-full px-2 py-0.5 max-md:px-1.5', i === idx ? 'bg-foreground text-background' : i < idx ? 'text-foreground' : '')} aria-current={i === idx ? 'step' : undefined}>
                 {i < idx && <Check className="mr-0.5 inline h-3 w-3" aria-hidden />}{t(`steps.${s}`)}
               </span>
             </li>

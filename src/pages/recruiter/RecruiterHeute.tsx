@@ -179,7 +179,7 @@ export default function RecruiterHeute() {
                       {needs > 0 ? needs : format(new Date(st.deadline!), 'EEE', { locale: dfLocale() })}
                     </span>
                   )}
-                  <div className="text-[11px] text-muted-foreground">{tr(`heute.stages.${st.key}`)}</div>
+                  <div className="text-[11px] text-muted-foreground max-md:truncate max-md:pr-4">{tr(`heute.stages.${st.key}`)}</div>
                   <div className="text-xl font-semibold tabular-nums">{st.count}</div>
                   <div className="text-[11px] text-muted-foreground tabular-nums">
                     {st.key === 'placed' && st.deadline ? tr('heute.guaranteeUntil', { date: dateShort(st.deadline) }) : st.fee > 0 ? <Honorar>{euro(st.fee)}</Honorar> : '—'}
@@ -293,8 +293,8 @@ export default function RecruiterHeute() {
           </Card>
         )}
 
-        {/* Termine + Wartet */}
-        <div className="grid gap-4 md:grid-cols-2">
+        {/* Termine + Wartet. grid-cols-1: sonst macht eine lange Zeile die Spalte am Handy 700 px breit */}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <Card className="border-border/30 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-border/40 px-4 py-3">
               <CardTitle className="text-sm">{tr('heute.appointments')}</CardTitle>
@@ -492,7 +492,7 @@ function PhaseCell({ stage, items }: { stage: PipelineStageKey | null; items: Un
   const idx = vorher ? -1 : Math.max(fromStage ?? -1, ...items.map(i => impliedPhase(i.taskCategory)));
   const label = vorher ? tr('heute.phases.before') : idx < 0 ? '–' : stage === 'placed' && idx === 3 ? tr('heute.stages.placed') : stage === 'in_review' && idx === 0 ? tr('heute.stages.in_review') : tr(`heute.phases.${PHASES[idx]}`);
   return (
-    <div className="flex w-[5.5rem] shrink-0 flex-col items-center gap-1" title={idx < 0 ? undefined : tr('heute.phaseTitle', { label })}>
+    <div className="flex shrink-0 flex-row items-center gap-1.5 sm:w-[5.5rem] sm:flex-col sm:gap-1" title={idx < 0 ? undefined : tr('heute.phaseTitle', { label })}>
       <div className="flex gap-0.5" aria-hidden="true">
         {PHASES.map((_, i) => (
           <span key={i} className={cn('h-3.5 w-1.5 rounded-sm', i <= idx ? 'bg-emerald-500' : 'bg-muted-foreground/25')} />
@@ -518,9 +518,9 @@ function NextCard({ row, stage, onOpen, onOpenItem }: {
   const title = row.kind === 'person' ? row.group.name : rowName(row);
   const termin = item.prep?.art === 'termin' ? item.prep.termin : null;
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/[0.04] px-4 py-3">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-destructive/30 bg-destructive/[0.04] px-4 py-3 sm:flex-nowrap">
       <PhaseCell stage={stage} items={rowItems(row)} />
-      <button type="button" className="min-w-0 flex-1 text-left" onClick={onOpen}>
+      <button type="button" className="order-first min-w-0 flex-1 basis-full text-left sm:order-none sm:basis-auto" onClick={onOpen}>
         <p className="text-[10px] font-semibold uppercase tracking-wide text-destructive">{tr('heute.next')}</p>
         <div className="flex flex-wrap items-center gap-x-2">
           <span className="text-base font-semibold">{title}</span>
@@ -533,7 +533,7 @@ function NextCard({ row, stage, onOpen, onOpenItem }: {
           {row.kind === 'bundle' ? bundleLine(row.bundle, row.more) : [guide.advice, ...all.slice(1).map(o => buildGuide(o).advice)].join(' ')}
         </p>
       </button>
-      <div className="flex shrink-0 flex-col items-end gap-1.5">
+      <div className="ml-auto flex shrink-0 flex-col items-end gap-1.5 sm:ml-0">
         {termin ? (
           <div className="flex items-center gap-1.5">
             {termin.joinUrl ? (
@@ -594,9 +594,9 @@ function BundleRow({ row, bundle, more, stage, sameClientCount, onOpen }: {
     const all = [bundle, ...more];
     const total = euro(all.reduce((x, b) => x + b.feeTotal, 0));
     return (
-      <div className="flex items-center gap-3 px-4 py-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:flex-nowrap">
         <PhaseCell stage={stage} items={rowItems(row)} />
-        <button type="button" className="min-w-0 flex-1 text-left" onClick={onOpen}>
+        <button type="button" className="order-first min-w-0 flex-1 basis-full text-left sm:order-none sm:basis-auto" onClick={onOpen}>
           <div className="flex flex-wrap items-center gap-x-2 text-sm">
             <Badge variant="secondary" className="h-4 px-1.5 text-[10px] font-medium">{feedback ? tr('guide.feedbackDue.pill') : tr('guide.reviewStalled.pill')}</Badge>
             <span className="font-medium">{bundle.companyName}</span>
@@ -611,7 +611,7 @@ function BundleRow({ row, bundle, more, stage, sameClientCount, onOpen }: {
           ))}
           <div className="text-sm text-muted-foreground">{stand}</div>
         </button>
-        <Button size="sm" className="h-7 shrink-0 gap-1 text-xs" onClick={onOpen}>
+        <Button size="sm" className="ml-auto h-8 shrink-0 gap-1 text-xs sm:ml-0 sm:h-7" onClick={onOpen}>
           <Mail className="h-3 w-3" />{feedback ? tr('guide.askClient') : tr('guide.remindClient')}
         </Button>
         <button type="button" className="shrink-0 text-muted-foreground hover:text-foreground" onClick={onOpen} aria-label={tr('heute.openTask')}>
@@ -621,9 +621,9 @@ function BundleRow({ row, bundle, more, stage, sameClientCount, onOpen }: {
     );
   }
   return (
-    <div className="flex items-center gap-3 px-4 py-3">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:flex-nowrap">
       <PhaseCell stage={stage} items={rowItems(row)} />
-      <button type="button" className="min-w-0 flex-1 text-left" onClick={onOpen}>
+      <button type="button" className="order-first min-w-0 flex-1 basis-full text-left sm:order-none sm:basis-auto" onClick={onOpen}>
         <div className="flex flex-wrap items-center gap-x-2 text-sm">
           <Badge variant="secondary" className="h-4 px-1.5 text-[10px] font-medium">{feedback ? tr('guide.feedbackDue.pill') : tr('guide.reviewStalled.pill')}</Badge>
           <span className="font-medium">{bundle.jobTitle}</span>
@@ -639,7 +639,7 @@ function BundleRow({ row, bundle, more, stage, sameClientCount, onOpen }: {
           {sameClientCount > 0 && <span> · {tr('heute.goesWith', { count: sameClientCount })}</span>}
         </div>
       </button>
-      <Button size="sm" className="h-7 shrink-0 gap-1 text-xs" onClick={onOpen}>
+      <Button size="sm" className="ml-auto h-8 shrink-0 gap-1 text-xs sm:ml-0 sm:h-7" onClick={onOpen}>
         <Mail className="h-3 w-3" />{feedback ? tr('guide.askClient') : tr('guide.remindClient')}
       </Button>
       <button type="button" className="shrink-0 text-muted-foreground hover:text-foreground" onClick={onOpen} aria-label={tr('heute.openTask')}>
@@ -664,9 +664,9 @@ function PersonRow({ row, group, stage, quiet, onOpen, onAct }: {
   const fee = euro(item.feeValue);
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:flex-nowrap">
       <PhaseCell stage={stage} items={rowItems(row)} />
-      <button type="button" className="min-w-0 flex-1 text-left" onClick={onOpen}>
+      <button type="button" className="order-first min-w-0 flex-1 basis-full text-left sm:order-none sm:basis-auto" onClick={onOpen}>
         <div className="flex flex-wrap items-center gap-x-2 text-sm">
           <Badge variant="secondary" className={cn('h-4 px-1.5 text-[10px] font-medium', item.prep && VORBEREITEN_TON[item.prep.art])}>{guide.pill}</Badge>
           <span
@@ -686,9 +686,9 @@ function PersonRow({ row, group, stage, quiet, onOpen, onAct }: {
       </button>
       {/* Erst die Aufgabe öffnen, angerufen oder gesendet wird im Fenster (28.10.2026) */}
       {DIRECT_KINDS.has(guide.primary.kind) ? (
-        <Button size="sm" className="h-7 shrink-0 text-xs" onClick={onOpen}>{tr('heute.openTask')}</Button>
+        <Button size="sm" className="ml-auto h-8 shrink-0 text-xs sm:ml-0 sm:h-7" onClick={onOpen}>{tr('heute.openTask')}</Button>
       ) : (
-        <Button size="sm" variant={quiet ? 'outline' : 'default'} className="h-7 shrink-0 gap-1 text-xs" onClick={() => onAct(item, guide)}>
+        <Button size="sm" variant={quiet ? 'outline' : 'default'} className="ml-auto h-8 shrink-0 gap-1 text-xs sm:ml-0 sm:h-7" onClick={() => onAct(item, guide)}>
           {guide.primary.kind === 'debrief' && <NotebookPen className="h-3 w-3" />}
           {(guide.primary.kind === 'client' || guide.primary.kind === 'candidate') && <Mail className="h-3 w-3" />}
           {guide.primary.label}

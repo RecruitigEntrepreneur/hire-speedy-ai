@@ -106,7 +106,8 @@ export function KontoSettings({ onBack }: { onBack: () => void }) {
         <div className="space-y-2">
           <Label>{t('konto.loginEmail')}</Label>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex h-10 min-w-0 flex-1 items-center rounded-md border border-dashed border-border bg-muted/30 px-3 text-sm text-muted-foreground">{user?.email}</div>
+            {/* Handy (17.11.2026): Feld in voller Breite, der Knopf darunter; sonst schneidet er die Adresse ab */}
+            <div className="flex h-10 min-w-0 flex-1 items-center rounded-md border border-dashed border-border bg-muted/30 px-3 text-sm text-muted-foreground max-sm:basis-full"><span className="truncate">{user?.email}</span></div>
             <Button variant="outline" onClick={() => setPwOpen(true)}>{t('konto.changePassword')}</Button>
           </div>
         </div>

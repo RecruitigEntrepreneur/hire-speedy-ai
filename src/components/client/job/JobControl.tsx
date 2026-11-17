@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -207,7 +207,7 @@ export function SearcherLine({ searchers, onDetails }: { searchers: JobSearcher[
             {current.length > 1 && <span className="text-muted-foreground"> {t('cockpit.searchers.more', { count: current.length - 1 })}</span>}
             {lastActive && <span className="text-muted-foreground"> · {t('cockpit.searchers.active', { date: fmtDayMonth(lastActive) })}</span>}
           </p>
-          <button type="button" className={linkBtn} onClick={onDetails}>{t('cockpit.searchers.all')}<ArrowRight className="h-3 w-3" /></button>
+          <button type="button" className={cn(linkBtn, 'max-sm:basis-full max-sm:justify-start')} onClick={onDetails}>{t('cockpit.searchers.all')}<ArrowRight className="h-3 w-3" /></button>
         </>
       )}
     </div>
@@ -346,22 +346,28 @@ export function FinalistsCard({ items }: { items: BewerberItem[] }) {
     [t('cockpit.final.available'), (i) => (i.availabilityDate ? fmtDate(i.availabilityDate) : i.noticePeriod || '–')],
     [t('cockpit.final.pay'), (i) => i.salaryBand || '–'],
     [t('cockpit.final.region'), (i) => [regionLabel(i.region), i.remotePreference ? remoteLabel(i.remotePreference, '') : ''].filter(Boolean).join(' · ') || '–'],
-    [t('cockpit.final.stage'), (i) => <BewerberStatusPill item={i} />],
+    [t('cockpit.final.stage'), (i) => <BewerberStatusPill item={i} className="max-md:whitespace-normal max-md:rounded-lg" />],
   ];
   const cols = `minmax(7rem,1.1fr) repeat(${finalists.length}, minmax(0,1fr))`;
+  // Am Handy: feste Spalten zum seitlichen Wischen, die Bezeichnung links bleibt stehen.
+  const colsHandy = `6.5rem repeat(${finalists.length}, 7.5rem)`;
+  const fest = 'max-md:sticky max-md:left-0 max-md:z-10 max-md:bg-card max-md:pr-2';
   return (
-    <SectionCard title={t('cockpit.final.title')} aside={<span className="text-xs text-muted-foreground">{t('cockpit.final.hint')}</span>}>
+    <SectionCard title={t('cockpit.final.title')} aside={<span className="text-xs text-muted-foreground">{t('cockpit.final.hint')}<span className="md:hidden"> · {t('cockpit.final.swipe')}</span></span>}>
       <div className="overflow-x-auto">
-        <div className="grid min-w-[22rem] text-xs" style={{ gridTemplateColumns: cols }}>
-          <span />
+        <div
+          className="grid min-w-[22rem] text-xs [grid-template-columns:var(--fin)] max-md:min-w-0 max-md:w-max max-md:[grid-template-columns:var(--fin-handy)]"
+          style={{ '--fin': cols, '--fin-handy': colsHandy } as CSSProperties}
+        >
+          <span className={fest} />
           {finalists.map((f) => (
-            <button key={f.submissionId} type="button" onClick={() => navigate(`/dashboard/candidates/${f.submissionId}`)} className="truncate pb-1.5 text-left text-sm font-medium hover:underline">
+            <button key={f.submissionId} type="button" onClick={() => navigate(`/dashboard/candidates/${f.submissionId}`)} className="truncate pb-1.5 pr-2 text-left text-sm font-medium hover:underline">
               {f.fullName || f.anonymizedName}
             </button>
           ))}
           {rows.map(([label, cell]) => (
             <div key={label} className="contents">
-              <span className="border-t py-1.5 text-muted-foreground">{label}</span>
+              <span className={cn('border-t py-1.5 text-muted-foreground', fest)}>{label}</span>
               {finalists.map((f) => <span key={f.submissionId} className="border-t py-1.5 pr-2">{cell(f)}</span>)}
             </div>
           ))}

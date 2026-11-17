@@ -13,5 +13,18 @@ const de = {
   inbox: 'Posteingang',
   inboxWaiting: 'Posteingang, {{count}} warten auf dich',
   inboxWaitingClient: 'Posteingang, {{count}} warten auf Sie',
+  // Glocke bündelt gleiche Meldungen, die direkt aufeinander folgen (17.11.2026)
+  bundle: {
+    searchStartedBy_one: '{{name}} sucht jetzt für {{count}} Stelle',
+    searchStartedBy_other: '{{name}} sucht jetzt für {{count}} Stellen',
+    searchStarted_one: 'Headhunter suchen jetzt für {{count}} Stelle',
+    searchStarted_other: 'Headhunter suchen jetzt für {{count}} Stellen',
+    pauseEnded_one: '{{count}} Stelle läuft wieder',
+    pauseEnded_other: '{{count}} Stellen laufen wieder',
+    pauseEnding_one: 'Bei {{count}} Stelle endet die Pause bald',
+    pauseEnding_other: 'Bei {{count}} Stellen endet die Pause bald',
+    expand: 'Einzeln anzeigen',
+    collapse: 'Zuklappen',
+  },
 };
 export default de;

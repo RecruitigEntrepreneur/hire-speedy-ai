@@ -14,5 +14,17 @@ const en: Messages<typeof de> = {
   inbox: 'Inbox',
   inboxWaiting: 'Inbox, {{count}} waiting for you',
   inboxWaitingClient: 'Inbox, {{count}} waiting for you',
+  bundle: {
+    searchStartedBy_one: '{{name}} is now searching for {{count}} position',
+    searchStartedBy_other: '{{name}} is now searching for {{count}} positions',
+    searchStarted_one: 'Headhunters are now searching for {{count}} position',
+    searchStarted_other: 'Headhunters are now searching for {{count}} positions',
+    pauseEnded_one: '{{count}} position is running again',
+    pauseEnded_other: '{{count}} positions are running again',
+    pauseEnding_one: 'The pause ends soon for {{count}} position',
+    pauseEnding_other: 'The pause ends soon for {{count}} positions',
+    expand: 'Show each',
+    collapse: 'Collapse',
+  },
 };
 export default en;

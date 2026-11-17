@@ -4,6 +4,9 @@ import { FileText, Mic, Send, Calendar, FileEdit, CheckCircle } from 'lucide-rea
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 
+/** Handy (17.11.2026): Symbol-Knöpfe mit kurzem Wort darunter, wie in der Menüleiste unten. */
+const HANDY_SYMBOL = 'max-sm:min-w-[3.75rem] max-sm:flex-col max-sm:gap-0.5 max-sm:px-2.5 max-sm:text-[10.5px] max-sm:font-normal';
+
 interface CandidateActionBarProps {
   onViewExpose: () => void;
   onStartInterview: () => void;
@@ -27,7 +30,7 @@ export function CandidateActionBar({
   if (currentStatus === 'placed') {
     return (
       <div className={cn(
-        "fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-sm border-t shadow-lg",
+        "fixed bottom-[var(--handy-leiste,0px)] left-0 right-0 z-40 bg-background/95 backdrop-blur-sm border-t shadow-lg",
         "lg:left-64",
         className
       )}>
@@ -43,22 +46,22 @@ export function CandidateActionBar({
 
   return (
     <div className={cn(
-      "fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-sm border-t shadow-lg",
+      "fixed bottom-[var(--handy-leiste,0px)] left-0 right-0 z-40 bg-background/95 backdrop-blur-sm border-t shadow-lg",
       "lg:left-64",
       className
     )}>
       <div className="container max-w-7xl mx-auto px-4 py-3">
-        <div className="flex items-center justify-center gap-3">
+        <div className="flex items-center justify-center gap-3 max-sm:[&>button]:h-11">
           {/* Always show Exposé */}
           <Button
             variant="outline"
             size="sm"
             onClick={onViewExpose}
             disabled={!exposeReady}
-            className="gap-2"
+            className={cn('gap-2', HANDY_SYMBOL)}
           >
             <FileText className="h-4 w-4" />
-            <span className="hidden sm:inline">{t('actionBar.expose')}</span>
+            <span>{t('actionBar.expose')}</span>
           </Button>
 
           {/* Context-dependent primary action */}
@@ -79,10 +82,10 @@ export function CandidateActionBar({
               variant="outline"
               size="sm"
               onClick={onStartInterview}
-              className="gap-2"
+              className={cn('gap-2', HANDY_SYMBOL)}
             >
               <Mic className="h-4 w-4" />
-              <span className="hidden sm:inline">{t('actionBar.interview')}</span>
+              <span>{t('actionBar.interview')}</span>
             </Button>
           )}
 
@@ -114,10 +117,10 @@ export function CandidateActionBar({
                 variant="outline"
                 size="sm"
                 onClick={onStartInterview}
-                className="gap-2"
+                className={cn('gap-2', HANDY_SYMBOL)}
               >
                 <Mic className="h-4 w-4" />
-                <span className="hidden sm:inline">{t('actionBar.interview')}</span>
+                <span>{t('actionBar.interview')}</span>
               </Button>
             </>
           )}
@@ -127,10 +130,10 @@ export function CandidateActionBar({
               onClick={onSubmitToJob}
               size="sm"
               variant="outline"
-              className="gap-2"
+              className={cn('gap-2', HANDY_SYMBOL)}
             >
               <Send className="h-4 w-4" />
-              <span className="hidden sm:inline">{t('actionBar.trackOffer')}</span>
+              <span>{t('actionBar.trackOffer')}</span>
             </Button>
           )}
         </div>

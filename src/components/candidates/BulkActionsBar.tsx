@@ -35,7 +35,7 @@ export function BulkActionsBar({
   if (selectedCount === 0) return null;
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+    <div className="fixed bottom-[calc(var(--handy-leiste,0px)+1.5rem)] left-1/2 -translate-x-1/2 z-50 max-w-[calc(100vw-1rem)]">
       <div className="flex items-center gap-3 bg-card border shadow-lg rounded-lg px-4 py-3">
         <Badge variant="secondary" className="font-medium">
           {t('bulk.selected', { count: selectedCount })}

@@ -12,6 +12,9 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
+import i18n from '@/i18n';
+import { intlLocale } from '@/i18n/languages';
 
 interface Interview {
   id: string;
@@ -75,9 +78,11 @@ const meetingTypeConfig: Record<string, { gradient: string; iconColor: string; b
 
 export function InterviewCalendarView({ interviews, onSelectInterview }: InterviewCalendarViewProps) {
   const { t } = useTranslation(['clientInterviews', 'interviews']);
-  const [currentWeekStart, setCurrentWeekStart] = useState(() => 
+  const [currentWeekStart, setCurrentWeekStart] = useState(() =>
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
+  const isMobile = useIsMobile();
+  const [tagWahl, setTagWahl] = useState<string | null>(null);
 
   const weekDays = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
@@ -136,7 +141,87 @@ export function InterviewCalendarView({ interviews, onSelectInterview }: Intervi
 
   const handlePreviousWeek = () => setCurrentWeekStart(prev => subWeeks(prev, 1));
   const handleNextWeek = () => setCurrentWeekStart(prev => addWeeks(prev, 1));
-  const handleToday = () => setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const handleToday = () => { setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 })); setTagWahl(null); };
+
+  // Handy (17.11.2026): Woche als Tagesleiste, darunter die Termine des gewählten Tages in voller Breite.
+  if (isMobile) {
+    const aktiv = weekDays.find((d) => format(d, 'yyyy-MM-dd') === tagWahl) ?? weekDays.find(isToday) ?? weekDays[0];
+    const aktivKey = format(aktiv, 'yyyy-MM-dd');
+    const termine = interviewsByDay.get(aktivKey) || [];
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" onClick={() => { handlePreviousWeek(); setTagWahl(null); }} aria-label={t('calendarView.prevWeek')}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <div className="min-w-0 flex-1 truncate text-center text-sm font-medium">
+            <span className="text-muted-foreground">KW {weekNumber}</span>
+            <span className="mx-1.5">·</span>
+            <span>{format(currentWeekStart, 'MMMM yyyy', { locale: dfLocale() })}</span>
+          </div>
+          <Button variant="outline" size="icon" className="h-8 w-8 shrink-0" onClick={() => { handleNextWeek(); setTagWahl(null); }} aria-label={t('calendarView.nextWeek')}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button variant={isCurrentWeek ? 'secondary' : 'outline'} size="sm" className="h-8 shrink-0 px-2.5" onClick={handleToday}>
+            {t('day.today')}
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-7 gap-1">
+          {weekDays.map((day) => {
+            const key = format(day, 'yyyy-MM-dd');
+            const an = key === aktivKey;
+            const hat = (interviewsByDay.get(key) || []).length > 0;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setTagWahl(key)}
+                aria-pressed={an}
+                className={cn(
+                  'flex flex-col items-center rounded-lg py-1.5 transition-colors',
+                  an ? 'bg-foreground text-background' : isToday(day) ? 'border border-foreground/40' : 'hover:bg-muted/50',
+                )}
+              >
+                <span className={cn('text-[11px]', an ? 'text-background/70' : 'text-muted-foreground')}>{format(day, 'EEEEEE', { locale: dfLocale() })}</span>
+                <span className="text-base font-semibold leading-tight tabular-nums">{format(day, 'd')}</span>
+                <span className={cn('mt-0.5 h-1 w-1 rounded-full', hat ? (an ? 'bg-background' : 'bg-foreground') : 'bg-transparent')} />
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="border-t pt-3">
+          <p className="text-sm font-semibold">
+            {aktiv.toLocaleDateString(intlLocale(i18n.language), { weekday: 'long', day: 'numeric', month: 'long' })}
+          </p>
+          {termine.length === 0 ? (
+            <p className="mt-1.5 text-sm text-muted-foreground">{t('calendarView.noneDay')}</p>
+          ) : (
+            <div className="mt-2 space-y-2">
+              {termine.map((interview) => (
+                <button
+                  key={interview.id}
+                  type="button"
+                  onClick={() => onSelectInterview(interview)}
+                  className="flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/40"
+                >
+                  <span className="w-12 shrink-0 text-sm font-semibold tabular-nums">{format(parseISO(interview.scheduled_at!), 'HH:mm')}</span>
+                  <span className="text-muted-foreground">{getMeetingIcon(interview.meeting_type)}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">{interview.submission.candidate.full_name}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {interview.submission.job.title} · {interview.duration_minutes || 60} Min
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

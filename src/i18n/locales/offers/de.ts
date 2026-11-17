@@ -110,6 +110,8 @@ const de = {
     reportedAccept: 'Du hast die Zusage gemeldet. {{name}} bestätigt sie noch per Mail.',
     reportedAcceptAt: 'Du hast die Zusage gemeldet ({{when}}). {{name}} bestätigt sie noch per Mail.',
     reportedLong: ' Seit 24 Std. kein Klick: ruf {{name}} an.',
+    reportedLongDays_one: ' Seit {{count}} Tag kein Klick: ruf {{name}} an.',
+    reportedLongDays_other: ' Seit {{count}} Tagen kein Klick: ruf {{name}} an.',
     counterWithClient: 'Dein Gegenwunsch liegt bei {{company}}.',
     acceptedSelf: '{{name}} hat selbst zugesagt. {{company}} schickt den Vertrag.',
     accepted: '{{name}} hat zugesagt. {{company}} schickt den Vertrag.',

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { BewerberPreviewPanel } from './BewerberPreviewPanel';
@@ -80,6 +81,7 @@ function CandidateCard({
 export function BewerberInboxView({ items, onRefresh }: BewerberInboxViewProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   // Zuständigkeits-Sektionen: was beim Kunden liegt zuerst, Rest darunter.
   const mine = items.filter((i) => i.isMyTurn);
@@ -108,17 +110,19 @@ export function BewerberInboxView({ items, onRefresh }: BewerberInboxViewProps) 
       item={item}
       submitter={submitterNames?.[item.submissionId]}
       task={taskBySub.get(item.submissionId)}
-      isSelected={selectedItem?.submissionId === item.submissionId}
-      onSelect={() => setSelectedId(item.submissionId)}
+      isSelected={!isMobile && selectedItem?.submissionId === item.submissionId}
+      onSelect={() => (isMobile ? navigate(`/dashboard/candidates/${item.submissionId}`) : setSelectedId(item.submissionId))}
       onOpen={() => navigate(`/dashboard/candidates/${item.submissionId}`)}
     />
   );
 
   return (
-    <div className="flex border rounded-lg bg-card overflow-hidden" style={{ height: 'calc(100vh - 280px)', minHeight: '500px' }}>
+    // Handy: kein Kasten mit eigener Scrollleiste, die ganze Seite scrollt; ein Tipp öffnet das Profil
+    // (die Vorschau rechts gibt es erst ab 768 px).
+    <div className="md:flex md:h-[calc(100vh-280px)] md:min-h-[500px] md:overflow-hidden md:rounded-lg md:border md:bg-card">
       {/* Left: List */}
-      <div className="w-[340px] lg:w-[380px] border-r flex flex-col shrink-0">
-        <div className="flex-1 overflow-y-auto">
+      <div className="flex w-full shrink-0 flex-col md:w-[340px] md:border-r lg:w-[380px]">
+        <div className="max-md:border-t md:flex-1 md:overflow-y-auto">
           {showSections ? (
             <>
               <SectionHeader label={t('bewerber.sections.mine')} count={mine.length} />
@@ -138,7 +142,7 @@ export function BewerberInboxView({ items, onRefresh }: BewerberInboxViewProps) 
       </div>
 
       {/* Right: Preview */}
-      <div className="flex-1 min-w-0">
+      <div className="hidden min-w-0 flex-1 md:block">
         {selectedItem ? (
           <BewerberPreviewPanel
             item={selectedItem}
@@ -160,7 +164,7 @@ export function BewerberInboxView({ items, onRefresh }: BewerberInboxViewProps) 
           rejectFor
             ? {
                 id: rejectFor.submissionId,
-                candidate: { id: rejectFor.candidateId, full_name: displayNameOf(rejectFor), email: '' },
+                candidate: { id: rejectFor.candidateId, full_name: (rejectFor.identityUnlocked && rejectFor.fullName) || rejectFor.anonymizedName, email: '' },
                 job: { id: rejectFor.jobId, title: rejectFor.jobTitle, company_name: '' },
               }
             : null

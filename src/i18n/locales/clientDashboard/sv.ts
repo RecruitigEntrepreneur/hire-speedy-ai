@@ -102,6 +102,7 @@ const sv: Messages<typeof de> = {
     previewOnly: '{{what}} är ännu inte anslutet i den här förhandsversionen.',
     continue: 'Fortsätt:',
     untitled: 'Namnlöst utkast',
+    continueDrafts: 'Fortsätt med utkast',
     allDrafts: 'alla utkast',
     newTitle: 'Lägg till ny tjänst',
     newLead: 'Klistra in annons, ladda upp eller beskriv själv',
@@ -492,6 +493,7 @@ const sv: Messages<typeof de> = {
     done7: 'Klart · senaste 7 dagarna · {{count}}',
   },
   messages: {
+    backToList: 'Alla meddelanden',
     title: 'Meddelanden',
     subtitle: 'Dina frågor till headhuntrarna, per kandidat',
     unknown: 'Okänd',

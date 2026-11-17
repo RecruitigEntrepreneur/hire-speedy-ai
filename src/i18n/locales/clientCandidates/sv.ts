@@ -347,6 +347,8 @@ const sv: Messages<typeof de> = {
     careerEmptyTitle: 'Inga anställningar registrerade än',
     careerEmptyText: 'Headhuntern har inte fyllt i karriären än. Fråga gärna.',
     careerAsk: 'Be {{name}} om karriärhistoriken',
+    factShort: { open: 'öppet', interview: 'i intervjun' },
+    bar: { offer: 'Visa erbjudandet', contract: 'Visa avtalet' },
     questionsTo: 'Frågor till {{name}}',
     noQuestions: 'Inga frågor än. {{name}} har föreslagit kandidaten och känner hen från samtalet.',
     notePlaceholderMention: 'Lägg till anteckning … (@ nämner teammedlemmar)',

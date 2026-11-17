@@ -48,6 +48,7 @@ const de = {
     pickTitle: 'Wähle eine Konversation',
     pickText: 'Klicke links auf eine Konversation, um Nachrichten anzuzeigen',
     inboxTitle: 'Posteingang',
+    backToList: 'Alle Nachrichten',
     inboxSubtitle: 'Gespräche mit Kunden',
     noneYet: 'Noch keine Gespräche',
     emptyText: 'Fragen von Kunden zu deinen Kandidaten landen hier.',

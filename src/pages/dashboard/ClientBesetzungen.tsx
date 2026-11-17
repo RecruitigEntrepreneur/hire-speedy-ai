@@ -13,6 +13,7 @@ import { introOf, dayMonth, eur } from '@/components/besetzungen/besetzungView';
 import { useTranslation } from 'react-i18next';
 import { OfferTaskWindow } from '@/components/offers/OfferTaskWindow';
 import { ContractTaskWindow } from '@/components/contracts/ContractTaskWindow';
+import { StellenTitelKurz } from '@/components/client/StellenTitelKurz';
 
 /**
  * Kunden-Seite „Besetzungen“ (Etappe 2, 25.10.2026; Umbau Nachbesetzung 11.11.2026, K3):
@@ -29,14 +30,14 @@ const TABS: { key: BesetzungGroup }[] = [{ key: 'angebot' }, { key: 'start' }, {
 function Kpi({ label, value, sub, onClick }: { label: string; value: string; sub?: string | null; onClick?: () => void }) {
   const inner = (
     <>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-xl font-semibold">{value}</p>
-      {sub && <p className="truncate text-xs text-muted-foreground">{sub}</p>}
+      <p className="text-xs text-muted-foreground max-sm:text-[10.5px] max-sm:leading-tight">{label}</p>
+      <p className="text-xl font-semibold max-sm:text-sm max-sm:tabular-nums">{value}</p>
+      {sub && <p className="truncate text-xs text-muted-foreground max-sm:text-[10.5px]">{sub}</p>}
     </>
   );
   return onClick
-    ? <button type="button" onClick={onClick} className="rounded-xl border bg-card px-4 py-3 text-left transition-colors hover:border-foreground/30">{inner}</button>
-    : <div className="rounded-xl border bg-card px-4 py-3">{inner}</div>;
+    ? <button type="button" onClick={onClick} className="rounded-xl border bg-card px-4 py-3 max-sm:px-2 max-sm:py-2 text-left transition-colors hover:border-foreground/30">{inner}</button>
+    : <div className="rounded-xl border bg-card px-4 py-3 max-sm:px-2 max-sm:py-2">{inner}</div>;
 }
 
 export default function ClientBesetzungen() {
@@ -107,7 +108,8 @@ export default function ClientBesetzungen() {
           <p className="text-sm text-destructive">{q.error instanceof Error ? q.error.message : t('page.loadError')}</p>
         ) : (
           <>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {/* Handy (17.11.2026): drei kleine Kacheln nebeneinander statt untereinander */}
+            <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
               <Kpi label={t('page.placedYear', { year: new Date().getFullYear() })} value={String(k?.placedThisYear ?? 0)} sub={t('page.signed')} />
               <Kpi label={t('page.openInvoices')} value={eur(k?.openInvoiceCents ?? 0)} sub={t('page.toInvoices')} onClick={() => navigate('/dashboard/rechnungen')} />
               <Kpi label={t('page.nextStart')} value={k?.nextStart ? dayMonth(k.nextStart.date) : '–'} sub={k?.nextStart?.name ?? null} />
@@ -115,22 +117,24 @@ export default function ClientBesetzungen() {
 
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-1.5">
-                {TABS.map((tb) => (
-                  <Button key={tb.key} size="sm" variant={tab === tb.key ? 'default' : 'outline'} className="h-8" onClick={() => setTab(tb.key)}>
-                    {t('page.tabCount', { label: t(`page.tabs.${tb.key}`), count: counts[tb.key] })}
-                  </Button>
-                ))}
+                <div className="handy-wischen contents max-md:flex max-md:w-full max-md:gap-1.5">
+                  {TABS.map((tb) => (
+                    <Button key={tb.key} size="sm" variant={tab === tb.key ? 'default' : 'outline'} className="h-8" onClick={() => setTab(tb.key)}>
+                      {t('page.tabCount', { label: t(`page.tabs.${tb.key}`), count: counts[tb.key] })}
+                    </Button>
+                  ))}
+                </div>
                 <div className="relative ml-auto w-full sm:w-56">
                   <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
                   <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('page.searchPlaceholder')} className="h-8 pl-8 text-sm" aria-label={t('page.search')} />
                 </div>
               </div>
               {jobs.length > 1 && (
-                <div className="flex flex-wrap items-center gap-1.5">
+                <div className="handy-wischen flex flex-wrap items-center gap-1.5">
                   <Button size="sm" variant={jobFilter ? 'outline' : 'secondary'} className="h-7 text-xs" onClick={() => setJobFilter(null)}>{t('page.allJobs')}</Button>
                   {jobs.map((j) => (
                     <Button key={j.id} size="sm" variant={jobFilter === j.id ? 'secondary' : 'outline'} className="h-7 max-w-[16rem] text-xs" onClick={() => setJobFilter(jobFilter === j.id ? null : j.id)}>
-                      <span className="truncate">{j.title}</span>&nbsp;· {j.n}
+                      <span className="truncate"><StellenTitelKurz titel={j.title} /></span>&nbsp;· {j.n}
                     </Button>
                   ))}
                 </div>

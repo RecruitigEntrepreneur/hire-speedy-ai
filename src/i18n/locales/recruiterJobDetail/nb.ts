@@ -28,6 +28,7 @@ const nb: Messages<typeof de> = {
     guide: 'Samtaleguide',
     expose: 'Anonym presentasjon av stillingen',
     openExpose: 'Åpne anonym presentasjon av stillingen',
+    exposeShort: 'Presentasjon',
     calcEarning: 'Beregn inntjening',
     calcText: '{{title}} · slik regnes provisjonen din ut.',
     reportClient: 'Meld fra om kunden',

@@ -1,44 +1,37 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/lib/auth';
-import { supabase } from '@/integrations/supabase/client';
-import { generateAnonymousId } from '@/lib/anonymization';
 import {
   CommandDialog,
-  CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
-  CommandSeparator,
 } from '@/components/ui/command';
 import { Button } from '@/components/ui/button';
+import { HeadhunterSuche } from './HeadhunterSuche';
+import { KundenSuche } from './KundenSuche';
+import { normal } from '@/lib/headhunterSuche';
 import { 
   Search, 
   Briefcase, 
   Users, 
   Calendar, 
-  FileText, 
   Settings,
   BarChart3,
   Plus
 } from 'lucide-react';
 
-interface SearchResult {
-  id: string;
-  type: 'job' | 'candidate' | 'interview';
-  title: string;
-  subtitle?: string;
-}
-
 export function GlobalSearch() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [loading, setLoading] = useState(false);
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const navigate = useNavigate();
+  // Headhunter: eigene Suche (Kandidaten, Stellen), siehe HeadhunterSuche (16.11.2026)
+  const istHeadhunter = role === 'recruiter';
+  // Kunde: Stellen der Firma + alle Bewerber, siehe KundenSuche (17.11.2026)
+  const istKunde = role === 'client';
 
   // Keyboard shortcut
   useEffect(() => {
@@ -53,91 +46,7 @@ export function GlobalSearch() {
     return () => document.removeEventListener('keydown', down);
   }, []);
 
-  // Search when query changes
-  const search = useCallback(async (searchQuery: string) => {
-    if (!searchQuery.trim() || !user) {
-      setResults([]);
-      return;
-    }
-
-    setLoading(true);
-    const searchResults: SearchResult[] = [];
-
-    try {
-      // Search jobs
-      const { data: jobs } = await supabase
-        .from('jobs')
-        .select('id, title, company_name')
-        .eq('client_id', user.id)
-        .ilike('title', `%${searchQuery}%`)
-        .limit(5);
-
-      if (jobs) {
-        searchResults.push(...jobs.map(job => ({
-          id: job.id,
-          type: 'job' as const,
-          title: job.title,
-          subtitle: job.company_name || undefined,
-        })));
-      }
-
-      // Search candidates via reveal-gated client view.
-      // The view filters to the logged-in client itself and serves PII
-      // (full_name etc.) only after opt-in (identity_unlocked); before that
-      // full_name is NULL, so we fall back to the anonymous candidate id.
-      const { data: candidateRows } = await supabase
-        .from('client_candidate_view')
-        .select('submission_id, full_name, candidate_role, identity_unlocked')
-        .limit(50);
-
-      if (candidateRows) {
-        const term = searchQuery.toLowerCase();
-        const filtered = (candidateRows as any[]).filter((row) => {
-          const displayName = row.full_name || generateAnonymousId(row.submission_id);
-          return (
-            displayName.toLowerCase().includes(term) ||
-            (row.candidate_role?.toLowerCase().includes(term) ?? false)
-          );
-        });
-        searchResults.push(...filtered.slice(0, 5).map((row) => ({
-          id: row.submission_id,
-          type: 'candidate' as const,
-          title: row.full_name || generateAnonymousId(row.submission_id),
-          subtitle: row.candidate_role || undefined,
-        })));
-      }
-
-      setResults(searchResults);
-    } catch (error) {
-      console.error('Search error:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    const debounce = setTimeout(() => {
-      search(query);
-    }, 300);
-    return () => clearTimeout(debounce);
-  }, [query, search]);
-
-  const handleSelect = (result: SearchResult) => {
-    setOpen(false);
-    setQuery('');
-    
-    switch (result.type) {
-      case 'job':
-        navigate(`/dashboard/jobs/${result.id}`);
-        break;
-      case 'candidate':
-        navigate(`/dashboard/candidates/${result.id}`);
-        break;
-      case 'interview':
-        navigate('/dashboard/interviews');
-        break;
-    }
-  };
+  const waehle = (pfad: string) => { setOpen(false); setQuery(''); navigate(pfad); };
 
   const { t } = useTranslation('common');
   const quickActions = [
@@ -148,6 +57,8 @@ export function GlobalSearch() {
     { label: t('search.analytics'), icon: <BarChart3 className="h-4 w-4" />, href: '/dashboard/analytics' },
     { label: t('search.settings'), icon: <Settings className="h-4 w-4" />, href: '/dashboard/settings' },
   ];
+
+  const schnellwege = quickActions.filter((a) => !query.trim() || normal(a.label).includes(normal(query.trim())));
 
   return (
     <>
@@ -163,58 +74,54 @@ export function GlobalSearch() {
         </kbd>
       </Button>
 
-      <CommandDialog open={open} onOpenChange={setOpen}>
+      {/* Am Handy oben statt mittig, damit die Tastatur die Treffer nicht verdeckt.
+          Gefiltert wird in HeadhunterSuche / KundenSuche selbst, nicht von cmdk. */}
+      <CommandDialog
+        open={open}
+        onOpenChange={(o) => { setOpen(o); if (!o) setQuery(''); }}
+        shouldFilter={false}
+        contentClassName="max-md:top-3 max-md:translate-y-0"
+      >
         <CommandInput 
-          placeholder={t('search.ph')} 
+          placeholder={istHeadhunter ? t('search.hhPh') : t('search.cPh')} 
           value={query}
           onValueChange={setQuery}
         />
-        <CommandList>
-          <CommandEmpty>
-            {loading ? t('search.loading') : t('search.empty')}
-          </CommandEmpty>
-          
-          {results.length > 0 && (
+        {istHeadhunter && user ? (
+          <HeadhunterSuche
+            userId={user.id}
+            offen={open}
+            query={query}
+            onWaehle={waehle}
+          />
+        ) : (
+        <CommandList className="max-h-[min(420px,calc(100svh-9rem))]">
+          {istKunde && user && <KundenSuche userId={user.id} query={query} onWaehle={waehle} />}
+          {!istKunde && query.trim() && (
+            <p className="px-4 py-6 text-center text-sm text-muted-foreground">{t('search.none', { q: query.trim() })}</p>
+          )}
+
+          {/* Am Handy ein Hinweis, am Desktop die Schnellwege wie bisher (beim Tippen gefiltert) */}
+          {!query.trim() && <p className="px-4 py-6 text-center text-sm text-muted-foreground md:hidden">{t('search.cHint')}</p>}
+          {schnellwege.length > 0 && (
             <>
-              <CommandGroup heading={t('search.results')}>
-                {results.map((result) => (
+              <CommandGroup heading={t('search.quick')} className="hidden md:block">
+                {schnellwege.map((action) => (
                   <CommandItem
-                    key={`${result.type}-${result.id}`}
-                    onSelect={() => handleSelect(result)}
+                    key={action.href}
+                    value={action.href}
+                    onSelect={() => waehle(action.href)}
                     className="cursor-pointer"
                   >
-                    {result.type === 'job' && <Briefcase className="mr-2 h-4 w-4 text-primary" />}
-                    {result.type === 'candidate' && <Users className="mr-2 h-4 w-4 text-success" />}
-                    {result.type === 'interview' && <Calendar className="mr-2 h-4 w-4 text-warning" />}
-                    <div className="flex flex-col">
-                      <span>{result.title}</span>
-                      {result.subtitle && (
-                        <span className="text-xs text-muted-foreground">{result.subtitle}</span>
-                      )}
-                    </div>
+                    {action.icon}
+                    <span className="ml-2">{action.label}</span>
                   </CommandItem>
                 ))}
               </CommandGroup>
-              <CommandSeparator />
             </>
           )}
-
-          <CommandGroup heading={t('search.quick')}>
-            {quickActions.map((action) => (
-              <CommandItem
-                key={action.href}
-                onSelect={() => {
-                  setOpen(false);
-                  navigate(action.href);
-                }}
-                className="cursor-pointer"
-              >
-                {action.icon}
-                <span className="ml-2">{action.label}</span>
-              </CommandItem>
-            ))}
-          </CommandGroup>
         </CommandList>
+        )}
       </CommandDialog>
     </>
   );

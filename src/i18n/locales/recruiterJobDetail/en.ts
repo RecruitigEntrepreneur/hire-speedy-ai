@@ -28,6 +28,7 @@ const en: Messages<typeof de> = {
     guide: 'Conversation guide',
     expose: 'Anonymous exposé',
     openExpose: 'Open anonymous exposé',
+    exposeShort: 'Exposé',
     calcEarning: 'Calculate earnings',
     calcText: '{{title}} · this is how your commission works out.',
     reportClient: 'Report client',

@@ -307,11 +307,12 @@ export function InviteMemberDialog({
                         ))}
                       </div>
                     )}
-                    <div className="relative">
+                    {/* Handy (17.11.2026): Suche erst ab 8 Stellen, Liste ohne eigenen Scroll-Kasten */}
+                    <div className={cn('relative', (orgJobs?.length ?? 0) < 8 && 'max-md:hidden')}>
                       <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                       <Input value={jobQuery} onChange={(e) => setJobQuery(e.target.value)} placeholder={tt('dialog.searchJob')} className="h-8 pl-8 text-sm" />
                     </div>
-                    <div className="max-h-44 overflow-y-auto rounded-lg border">
+                    <div className="rounded-lg border md:max-h-44 md:overflow-y-auto">
                       {filteredJobs.length === 0 ? (
                         <p className="p-3 text-xs text-muted-foreground">{orgJobs ? tt('dialog.noJobMatch') : tt('dialog.jobsLoading')}</p>
                       ) : (
@@ -344,9 +345,10 @@ export function InviteMemberDialog({
               </div>
             )}
 
-            <div className="flex items-center justify-between gap-2 pt-2">
+            {/* Handy (17.11.2026): Knöpfe bleiben unten im Fenster stehen */}
+            <div className="flex items-center justify-between gap-2 pt-2 max-md:sticky max-md:bottom-[-1.5rem] max-md:z-10 max-md:-mx-6 max-md:-mb-6 max-md:flex-col max-md:items-stretch max-md:border-t max-md:bg-background max-md:px-6 max-md:pb-4 max-md:pt-3">
               <span className="text-xs text-muted-foreground">{existing ? '' : tt('dialog.footer')}</span>
-              <div className="flex gap-2">
+              <div className="flex gap-2 max-md:[&>button]:flex-1">
                 <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
                   {t('team.invite.cancel')}
                 </Button>

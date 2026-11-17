@@ -49,6 +49,7 @@ import { CandidateJobsOverview } from './CandidateJobsOverview';
 import { CandidateDocumentsManager } from './CandidateDocumentsManager';
 import { CandidateInterviewTab } from './CandidateInterviewTab';
 import { SimilarCandidates } from './SimilarCandidates';
+import { initialen } from '@/lib/initialen';
 
 interface CandidateDetailSheetProps {
   candidate: Candidate | null;
@@ -200,7 +201,7 @@ export function CandidateDetailSheet({
               <div className="flex items-center gap-4">
                 <Avatar className="h-12 w-12">
                   <AvatarFallback className="bg-primary/10 text-primary text-lg">
-                    {candidate.full_name.split(' ').map((n) => n[0]).join('')}
+                    {initialen(candidate.full_name)}
                   </AvatarFallback>
                 </Avatar>
                 <div>

@@ -70,7 +70,7 @@ function FullStagePipeline({ currentStage }: { currentStage: string | null }) {
   const currentIdx = getStageIndex(currentStage);
 
   return (
-    <div className="flex items-center gap-1 w-full">
+    <div className="flex items-start gap-1 w-full sm:items-center">
       {PIPELINE_STAGES.map((stage, idx) => {
         const isActive = idx === currentIdx;
         const isPassed = idx < currentIdx;
@@ -88,8 +88,10 @@ function FullStagePipeline({ currentStage }: { currentStage: string | null }) {
                 )}
               />
               <span className={cn(
-                'text-[9px] mt-1 leading-none',
-                isActive && 'text-primary font-semibold',
+                'text-[9px] mt-1 leading-none max-sm:whitespace-nowrap',
+                // Am Handy nur die aktuelle Stufe beschriften, sonst brechen acht Wörter um
+                !isActive && 'max-sm:hidden',
+                isActive && 'text-primary font-semibold max-sm:text-[11px]',
                 isPassed && 'text-green-600',
                 isFuture && 'text-muted-foreground/50',
               )}>
@@ -460,7 +462,7 @@ export default function SubmissionDetail() {
                 )}
               </div>
               <p className="text-sm text-muted-foreground mt-0.5">{job?.title || t('detail.unknownJob')}</p>
-              <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs text-muted-foreground sm:flex-nowrap">
                 <span className="flex items-center gap-1">
                   <User className="h-3 w-3" />
                   {candidate?.full_name}

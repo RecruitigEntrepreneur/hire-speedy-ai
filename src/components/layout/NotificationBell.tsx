@@ -1,4 +1,5 @@
-import { Bell, CheckCheck } from "lucide-react";
+import { useState } from "react";
+import { Bell, CheckCheck, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -13,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { Honorar } from '@/components/recruiter/Honorar';
 import { HinweisIcon } from '@/components/notifications/HinweisIcon';
 import { hinweisPfad, hinweisZiel } from '@/lib/hinweisZiel';
+import { buendeln, headhunterAus, stelleAus } from '@/lib/hinweisBuendel';
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth";
 import { useTranslation } from "react-i18next";
@@ -36,17 +38,56 @@ function hinweisZeit(dateString: string, t: (k: string, o?: Record<string, unkno
  * Glocke (Etappe 1, 15.11.2026): Ein Klick führt auf die Seite, auf der man weitermacht, und das
  * passende Fenster liegt offen darüber (Ziele in lib/hinweisZiel). Der Hinweis und alle zum selben
  * Vorgang gelten dann als gelesen. „Alle ansehen“ führt auch beim Kunden auf eine echte Liste.
+ * Seit 17.11.2026 stehen gleiche Info-Meldungen, die direkt aufeinander folgen, in einer Zeile
+ * (lib/hinweisBuendel); ein Tipp klappt sie auf.
  */
 export function NotificationBell() {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useRealtimeNotifications();
   const { role } = useAuth();
   const { t } = useTranslation("notifications");
   const navigate = useNavigate();
+  const [aufgeklappt, setAufgeklappt] = useState<Set<string>>(new Set());
 
   const oeffnen = async (n: (typeof notifications)[number]) => {
     if (!n.is_read) void markAsRead(n);
     const pfad = await hinweisPfad(n, role);
     if (pfad) navigate(pfad);
+  };
+  const umschalten = (key: string) =>
+    setAufgeklappt((s) => {
+      const neu = new Set(s);
+      if (neu.has(key)) neu.delete(key);
+      else neu.add(key);
+      return neu;
+    });
+
+  const einzeln = (n: (typeof notifications)[number], eingerueckt: boolean) => {
+    const hatZiel = !!hinweisZiel(n, role);
+    return (
+      <DropdownMenuItem
+        key={n.id}
+        onSelect={() => void oeffnen(n)}
+        className={cn(
+          "flex items-start gap-3 rounded-none border-b border-border/60 px-3 py-2.5 last:border-b-0",
+          hatZiel ? "cursor-pointer" : "cursor-default",
+          !n.is_read && "bg-muted/50",
+          eingerueckt && "border-b-0 pl-8",
+        )}
+      >
+        <HinweisIcon type={n.type} className="mt-0.5" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium leading-snug line-clamp-2 break-words">{n.title}</p>
+          {n.message && (
+            <p className="text-xs text-muted-foreground line-clamp-2 break-words mt-0.5">
+              {/* „Provision: … €“ nach einer Platzierung folgt dem Auge in der Kopfleiste. */}
+              {n.type === 'placement_created' ? <Honorar>{n.message}</Honorar> : n.message}
+            </p>
+          )}
+          <p className="text-xs text-muted-foreground mt-1">{hinweisZeit(n.created_at, t)}</p>
+        </div>
+        {!n.is_read && <div className="h-2 w-2 rounded-full bg-primary mt-1.5 flex-shrink-0" />}
+      </DropdownMenuItem>
+    );
   };
 
   return (
@@ -79,31 +120,38 @@ export function NotificationBell() {
               {t("empty")}
             </div>
           ) : (
-            notifications.slice(0, 10).map((n) => {
-              const hatZiel = !!hinweisZiel(n, role);
+            buendeln(notifications.slice(0, 30)).slice(0, 10).map((e) => {
+              if (e.art === 'einzeln') return einzeln(e.hinweis, false);
+              const offen = aufgeklappt.has(e.key);
+              const ungelesen = e.hinweise.some((x) => !x.is_read);
+              const namen = [...new Set(e.hinweise.map((x) => headhunterAus(x.message)))];
+              const stellen = [...new Set(e.hinweise.map((x) => stelleAus(x.message)).filter(Boolean))];
+              const count = e.hinweise.length;
+              const titel = e.type === 'search_started'
+                ? namen.length === 1 && namen[0] ? t('bundle.searchStartedBy', { name: namen[0], count }) : t('bundle.searchStarted', { count })
+                : e.type === 'pause_ended' ? t('bundle.pauseEnded', { count }) : t('bundle.pauseEnding', { count });
               return (
-                <DropdownMenuItem
-                  key={n.id}
-                  onSelect={() => void oeffnen(n)}
-                  className={cn(
-                    "flex items-start gap-3 rounded-none border-b border-border/60 px-3 py-2.5 last:border-b-0",
-                    hatZiel ? "cursor-pointer" : "cursor-default",
-                    !n.is_read && "bg-muted/50",
-                  )}
-                >
-                  <HinweisIcon type={n.type} className="mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium leading-snug line-clamp-2 break-words">{n.title}</p>
-                    {n.message && (
-                      <p className="text-xs text-muted-foreground line-clamp-2 break-words mt-0.5">
-                        {/* „Provision: … €“ nach einer Platzierung folgt dem Auge in der Kopfleiste. */}
-                        {n.type === 'placement_created' ? <Honorar>{n.message}</Honorar> : n.message}
+                <div key={e.key} className="border-b border-border/60 last:border-b-0">
+                  <DropdownMenuItem
+                    onSelect={(ev) => { ev.preventDefault(); umschalten(e.key); }}
+                    aria-expanded={offen}
+                    className={cn("flex cursor-pointer items-start gap-3 rounded-none px-3 py-2.5", ungelesen && "bg-muted/50")}
+                  >
+                    <HinweisIcon type={e.type} className="mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium leading-snug line-clamp-2 break-words">{titel}</p>
+                      {stellen.length > 0 && (
+                        <p className="text-xs text-muted-foreground line-clamp-2 break-words mt-0.5">{stellen.join(' · ')}</p>
+                      )}
+                      <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                        {hinweisZeit(e.hinweise[0].created_at, t)} · {offen ? t('bundle.collapse') : t('bundle.expand')}
+                        <ChevronDown className={cn("h-3 w-3 transition-transform", offen && "rotate-180")} />
                       </p>
-                    )}
-                    <p className="text-xs text-muted-foreground mt-1">{hinweisZeit(n.created_at, t)}</p>
-                  </div>
-                  {!n.is_read && <div className="h-2 w-2 rounded-full bg-primary mt-1.5 flex-shrink-0" />}
-                </DropdownMenuItem>
+                    </div>
+                    {ungelesen && <div className="h-2 w-2 rounded-full bg-primary mt-1.5 flex-shrink-0" />}
+                  </DropdownMenuItem>
+                  {offen && e.hinweise.map((n) => einzeln(n, true))}
+                </div>
               );
             })
           )}

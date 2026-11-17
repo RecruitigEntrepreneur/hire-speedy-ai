@@ -28,6 +28,7 @@ const sv: Messages<typeof de> = {
     guide: 'Samtalsguide',
     expose: 'Anonym presentation av tjänsten',
     openExpose: 'Öppna anonym presentation av tjänsten',
+    exposeShort: 'Presentation',
     calcEarning: 'Beräkna ersättning',
     calcText: '{{title}} · så räknas din provision fram.',
     reportClient: 'Anmäl kund',

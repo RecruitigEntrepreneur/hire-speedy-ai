@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import { dateFnsLocale } from './search/dateLocale';
 import { useNavigate } from 'react-router-dom';
 import { SubmissionDetailDialog } from '@/components/influence/SubmissionDetailDialog';
+import { initialen } from '@/lib/initialen';
 
 // Stage pipeline config (same as CandidateActiveProcesses)
 const STAGE_ORDER = [
@@ -182,8 +183,7 @@ export function JobCandidateProcessCards({ submissions, onOpenSubmitForm }: JobC
         >
           {submissions.map((sub) => {
             const stageInfo = getStageInfo(sub.stage);
-            const initials = sub.candidates?.full_name
-              ?.split(' ').map(n => n[0]).join('').toUpperCase() || '?';
+            const initials = initialen(sub.candidates?.full_name) || '?';
             const timeSince = sub.submitted_at
               ? formatDistanceToNow(new Date(sub.submitted_at), { locale: dateFnsLocale(i18n.language), addSuffix: true })
               : null;

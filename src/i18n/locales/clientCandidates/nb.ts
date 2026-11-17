@@ -347,6 +347,8 @@ const nb: Messages<typeof de> = {
     careerEmptyTitle: 'Ingen stillinger registrert ennå',
     careerEmptyText: 'Headhunteren har ikke fylt inn karrieren ennå. Spør gjerne.',
     careerAsk: 'Be {{name}} om karrierehistorikken',
+    factShort: { open: 'åpent', interview: 'i intervjuet' },
+    bar: { offer: 'Se tilbudet', contract: 'Se kontrakten' },
     questionsTo: 'Spørsmål til {{name}}',
     noQuestions: 'Ingen spørsmål ennå. {{name}} har foreslått kandidaten og kjenner hen fra samtalen.',
     notePlaceholderMention: 'Legg til notat … (@ nevner teammedlemmer)',

@@ -25,6 +25,7 @@ const de = {
     guide: 'Gesprächsleitfaden',
     expose: 'Anonymes Exposé',
     openExpose: 'Anonymes Exposé öffnen',
+    exposeShort: 'Exposé',
     calcEarning: 'Verdienst berechnen',
     calcText: '{{title}} · so rechnet sich deine Provision.',
     reportClient: 'Kunde melden',

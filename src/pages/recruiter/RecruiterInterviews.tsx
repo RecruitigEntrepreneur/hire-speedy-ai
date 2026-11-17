@@ -314,20 +314,20 @@ export default function RecruiterInterviews() {
           </p>
         </div>
 
-        {/* Stat-Reihe */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-tour="interviews.stats">
+        {/* Stat-Reihe. Handy (17.11.2026): alle vier in einer kompakten Zeile statt zwei großer Reihen */}
+        <div className="grid grid-cols-4 gap-1.5 md:gap-3" data-tour="interviews.stats">
           {stats.map((s) => (
             <Card key={s.label} className="border-border/40">
-              <CardContent className="p-3.5">
+              <CardContent className="p-3.5 max-md:px-1.5 max-md:py-2 max-md:text-center">
                 <div
                   className={cn(
-                    'text-2xl font-bold tabular-nums',
+                    'text-2xl font-bold tabular-nums max-md:text-xl',
                     s.warn && 'text-amber-600 dark:text-amber-400',
                   )}
                 >
                   {isLoading ? <Skeleton className="h-8 w-8" /> : s.value}
                 </div>
-                <div className="text-xs text-muted-foreground">{s.label}</div>
+                <div className="text-xs text-muted-foreground max-md:text-[10.5px] max-md:leading-tight">{s.label}</div>
               </CardContent>
             </Card>
           ))}

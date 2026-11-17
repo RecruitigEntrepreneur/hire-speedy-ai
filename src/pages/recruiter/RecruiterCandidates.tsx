@@ -260,19 +260,21 @@ export default function RecruiterCandidates() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        {/* Am Handy untereinander: Titel, dann „Kandidaten anlegen“ über die volle Breite */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold">{t('list.title')}</h1>
+            <h1 className="text-2xl font-bold sm:text-3xl">{t('list.title')}</h1>
             <p className="text-muted-foreground mt-1">{t('list.subtitle')}</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:flex-nowrap sm:gap-3">
             <Button variant="outline" onClick={() => { setTagManagerCandidateId(null); setTagManagerOpen(true); }}>
               {t('list.manageTags')}
             </Button>
             {pending
-              ? <PendingButton label={pendingText('addCandidate')} data-tour="candidates.add" />
+              ? <PendingButton label={pendingText('addCandidate')} data-tour="candidates.add" className="order-first w-full sm:order-none sm:w-auto" />
               : <KandidatAnlegenMenu
                 size="default"
+                className="order-first w-full sm:order-none sm:w-auto"
                 tour="candidates.add"
                 onLebenslauf={lebenslaufWaehlen}
                 onText={() => { setCvStartText(true); setCvUploadDialogOpen(true); }}

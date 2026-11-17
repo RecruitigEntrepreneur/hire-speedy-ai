@@ -334,6 +334,12 @@ const nb: Messages<typeof de> = {
     max: 'Maks {{n}} forslag',
     time: 'Tidspunkt',
     selected: 'Valgt {{n}} av {{max}}',
+    dayFree_one: '{{count}} ledig',
+    dayFree_other: '{{count}} ledige',
+    dayPicked_one: '{{count}} valgt',
+    dayPicked_other: '{{count}} valgte',
+    dayFull: 'opptatt',
+    dayEmpty: 'Ingen tider denne dagen innenfor intervjutidene dine.',
     removeAria: 'Fjern {{slot}}',
     legendGreen: 'grønn = alle ledige',
     legendYellow: 'gul = alle obligatoriske deltakere ledige',
@@ -620,6 +626,9 @@ const nb: Messages<typeof de> = {
 
   calendarView: {
     none: 'Ingen avtaler',
+    noneDay: 'Ingen avtaler denne dagen.',
+    prevWeek: 'Forrige uke',
+    nextWeek: 'Neste uke',
   },
 };
 

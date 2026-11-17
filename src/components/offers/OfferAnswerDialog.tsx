@@ -118,6 +118,8 @@ function AnswerForm({ c, onClose, onDone }: { c: RecruiterOfferContext; onClose:
   const keep = o.response?.client_keep ?? null;
   const askedMore = !!o.response?.extension_asked;
   const reportedLong = o.status === 'accept_reported' && !!cand?.acceptReportedAt && now - Date.parse(cand.acceptReportedAt) >= 24 * 3_600_000;
+  // „Seit 24 Std.“ stimmte nur am ersten Tag; danach die echten Tage (17.11.2026).
+  const tageOhneKlick = cand?.acceptReportedAt ? Math.floor((now - Date.parse(cand.acceptReportedAt)) / 86_400_000) : 0;
 
   const nach = c.nachgespraech;
   // Nur für den Headhunter: Schmerzgrenze aus dem Nachgespräch, sonst der genannte Wunsch
@@ -278,7 +280,7 @@ function AnswerForm({ c, onClose, onDone }: { c: RecruiterOfferContext; onClose:
         <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
           <p className="text-muted-foreground">
             {o.status === 'accept_reported'
-              ? `${cand?.acceptReportedAt ? t('answer.reportedAcceptAt', { when: whenDe(cand.acceptReportedAt, now), name }) : t('answer.reportedAccept', { name })}${reportedLong ? t('answer.reportedLong', { name }) : ''}`
+              ? `${cand?.acceptReportedAt ? t('answer.reportedAcceptAt', { when: whenDe(cand.acceptReportedAt, now), name }) : t('answer.reportedAccept', { name })}${reportedLong ? (tageOhneKlick >= 2 ? t('answer.reportedLongDays', { name, count: tageOhneKlick }) : t('answer.reportedLong', { name })) : ''}`
               : o.status === 'countered' ? t('answer.counterWithClient', { company: firma })
                 : o.status === 'accepted' ? t(cand?.confirmedAt || cand?.answeredByCandidate ? 'answer.acceptedSelf' : 'answer.accepted', { name, company: firma })
                   : o.status === 'declined' ? t(cand?.answeredByCandidate ? 'answer.declinedOnPage' : 'answer.declined', { name }) : t('answer.withdrawn')}

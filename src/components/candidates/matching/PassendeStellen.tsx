@@ -46,8 +46,10 @@ function StelleZeile({ a, rollenFakt, status }: { a: StelleAbgleich; rollenFakt?
           <span className="block truncate text-sm font-medium group-hover:underline">{a.stelle.title}</span>
           <span className="block truncate text-xs text-muted-foreground">{stelleMeta(a.stelle)}</span>
           {fakten && <span className="block text-xs text-muted-foreground">{fakten}</span>}
+          {/* Am Handy steht der Stand unter dem Text, sonst bleibt für den Text zu wenig Breite */}
+          {s && <span className="mt-0.5 block text-xs font-medium text-foreground/80 sm:hidden">{s}</span>}
         </span>
-        {s && <span className="shrink-0 text-xs text-muted-foreground">{s}</span>}
+        {s && <span className="hidden shrink-0 text-xs text-muted-foreground sm:block">{s}</span>}
         <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
       </Link>
     </li>

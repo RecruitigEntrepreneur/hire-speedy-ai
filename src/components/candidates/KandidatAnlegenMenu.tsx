@@ -24,6 +24,7 @@ export function KandidatAnlegenMenu({
   onPerMail,
   size = 'sm',
   tour,
+  className,
 }: {
   onLebenslauf: () => void;
   onText: () => void;
@@ -33,16 +34,19 @@ export function KandidatAnlegenMenu({
   size?: 'sm' | 'default';
   /** Ziel für den Rundgang. */
   tour?: string;
+  /** z. B. volle Breite am Handy */
+  className?: string;
 }) {
   const navigate = useNavigate();
   const { t } = useTranslation('candidates');
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button size={size} data-tour={tour}>
-          <UserPlus className="mr-1.5 h-3.5 w-3.5" />
+        <Button size={size} data-tour={tour} className={className}>
+          {/* Am Handy nur der Abstand des Knopfs (gap-2), sonst doppelt: so passt „Rundgang“ daneben */}
+          <UserPlus className="mr-1.5 h-3.5 w-3.5 max-sm:mr-0" />
           {t('menu.button')}
-          <ChevronDown className="ml-1.5 h-3.5 w-3.5" />
+          <ChevronDown className="ml-1.5 h-3.5 w-3.5 max-sm:ml-0" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72">

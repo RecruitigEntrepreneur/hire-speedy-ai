@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, ChevronLeft, ChevronRight, Plus, RefreshCw, X } from 'lucide-react';
+import { AlertTriangle, Check, ChevronLeft, ChevronRight, Plus, RefreshCw, X } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
 import { OutlookKalenderIcon } from '@/components/brand/MarkenLogos';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -14,7 +15,7 @@ import {
   type CheckTimeResult,
   type ScheduleSlot,
 } from '@/lib/interviewScheduling';
-import { addDays, berlinDateKey, dayHeaderLabel, slotText, weekRangeLabel } from '@/lib/interviewRequestUtils';
+import { addDays, berlinDateKey, dayChipParts, dayHeaderLabel, slotSuffix, slotText, weekRangeLabel } from '@/lib/interviewRequestUtils';
 import { CustomTimeRow } from './CustomTimeRow';
 
 interface Props {
@@ -69,6 +70,8 @@ export function ProposalGrid({
 }: Props) {
   const { t } = useTranslation('clientInterviews');
   const [customDay, setCustomDay] = useState<string | null>(null);
+  const isMobile = useIsMobile();
+  const [handyTag, setHandyTag] = useState<string | null>(null);
   const byKey = new Map((data?.days ?? []).map((d) => [normalizeDayKey(d.date), d]));
   const columns = [0, 1, 2, 3, 4, 5, 6]
     .map((i) => {
@@ -91,6 +94,11 @@ export function ProposalGrid({
       ...slots.map((slot): Item => ({ kind: 'slot', at: Date.parse(slot.start), slot })),
       ...customFor(dayKey).map((iso): Item => ({ kind: 'custom', at: Date.parse(iso), iso })),
     ].sort((a, b) => a.at - b.at);
+  // Handy: vergangene Tage fallen weg, heute nur mit Zeiten (sonst greift ohnehin der Vorlauf).
+  const handyTage = columns.filter((c) => c.key > todayKey || (c.key === todayKey && (c.slots.length > 0 || customFor(c.key).length > 0)));
+  const freiAm = (c: { slots: ScheduleSlot[] }) => c.slots.filter((s) => s.status === 'all' || s.status === 'required').length;
+  const gewaehltAm = (dayKey: string) => selected.filter((iso) => berlinDateKey(iso) === dayKey).length;
+  const aktiverTag = handyTage.find((c) => c.key === handyTag) ?? handyTage.find((c) => freiAm(c) > 0) ?? handyTage[0] ?? null;
   const totalSlots = columns.reduce((n, c) => n + c.slots.length, 0);
   const selectable = columns.reduce((n, c) => n + c.slots.filter((s) => s.status === 'all' || s.status === 'required').length, 0);
 
@@ -199,6 +207,109 @@ export function ProposalGrid({
           ) : selectable === 0 && (
             <p className="text-xs text-muted-foreground">{t('grid.allBusy')}</p>
           )}
+          {isMobile ? (
+            /* Handy (17.11.2026): Tage als Reiter ab dem nächsten möglichen Tag, Zeiten als Kacheln zu dritt. */
+            <div className={cn('space-y-3 transition-opacity', isFetching && 'opacity-60')}>
+              {handyTage.length === 0 ? (
+                <p className="text-xs text-muted-foreground">{t('grid.none')}</p>
+              ) : (
+                <>
+                  <div className="flex gap-2">
+                    {handyTage.map((c) => {
+                      const { wd, d } = dayChipParts(c.key);
+                      const an = c.key === aktiverTag?.key;
+                      const gew = gewaehltAm(c.key);
+                      const frei = freiAm(c);
+                      return (
+                        <button
+                          key={c.key}
+                          type="button"
+                          aria-pressed={an}
+                          onClick={() => { setHandyTag(c.key); if (customDay && customDay !== c.key) setCustomDay(null); }}
+                          className={cn(
+                            'min-w-0 flex-1 rounded-lg border px-1 py-1.5 text-center transition-colors',
+                            an ? 'border-foreground bg-foreground text-background' : 'border-border hover:bg-muted/40',
+                          )}
+                        >
+                          <span className={cn('block text-[11px]', an ? 'text-background/70' : 'text-muted-foreground')}>{wd}</span>
+                          <span className="block text-base font-semibold leading-tight tabular-nums">{d}.</span>
+                          <span className={cn('block truncate text-[10.5px]', gew ? 'font-medium' : an ? 'text-background/70' : 'text-muted-foreground')}>
+                            {gew ? t('grid.dayPicked', { count: gew }) : frei ? t('grid.dayFree', { count: frei }) : t('grid.dayFull')}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {aktiverTag && (
+                    <>
+                      {itemsFor(aktiverTag.key, aktiverTag.slots).length === 0 ? (
+                        <p className="text-xs text-muted-foreground">{t('grid.dayEmpty')}</p>
+                      ) : (
+                        <div className="grid grid-cols-3 gap-2">
+                          {itemsFor(aktiverTag.key, aktiverTag.slots).map((item) => {
+                            if (item.kind === 'custom') {
+                              return (
+                                <button
+                                  key={item.iso}
+                                  type="button"
+                                  aria-pressed
+                                  onClick={() => onToggle(item.iso)}
+                                  className="flex h-12 min-w-0 flex-col items-center justify-center rounded-lg border border-foreground bg-foreground px-1 text-sm font-semibold tabular-nums text-background"
+                                >
+                                  <span className="flex items-center gap-1"><Check className="h-3.5 w-3.5" />{fmtTime(item.iso)}</span>
+                                  <span className="max-w-full truncate text-[10px] font-normal leading-tight opacity-80">{t('grid.time')}</span>
+                                </button>
+                              );
+                            }
+                            const slot = item.slot;
+                            const clickable = slot.status === 'all' || slot.status === 'required';
+                            const isSelected = selectedSet.has(Date.parse(slot.start));
+                            const blocked = clickable && !isSelected && full;
+                            const zusatz = slotSuffix(slot, peopleCount);
+                            return (
+                              <button
+                                key={slot.start}
+                                type="button"
+                                disabled={!clickable || blocked}
+                                aria-pressed={clickable ? isSelected : undefined}
+                                onClick={() => onToggle(slot.start)}
+                                className={cn(
+                                  'flex h-12 min-w-0 flex-col items-center justify-center rounded-lg border px-1 text-sm tabular-nums transition-colors',
+                                  isSelected
+                                    ? 'border-foreground bg-foreground font-semibold text-background'
+                                    : unchecked && clickable ? UNCHECKED_TILE : TILE[slot.status],
+                                  blocked && 'cursor-not-allowed opacity-50',
+                                )}
+                              >
+                                <span className="flex items-center gap-1.5">
+                                  {isSelected
+                                    ? <Check className="h-3.5 w-3.5" />
+                                    : <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', unchecked && clickable ? 'bg-muted-foreground/60' : DOT[slot.status])} />}
+                                  {fmtTime(slot.start)}
+                                </span>
+                                {zusatz && <span className="max-w-full truncate text-[10px] font-normal leading-tight opacity-80">{zusatz}</span>}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setCustomDay(customDay === aktiverTag.key ? null : aktiverTag.key)}
+                        aria-expanded={customDay === aktiverTag.key}
+                        className={cn(
+                          'inline-flex items-center gap-1 rounded px-1 py-0.5 text-xs transition-colors hover:text-foreground',
+                          customDay === aktiverTag.key ? 'font-medium text-foreground' : 'text-muted-foreground',
+                        )}
+                      >
+                        <Plus className="h-3 w-3" /> {t('grid.time')}
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          ) : (
           <div className={cn('-mx-1 overflow-x-auto px-1 pb-1 transition-opacity', isFetching && 'opacity-60')}>
             <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(8rem, 1fr))` }}>
               {columns.map((col) => (
@@ -268,6 +379,7 @@ export function ProposalGrid({
               ))}
             </div>
           </div>
+          )}
           {customColumn && (
             <CustomTimeRow
               dayKey={customColumn.key}

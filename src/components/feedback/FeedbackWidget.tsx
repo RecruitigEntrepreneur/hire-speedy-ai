@@ -63,6 +63,9 @@ export interface FeedbackWidgetProps {
   canNotify: boolean;
   /** Admin sieht die Lasche, obwohl sie für alle anderen aus ist. */
   adminOnlyHint?: boolean;
+  /** In der App: am Handy schmaler und etwas tiefer, damit sie neben den Karten liegt (17.11.2026);
+   *  „Menü › Feedback geben“ öffnet weiterhin dasselbe Fenster. */
+  schmalAmHandy?: boolean;
 }
 
 type Phase = 'idle' | 'capturing' | 'open';
@@ -106,7 +109,7 @@ function useIsolatedHost() {
 
 const isNarrow = () => window.innerWidth < 640;
 
-export function FeedbackWidget({ du, guestToken, canNotify, adminOnlyHint }: FeedbackWidgetProps) {
+export function FeedbackWidget({ du, guestToken, canNotify, adminOnlyHint, schmalAmHandy }: FeedbackWidgetProps) {
   const host = useIsolatedHost();
   const { t, i18n } = useTranslation('feedbackWidget');
   const copy = copyFor(t, du);
@@ -344,6 +347,7 @@ export function FeedbackWidget({ du, guestToken, canNotify, adminOnlyHint }: Fee
           title={adminOnlyHint ? t('adminOnly') : t('give')}
           className={cn(
             'pointer-events-auto fixed right-0 top-1/2 z-[90] flex -translate-y-1/2 rotate-180 items-center gap-1.5',
+            schmalAmHandy && 'max-md:top-[46%] max-md:translate-y-0 max-md:gap-1 max-md:px-1 max-md:py-2.5 max-md:text-[11.5px] max-md:font-semibold max-md:leading-[14px]',
             'rounded-r-md bg-foreground px-1.5 py-3 text-xs font-medium text-background shadow-lg [writing-mode:vertical-rl]',
             'transition-[padding] hover:pl-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             'disabled:cursor-wait',

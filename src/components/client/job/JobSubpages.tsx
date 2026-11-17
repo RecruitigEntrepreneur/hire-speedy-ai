@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -106,7 +106,7 @@ export function CandidatesTab({ items, tasks, jobId, onOpen }: { items: Bewerber
         title={t('cand.title', { count: running.length })}
         aside={<button type="button" className={linkBtn} onClick={() => navigate(`/dashboard/candidates?job=${jobId}&tab=alle`)}>{t('cand.inbox')}<ArrowRight className="h-3 w-3" /></button>}
       >
-        <div className="flex flex-wrap gap-1.5">
+        <div className="handy-wischen flex flex-wrap gap-1.5">
           {(['alle', 'mine', 'neu', 'pruefung', 'interview', 'angebot', 'abgesagt'] as CandFilter[]).map((f) => (
             <button key={f} type="button" onClick={() => setFilter(f)}
               className={cn('rounded-full border px-2.5 py-0.5 text-xs transition-colors', filter === f ? 'border-foreground bg-foreground text-background' : 'text-muted-foreground hover:text-foreground')}>
@@ -118,7 +118,42 @@ export function CandidatesTab({ items, tasks, jobId, onOpen }: { items: Bewerber
         {shown.length === 0 ? (
           <p className="mt-4 text-sm text-muted-foreground">{t('cand.empty')}</p>
         ) : (
-          <div className="mt-3 overflow-x-auto">
+          <>
+          {/* Handy: eine Karte je Kandidat, rechts der Stand (in der Tabelle abgeschnitten). */}
+          <ul className="mt-3 md:hidden">
+            {shown.map((item) => {
+              const task = taskBySub.get(item.submissionId);
+              const line = [item.currentRole, regionLabel(item.region), fmtDayMonth(item.submittedAt)].filter(Boolean).join(' · ');
+              return (
+                <li key={item.submissionId} className="flex items-start gap-3 border-t py-2.5">
+                  <span className="w-4 shrink-0 pt-0.5">
+                    {filter !== 'abgesagt' && (
+                      <Checkbox checked={picked.includes(item.submissionId)} onCheckedChange={() => toggle(item.submissionId)} aria-label={t('cand.pick')} />
+                    )}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <button type="button" onClick={() => navigate(`/dashboard/candidates/${item.submissionId}`)} className="block max-w-full truncate text-left text-sm font-medium hover:underline">
+                      {item.fullName || item.anonymizedName}
+                    </button>
+                    <p className="truncate text-xs text-muted-foreground">{line || '–'}</p>
+                  </div>
+                  <div className="flex max-w-[48%] shrink-0 flex-col items-end gap-0.5 text-right">
+                    {filter === 'abgesagt' ? (
+                      <span className="text-xs text-muted-foreground">{reasonLabel(item.rejectReason ?? '')}</span>
+                    ) : task ? (
+                      <>
+                        <Button size="sm" variant={task.urgent ? 'default' : 'outline'} className="h-7 px-2.5 text-xs" onClick={() => onOpen(task)}>{taskMainLabel(task.kind)}</Button>
+                        <span className="text-[11px] text-muted-foreground">{t('cand.since', { count: daysSince(task.since) })}</span>
+                      </>
+                    ) : (
+                      <BewerberStatusPill item={item} />
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="mt-3 hidden overflow-x-auto md:block">
             <table className="w-full min-w-[40rem] text-sm">
               <thead>
                 <tr className="text-left text-xs text-muted-foreground">
@@ -171,6 +206,7 @@ export function CandidatesTab({ items, tasks, jobId, onOpen }: { items: Bewerber
               </tbody>
             </table>
           </div>
+          </>
         )}
 
         {filter !== 'abgesagt' && (
@@ -230,13 +266,18 @@ function CompareCard({ items, onClose }: { items: BewerberItem[]; onClose: () =>
     [t('cockpit.final.pay'), (i) => i.salaryBand || '–'],
     [t('cockpit.final.region'), (i) => [regionLabel(i.region), i.remotePreference ? remoteLabel(i.remotePreference, '') : ''].filter(Boolean).join(' · ') || '–'],
     [t('cand.summary'), (i) => (i.aiSummary ? `„${i.aiSummary.length > 140 ? `${i.aiSummary.slice(0, 140)}…` : i.aiSummary}“` : '–')],
-    [t('cockpit.final.stage'), (i) => <BewerberStatusPill item={i} />],
+    [t('cockpit.final.stage'), (i) => <BewerberStatusPill item={i} className="max-md:whitespace-normal max-md:rounded-lg" />],
   ];
+  // Am Handy wie „Finalisten vergleichen“: feste Spalten zum Wischen, Bezeichnung bleibt stehen.
+  const fest = 'max-md:sticky max-md:left-0 max-md:z-10 max-md:bg-card max-md:pr-2';
   return (
     <SectionCard title={t('cockpit.final.title')} aside={<button type="button" className={linkBtn} onClick={onClose}>{t('cand.closeCompare')}</button>}>
       <div className="overflow-x-auto">
-        <div className="grid min-w-[28rem] text-xs" style={{ gridTemplateColumns: `minmax(7rem,1fr) repeat(${items.length}, minmax(0,1.3fr))` }}>
-          <span />
+        <div
+          className="grid min-w-[28rem] text-xs [grid-template-columns:var(--cmp)] max-md:min-w-0 max-md:w-max max-md:[grid-template-columns:var(--cmp-handy)]"
+          style={{ '--cmp': `minmax(7rem,1fr) repeat(${items.length}, minmax(0,1.3fr))`, '--cmp-handy': `6.5rem repeat(${items.length}, 9rem)` } as CSSProperties}
+        >
+          <span className={fest} />
           {items.map((f) => (
             <button key={f.submissionId} type="button" onClick={() => navigate(`/dashboard/candidates/${f.submissionId}`)} className="truncate pb-1.5 text-left text-sm font-medium hover:underline">
               {f.fullName || f.anonymizedName}
@@ -244,7 +285,7 @@ function CompareCard({ items, onClose }: { items: BewerberItem[]; onClose: () =>
           ))}
           {rows.map(([label, cell]) => (
             <div key={label} className="contents">
-              <span className="border-t py-1.5 text-muted-foreground">{label}</span>
+              <span className={cn('border-t py-1.5 text-muted-foreground', fest)}>{label}</span>
               {items.map((f) => <span key={f.submissionId} className="border-t py-1.5 pr-3">{cell(f)}</span>)}
             </div>
           ))}
