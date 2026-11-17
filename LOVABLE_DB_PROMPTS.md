@@ -1750,6 +1750,22 @@ Norwegisch.
 
 ---
 
+## 59 — Handy-Ansicht für Kunde und Headhunter, heller Modus, Feedback-Lasche am Handy (17.11.2026)
+
+Commit siehe `git log` („Handy-Ansicht Kunde + Headhunter, heller Modus C“). **Keine Migration, keine Edge Function,
+nur Publish.** Erst nach Nr. 58. Die App ist am Handy für Kunde und Headhunter bedienbar: feste Leiste unten mit den
+wichtigsten Bereichen und „Menü“, Seitenköpfe, Listen, Bewerberprofil (Hauptknopf unten in einer Leiste), Fenster und
+Formulare passen auf schmale Bildschirme, nichts ist abgeschnitten. Der helle Modus hat überall ruhige Flächen und
+lesbare Kontraste. Die Feedback-Lasche am rechten Rand ist am Handy schmaler und sitzt neben den Karten. Am Desktop
+bleibt alles, wie es ist. Keine neue Tabelle, keine neuen Secrets.
+
+> 1. Aktuellen Stand von `main` übernehmen.
+> 2. Keine Migration ausführen, keine Edge Function deployen, keine Secrets ändern.
+> 3. Publish.
+> 4. Am Code nichts ändern. Am Ende melden, dass Publish durch ist.
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über
