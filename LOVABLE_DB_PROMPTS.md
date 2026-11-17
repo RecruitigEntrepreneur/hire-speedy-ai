@@ -1719,6 +1719,19 @@ Danach: `drizzle/migrations/meta/_journal.json` prüfen (neuer Eintrag `…_wart
 
 ---
 
+## 57 — Schrift Inter wird wirklich geladen (16.11.2026)
+
+Commit siehe `git log` („Schrift Inter wirklich laden …“). **Keine Migration, keine Edge Function, nur Publish.**
+Erst nach Nr. 56. Inter wird jetzt in `index.html` geladen; der bisherige `@import` in `src/index.css` stand hinter
+`@tailwind` und fiel im Build weg, deshalb lief die Plattform mit der Ersatzschrift und Auswahlknöpfe wirkten unscharf.
+
+> 1. Aktuellen Stand von `main` übernehmen.
+> 2. Keine Migration ausführen, keine Edge Function deployen, keine Secrets ändern.
+> 3. Publish.
+> 4. Am Code nichts ändern. Am Ende melden, dass Publish durch ist.
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über
