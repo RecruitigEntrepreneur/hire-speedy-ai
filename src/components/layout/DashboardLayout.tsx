@@ -1,5 +1,5 @@
 import i18n from '@/i18n';
-import { ReactNode, useEffect, useState } from 'react';
+import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { LebenslaufAblageLeiste } from '@/components/candidates/LebenslaufAblageLeiste';
@@ -68,10 +68,18 @@ import { useClientTasks } from '@/lib/clientTasksApi';
 import { useClientInvoices } from '@/lib/billingApi';
 import { useClientWaiting } from '@/hooks/useClientWaiting';
 
+/**
+ * Streifen über dem Seiteninhalt, etwa „Beispiel an Ihrer Stelle · nichts wird gespeichert“
+ * auf der Beispiel-Bühne des Kunden-Rundgangs, die echte Seiten mit Beispieldaten zeigt.
+ */
+export const LayoutBannerContext = createContext<ReactNode>(null);
+
 interface DashboardLayoutProps {
   children: ReactNode;
   /** Volle Breite statt zentriertem `container` (z. B. fürs Bento-Dashboard). */
   fluid?: boolean;
+  /** Markierter Menüpunkt, wenn er nicht aus der Adresse folgt (Beispiel-Bühne des Kunden-Rundgangs). */
+  activeHref?: string;
 }
 
 interface NavItem {
@@ -82,7 +90,8 @@ interface NavItem {
   badge?: number;
 }
 
-export function DashboardLayout({ children, fluid = false }: DashboardLayoutProps) {
+export function DashboardLayout({ children, fluid = false, activeHref }: DashboardLayoutProps) {
+  const banner = useContext(LayoutBannerContext);
   const { user, role, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -219,8 +228,11 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
             <div className="hidden sm:block"><ThemeToggle /></div>
             {/* Honorar ausblenden (21.10.2026): nur für Headhunter, gemerkt auf diesem Gerät. */}
             {role === 'recruiter' && <HonorarSchalter />}
-            {(role === 'recruiter' || role === 'client') && <PosteingangKnopf href={role === 'recruiter' ? '/recruiter/messages' : '/dashboard/messages'} />}
-            <NotificationBell />
+            {/* Ziel des Kunden-Rundgangs (lib/clientGuide.ts): Nachrichten und Glocke gemeinsam. */}
+            <div data-tour="header.notify" className="flex items-center gap-1 sm:gap-3">
+              {(role === 'recruiter' || role === 'client') && <PosteingangKnopf href={role === 'recruiter' ? '/recruiter/messages' : '/dashboard/messages'} />}
+              <NotificationBell />
+            </div>
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -271,7 +283,7 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
                 </div>
               ))}
               {navItems.map((item) => {
-                const isActive = location.pathname === item.href || 
+                const isActive = activeHref ? item.href === activeHref : location.pathname === item.href ||
                   (item.href !== '/dashboard' && item.href !== '/recruiter' && item.href !== '/admin' && location.pathname.startsWith(item.href));
                 
                 return (
@@ -332,6 +344,7 @@ export function DashboardLayout({ children, fluid = false }: DashboardLayoutProp
             mehr scrollen. */}
         <main className="min-w-0 flex-1 md:ml-64">
           <div className={cn(fluid ? 'w-full px-4 md:px-6' : 'container', 'py-6')}>
+            {banner}
             {children}
           </div>
         </main>

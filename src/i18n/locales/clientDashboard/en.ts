@@ -71,7 +71,7 @@ const en: Messages<typeof de> = {
     calendarOpen: 'So candidates only see free times',
     calendarConnect: 'Connect',
     tour: 'Tour',
-    tourDetail: 'The essentials in two minutes',
+    tourDetail: 'From your position to the hire, in about 4 minutes',
     tourAgain: 'Watch again',
     tourStart: 'Start tour',
   },

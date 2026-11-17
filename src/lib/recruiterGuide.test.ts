@@ -70,6 +70,15 @@ describe('Begleiteter Rundgang: Platzierung', () => {
     expect(placeCard({ top: 80, left: 20, width: 1240, height: 700 }, card, viewport)).toEqual({ side: 'center', top: 16, left: 460 });
     expect(placeCard(null, card, { width: 375, height: 700 })).toEqual({ side: 'center', top: 230, left: 16 });
   });
+
+  it('bleibt im Schritt auf ihrer Seite, solange sie dort passt, statt bei jeder Verschiebung zu springen', () => {
+    // Rechts passt nach einer kleinen Verschiebung nicht mehr ganz: ohne Vorgabe ginge es nach unten.
+    expect(placeCard({ top: 100, left: 900, width: 300, height: 40 }, card, viewport).side).toBe('bottom');
+    expect(placeCard({ top: 300, left: 100, width: 300, height: 40 }, card, viewport, 'bottom').side).toBe('bottom');
+    expect(placeCard({ top: 300, left: 100, width: 300, height: 40 }, card, viewport).side).toBe('right');
+    // Passt die bisherige Seite nicht mehr, gilt die normale Reihenfolge.
+    expect(placeCard({ top: 600, left: 1000, width: 260, height: 100 }, card, viewport, 'bottom').side).toBe('left');
+  });
 });
 
 describe('Begleiteter Rundgang: Merker', () => {

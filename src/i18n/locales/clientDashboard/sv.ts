@@ -71,7 +71,7 @@ const sv: Messages<typeof de> = {
     calendarOpen: 'Så att kandidater bara ser lediga tider',
     calendarConnect: 'Anslut',
     tour: 'Rundtur',
-    tourDetail: 'Det viktigaste på två minuter',
+    tourDetail: 'Från din tjänst till anställningen, på ungefär 4 minuter',
     tourAgain: 'Se igen',
     tourStart: 'Starta rundturen',
   },

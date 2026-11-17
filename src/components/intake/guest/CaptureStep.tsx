@@ -1047,15 +1047,17 @@ export function CaptureStep({
             title={t('capture.entry.pasteTitle')}
             hint={t('capture.entry.cardPasteHint')}
             badge={t('capture.entry.recommended')}
+            way="paste"
             onClick={() => setEntryMode('paste')}
           />
           <div className="grid gap-3 sm:grid-cols-2">
-            <EntryCard icon={Link2} title={t('capture.entry.cardUrlTitle')} hint={t('capture.entry.cardUrlHint')} onClick={() => setEntryMode('url')} />
+            <EntryCard icon={Link2} title={t('capture.entry.cardUrlTitle')} hint={t('capture.entry.cardUrlHint')} way="url" onClick={() => setEntryMode('url')} />
             <EntryCard
               icon={building ? Loader2 : FileUp}
               title={t('capture.entry.cardFileTitle')}
               hint={building ? t('capture.entry.cardFileReading') : t('capture.entry.cardFileHint')}
               spinning={building}
+              way="file"
               onClick={() => !building && fileRef.current?.click()}
             />
           </div>
@@ -1065,6 +1067,7 @@ export function CaptureStep({
         <button
           type="button"
           onClick={() => startManual()}
+          data-intake-way="manual"
           className="text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
         >
           {t('capture.entry.manualLong')}
@@ -1518,13 +1521,15 @@ export const captureBriefingText = (answers: Answers): string | null => serializ
 
 /** Ein Einstiegsweg als Karte. Klarer als drei gleich laute Knöpfe. */
 function EntryCard({
-  icon: Icon, title, hint, badge, spinning, onClick,
+  icon: Icon, title, hint, badge, spinning, way, onClick,
 }: {
-  icon: any; title: string; hint: string; badge?: string; spinning?: boolean; onClick: () => void;
+  /** `way`: Anker für die Schilder des Kunden-Rundgangs (lib/clientGuide.ts). */
+  icon: any; title: string; hint: string; badge?: string; spinning?: boolean; way?: string; onClick: () => void;
 }) {
   return (
     <button
       type="button"
+      data-intake-way={way}
       onClick={onClick}
       className="flex w-full items-start gap-3 rounded-xl border p-4 text-left transition-colors hover:border-primary/40 hover:bg-muted/40"
     >

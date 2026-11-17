@@ -7,9 +7,7 @@
  */
 import i18n from '@/i18n';
 
-export type GuideExample = 'job' | 'submit' | 'candidate' | 'pipeline' | 'optin' | 'task' | 'interview'
-  // Kunden-Rundgang (lib/clientGuide.ts)
-  | 'clientSubmit' | 'clientStatus' | 'clientCandidate';
+export type GuideExample = 'job' | 'submit' | 'candidate' | 'pipeline' | 'optin' | 'task' | 'interview';
 
 export interface GuideStep {
   id: string;
@@ -17,6 +15,13 @@ export interface GuideStep {
   chapter: number;
   /** Pfad, auf dem der Schritt spielt; `:id` steht für einen beliebigen Abschnitt. */
   route: string;
+  /**
+   * Adresse zum Hinnavigieren, wenn sie mehr als `route` braucht, etwa einen Reiter
+   * (`/dashboard/jobs?tab=review`). Ohne Angabe gilt `route`.
+   */
+  path?: string;
+  /** Bild auf der Beispiel-Bühne des Kunden-Rundgangs (`/dashboard/rundgang`). */
+  scene?: string;
   /** Hervorgehobenes Element; ohne Ziel steht die Karte in der Mitte. */
   target?: string;
   title: string;
@@ -31,7 +36,27 @@ export interface GuideStep {
    * Seite offen ist, sonst direkt nach dem Klick. Unter `minWidth` bleibt das Ziel
    * gesperrt, und der Knopf mit `label` führt weiter.
    */
-  click?: { label: string; to?: string; minWidth?: number };
+  click?: {
+    label: string; to?: string; minWidth?: number;
+    /** So lange bleibt das Ergebnis des Klicks stehen, bevor es weitergeht (Bestätigung nach „Senden“). */
+    delay?: number;
+  };
+  /** Mitmach-Schritt: Ein Zeiger macht den Klick einmal vor, dann klickt der Nutzer (guideDemo.ts). */
+  show?: boolean;
+  /** Wohin der Zeiger tippt, wenn das markierte Ziel größer ist (ganze Zeile, Knopf darin). */
+  pointAt?: string;
+  /**
+   * Der Zeiger fährt nacheinander Stellen an und zeigt dort ein kurzes Schild (Marko 16.11.:
+   * „gefällt uns, wenn sich die Dinge selbst bewegen und es dadurch erklärt wird“).
+   */
+  points?: { at: string; label: string }[];
+  /** Bevorzugte Seite der Karte. Bei Menüs „left“: Die Karte steht schon beim Öffnen dort, wo sie danach bleibt. */
+  side?: 'right' | 'bottom' | 'left' | 'top';
+  /**
+   * Bereich, der beim Vorführen leuchtet, während die Bühne das Fenster sichtbar ausfüllt;
+   * danach zieht sich das Licht auf `target` zusammen.
+   */
+  fillArea?: string;
   /** Ziel nur zeigen, nicht anklicken lassen. */
   lockTarget?: boolean;
   /** Schritt nur ab dieser Fensterbreite. */
@@ -150,6 +175,28 @@ export function matchRoute(pattern: string, pathname: string): boolean {
   return new RegExp(`^${source}/?$`).test(pathname);
 }
 
+/**
+ * Steht der Nutzer auf der Seite dieses Schritts? Hat der Schritt eine eigene Adresse mit
+ * Suchteil (`path`, etwa Reiter oder Bühnenbild), muss auch der stimmen.
+ */
+export function atStep(step: Pick<GuideStep, 'route' | 'path'>, pathname: string, search: string): boolean {
+  if (!matchRoute(step.route, pathname)) return false;
+  const query = step.path?.split('?')[1];
+  if (!query) return true;
+  const here = new URLSearchParams(search);
+  return [...new URLSearchParams(query)].every(([key, value]) => here.get(key) === value);
+}
+
+/**
+ * Nach Browser-Zurück oder -Vor: der Schritt, zu dem die Adresse gehört, vom aktuellen aus
+ * zuerst rückwärts gesucht (zwei Schritte können dieselbe Seite haben). -1, wenn keiner passt.
+ */
+export function nearestStepAt(steps: Pick<GuideStep, 'route' | 'path'>[], from: number, pathname: string, search: string): number {
+  for (let j = from - 1; j >= 0; j -= 1) if (atStep(steps[j], pathname, search)) return j;
+  for (let j = from + 1; j < steps.length; j += 1) if (atStep(steps[j], pathname, search)) return j;
+  return -1;
+}
+
 export interface TourRect { top: number; left: number; width: number; height: number }
 export interface TourSize { width: number; height: number }
 export interface CardPlacement { top: number; left: number; side: 'right' | 'bottom' | 'left' | 'top' | 'center' }
@@ -172,22 +219,35 @@ const clamp = (value: number, min: number, max: number) => Math.min(Math.max(val
 /**
  * Karte neben das Ziel: rechts, darunter, links, darüber. Passt nichts, etwa bei
  * einem großen Ziel, kommt sie in die freiere Bildschirmhälfte. Immer im Bild.
+ *
+ * `prefer`: die Seite, auf der die Karte in diesem Schritt schon steht. Solange sie dort
+ * noch passt, bleibt sie dort; sonst spränge sie bei jeder kleinen Verschiebung des
+ * Ziels (Laden, Scrollen) auf eine andere Seite.
  */
-export function placeCard(target: TourRect | null, card: TourSize, viewport: TourSize): CardPlacement {
+export function placeCard(target: TourRect | null, card: TourSize, viewport: TourSize, prefer?: CardPlacement['side']): CardPlacement {
   const centerLeft = Math.max(MARGIN, (viewport.width - card.width) / 2);
   if (!target) return { side: 'center', top: Math.max(MARGIN, (viewport.height - card.height) / 2), left: centerLeft };
   const maxTop = viewport.height - card.height - MARGIN;
   const maxLeft = viewport.width - card.width - MARGIN;
   const midTop = clamp(target.top + target.height / 2 - card.height / 2, MARGIN, maxTop);
   const alignedLeft = clamp(target.left, MARGIN, maxLeft);
-  const right = target.left + target.width + GAP;
-  if (right <= maxLeft) return { side: 'right', left: right, top: midTop };
-  const below = target.top + target.height + GAP;
-  if (below <= maxTop) return { side: 'bottom', top: below, left: alignedLeft };
-  const left = target.left - GAP - card.width;
-  if (left >= MARGIN) return { side: 'left', left, top: midTop };
-  const above = target.top - GAP - card.height;
-  if (above >= MARGIN) return { side: 'top', top: above, left: alignedLeft };
+  const sides: Record<Exclude<CardPlacement['side'], 'center'>, () => CardPlacement | null> = {
+    right: () => { const left = target.left + target.width + GAP; return left <= maxLeft ? { side: 'right', left, top: midTop } : null; },
+    bottom: () => { const top = target.top + target.height + GAP; return top <= maxTop ? { side: 'bottom', top, left: alignedLeft } : null; },
+    left: () => { const left = target.left - GAP - card.width; return left >= MARGIN ? { side: 'left', left, top: midTop } : null; },
+    top: () => { const top = target.top - GAP - card.height; return top >= MARGIN ? { side: 'top', top, left: alignedLeft } : null; },
+  };
+  if (prefer && prefer !== 'center') {
+    const kept = sides[prefer]();
+    if (kept) return kept;
+  }
+  // Breite Ziele (Kopf eines Profils, eine Karte über die ganze Seite): lieber darüber als
+  // links in die Seitenleiste gequetscht.
+  const order = target.width > viewport.width * 0.5 ? (['right', 'bottom', 'top', 'left'] as const) : (['right', 'bottom', 'left', 'top'] as const);
+  for (const side of order) {
+    const placed = sides[side]();
+    if (placed) return placed;
+  }
   const upperHalfFree = target.top + target.height / 2 > viewport.height / 2;
   return { side: 'center', top: upperHalfFree ? MARGIN : Math.max(MARGIN, maxTop), left: centerLeft };
 }

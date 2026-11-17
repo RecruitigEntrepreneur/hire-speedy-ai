@@ -252,6 +252,8 @@ export const requestJobChange = (jobId: string, kind: 'change', note?: string) =
 /** Signierter Link zum Foto eines Headhunters (privater Bucket, Policy für Kunden seiner Stellen). */
 export async function avatarUrl(path: string | null): Promise<string | null> {
   if (!path) return null;
+  // Beispielbilder des Kunden-Rundgangs liegen offen im Projekt (public/tour), nicht im Bucket.
+  if (path.startsWith('/tour/')) return path;
   const { data } = await supabase.storage.from('recruiter-avatars').createSignedUrl(path, 3600);
   return data?.signedUrl ?? null;
 }

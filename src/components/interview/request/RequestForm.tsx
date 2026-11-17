@@ -402,6 +402,7 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
             onClick={() => send.mutate(buildInput())}
             disabled={needsName || selected.length === 0 || addressMissing || send.isPending}
             className="gap-1.5"
+            data-tour="request.send"
           >
             {send.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             {t('request.send')}

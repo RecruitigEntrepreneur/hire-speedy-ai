@@ -753,10 +753,11 @@ export default function CandidateDetail() {
           </div>
         </div>
 
+        {/* data-tour: Ziele des Kunden-Rundgangs (lib/clientGuide.ts) */}
         <div ref={headRef}>
-          <div className="rounded-xl border bg-card shadow-md p-5">
+          <div className="rounded-xl border bg-card shadow-md p-5" data-tour="candidate.head">
             <div className="flex items-start gap-4">
-              <div className="relative shrink-0">
+              <div className="relative shrink-0" data-tour="candidate.avatar">
                 <Avatar className="h-14 w-14 ring-2 ring-primary/20">
                   <AvatarFallback className={cn(
                     'text-lg font-semibold',
@@ -778,7 +779,7 @@ export default function CandidateDetail() {
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="text-xl md:text-2xl font-bold truncate">
+                  <h1 className="text-xl md:text-2xl font-bold truncate" data-tour="candidate.name">
                     {identityUnlocked ? displayName : anonCode}
                   </h1>
                   {!identityUnlocked && <Lock className="h-4 w-4 text-muted-foreground shrink-0" />}
@@ -853,7 +854,7 @@ export default function CandidateDetail() {
             </div>
 
             {/* Fakten */}
-            <div className="mt-4 pt-3 border-t flex flex-wrap items-center gap-x-4 gap-y-1.5">
+            <div className="mt-4 pt-3 border-t flex flex-wrap items-center gap-x-4 gap-y-1.5" data-tour="candidate.facts">
               <KeyFactChip icon={GraduationCap} label={tc('detail.facts.seniority')} value={fmtSeniority(seniority)} faded={ph.seniority} />
               <KeyFactChip icon={Briefcase} label={tc('detail.facts.experience')} value={experience} faded={ph.experience} />
               <KeyFactChip icon={Banknote} label={geld.label} value={gehalt ?? ''} faded={gehaltPlaceholder} />
@@ -883,7 +884,7 @@ export default function CandidateDetail() {
               </div>
             )}
             {submitter && (
-              <div className="mt-3 pt-3 border-t flex items-center gap-2.5">
+              <div className="mt-3 pt-3 border-t flex items-center gap-2.5" data-tour="candidate.submitter">
                 <Avatar className="h-7 w-7">
                   {submitter.photo && <AvatarImage src={submitter.photo} alt="" />}
                   <AvatarFallback className="bg-primary/10 text-[11px] text-primary">{initialsOf(hhName)}</AvatarFallback>
@@ -907,7 +908,7 @@ export default function CandidateDetail() {
             {/* Ihre Aufgaben · läuft bei anderen (wie „AUFGABEN“ im Headhunter-Profil) */}
             {/* Steht auch ohne Aufgabe („Gerade nichts für Sie zu tun“), damit der Kopf nach dem Laden nicht schrumpft */}
             {!isViewer && (tasksLoading || clientTasks.data) && (
-              <div className="mt-3 border-t pt-3">
+              <div className="mt-3 border-t pt-3" data-tour="candidate.tasks">
                 {clientTasks.data
                   ? <ProfileTaskCards tasks={clientTasks.data.tasks} waiting={clientTasks.data.waiting} onOpen={openTask} onOpenWaiting={(w) => openWaiting(w.key)} />
                   : <ProfileTaskCardsLoading />}
@@ -939,7 +940,7 @@ export default function CandidateDetail() {
             {!isViewer && (mainLoading ? (
               <Skeleton className="h-9 w-40 rounded-md" />
             ) : mainAction ? (
-              <Button size="sm" variant={waitingForRec ? 'outline' : 'default'} onClick={mainAction.run} className="gap-1.5">
+              <Button size="sm" variant={waitingForRec ? 'outline' : 'default'} onClick={mainAction.run} className="gap-1.5" data-tour="candidate.main">
                 <mainAction.Icon className="h-3.5 w-3.5" />
                 {mainAction.label}
               </Button>
@@ -979,7 +980,7 @@ export default function CandidateDetail() {
                 {tc('detail.cvPdf')}
               </Button>
               {!isViewer && user && (
-                <Button variant="ghost" size="sm" className="text-muted-foreground gap-1.5" onClick={() => setShowAsk(true)}>
+                <Button variant="ghost" size="sm" className="text-muted-foreground gap-1.5" onClick={() => setShowAsk(true)} data-tour="candidate.ask">
                   <Users className="h-3.5 w-3.5" />
                   {tc('detail.askColleagues')}
                 </Button>
@@ -1001,7 +1002,7 @@ export default function CandidateDetail() {
         {/* ================================================================ */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
           {/* Links: Gespräch mit dem Headhunter, darunter die Einschätzung (Text, immer offen) */}
-          <div className="space-y-4">
+          <div className="space-y-4" data-tour="candidate.talk">
             {candidateView.recruiterNotes?.trim() && (
               <Card>
                 <CardContent className="p-5">
@@ -1016,7 +1017,7 @@ export default function CandidateDetail() {
           </div>
 
           <div className="space-y-4">
-          <Card>
+          <Card data-tour="candidate.career">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
                 <Building2 className="h-4 w-4 text-primary" />

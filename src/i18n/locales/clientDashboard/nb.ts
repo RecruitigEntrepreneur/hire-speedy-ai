@@ -71,7 +71,7 @@ const nb: Messages<typeof de> = {
     calendarOpen: 'Slik at kandidater bare ser ledige tider',
     calendarConnect: 'Koble til',
     tour: 'Omvisning',
-    tourDetail: 'Det viktigste på to minutter',
+    tourDetail: 'Fra stillingen din til ansettelsen, på rundt 4 minutter',
     tourAgain: 'Se igjen',
     tourStart: 'Start omvisningen',
   },

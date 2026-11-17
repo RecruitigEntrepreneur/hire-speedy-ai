@@ -185,14 +185,14 @@ export function InviteMemberDialog({
       {!controlled && (
         <DialogTrigger asChild>
           {trigger ?? (
-            <Button>
+            <Button data-tour="team.invite">
               <UserPlus className="h-4 w-4 mr-2" />
               {t('team.invite.button')}
             </Button>
           )}
         </DialogTrigger>
       )}
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md" data-tour="team.inviteWindow">
         <DialogHeader>
           <DialogTitle>{jobContext ? tt('dialog.titleJob') : tt('dialog.title')}</DialogTitle>
           <DialogDescription>
@@ -264,6 +264,7 @@ export function InviteMemberDialog({
                     <button
                       key={key}
                       type="button"
+                      data-role={key}
                       onClick={() => setRole(key)}
                       className={cn('rounded-lg border p-2.5 text-left transition-colors', key === 'finance' && 'col-span-2', role === key ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/40')}
                     >
@@ -317,7 +318,7 @@ export function InviteMemberDialog({
                       ) : (
                         filteredJobs.map((j) => (
                           <label key={j.id} className="flex cursor-pointer items-center gap-2 border-b px-3 py-2 last:border-b-0 hover:bg-muted/40">
-                            <input type="checkbox" checked={jobIds.includes(j.id)} onChange={() => toggleJob(j.id)} />
+                            <input type="checkbox" checked={jobIds.includes(j.id)} onChange={() => toggleJob(j.id)} data-job={j.id} />
                             <span className="min-w-0 flex-1 truncate">{j.title}</span>
                             <span className="shrink-0 text-[11px] text-muted-foreground">{(STATUS_KEYS as readonly string[]).includes(j.status) ? tt(`dialog.status.${j.status}`) : j.status}</span>
                           </label>

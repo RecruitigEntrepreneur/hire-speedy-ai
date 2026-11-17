@@ -15,7 +15,7 @@ export function RecommendationCard({ submissionId }: { submissionId: string }) {
   if (!rec || (cur && !['withdrawn', 'declined', 'superseded'].includes(cur.status))) return null;
   const hh = ctx.data?.recruiterName?.trim() || t('client.yourRecruiterDat');
   return (
-    <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.05] p-4 text-sm">
+    <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.05] p-4 text-sm" data-tour="candidate.recommendation">
       <p className="text-xs text-muted-foreground">{t('client.rec.from', { hh, date: fmtDate(rec.createdAt) })}</p>
       {rec.intro && <p className="mt-1">„{rec.intro}“</p>}
       <dl className="mt-2 grid grid-cols-[8.5rem_minmax(0,1fr)] gap-x-3 gap-y-1">

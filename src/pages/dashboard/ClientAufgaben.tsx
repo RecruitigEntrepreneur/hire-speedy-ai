@@ -98,7 +98,8 @@ export default function ClientAufgaben() {
   return (
     <DashboardLayout>
       <div className="mx-auto max-w-4xl space-y-5">
-        <div>
+        {/* data-tour: Ziel des Kunden-Rundgangs (lib/clientGuide.ts) */}
+        <div data-tour="tasks.main">
           <h1 className="text-2xl font-bold">{t('tasks.title')}</h1>
           <p className="text-sm text-muted-foreground">{t('tasks.lead')}</p>
         </div>

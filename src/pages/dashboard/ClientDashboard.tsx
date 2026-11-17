@@ -14,13 +14,9 @@ import { AnstehendeInterviewsTile } from '@/components/dashboard/bento/Anstehend
 import { useClientDashboard } from '@/hooks/useClientDashboard';
 import { usePageViewTracking } from '@/hooks/useEventTracking';
 import { useAuth } from '@/lib/auth';
-import { supabase } from '@/integrations/supabase/client';
 import { useClientGuide } from '@/components/recruiter/guide/RecruiterGuide';
-import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSearchParams } from 'react-router-dom';
-import { FIRST_VISIT_PARAM } from '@/lib/clientLogin';
 import { Compass, RefreshCw } from 'lucide-react';
 
 function greetingKey(): 'morning' | 'day' | 'evening' {
@@ -37,28 +33,14 @@ export default function ClientDashboard() {
 
   usePageViewTracking('client_dashboard');
 
-  /* Rundgang (lib/clientGuide.ts): startet von selbst nur für NEUE Kunden --
-     Konten ohne jede Stelle, auch ohne Entwurf. Bestehende Kunden erreichen
-     ihn über den Knopf "Rundgang" (Entscheidung 24.09.2026). Seit 25.09.2026
-     auch bei der ersten Anmeldung über /anmelden: Kunden aus der Jobaufnahme
-     haben dann schon eine Stelle. */
+  /* Rundgang (lib/clientGuide.ts, Fassung 3 vom 16.11.2026): startet einmal von selbst für
+     JEDEN Kunden, auch für bestehende -- an der eigenen Stelle, Kandidaten am Beispiel.
+     Wer „Später“ wählt oder ihn beendet hat, startet ihn über den Knopf „Rundgang“. */
   const guide = useClientGuide();
   const { waiting } = useClientWaiting();
-  const [searchParams] = useSearchParams();
-  const ersterBesuch = searchParams.has(FIRST_VISIT_PARAM);
-  const { data: stellenAnzahl } = useQuery({
-    queryKey: ['client-guide-job-count', user?.id],
-    enabled: !!user?.id,
-    queryFn: async () => {
-      const { count, error } = await supabase
-        .from('jobs').select('id', { count: 'exact', head: true }).eq('client_id', user!.id);
-      if (error) throw error;
-      return count ?? 0;
-    },
-  });
   useEffect(() => {
-    if (!isLoading && (stellenAnzahl === 0 || ersterBesuch)) guide.offer();
-  }, [isLoading, stellenAnzahl, ersterBesuch, guide]);
+    if (!isLoading) guide.offer();
+  }, [isLoading, guide]);
 
   const rawName = String(
     (user?.user_metadata as { full_name?: string } | undefined)?.full_name || user?.email?.split('@')[0] || '',

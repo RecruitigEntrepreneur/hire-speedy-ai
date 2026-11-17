@@ -52,7 +52,7 @@ export function NotificationBell() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative" aria-label={t("title")}>
+        <Button variant="ghost" size="icon" className="relative" aria-label={t("title")} data-tour="header.bell">
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
             <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center font-medium">
@@ -61,7 +61,7 @@ export function NotificationBell() {
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80 p-0">
+      <DropdownMenuContent align="end" className="w-80 p-0" data-tour="bell.menu">
         <div className="flex items-center justify-between px-4 py-2 border-b">
           <span className="font-semibold">{t("title")}</span>
           {unreadCount > 0 && (

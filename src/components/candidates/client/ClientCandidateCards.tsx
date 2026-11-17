@@ -51,7 +51,7 @@ export function InterviewInsightsCard({ interview, recruiterNotes, recruiterName
   ].filter(Boolean) as { label: string; value: ReactNode }[] : [];
 
   return (
-    <Card>
+    <Card data-tour="candidate.insights">
       <CardContent className="p-5">
         <Kopf aside={i?.interview_date && <span className="text-xs text-muted-foreground">{[gespraechLabel(i.interview_type), fmtDatum(i.interview_date)].filter(Boolean).join(', ')}</span>}>
           {recruiterName ? t('cards.fromTalkWith', { name: recruiterName }) : t('cards.fromTalk')}
@@ -108,7 +108,7 @@ export function FitTextCard({ fit }: { fit: ReturnType<typeof useCandidateFitAss
   const klaeren = readGaps(assessment?.gap_analysis ?? []).map((g) => g.text).slice(0, 3);
 
   return (
-    <Card>
+    <Card data-tour="candidate.fit">
       <CardContent className="p-5">
         <Kopf aside={<Badge variant="outline" className="text-[10px] font-normal">{tc('preview.aiBadge')}</Badge>}>{tc('preview.fitTitle')}</Kopf>
         {stuck ? (
@@ -146,7 +146,7 @@ export function MussKriterienCard({ assessment }: { assessment: CandidateFitAsse
   const muss = alle.some((r) => r.requirement_type) ? alle.filter((r) => r.requirement_type === 'must_have') : alle;
   if (muss.length === 0) return null;
   return (
-    <Card>
+    <Card data-tour="candidate.must">
       <CardContent className="p-5">
         <Kopf>{t('cards.mustTitle')}</Kopf>
         <ul className="divide-y divide-border/60">

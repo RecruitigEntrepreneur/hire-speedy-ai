@@ -67,7 +67,7 @@ export function OfferDialog({ submissionId, open, onOpenChange, onSent, onAsk, o
   const ctx = useQuery({ queryKey: ['offer-context', submissionId], queryFn: () => offerApi.context(submissionId), enabled: open, staleTime: 10_000 });
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl" data-tour="offer.window">
         {ctx.isLoading || !ctx.data ? (
           <>
             <DialogHeader><DialogTitle>{t('answer.title')}</DialogTitle><DialogDescription>{t('common.loading')}</DialogDescription></DialogHeader>
@@ -290,7 +290,7 @@ function OfferForm({ c, onClose, onSent, onAsk, onReject }: { c: OfferContext; o
 
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Button variant="ghost" onClick={() => setStep(1)}>{tf('back')}</Button>
-          <Button disabled={!ready || busy || lineUnfinished} onClick={send} className="gap-1.5">
+          <Button disabled={!ready || busy || lineUnfinished} onClick={send} className="gap-1.5" data-tour="offer.send">
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
             {cur ? tf('sendAdjusted') : tf('sendTo', { hh: hhFirst })}
           </Button>
@@ -393,7 +393,7 @@ function OfferForm({ c, onClose, onSent, onAsk, onReject }: { c: OfferContext; o
           {!cur && onAsk && <button type="button" className="text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => { onClose(); onAsk(); }}>{tf('askFirst', { hh: hhFirst })}</button>}
           {!cur && onReject && <button type="button" className="text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => { onClose(); onReject(); }}>{tf('rejectInstead')}</button>}
         </div>
-        <Button disabled={!ready} onClick={() => setStep(2)}>{tf('nextCheck')}</Button>
+        <Button disabled={!ready} onClick={() => setStep(2)} data-tour="offer.next">{tf('nextCheck')}</Button>
       </div>
     </>
   );

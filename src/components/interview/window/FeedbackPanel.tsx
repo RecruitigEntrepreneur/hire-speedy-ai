@@ -238,13 +238,14 @@ export function FeedbackPanel({ interviewId, round, candidateName, recruiterName
 
       <div className="space-y-2">
         <p className="text-sm font-medium">{t('feedback.howNext')}</p>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label={t('feedback.howNext')}>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label={t('feedback.howNext')} data-tour="feedback.ways">
           {ORDER.map((w) => (
             <button
               key={w}
               type="button"
               role="radio"
               aria-checked={way === w}
+              data-way={w}
               onClick={() => setWay(w)}
               className={cn(
                 'rounded-lg border px-3 py-2 text-left transition-colors',

@@ -41,7 +41,7 @@ export function FeedbackDialog({ interviewId, open, onOpenChange, candidateName,
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl" data-tour="feedback.window">
         <DialogHeader>
           <DialogTitle>{d && d.round > 1 ? t('feedbackDialog.titleRound', { n: d.round, name: first }) : t('feedbackDialog.title', { name: first })}</DialogTitle>
           <DialogDescription>

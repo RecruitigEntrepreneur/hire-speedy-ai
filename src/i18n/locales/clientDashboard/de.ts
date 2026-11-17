@@ -70,7 +70,7 @@ const de = {
     calendarOpen: 'Damit Kandidaten nur freie Zeiten sehen',
     calendarConnect: 'Verbinden',
     tour: 'Rundgang',
-    tourDetail: 'Das Wichtigste in zwei Minuten',
+    tourDetail: 'Von Ihrer Stelle bis zur Einstellung, in etwa 4 Minuten',
     tourAgain: 'Nochmal ansehen',
     tourStart: 'Rundgang starten',
   },
