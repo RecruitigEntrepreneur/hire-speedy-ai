@@ -294,6 +294,8 @@ const de = {
     next: 'So geht es weiter',
     step1Named: 'Kandidat und Headhunter {{name}} werden benachrichtigt',
     step1: 'Kandidat und Headhunter werden benachrichtigt',
+    longer: 'länger',
+    after: 'Danach:',
     step2: 'Der Kandidat bestätigt einen Ihrer Termine, wählt eine andere Zeit oder lehnt ab',
     step3Outlook: {
       teams: 'Steht der Termin: Er landet mit Teams-Link direkt in Ihrem Outlook, der Kandidat seine eigene',
@@ -411,6 +413,7 @@ const de = {
     emailInvalid: 'Bitte eine gültige E-Mail-Adresse eingeben.',
     duplicate: 'Diese Person ist schon dabei.',
     byEmail: 'Person per E-Mail',
+    add: 'Kollegen dazuholen',
     name: 'Name',
     email: 'E-Mail',
     role: 'Rolle (optional)',
@@ -581,6 +584,8 @@ const de = {
     concerns: 'Bedenken',
     footer: '{{hh}} bekommt Ihr Feedback sofort und spricht mit {{first}}.',
     pickWay: 'Weg wählen',
+    send: 'Feedback senden',
+    moreAdd: 'Bewertung und Notizen ergänzen',
   },
   /** Interview-Fenster (InterviewWindow). Der Verlauf kommt als Text aus der Function. */
   window: {

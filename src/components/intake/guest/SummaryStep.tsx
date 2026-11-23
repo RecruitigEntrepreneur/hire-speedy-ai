@@ -125,7 +125,7 @@ export function SummaryStep({ draft, packages, framework, contracting, summary, 
   return (
     <div className="mx-auto max-w-2xl space-y-5">
       <div>
-        <h2 className="text-xl font-bold tracking-tight">{contracting ? t('summary.titleRequest') : t('summary.titleOrder')}</h2>
+        <h2 className="text-2xl font-semibold tracking-tight">{contracting ? t('summary.titleRequest') : t('summary.titleOrder')}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           {t('summary.lead')}
         </p>
@@ -157,7 +157,7 @@ export function SummaryStep({ draft, packages, framework, contracting, summary, 
       )}
 
       {firmaOffen && (
-        <Card className="border-amber-500/50 bg-amber-500/5">
+        <Card>
           <CardContent className="space-y-3 p-5">
             <div>
               <p className="text-sm font-semibold">{t('summary.companyMissingTitle')}</p>
@@ -234,12 +234,9 @@ export function SummaryStep({ draft, packages, framework, contracting, summary, 
       {contracting && <ContractingKarte budget={contracting} />}
 
       {!contracting && chosenPackage && (
-        <Card className="border-primary/25">
-          <CardContent className="flex flex-wrap items-center gap-x-4 gap-y-2 p-4 text-sm">
-            <Badge variant="secondary" className="gap-1.5 font-normal">
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-              {t('summary.packageBadge', { name: chosenPackage.name, percent: chosenPackage.fee_percent })}
-            </Badge>
+        <Card>
+          <CardContent className="p-4 text-sm">
+            <p className="font-medium">{t('summary.packageBadge', { name: chosenPackage.name, percent: chosenPackage.fee_percent })}</p>
             <span className="text-muted-foreground">
               {chosenPackage.continuity_days
                 ? t('summary.packageTermsContinuity', { days: chosenPackage.payment_terms_days, continuity: chosenPackage.continuity_days })
@@ -267,7 +264,7 @@ export function SummaryStep({ draft, packages, framework, contracting, summary, 
             </p>
           </div>
 
-          <div className="rounded-lg border bg-muted/40 p-4">
+          <div className="rounded-xl border bg-card p-4">
             <label className="flex cursor-pointer items-start gap-3">
               <Checkbox
                 checked={consent}
@@ -329,13 +326,11 @@ export function SummaryStep({ draft, packages, framework, contracting, summary, 
             </Alert>
           )}
 
-          <div className="flex flex-wrap items-center gap-3">
-            <Button onClick={submit} disabled={!canSubmit} className="gap-2" variant="hero">
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+          <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 border-t pt-4">
+            <button type="button" onClick={onForward} className="text-sm text-klick hover:underline">{t('summary.forward')} ›</button>
+            <Button onClick={submit} disabled={!canSubmit} className="gap-2">
+              {busy && <Loader2 className="h-4 w-4 animate-spin" />}
               {framework && !contracting ? t('summary.order') : t('summary.request')}
-            </Button>
-            <Button variant="outline" onClick={onForward} className="gap-2">
-              <Users className="h-4 w-4" /> {t('summary.forward')}
             </Button>
           </div>
 

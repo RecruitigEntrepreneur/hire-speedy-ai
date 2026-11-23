@@ -1807,6 +1807,24 @@ neuen Secrets.
 
 ---
 
+## 62 — Interview-Reste, Vertragsbereich und Aufnahme über einen Link im neuen Look (23.11.2026)
+
+Commit siehe `git log` („Apple-Stil: Interview-Reste, Vertrag, Link-Weg“). **Keine Migration, keine Edge Function,
+nur Publish.** Nach Nr. 61. Im Fenster „Interview anfragen“: Dauer mit „länger“, ein Link „Kollegen dazuholen“, der
+Hinweis danach als ein Satz. Feedback nach dem Interview: erst der Weg, dann der Eindruck, Knopf „Feedback senden“.
+In „Als Nächstes“ heißt der Knopf bei „Kandidat prüfen“ jetzt „Prüfen“. Vertragsbereich (Fenster „Arbeitsvertrag
+schicken“, Kasten nach dem Verschicken, Verlauf im Profil, „Unterschrift melden“): blauer Fortschritt, dunkler Ring für
+die Wahl, Häkchen statt Ampel-Punkten, keine getönten Kästen; gilt auch auf der Headhunter-Seite, weil es dieselben
+Bausteine sind. Aufnahme über einen Link (/start): Kopf, Kontakt, Bestätigen, Paket und Anfragen im neuen Look. Keine
+neue Tabelle, keine neuen Secrets.
+
+> 1. Aktuellen Stand von `main` übernehmen.
+> 2. Keine Migration ausführen, keine Edge Function deployen, keine Secrets ändern.
+> 3. Publish.
+> 4. Am Code nichts ändern. Am Ende melden, dass Publish durch ist.
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über

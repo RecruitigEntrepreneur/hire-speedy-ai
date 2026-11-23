@@ -177,7 +177,7 @@ export function ContactStep({ draft, freemailBlocked, onChange, onNext, onEnrich
   return (
     <div className="mx-auto max-w-2xl space-y-5">
       <div>
-        <h2 className="text-xl font-bold tracking-tight">{t('contact.title')}</h2>
+        <h2 className="text-2xl font-semibold tracking-tight">{t('contact.title')}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           {t('contact.lead')}
         </p>
@@ -185,9 +185,7 @@ export function ContactStep({ draft, freemailBlocked, onChange, onNext, onEnrich
 
       <Card>
         <CardContent className="space-y-4 p-5">
-          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <User className="h-3.5 w-3.5" /> {t('contact.person')}
-          </p>
+          <p className="text-[15px] font-semibold tracking-tight">{t('contact.person')}</p>
           <div className="grid gap-4 sm:grid-cols-2">
             {field('contact_name', t('contact.name'), { required: true, placeholder: t('common.namePlaceholder') })}
             {field('contact_role', t('contact.role'), { placeholder: t('contact.rolePlaceholder') })}
@@ -233,9 +231,7 @@ export function ContactStep({ draft, freemailBlocked, onChange, onNext, onEnrich
 
       <Card>
         <CardContent className="space-y-4 p-5">
-          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <Building2 className="h-3.5 w-3.5" /> {t('contact.company')}
-          </p>
+          <p className="text-[15px] font-semibold tracking-tight">{t('contact.company')}</p>
           <div className="grid gap-4 sm:grid-cols-2">
             {field('company_name', t('contact.companyName'), {
               required: true, placeholder: t('contact.companyNamePlaceholder'),
@@ -258,8 +254,8 @@ export function ContactStep({ draft, freemailBlocked, onChange, onNext, onEnrich
               </p>
             )}
             {impressum.stand === 'gefunden' && (
-              <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-3 text-sm sm:col-span-2">
-                <p className="text-xs text-emerald-600">{t('contact.imprintFound', { domain })}</p>
+              <div className="rounded-lg bg-secondary/60 p-3 text-sm sm:col-span-2">
+                <p className="text-xs text-muted-foreground">{t('contact.imprintFound', { domain })}</p>
                 {impressum.daten.legal_name && <p className="mt-1 font-medium">{impressum.daten.legal_name}</p>}
                 <p className="text-muted-foreground">
                   {[impressum.daten.street, [impressum.daten.postal_code, impressum.daten.city].filter(Boolean).join(' ')]
@@ -271,14 +267,13 @@ export function ContactStep({ draft, freemailBlocked, onChange, onNext, onEnrich
                       .filter(Boolean).join(' · ')}
                   </p>
                 )}
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <Button type="button" size="sm" variant="outline" className="gap-1.5 border-emerald-500/40 text-emerald-700 dark:text-emerald-400"
-                    onClick={() => impressum.stand === 'gefunden' && uebernehmen(impressum.daten)}>
-                    <Check className="h-3.5 w-3.5" /> {t('contact.imprintAccept')}
+                <div className="mt-2 flex flex-wrap items-center gap-4">
+                  <Button type="button" size="sm" onClick={() => impressum.stand === 'gefunden' && uebernehmen(impressum.daten)}>
+                    {t('contact.imprintAccept')}
                   </Button>
-                  <Button type="button" size="sm" variant="ghost" onClick={() => setImpressum({ stand: 'aus' })}>
-                    {t('contact.imprintManual')}
-                  </Button>
+                  <button type="button" className="text-sm text-klick hover:underline" onClick={() => setImpressum({ stand: 'aus' })}>
+                    {t('contact.imprintManual')} ›
+                  </button>
                 </div>
               </div>
             )}
@@ -297,22 +292,15 @@ export function ContactStep({ draft, freemailBlocked, onChange, onNext, onEnrich
         </CardContent>
       </Card>
 
-      <Alert>
-        <Info className="h-4 w-4" />
-        <AlertDescription className="text-xs">
-          {t('contact.anonymityNote')}
-        </AlertDescription>
-      </Alert>
+      <p className="text-xs text-muted-foreground">{t('contact.anonymityNote')}</p>
 
-      <div className="flex items-center justify-end gap-3">
+      <div className="flex items-center justify-end gap-3 border-t pt-4">
         {missing.length > 0 && (
           <span className="text-xs text-muted-foreground">
             {t('common.missing', { fields: missing.map((k) => t(`fieldLabel.${k}`, { defaultValue: k })).join(', ') })}
           </span>
         )}
-        <Button onClick={onNext} disabled={!canProceed} className="gap-2">
-          {t('common.next')} <ArrowRight className="h-4 w-4" />
-        </Button>
+        <Button onClick={onNext} disabled={!canProceed}>{t('common.next')}</Button>
       </div>
     </div>
   );

@@ -128,8 +128,8 @@ export function ContractTaskWindow({ submissionId, open, onOpenChange, intent = 
           <>
             <DialogHeader className="text-left"><DialogTitle>{tk('forFirst', { first })}</DialogTitle><DialogDescription>{ctx.jobTitle}</DialogDescription></DialogHeader>
             {sendable || status !== 'final' ? <ContractSteps at={3} /> : null}
-            <div className="flex items-start gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/[0.06] p-3 text-sm">
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+            <div className="flex items-start gap-2 rounded-lg bg-secondary/60 p-3 text-sm">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
               <div><p className="font-medium">{tk('done')}</p><p className="text-muted-foreground">{done}</p></div>
             </div>
             {next ? (
@@ -140,7 +140,7 @@ export function ContractTaskWindow({ submissionId, open, onOpenChange, intent = 
               </div>
             ) : <p className="text-sm text-muted-foreground">{tk('allDone')}</p>}
             <div className="flex justify-end gap-2 border-t pt-3">
-              <Button variant="ghost" onClick={() => onOpenChange(false)}>{t('common.close')}</Button>
+              <Button variant="secondary" className="rounded-full px-4" onClick={() => onOpenChange(false)}>{t('common.close')}</Button>
               {next && <Button onClick={() => { onOpenChange(false); navigate(taskHref(next)); }}>{tk('next')}</Button>}
             </div>
           </>
@@ -152,7 +152,7 @@ export function ContractTaskWindow({ submissionId, open, onOpenChange, intent = 
             </DialogHeader>
 
             {status === 'declined' && sendable && (
-              <p className="rounded-md border border-amber-500/30 bg-amber-500/[0.06] px-3 py-2 text-sm">{c?.declineReason ? tk('declinedReason', { reason: c.declineReason }) : tk('declined')}</p>
+              <p className="rounded-lg bg-secondary/60 px-3 py-2 text-sm font-medium">{c?.declineReason ? tk('declinedReason', { reason: c.declineReason }) : tk('declined')}</p>
             )}
             {sendable && ctx.candidateNotice && ctx.candidateNotice !== 'sofort' && (
               <p className="text-xs text-muted-foreground">{tk('notice', { first, notice: ctx.candidateNotice })}</p>
@@ -170,8 +170,8 @@ export function ContractTaskWindow({ submissionId, open, onOpenChange, intent = 
                   ctx={ctx} open inline onOpenChange={(o) => { if (!o) onOpenChange(false); }} onDone={finish}
                   initialWay={sendSelfFirst ? 'self' : intent === 'digital' ? 'digital' : null}
                   footerExtra={<>
-                    <button type="button" className="text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => setReport(true)}>{tk('alreadySigned')}</button>
-                    <button type="button" className="text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => setDropReason('')}>{t('client.box.hasDropped', { first })}</button>
+                    <button type="button" className="text-klick hover:underline" onClick={() => setReport(true)}>{tk('alreadySigned')} ›</button>
+                    <button type="button" className="text-klick hover:underline" onClick={() => setDropReason('')}>{t('client.box.hasDropped', { first })} ›</button>
                   </>}
                 />
               )

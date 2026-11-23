@@ -112,20 +112,19 @@ export function PackageStep({ load, onSelect, onNext, onTerms }: Props) {
     return (
       <div className="space-y-6">
         <div className="space-y-2">
-          <h2 className="text-xl font-semibold">{t('packages.frameworkTitle')}</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">{t('packages.frameworkTitle')}</h2>
           <p className="text-sm text-muted-foreground">
             {t('packages.frameworkLead')}
           </p>
         </div>
 
-        <Card className="border-primary/30 bg-primary/[0.03]">
+        <Card>
           <CardContent className="space-y-4 pt-6">
             <div className="flex items-start gap-3">
-              <FileCheck2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
               <div className="min-w-0 flex-1">
                 <p className="font-medium">
                   {rv.name ?? t('packages.agreedTerms')}
-                  <Badge variant="secondary" className="ml-2">{rv.fee_percent} %</Badge>
+                  <span className="font-normal text-muted-foreground"> · {rv.fee_percent} %</span>
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {rv.continuity_days
@@ -148,17 +147,10 @@ export function PackageStep({ load, onSelect, onNext, onTerms }: Props) {
           </CardContent>
         </Card>
 
-        <Card className="border-dashed">
-          <CardContent className="flex gap-3 pt-6 text-sm text-muted-foreground">
-            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
-            <p>{offer.notice}</p>
-          </CardContent>
-        </Card>
+        <p className="text-xs text-muted-foreground">{offer.notice}</p>
 
-        <div className="flex justify-end">
-          <Button onClick={onNext}>
-            {t('packages.toSummary')} <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
+        <div className="flex justify-end border-t pt-4">
+          <Button onClick={onNext}>{t('packages.toSummary')}</Button>
         </div>
       </div>
     );
@@ -167,7 +159,7 @@ export function PackageStep({ load, onSelect, onNext, onTerms }: Props) {
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h2 className="text-xl font-semibold">{t('packages.title')}</h2>
+        <h2 className="text-2xl font-semibold tracking-tight">{t('packages.title')}</h2>
         <p className="text-sm text-muted-foreground">
           {t('packages.lead')}
         </p>
@@ -187,24 +179,17 @@ export function PackageStep({ load, onSelect, onNext, onTerms }: Props) {
       </div>
 
       {offer.packages.some((p) => p.key !== 'core') && (
-        <div className="rounded-lg border bg-muted/30 p-4 text-sm">
+        <div className="rounded-xl border bg-card p-4 text-sm">
           <p className="font-medium">{t('packages.replacementTitle')}</p>
           <p className="mt-1 text-muted-foreground">{t('packages.replacementText')}</p>
         </div>
       )}
 
-      <Card className="border-dashed">
-        <CardContent className="flex gap-3 pt-6 text-sm text-muted-foreground">
-          <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
-          <p>{offer.notice}</p>
-        </CardContent>
-      </Card>
+      <p className="text-xs text-muted-foreground">{offer.notice}</p>
 
       {chosen && (
-        <div className="flex justify-end">
-          <Button onClick={onNext}>
-            {t('packages.toSummary')} <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
+        <div className="flex justify-end border-t pt-4">
+          <Button onClick={onNext}>{t('packages.toSummary')}</Button>
         </div>
       )}
     </div>
@@ -220,18 +205,20 @@ function PackageCard({
   const card = packageCard(t, pkg.key);
   const bullets = card?.bullets ?? pkg.bullets;
   return (
-    <Card className={selected ? 'border-primary ring-1 ring-primary' : undefined}>
+    <Card className={selected ? 'border-foreground ring-1 ring-foreground' : undefined}>
       <CardContent className="flex h-full flex-col gap-4 pt-6">
         <div className="space-y-1">
           <div className="flex items-start justify-between gap-2">
-            <h3 className="font-semibold leading-tight">{card?.short ?? pkg.name}</h3>
-            {selected && <Badge className="shrink-0">{t('packages.chosenBadge')}</Badge>}
+            <h3 className="inline-flex items-center gap-1.5 font-semibold leading-tight">
+              {selected && <Check className="h-4 w-4 shrink-0" aria-label={t('packages.chosenBadge')} />}
+              {card?.short ?? pkg.name}
+            </h3>
           </div>
           {!card && <p className="text-sm text-muted-foreground">{pkg.summary}</p>}
         </div>
 
         <div>
-          <div className="text-3xl font-semibold tabular-nums">{pkg.fee_percent} %</div>
+          <div className="text-3xl font-semibold tracking-tight tabular-nums">{pkg.fee_percent} %</div>
           <p className="text-xs text-muted-foreground">{t('packages.feeBase')}</p>
         </div>
 
@@ -247,9 +234,10 @@ function PackageCard({
           </ul>
         </div>
 
+        {/* Nur der eine Knopf „Weiter“ unten ist blau; die Wahl selbst ist eine graue Pille. */}
         <Button
-          variant={selected ? 'secondary' : 'default'}
-          className="w-full"
+          variant="secondary"
+          className="w-full rounded-full"
           disabled={anyBusy}
           onClick={onSelect}
         >

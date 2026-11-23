@@ -159,9 +159,8 @@ function ExternalPersonForm({ existing, onAdd, open, setOpen, initial }: {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5">
-          <Mail className="h-3.5 w-3.5" /> {t('people.byEmail')}
-        </Button>
+        {/* Kein eigener Knopf mehr: geöffnet wird über „Kollegen dazuholen“ (23.11.2026). Der Punkt hält nur den Platz für das Feld. */}
+        <span aria-hidden className="inline-block h-px w-px" />
       </PopoverTrigger>
       <PopoverContent className="w-72 space-y-2.5" align="start">
         <form
@@ -291,9 +290,7 @@ export function ParticipantsSection({ submissionId, jobTitle, invite, me, team, 
       <div className="flex flex-wrap items-center gap-2">
         <Popover open={teamOpen} onOpenChange={(o) => { setTeamOpen(o); if (o) setSearch(''); }} modal>
           <PopoverTrigger asChild>
-            <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5">
-              <UserPlus className="h-3.5 w-3.5" /> {t('people.fromTeam')}
-            </Button>
+            <button type="button" className="text-sm text-klick hover:underline">{t('people.add')} ›</button>
           </PopoverTrigger>
           <PopoverContent className="w-72 p-0" align="start">
             <Command>
@@ -333,10 +330,15 @@ export function ParticipantsSection({ submissionId, jobTitle, invite, me, team, 
                     </CommandItem>
                   ))}
                 </CommandGroup>
-                {invite.allowed && available.length > 0 && (
+                {available.length > 0 && (
                   <CommandGroup>
-                    <CommandItem value={`__invite__ ${search}`} onSelect={startInvite}>
-                      <UserPlus className="mr-2 h-3.5 w-3.5 text-muted-foreground" /> {t('people.inviteNew')}
+                    {invite.allowed && (
+                      <CommandItem value={`__invite__ ${search}`} onSelect={startInvite}>
+                        <UserPlus className="mr-2 h-3.5 w-3.5 text-muted-foreground" /> {t('people.inviteNew')}
+                      </CommandItem>
+                    )}
+                    <CommandItem value={`__external__ ${search}`} onSelect={startExternal}>
+                      <Mail className="mr-2 h-3.5 w-3.5 text-muted-foreground" /> {t('people.byEmail')}
                     </CommandItem>
                   </CommandGroup>
                 )}

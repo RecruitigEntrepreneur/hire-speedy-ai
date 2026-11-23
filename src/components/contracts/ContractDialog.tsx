@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Copy, FileDown, Loader2, TriangleAlert, Upload } from 'lucide-react';
+import { Loader2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -30,18 +30,16 @@ interface Props {
   footerExtra?: ReactNode;
 }
 
-/** „1 · Weg  2 · Vertrag  3 · Fertig“ */
+/** Fortschritt als blauer Balken, darunter „Schritt 1 von 3 · Weg“ (Apple-Stil, 23.11.2026; vorher drei Kästchen). */
 export function ContractSteps({ at }: { at: 1 | 2 | 3 }) {
   useTranslation('contracts');
-  const steps = [td('steps.1'), td('steps.2'), td('steps.3')];
   return (
-    <ol className="flex gap-1.5 text-[11px]">
-      {steps.map((label, i) => (
-        <li key={i} className={cn('flex-1 rounded-md border px-2 py-1 text-center', i + 1 === at ? 'border-foreground bg-foreground font-medium text-background' : i + 1 < at ? 'border-border text-muted-foreground line-through decoration-muted-foreground/40' : 'border-border text-muted-foreground')}>
-          {td('stepLabel', { n: i + 1, label })}
-        </li>
-      ))}
-    </ol>
+    <div>
+      <div className="h-1 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuemin={1} aria-valuemax={3} aria-valuenow={at}>
+        <div className="h-full rounded-full bg-klick transition-all" style={{ width: `${(at / 3) * 100}%` }} />
+      </div>
+      <p className="mt-1.5 text-xs text-muted-foreground">{td('stepOf', { n: at, label: td(`steps.${at}`) })}</p>
+    </div>
   );
 }
 
@@ -167,10 +165,10 @@ export function ContractDialog({ ctx, open, onOpenChange, initialWay = null, inl
   const yesNo = (value: boolean | null, set: (v: boolean) => void, label: string) => (
     <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
       <span>{label}</span>
-      <div className="inline-flex rounded-md border border-border/60 bg-muted/30 p-0.5">
+      <div className="inline-flex gap-1.5">
         {[true, false].map((v) => (
           <button key={String(v)} type="button" onClick={() => set(v)} data-yes-no={v ? 'yes' : 'no'}
-            className={cn('rounded px-3 py-1 text-xs', value === v ? 'bg-background font-medium shadow-sm' : 'text-muted-foreground')}>{v ? td('yes') : td('no')}</button>
+            className={cn('rounded-full border px-3 py-0.5 text-xs', value === v ? 'border-foreground font-medium ring-1 ring-foreground' : 'border-input text-muted-foreground hover:text-foreground')}>{v ? td('yes') : td('no')}</button>
         ))}
       </div>
     </div>
@@ -187,37 +185,37 @@ export function ContractDialog({ ctx, open, onOpenChange, initialWay = null, inl
             <div className="grid gap-2 sm:grid-cols-2">
               {/* data-tour: Ziele des Kunden-Rundgangs, der das Fenster einmal vorführt (lib/clientGuide.ts) */}
               <button type="button" disabled={!ctx.digitalAvailable} onClick={() => setWay('digital')} data-tour="contract.digital"
-                className={cn('rounded-lg border p-3 text-left text-sm transition-colors', way === 'digital' ? 'border-primary bg-primary/[0.04]' : 'border-border/60 hover:bg-muted/40', !ctx.digitalAvailable && 'opacity-50')}>
-                <p className="font-medium">{td('digital')} <span className="ml-1 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-600">{td('recommended')}</span></p>
+                className={cn('rounded-lg border p-3 text-left text-sm transition-colors', way === 'digital' ? 'border-foreground ring-1 ring-foreground' : 'hover:border-foreground/30 hover:bg-accent/40', !ctx.digitalAvailable && 'opacity-50')}>
+                <p className="font-medium">{td('digital')} <span className="font-normal text-muted-foreground">· {td('recommended')}</span></p>
                 <p className="mt-1 text-muted-foreground">{ctx.digitalAvailable ? td('digitalHint', { first }) : td('digitalOff')}</p>
               </button>
               <button type="button" onClick={() => { setWay('self'); if (!sentOn) setSentOn(todayIso()); }} data-tour="contract.self"
-                className={cn('rounded-lg border p-3 text-left text-sm transition-colors', way === 'self' ? 'border-primary bg-primary/[0.04]' : 'border-border/60 hover:bg-muted/40')}>
+                className={cn('rounded-lg border p-3 text-left text-sm transition-colors', way === 'self' ? 'border-foreground ring-1 ring-foreground' : 'hover:border-foreground/30 hover:bg-accent/40')}>
                 <p className="font-medium">{td('self')}</p>
                 <p className="mt-1 text-muted-foreground">{td('selfHint')}</p>
               </button>
             </div>
 
-            <div className="rounded-lg border border-border/60 bg-muted/30 p-3 text-sm">
-              <p className="mb-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{td('dataTitle')}</p>
+            <div className="rounded-lg border bg-card p-3 text-sm">
+              <p className="font-medium">{td('dataHead')}</p>
+              <p className="mb-2 text-xs text-muted-foreground">{td('dataSub')}</p>
               <dl className="grid grid-cols-[9rem_1fr] gap-x-3 gap-y-1">
                 {contractData(ctx).map((r) => (
                   <div key={r.label} className="contents">
                     <dt className="text-muted-foreground">{r.label}</dt>
-                    <dd className={cn(r.missing && 'text-amber-600 dark:text-amber-400')}>{r.value}</dd>
+                    <dd className={cn(r.missing && 'text-muted-foreground')}>{r.missing ? `${td('missing')}, ${r.value}` : r.value}</dd>
                   </div>
                 ))}
               </dl>
               <p className="mt-2 text-xs text-muted-foreground">{td('dataHint')}</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <Button size="sm" variant="outline" className="h-8 gap-1 text-xs" onClick={pdf}><FileDown className="h-3.5 w-3.5" />{td('dataPdf')}</Button>
-                <Button size="sm" variant="outline" className="h-8 gap-1 text-xs" onClick={copy}><Copy className="h-3.5 w-3.5" />{td('copy')}</Button>
+              <div className="mt-2 flex flex-wrap gap-4 text-sm">
+                <button type="button" className="text-klick hover:underline" onClick={pdf}>{td('dataPdf')} ›</button>
+                <button type="button" className="text-klick hover:underline" onClick={copy}>{td('copy')} ›</button>
               </div>
             </div>
 
             {way === 'digital' && ctx.digitalDemo && (
-              <p className="flex gap-2 rounded-md border border-amber-500/30 bg-amber-500/[0.06] p-2 text-xs text-amber-700 dark:text-amber-400"><TriangleAlert className="h-4 w-4 shrink-0" />
-                {td('demo')}</p>
+              <p className="rounded-lg bg-secondary/60 px-3 py-2 text-xs font-medium">{td('demo')}</p>
             )}
             {way === 'self' && (
               <label className="flex flex-wrap items-center gap-2 text-sm">
@@ -229,7 +227,7 @@ export function ContractDialog({ ctx, open, onOpenChange, initialWay = null, inl
 
             <div className="flex flex-wrap items-center justify-end gap-2 border-t pt-3">
               {inline && footerExtra && <div className="mr-auto flex flex-wrap gap-3 text-xs">{footerExtra}</div>}
-              <Button variant="ghost" onClick={() => onOpenChange(false)}>{t('common.cancel')}</Button>
+              <Button variant="secondary" className="rounded-full px-4" onClick={() => onOpenChange(false)}>{t('common.cancel')}</Button>
               {way === 'digital'
                 ? <Button disabled={!ctx.digitalAvailable} onClick={() => setStep('upload')} data-tour="contract.next">{td('nextUpload')}</Button>
                 : <Button disabled={busy || !sentOn} onClick={saveSelf} data-tour="contract.saveSelf">{busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}{td('saveSent')}</Button>}
@@ -240,7 +238,7 @@ export function ContractDialog({ ctx, open, onOpenChange, initialWay = null, inl
             <input ref={fileInput} type="file" accept="application/pdf,.pdf" className="hidden" onChange={(e) => pickFile(e.target.files?.[0] ?? null)} />
             <button type="button" onClick={() => fileInput.current?.click()}
               className="flex w-full items-center gap-3 rounded-lg border border-dashed p-4 text-left text-sm hover:bg-muted/40">
-              <Upload className="h-5 w-5 text-muted-foreground" />
+              <Upload className="h-5 w-5 shrink-0 text-muted-foreground" />
               {file ? <span><span className="font-medium">{file.name}</span> · {(file.size / 1024 / 1024).toFixed(1)} MB · <span className="text-muted-foreground">{td('replace')}</span></span>
                 : <span>{td('uploadHint', { mb: MAX_MB })}</span>}
             </button>
@@ -256,10 +254,10 @@ export function ContractDialog({ ctx, open, onOpenChange, initialWay = null, inl
             <div className="grid gap-3 text-sm sm:grid-cols-2">
               <div>
                 <span className="text-muted-foreground">{td('whoSigns', { company: ctx.companyName })}</span>
-                <div className="mt-1 inline-flex w-full rounded-md border border-border/60 bg-muted/30 p-0.5">
+                <div className="mt-1 flex gap-1.5">
                   {[true, false].map((v) => (
                     <button key={String(v)} type="button" onClick={() => setSignerSelf(v)}
-                      className={cn('flex-1 truncate rounded px-2 py-1 text-xs', signerSelf === v ? 'bg-background font-medium shadow-sm' : 'text-muted-foreground')}>
+                      className={cn('truncate rounded-full border px-3 py-0.5 text-xs', signerSelf === v ? 'border-foreground font-medium ring-1 ring-foreground' : 'border-input text-muted-foreground hover:text-foreground')}>
                       {v ? td('me') : td('someoneElse')}
                     </button>
                   ))}
@@ -278,12 +276,11 @@ export function ContractDialog({ ctx, open, onOpenChange, initialWay = null, inl
                 <Input value={candidateEmail} onChange={(e) => setCandidateEmail(e.target.value)} placeholder={td('mail')} className="mt-1 h-9" />
                 <span className="mt-1 block text-xs text-muted-foreground">{td('candidateMailHint', { first })}</span></label>
             </div>
-            <div className="space-y-2 rounded-lg border border-border/60 bg-muted/30 p-3" data-tour="contract.questions">
+            <div className="space-y-2 rounded-lg border bg-card p-3" data-tour="contract.questions">
               {yesNo(fixedTerm, setFixedTerm, td('fixedTermQ'))}
               {yesNo(nonCompete, setNonCompete, td('nonCompeteQ'))}
               {strict && (
-                <p className="flex gap-2 text-xs text-amber-700 dark:text-amber-400"><TriangleAlert className="h-4 w-4 shrink-0" />
-                  {td('strict')}</p>
+                <p className="rounded-lg bg-secondary/60 px-3 py-2 text-xs font-medium">{td('strict')}</p>
               )}
               <p className="text-xs text-muted-foreground">{td('paper', { first })}</p>
             </div>
@@ -293,8 +290,8 @@ export function ContractDialog({ ctx, open, onOpenChange, initialWay = null, inl
             </label>
 
             <div className="flex flex-wrap justify-end gap-2 border-t pt-3">
-              <Button variant="ghost" onClick={() => setStep('choose')}>{td('back')}</Button>
-              {strict && <Button variant="outline" onClick={() => { setWay('self'); setStep('choose'); }}>{td('self')}</Button>}
+              <Button variant="secondary" className="rounded-full px-4" onClick={() => setStep('choose')}>{td('back')}</Button>
+              {strict && <Button variant="secondary" className="rounded-full px-4" onClick={() => { setWay('self'); setStep('choose'); }}>{td('self')}</Button>}
               <Button disabled={busy || !readyDigital} onClick={sendDigital}>{busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}{signerSelf ? td('uploadSign') : td('uploadLink')}</Button>
             </div>
           </>

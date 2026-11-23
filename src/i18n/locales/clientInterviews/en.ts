@@ -294,6 +294,8 @@ const en: Messages<typeof de> = {
     next: 'What happens next',
     step1Named: 'The candidate and headhunter {{name}} are notified',
     step1: 'Candidate and headhunter are notified',
+    longer: 'longer',
+    after: 'Next:',
     step2: 'The candidate confirms one of your times, chooses a different time or declines',
     step3Outlook: {
       teams: 'Once the time is set: it goes straight into your Outlook with the Teams link, the candidate gets their own',
@@ -407,6 +409,7 @@ const en: Messages<typeof de> = {
     emailInvalid: 'Please enter a valid email address.',
     duplicate: 'This person is already included.',
     byEmail: 'Person by email',
+    add: 'Add colleagues',
     name: 'Name',
     email: 'Email',
     role: 'Role (optional)',
@@ -574,6 +577,8 @@ const en: Messages<typeof de> = {
     concerns: 'Concerns',
     footer: '{{hh}} receives your feedback immediately and talks to {{first}}.',
     pickWay: 'Choose a path',
+    send: 'Send feedback',
+    moreAdd: 'Add rating and notes',
   },
 
   window: {

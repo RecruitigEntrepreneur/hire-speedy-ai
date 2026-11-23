@@ -129,8 +129,8 @@ const de = {
     },
     'c-feedback': {
       title: 'Eine Minute Feedback',
-      body: 'Nach dem Termin: kurz Ihr Eindruck, wenn Sie mögen Sterne und Stichworte, dann der Weg. {{hh}} erfährt es sofort und kümmert sich um den Kandidaten.',
-      bodyContracting: 'Nach dem Termin: kurz Ihr Eindruck und der Weg. {{hh}} erfährt es sofort. Gute Spezialisten sind schnell vergeben, schnelles Feedback zählt.',
+      body: 'Nach dem Termin: der Weg, dazu kurz Ihr Eindruck und, wenn Sie mögen, Sterne und Stichworte. {{hh}} erfährt es sofort und kümmert sich um den Kandidaten.',
+      bodyContracting: 'Nach dem Termin: der Weg und kurz Ihr Eindruck. {{hh}} erfährt es sofort. Gute Spezialisten sind schnell vergeben, schnelles Feedback zählt.',
       action: 'Angebot machen',
     },
     'c-recommendation': {

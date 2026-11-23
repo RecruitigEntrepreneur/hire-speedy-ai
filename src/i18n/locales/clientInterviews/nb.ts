@@ -294,6 +294,8 @@ const nb: Messages<typeof de> = {
     next: 'Slik går det videre',
     step1Named: 'Kandidaten og headhunteren {{name}} varsles',
     step1: 'Kandidat og headhunter varsles',
+    longer: 'lengre',
+    after: 'Deretter:',
     step2: 'Kandidaten bekrefter et av tidspunktene dine, velger et annet tidspunkt eller takker nei',
     step3Outlook: {
       teams: 'Når tidspunktet er avtalt: det havner direkte i Outlook-en din med Teams-lenke, kandidaten får sin egen',
@@ -407,6 +409,7 @@ const nb: Messages<typeof de> = {
     emailInvalid: 'Skriv inn en gyldig e-postadresse.',
     duplicate: 'Denne personen er allerede med.',
     byEmail: 'Person via e-post',
+    add: 'Legg til kolleger',
     name: 'Navn',
     email: 'E-post',
     role: 'Rolle (valgfritt)',
@@ -574,6 +577,8 @@ const nb: Messages<typeof de> = {
     concerns: 'Betenkeligheter',
     footer: '{{hh}} får tilbakemeldingen din med en gang og snakker med {{first}}.',
     pickWay: 'Velg vei',
+    send: 'Send tilbakemelding',
+    moreAdd: 'Legg til vurdering og notater',
   },
 
   window: {

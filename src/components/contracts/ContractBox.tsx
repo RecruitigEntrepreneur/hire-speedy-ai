@@ -153,10 +153,10 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
     <div className="mt-2 flex flex-wrap items-center gap-2">
       <Input value={dropReason} onChange={(e) => setDropReason(e.target.value)} placeholder={t('dropPlaceholder', { first })} className="h-8 min-w-[16rem] flex-1" aria-label={t('dropReason')} />
       <Button size="sm" variant="destructive" disabled={busy || !dropReason.trim()} onClick={() => run(() => contractApi.drop(submissionId, dropReason.trim()), t('dropSaved', { hh: hhFirst }))}>{t('reportDrop')}</Button>
-      <Button size="sm" variant="ghost" onClick={() => setDropReason(null)}>{tt('common.cancel')}</Button>
+      <Button size="sm" variant="link" className="h-auto px-0" onClick={() => setDropReason(null)}>{tt('common.cancel')}</Button>
     </div>
   ) : null;
-  const dropButton = <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={() => setDropReason('')}>{t('hasDropped', { first })}</Button>;
+  const dropButton = <button type="button" className="text-sm text-klick hover:underline" onClick={() => setDropReason('')}>{t('hasDropped', { first })} ›</button>;
 
   const sig = ctx.signing ?? null;
   const embedded = sig?.mode === 'embedded' || c?.signingMode === 'embedded';
@@ -178,10 +178,10 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
   };
   const signerRow = signer ? (
     <div className="mt-2 space-y-2 rounded-md border border-border/60 bg-background/60 p-2">
-      <div className="inline-flex rounded-md border border-border/60 bg-muted/30 p-0.5">
+      <div className="flex gap-1.5">
         {[true, false].map((v) => (
           <button key={String(v)} type="button" onClick={() => setSigner({ ...signer, self: v })}
-            className={cn('rounded px-3 py-1 text-xs', signer.self === v ? 'bg-background font-medium shadow-sm' : 'text-muted-foreground')}>{v ? t('me') : t('someoneElse')}</button>
+            className={cn('rounded-full border px-3 py-0.5 text-xs', signer.self === v ? 'border-foreground font-medium ring-1 ring-foreground' : 'border-input text-muted-foreground hover:text-foreground')}>{v ? t('me') : t('someoneElse')}</button>
         ))}
       </div>
       {!signer.self && (
@@ -193,14 +193,14 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
       <p className="text-xs text-muted-foreground">{signer.self ? t('signerSelfHint') : t('signerOtherHint')}{t('sameContract')}</p>
       <div className="flex gap-2">
         <Button size="sm" disabled={busy || (!signer.self && (!signer.name.trim() || !/\S+@\S+\.\S+/.test(signer.email)))} onClick={changeSigner}>{signer.self ? t('changeSign') : t('changeLink')}</Button>
-        <Button size="sm" variant="ghost" onClick={() => setSigner(null)}>{tt('common.cancel')}</Button>
+        <Button size="sm" variant="link" className="h-auto px-0" onClick={() => setSigner(null)}>{tt('common.cancel')}</Button>
       </div>
     </div>
   ) : null;
 
   const step = (done: boolean, label: string, when?: string | null) => (
     <li className="flex items-center gap-2">
-      {done ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Circle className="h-3.5 w-3.5 text-muted-foreground" />}
+      {done ? <Check className="h-3.5 w-3.5 text-muted-foreground" /> : <Circle className="h-3.5 w-3.5 text-muted-foreground" />}
       <span className={cn(!done && 'text-muted-foreground')}>{label}</span>
       {when && <span className="text-xs text-muted-foreground">{when}</span>}
     </li>
@@ -208,10 +208,11 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
 
   return (
     <div className={cn('mt-3 rounded-lg border p-3 text-sm',
+      // Apple-Stil (23.11.2026): ruhige Karte. Grün nur beim unterschriebenen Vertrag, sonst keine Tönung.
       tone === 'ok' && 'border-emerald-500/30 bg-emerald-500/[0.06]',
-      tone === 'warn' && 'border-amber-500/30 bg-amber-500/[0.06]',
-      tone === 'info' && 'border-primary/20 bg-primary/[0.04]',
-      tone === 'muted' && 'border-border bg-muted/30')}>
+      tone === 'warn' && 'bg-card',
+      tone === 'info' && 'bg-card',
+      tone === 'muted' && 'bg-muted/30')}>
 
       {back?.state === 'signed' && status === 'company_signed' && (
         <p className="mb-2 rounded-md border border-emerald-500/30 bg-emerald-500/[0.06] px-2.5 py-1.5 text-emerald-800 dark:text-emerald-300">{back.at ? t('signedBackAt', { when: timeDe(back.at), first }) : t('signedBack', { first })}</p>
@@ -224,7 +225,7 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
           {dropRow ?? (
             <div className="mt-2 flex flex-wrap gap-2">
               <Button size="sm" onClick={() => setShowSend('any')}>{t('sendContract')}</Button>
-              <Button size="sm" variant="outline" onClick={() => setShowReport('report')}>{t('reportSigned')}</Button>
+              <Button size="sm" variant="secondary" className="rounded-full px-4" onClick={() => setShowReport('report')}>{t('reportSigned')}</Button>
               {dropButton}
             </div>
           )}
@@ -237,7 +238,7 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
           <p className="mt-0.5 text-muted-foreground">{t('uploadAgain')}</p>
           <div className="mt-2 flex flex-wrap gap-2">
             <Button size="sm" onClick={() => setShowSend('digital')}>{t('resend')}</Button>
-            <Button size="sm" variant="outline" onClick={() => setShowSend('self')}>{t('sendSelf')}</Button>
+            <Button size="sm" variant="secondary" className="rounded-full px-4" onClick={() => setShowSend('self')}>{t('sendSelf')}</Button>
           </div>
         </>
       )}
@@ -246,12 +247,12 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
         <>
           <p className="font-medium">{t('sentSelf', { date: dateDe(c!.sentAt), first })} <span className="font-normal text-muted-foreground">{t('yourInfo')}</span></p>
           {c!.candidateStatus === 'missing' ? (
-            <div className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/[0.06] px-3 py-2">
+            <div className="mt-2 rounded-lg bg-secondary/60 px-3 py-2">
               <p className="font-medium">{t('notArrived', { first })} <span className="font-normal text-muted-foreground">{t('reportedOn', { date: dateDe(c!.candidateStatusAt) })}</span></p>
               <p className="mt-0.5 text-muted-foreground">{t('checkResend', { first })}</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 <Button size="sm" onClick={() => setShowSend('self')}>{t('resentOn')}</Button>
-                <Button size="sm" variant="outline" onClick={() => setShowSend('digital')}>{t('viaMatchunt')}</Button>
+                <Button size="sm" variant="secondary" className="rounded-full px-4" onClick={() => setShowSend('digital')}>{t('viaMatchunt')}</Button>
               </div>
             </div>
           ) : (
@@ -261,11 +262,13 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
             </p>
           )}
           {dropRow ?? (
-            <div className="mt-2 flex flex-wrap gap-2">
-              <Button size="sm" onClick={() => setShowReport('report')}>{t('reportSignature')}</Button>
-              {onNotYet && <Button size="sm" variant="outline" onClick={onNotYet}>{t('notYet')}</Button>}
-              <Button size="sm" variant="outline" className="gap-1" onClick={dataPdf}><FileDown className="h-3.5 w-3.5" />{t('dataPdf')}</Button>
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t pt-3">
+              <button type="button" className="text-klick hover:underline" onClick={dataPdf}>{t('dataPdf')} ›</button>
               {dropButton}
+              <span className="ml-auto flex flex-wrap gap-2">
+                {onNotYet && <Button size="sm" variant="secondary" className="rounded-full px-4" onClick={onNotYet}>{t('notYet')}</Button>}
+                <Button size="sm" onClick={() => setShowReport('report')}>{t('reportSignature')}</Button>
+              </span>
             </div>
           )}
         </>
@@ -275,8 +278,8 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
         <>
           <p className="font-medium">{t('signState')}</p>
           {back?.state === 'checking' && <p className="mt-1 flex items-center gap-2 text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" />{t('checking')}</p>}
-          {back?.state === 'late' && <p className="mt-1 text-amber-700 dark:text-amber-400">{t('late')}</p>}
-          {back?.state === 'left' && !c!.companySignedAt && <p className="mt-1 text-amber-700 dark:text-amber-400">{t('left')}</p>}
+          {back?.state === 'late' && <p className="mt-1 font-medium">{t('late')}</p>}
+          {back?.state === 'left' && !c!.companySignedAt && <p className="mt-1 font-medium">{t('left')}</p>}
           <ul className="mt-1 space-y-1">
             {step(true, t('uploaded'), timeDe(c!.sentAt))}
             {c!.companySignedAt
@@ -289,11 +292,11 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
           {signerRow ?? dropRow ?? (
             <div className="mt-2 flex flex-wrap gap-2">
               {status === 'sent_digital' && sig?.youSign && back?.state !== 'checking' && <Button size="sm" disabled={busy} onClick={signNow}>{back?.state === 'left' ? t('continueSign') : t('signNow')}</Button>}
-              {status === 'sent_digital' && !sig?.companyViaApp && <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => contractApi.resendLink(submissionId), t('linkResentSigner', { name: c!.companySignerName ?? tt('client.theSigner') }))}>{t('resendLink')}</Button>}
-              {status === 'company_signed' && <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => contractApi.resendLink(submissionId), t('linkResentSigner', { name: first }))}>{t('resendLinkTo', { first })}</Button>}
-              {status === 'sent_digital' && <Button size="sm" variant="ghost" onClick={() => setSigner({ self: !sig?.youSign, name: '', email: '' })}>{t('changeSigner')}</Button>}
-              <Button size="sm" variant="ghost" disabled={busy} onClick={() => run(() => contractApi.refresh(submissionId), t('refreshed'))}>{t('refresh')}</Button>
-              <Button size="sm" variant="ghost" disabled={busy} onClick={() => run(() => contractApi.voidDigital(submissionId, true), t('voidSelf'))}>{t('sendSelfAfterAll')}</Button>
+              {status === 'sent_digital' && !sig?.companyViaApp && <Button size="sm" variant="secondary" className="rounded-full px-4" disabled={busy} onClick={() => run(() => contractApi.resendLink(submissionId), t('linkResentSigner', { name: c!.companySignerName ?? tt('client.theSigner') }))}>{t('resendLink')}</Button>}
+              {status === 'company_signed' && <Button size="sm" variant="secondary" className="rounded-full px-4" disabled={busy} onClick={() => run(() => contractApi.resendLink(submissionId), t('linkResentSigner', { name: first }))}>{t('resendLinkTo', { first })}</Button>}
+              {status === 'sent_digital' && <Button size="sm" variant="link" className="h-auto px-0" onClick={() => setSigner({ self: !sig?.youSign, name: '', email: '' })}>{t('changeSigner')}</Button>}
+              <Button size="sm" variant="link" className="h-auto px-0" disabled={busy} onClick={() => run(() => contractApi.refresh(submissionId), t('refreshed'))}>{t('refresh')}</Button>
+              <Button size="sm" variant="link" className="h-auto px-0" disabled={busy} onClick={() => run(() => contractApi.voidDigital(submissionId, true), t('voidSelf'))}>{t('sendSelfAfterAll')}</Button>
               {dropButton}
             </div>
           )}
@@ -312,10 +315,10 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
           {!c!.companySignedAt && <p className="mt-1 text-xs text-muted-foreground">{t('noMail')}</p>}
           {signerRow ?? dropRow ?? (
             <div className="mt-2 flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => contractApi.refresh(submissionId), t('refreshed'))}>{t('refresh')}</Button>
-              {status === 'sent_digital' && <Button size="sm" variant="outline" onClick={() => setSigner({ self: true, name: '', email: '' })}>{t('changeSigner')}</Button>}
-              <Button size="sm" variant="ghost" disabled={busy} onClick={() => run(() => contractApi.voidDigital(submissionId, false), t('voidResend'))}>{t('withdrawResend')}</Button>
-              <Button size="sm" variant="ghost" disabled={busy} onClick={() => run(() => contractApi.voidDigital(submissionId, true), t('voidSelf'))}>{t('sendSelfAfterAll')}</Button>
+              <Button size="sm" variant="secondary" className="rounded-full px-4" disabled={busy} onClick={() => run(() => contractApi.refresh(submissionId), t('refreshed'))}>{t('refresh')}</Button>
+              {status === 'sent_digital' && <Button size="sm" variant="secondary" className="rounded-full px-4" onClick={() => setSigner({ self: true, name: '', email: '' })}>{t('changeSigner')}</Button>}
+              <Button size="sm" variant="link" className="h-auto px-0" disabled={busy} onClick={() => run(() => contractApi.voidDigital(submissionId, false), t('voidResend'))}>{t('withdrawResend')}</Button>
+              <Button size="sm" variant="link" className="h-auto px-0" disabled={busy} onClick={() => run(() => contractApi.voidDigital(submissionId, true), t('voidSelf'))}>{t('sendSelfAfterAll')}</Button>
               {dropButton}
             </div>
           )}
@@ -328,8 +331,8 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
           <p className="mt-0.5 text-muted-foreground">{c!.reportNote ? t('isItRightNote', { values: values(c!), note: c!.reportNote }) : t('isItRight', { values: values(c!) })}</p>
           <div className="mt-2 flex flex-wrap gap-2">
             <Button size="sm" disabled={busy} onClick={() => run(() => contractApi.confirm(submissionId, 'yes'), t('confirmed'))}>{t('yesRight')}</Button>
-            <Button size="sm" variant="outline" onClick={() => setShowReport('values')}>{t('otherValues')}</Button>
-            <Button size="sm" variant="ghost" disabled={busy} onClick={() => run(() => contractApi.confirm(submissionId, 'not_yet'), t('hhInformed', { hh: hhFirst }))}>{t('notYet')}</Button>
+            <Button size="sm" variant="secondary" className="rounded-full px-4" onClick={() => setShowReport('values')}>{t('otherValues')}</Button>
+            <Button size="sm" variant="link" className="h-auto px-0" disabled={busy} onClick={() => run(() => contractApi.confirm(submissionId, 'not_yet'), t('hhInformed', { hh: hhFirst }))}>{t('notYet')}</Button>
           </div>
         </>
       )}
@@ -338,7 +341,7 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
         <>
           <p className="font-medium">{t('reportedSignature', { date: dateDe(c!.signedOn), values: values(c!) })}</p>
           <p className="mt-0.5 text-muted-foreground">{t('undoUntil', { when: timeDe(c!.undoUntil) })}{c!.candidateCheck === 'ok' ? t('candidateConfirmed', { first }) : t('candidateGetsMail', { first, hh: hhFirst })}</p>
-          <div className="mt-2"><Button size="sm" variant="outline" disabled={busy} onClick={() => run(() => contractApi.undo(submissionId), t('undone'))}>{t('undo')}</Button></div>
+          <div className="mt-2"><Button size="sm" variant="secondary" className="rounded-full px-4" disabled={busy} onClick={() => run(() => contractApi.undo(submissionId), t('undone'))}>{t('undo')}</Button></div>
         </>
       )}
 
@@ -349,7 +352,7 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
             {values(c!)}{c!.way === 'digital' ? t('viaDocuSign') : ''}
             {c!.candidateCheck === 'ok' ? t('confirmedByCandidate', { first }) : c!.recruiterCheck === 'ok' ? t('confirmedByHh', { hh: hhFirst, first }) : ''}
           </p>
-          {c!.hasSignedDocument && <div className="mt-2"><Button size="sm" variant="outline" className="gap-1" onClick={openPdf}><FileDown className="h-3.5 w-3.5" />{t('contractPdf')}</Button></div>}
+          {c!.hasSignedDocument && <div className="mt-2"><Button size="sm" variant="secondary" className="gap-1 rounded-full px-4" onClick={openPdf}><FileDown className="h-3.5 w-3.5" />{t('contractPdf')}</Button></div>}
         </>
       )}
 
@@ -360,7 +363,7 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
           {dropRow ?? (
             <div className="mt-2 flex flex-wrap gap-2">
               <Button size="sm" onClick={() => setShowSend('digital')}>{t('adjustResend')}</Button>
-              <Button size="sm" variant="outline" onClick={() => setShowSend('self')}>{t('sendSelf')}</Button>
+              <Button size="sm" variant="secondary" className="rounded-full px-4" onClick={() => setShowSend('self')}>{t('sendSelf')}</Button>
               {dropButton}
             </div>
           )}
@@ -371,7 +374,7 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
         <>
           <p className="font-medium">{t('dropped', { first })}</p>
           <p className="mt-0.5 text-muted-foreground">{c!.dropReason ? tt('client.quote', { text: c!.dropReason }) : ''}</p>
-          <div className="mt-2"><Button size="sm" variant="ghost" asChild><Link to="/dashboard/candidates">{t('otherApplicants')}</Link></Button></div>
+          <div className="mt-2"><Button size="sm" variant="link" className="h-auto px-0" asChild><Link to="/dashboard/candidates">{t('otherApplicants')}</Link></Button></div>
         </>
       )}
 

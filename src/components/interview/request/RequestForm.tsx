@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Building2, Info, Loader2, Phone, Send, Video } from 'lucide-react';
+import { Building2, Info, Loader2, Phone, Send, Video, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -107,6 +107,7 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
   const [contactName, setContactName] = useState(ctx.onsiteContactDefault?.name ?? '');
   const [contactPhone, setContactPhone] = useState(ctx.onsiteContactDefault?.phone ?? '');
   const [duration, setDuration] = useState(60);
+  const [longOpen, setLongOpen] = useState(false);
   const [attendees, setAttendees] = useState<AttendeeDraft[]>(() => initialAttendees(ctx));
   const week = useProposalWeek(nowIso, maxWeek);
   const weekStart = week.weekStart;
@@ -253,11 +254,17 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
           </Section>
           <Section title={t('request.duration')}>
             <div className="flex flex-wrap gap-2">
-              {INTERVIEW_DURATIONS.map((d) => (
+              {/* Die üblichen Längen sofort, die seltenen (ab 2 Std.) hinter „länger“ (23.11.2026). */}
+              {INTERVIEW_DURATIONS.filter((d) => d <= 90 || longOpen || duration === d).map((d) => (
                 <Chip key={d} active={duration === d} onClick={() => setDuration(d)}>
                   {durationLabel(d)}
                 </Chip>
               ))}
+              {!longOpen && duration <= 90 && (
+                <Chip active={false} onClick={() => setLongOpen(true)}>
+                  {t('request.longer')} <ChevronDown className="h-3 w-3" />
+                </Chip>
+              )}
             </div>
           </Section>
         </div>
@@ -358,25 +365,17 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
           <Textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={7} maxLength={2000} className="text-sm" />
         </Section>
 
-        <Section title={t('request.next')}>
-          <ol className="space-y-1.5 text-sm">
-            {[
-              recruiter ? t('request.step1Named', { name: recruiter }) : t('request.step1'),
-              t('request.step2'),
-              calendarConnected
-                // Mit Outlook legt Matchunt den Termin im Kalender des Organisators an; Kollegen lädt Outlook ein
-                ? t(attendees.length > 1 ? `request.step3Outlook.${format}Team` : `request.step3Outlook.${format}`)
-                : t(`request.step3Mail.${format}`, { names: inviteNames }),
-            ].map((text, i) => (
-              <li key={i} className="flex gap-2.5">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold">
-                  {i + 1}
-                </span>
-                <span className="text-muted-foreground">{text}</span>
-              </li>
-            ))}
-          </ol>
-        </Section>
+        {/* Ein Satz statt drei nummerierter Schritte (23.11.2026); der Wortlaut bleibt derselbe. */}
+        <p className="text-sm text-muted-foreground">
+          {t('request.after')}{' '}
+          {[
+            recruiter ? t('request.step1Named', { name: recruiter }) : t('request.step1'),
+            calendarConnected
+              // Mit Outlook legt Matchunt den Termin im Kalender des Organisators an; Kollegen lädt Outlook ein
+              ? t(attendees.length > 1 ? `request.step3Outlook.${format}Team` : `request.step3Outlook.${format}`)
+              : t(`request.step3Mail.${format}`, { names: inviteNames }),
+          ].map((x) => x.replace(/[.\s]+$/, '')).join('. ')}.
+        </p>
       </div>
 
       <div className="flex flex-col-reverse gap-2 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">

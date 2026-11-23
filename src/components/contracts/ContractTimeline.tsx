@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { FileDown } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { contractApi, dateDe, euro, linkLine, timeDe } from '@/lib/contractApi';
 import { useTranslation } from 'react-i18next';
@@ -23,7 +22,7 @@ export function ContractTimeline({ submissionId, onOpen }: { submissionId: strin
   const status = c?.status ?? 'preparing';
   const values = (v: { salary: number | null; variable: number | null; startDate: string | null }) =>
     [v.salary ? (v.variable ? tt('client.valuesVariable', { salary: euro(v.salary), variable: euro(v.variable) }) : euro(v.salary)) : null, v.startDate ? tt('client.valuesStart', { date: dateDe(v.startDate) }) : null].filter(Boolean).join(' · ');
-  const openLink = <button type="button" className="ml-1 text-primary underline underline-offset-2" onClick={onOpen}>{t('open')}</button>;
+  const openLink = <button type="button" className="ml-2 font-normal text-klick hover:underline" onClick={onOpen}>{t('open')} ›</button>;
   const openPdf = async () => {
     try { const { url } = await contractApi.document(submissionId); window.open(url, '_blank', 'noopener'); }
     catch (e) { toast.error(e instanceof Error ? e.message : tt('client.box.pdfUnavailable')); }
@@ -68,14 +67,18 @@ export function ContractTimeline({ submissionId, onOpen }: { submissionId: strin
   return (
     <div className="mt-3 rounded-lg border border-border/60 bg-card p-3 text-sm">
       <div className="mb-1.5 flex items-center justify-between gap-2">
-        <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('title')}</p>
-        {status === 'final' && c?.hasSignedDocument && <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={openPdf}><FileDown className="h-3.5 w-3.5" />{tt('client.box.contractPdf')}</Button>}
+        <p className="font-medium">{t('title')}</p>
+        {status === 'final' && c?.hasSignedDocument && <button type="button" className="text-sm text-klick hover:underline" onClick={openPdf}>{tt('client.box.contractPdf')} ›</button>}
       </div>
       <ol className="space-y-1">
         {rows.map((r, i) => (
           <li key={i} className="flex items-start gap-2">
-            <span className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', r.state === 'done' ? 'bg-emerald-500' : r.state === 'now' ? 'bg-amber-500' : r.state === 'bad' ? 'bg-destructive' : 'bg-muted-foreground/30')} />
-            <span className={cn('min-w-0 flex-1', r.state === 'next' && 'text-muted-foreground')}>{r.text}</span>
+            {/* Kein Ampel-Punkt mehr (23.11.2026): Erledigtes trägt ein Häkchen, der offene Schritt einen
+                blauen Punkt und fette Schrift. Grün ist nur der fertige Vertrag. */}
+            {r.state === 'done'
+              ? <Check className={cn('mt-1 h-3.5 w-3.5 shrink-0', status === 'final' && i === rows.length - 1 ? 'text-emerald-600' : 'text-muted-foreground')} />
+              : <span className={cn('mx-[3px] mt-1.5 h-2 w-2 shrink-0 rounded-full', r.state === 'now' ? 'bg-klick' : r.state === 'bad' ? 'bg-destructive' : 'bg-muted-foreground/30')} />}
+            <span className={cn('min-w-0 flex-1', r.state === 'next' && 'text-muted-foreground', (r.state === 'now' || r.state === 'bad') && 'font-medium')}>{r.text}</span>
             {r.when && <span className="shrink-0 text-xs text-muted-foreground">{r.when}</span>}
           </li>
         ))}

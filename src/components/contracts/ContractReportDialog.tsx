@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { contractApi, dateDe, euro, todayIso, type ContractContext } from '@/lib/contractApi';
-import { Trans, useTranslation } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 import { fmtNumber } from '@/lib/localeFormat';
 
 interface Props {
@@ -102,7 +102,7 @@ export function ContractReportDialog({ ctx, open, onOpenChange, mode = 'report',
             <Input inputMode="numeric" value={variable} onChange={(e) => setVariable(fmt(digits(e.target.value)))} placeholder={t('report.none')} className="mt-1 h-9" /></label>
         </div>
         {ctx.offer && sal && sal !== ctx.offer.salary && (
-          <p className="text-xs text-amber-600 dark:text-amber-400">{t('report.differsFromOffer', { amount: euro(ctx.offer.salary) })}</p>
+          <p className="rounded-lg bg-secondary/60 px-3 py-2 text-xs font-medium">{t('report.differsFromOffer', { amount: euro(ctx.offer.salary) })}</p>
         )}
 
         {role === 'client' && mode === 'report' && (
@@ -120,8 +120,14 @@ export function ContractReportDialog({ ctx, open, onOpenChange, mode = 'report',
             <Textarea value={evidence} onChange={(e) => setEvidence(e.target.value)} rows={2} placeholder={t('report.evidencePlaceholder')} className="mt-1" /></label>
         )}
 
-        <div className="rounded-lg border border-border/60 bg-muted/30 p-3 text-sm text-muted-foreground">
-          {role === 'client' && fee !== null && <p><Trans ns="contracts" i18nKey="report.fee" values={{ percent: ctx.feePercent, base: euro(sal! + (vari ?? 0)), fee: euro(fee) }} components={{ b: <span className="font-medium text-foreground" /> }} /></p>}
+        {/* Das Honorar als eigene Zeile, darunter die Hinweise (Apple-Stil, 23.11.2026). */}
+        <div className="border-t pt-3 text-sm text-muted-foreground">
+          {role === 'client' && fee !== null && (
+            <p className="flex flex-wrap items-baseline justify-between gap-x-3">
+              <span>{t('report.feeLabel', { percent: ctx.feePercent, base: euro(sal! + (vari ?? 0)) })}</span>
+              <span className="font-medium text-foreground">{t('report.feeValue', { fee: euro(fee) })}</span>
+            </p>
+          )}
           {role === 'client' && mode === 'report' && <p className="mt-1">{t('report.clientUndo', { recruiter: ctx.recruiterName ?? t('report.yourRecruiterNom'), first })}</p>}
           {role === 'client' && mode === 'values' && <p className="mt-1">{t('report.clientValues')}</p>}
           {role === 'recruiter' && <p>{t('report.recruiterHint', { company: ctx.companyName })}</p>}
@@ -129,7 +135,7 @@ export function ContractReportDialog({ ctx, open, onOpenChange, mode = 'report',
         </div>
 
         <div className="flex flex-wrap justify-end gap-2 border-t pt-3">
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>{t('common.cancel')}</Button>
+          <Button variant="secondary" className="rounded-full px-4" onClick={() => onOpenChange(false)}>{t('common.cancel')}</Button>
           <Button disabled={busy || !ready} onClick={save}>
             {busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
             {role === 'client' ? (mode === 'values' ? t('report.confirm') : t('report.confirmSignature')) : t('report.submit')}

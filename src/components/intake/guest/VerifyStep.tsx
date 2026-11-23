@@ -79,11 +79,10 @@ export function VerifyStep({ draft, onSend, onConfirm, onEditEmail, onVerified }
   if (alreadyVerified) {
     return (
       <div className="mx-auto max-w-md space-y-5 text-center">
-        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-emerald-600/10">
-          <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-        </div>
         <div>
-          <h2 className="text-xl font-bold tracking-tight">{t('verify.confirmedTitle')}</h2>
+          <h2 className="inline-flex items-center gap-2 text-2xl font-semibold tracking-tight">
+            {t('verify.confirmedTitle')} <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+          </h2>
           <p className="mt-1 text-sm text-muted-foreground">{email}</p>
         </div>
       </div>
@@ -93,10 +92,7 @@ export function VerifyStep({ draft, onSend, onConfirm, onEditEmail, onVerified }
   return (
     <div className="mx-auto max-w-md space-y-5">
       <div className="text-center">
-        <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-muted">
-          <Mail className="h-5 w-5 text-muted-foreground" />
-        </div>
-        <h2 className="text-xl font-bold tracking-tight">{t('verify.title')}</h2>
+        <h2 className="text-2xl font-semibold tracking-tight">{t('verify.title')}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           {sent
             ? <Trans t={t} i18nKey="verify.sent" values={{ email: masked }} components={bold} />
@@ -109,7 +105,7 @@ export function VerifyStep({ draft, onSend, onConfirm, onEditEmail, onVerified }
           {!sent && (
             <>
               <Button onClick={send} disabled={busy || !email} className="w-full gap-2">
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+                {busy && <Loader2 className="h-4 w-4 animate-spin" />}
                 {t('verify.sendCode')}
               </Button>
               {/* Ohne diesen Satz steht unten ein Feld ohne Anlass. Mit ihm
@@ -147,16 +143,16 @@ export function VerifyStep({ draft, onSend, onConfirm, onEditEmail, onVerified }
             <button
               type="button"
               onClick={onEditEmail}
-              className="text-muted-foreground underline underline-offset-2 hover:text-foreground"
+              className="text-klick hover:underline"
             >
-              {t('verify.changeAddress')}
+              {t('verify.changeAddress')} ›
             </button>
             {sent && (
               <button
                 type="button"
                 onClick={send}
                 disabled={cooldown > 0 || busy}
-                className="text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:cursor-default disabled:no-underline disabled:opacity-60"
+                className="text-klick hover:underline disabled:cursor-default disabled:text-muted-foreground disabled:no-underline"
               >
                 {cooldown > 0 ? t('verify.resendIn', { seconds: cooldown }) : t('verify.resend')}
               </button>

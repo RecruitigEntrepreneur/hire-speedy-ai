@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { fmtDate } from '@/lib/localeFormat';
 import { toast } from 'sonner';
-import { ChevronDown, Loader2, Star } from 'lucide-react';
+import { Loader2, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
@@ -222,20 +222,7 @@ export function FeedbackPanel({ interviewId, round, candidateName, recruiterName
   return (
     <div className="space-y-5">
       {!started && <p className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">{t('feedback.afterTalk')}</p>}
-      <div className="space-y-1.5">
-        <label htmlFor={`impression-${interviewId}`} className="text-sm font-medium">
-          {t('feedback.impression')} <span className="font-normal text-muted-foreground">{t('feedback.goesTo', { hh })}</span>
-        </label>
-        <Textarea
-          id={`impression-${interviewId}`}
-          value={impression}
-          onChange={(e) => setImpression(e.target.value)}
-          rows={3}
-          maxLength={2000}
-          placeholder={t('feedback.impressionPh', { first })}
-        />
-      </div>
-
+      {/* Erst der Weg, dann die Worte (23.11.2026): Die Entscheidung ist das, was der Headhunter zuerst braucht. */}
       <div className="space-y-2">
         <p className="text-sm font-medium">{t('feedback.howNext')}</p>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label={t('feedback.howNext')} data-tour="feedback.ways">
@@ -249,7 +236,7 @@ export function FeedbackPanel({ interviewId, round, candidateName, recruiterName
               onClick={() => setWay(w)}
               className={cn(
                 'rounded-lg border px-3 py-2 text-left transition-colors',
-                way === w ? 'border-foreground ring-1 ring-foreground' : 'hover:border-primary/40 hover:bg-accent',
+                way === w ? 'border-foreground ring-1 ring-foreground' : 'hover:border-foreground/30 hover:bg-accent/40',
               )}
             >
               <span className="block text-sm font-medium">{WAYS[w].label}</span>
@@ -257,6 +244,20 @@ export function FeedbackPanel({ interviewId, round, candidateName, recruiterName
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <label htmlFor={`impression-${interviewId}`} className="text-sm font-medium">
+          {t('feedback.impression')}
+        </label>
+        <Textarea
+          id={`impression-${interviewId}`}
+          value={impression}
+          onChange={(e) => setImpression(e.target.value)}
+          rows={3}
+          maxLength={2000}
+          placeholder={t('feedback.impressionPh', { first })}
+        />
       </div>
 
       {way === 'unsure' && (
@@ -274,8 +275,9 @@ export function FeedbackPanel({ interviewId, round, candidateName, recruiterName
       )}
 
       <div>
-        <button type="button" onClick={() => setMore((v) => !v)} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground" aria-expanded={more}>
-          <ChevronDown className={cn('h-4 w-4 transition-transform', more && 'rotate-180')} /> {t('feedback.more')}
+        {/* Bleibt eingeklappt (Marko 23.11.2026), als blauer Link statt grauer Zeile. */}
+        <button type="button" onClick={() => setMore((v) => !v)} className="text-sm text-klick hover:underline" aria-expanded={more}>
+          {more ? t('feedback.more') : `${t('feedback.moreAdd')} ›`}
         </button>
         {more && (
           <div className="mt-3 space-y-4">
@@ -302,7 +304,7 @@ export function FeedbackPanel({ interviewId, round, candidateName, recruiterName
         <p className="text-xs text-muted-foreground">{t('feedback.footer', { hh, first })}</p>
         <Button disabled={!way || busy || !started || (way === 'unsure' && question.trim().length < 2)} onClick={submit} className="gap-1.5">
           {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-          {way ? WAYS[way].button : t('feedback.pickWay')}
+          {t('feedback.send')}
         </Button>
       </div>
     </div>

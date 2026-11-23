@@ -294,6 +294,8 @@ const sv: Messages<typeof de> = {
     next: 'Så går det vidare',
     step1Named: 'Kandidaten och headhuntern {{name}} meddelas',
     step1: 'Kandidat och headhunter meddelas',
+    longer: 'längre',
+    after: 'Därefter:',
     step2: 'Kandidaten bekräftar en av dina tider, väljer en annan tid eller tackar nej',
     step3Outlook: {
       teams: 'När tiden är bokad: den hamnar direkt i din Outlook med Teams-länk, kandidaten får sin egen',
@@ -407,6 +409,7 @@ const sv: Messages<typeof de> = {
     emailInvalid: 'Ange en giltig mejladress.',
     duplicate: 'Den här personen är redan med.',
     byEmail: 'Person via mejl',
+    add: 'Lägg till kollegor',
     name: 'Namn',
     email: 'Mejl',
     role: 'Roll (valfritt)',
@@ -574,6 +577,8 @@ const sv: Messages<typeof de> = {
     concerns: 'Tveksamheter',
     footer: '{{hh}} får din återkoppling direkt och pratar med {{first}}.',
     pickWay: 'Välj väg',
+    send: 'Skicka feedback',
+    moreAdd: 'Lägg till betyg och anteckningar',
   },
 
   window: {

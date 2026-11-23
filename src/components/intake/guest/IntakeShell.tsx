@@ -3,10 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { LanguageMenu } from '@/components/language/LanguageMenu';
 import { LanguageHint } from '@/components/language/LanguageHint';
 import { MatchuntWordmark } from '@/components/ui/MatchuntWordmark';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { Check, CloudOff, Loader2, ShieldCheck, TriangleAlert } from 'lucide-react';
+import { Check, CloudOff, Loader2, TriangleAlert } from 'lucide-react';
 import type { PackageSummary } from '@/hooks/useGuestIntake';
 
 /**
@@ -64,19 +63,17 @@ export function IntakeShell({
               Deshalb auch auf dem Handy sichtbar, dort nur kürzer: der Zusatz
               „keine Fixkosten" weicht, die Zahl bleibt. */}
           {contracting ? (
-            <Badge variant="secondary" className="gap-1.5 whitespace-nowrap font-normal">
-              <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+            <span className="whitespace-nowrap text-xs text-muted-foreground">
               {/* Keine Prozentzahl hier: „78 %“ allein liest sich wie eine Gebühr.
                   Die Aufteilung steht mit Erklärung auf der Seite „Anfragen“. */}
               {t('shell.contractingBadge')}
-              <span className="hidden sm:inline">{t('shell.noFixedCosts')}</span>
-            </Badge>
+              <span className="hidden sm:inline"> {t('shell.noFixedCosts')}</span>
+            </span>
           ) : packages && packages.length > 0 && (
-            <Badge variant="secondary" className="gap-1.5 whitespace-nowrap font-normal">
-              <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+            <span className="whitespace-nowrap text-xs text-muted-foreground">
               {t('shell.feeBadge', { percent: Math.min(...packages.map((p) => p.fee_percent)) })}
-              <span className="hidden sm:inline">{t('shell.noFixedCosts')}</span>
-            </Badge>
+              <span className="hidden sm:inline"> {t('shell.noFixedCosts')}</span>
+            </span>
           )}
 
           <div className="ml-auto flex items-center gap-3">
@@ -105,7 +102,7 @@ export function IntakeShell({
                     onClick={() => canGo && onStep(step.key)}
                     className={cn(
                       'flex items-center gap-1.5 rounded-full px-2.5 py-1 transition-colors',
-                      active && 'bg-primary text-primary-foreground font-medium',
+                      active && 'bg-muted font-medium text-foreground',
                       !active && done && 'text-foreground hover:bg-muted',
                       !active && !done && 'text-muted-foreground',
                       canGo && !active && 'cursor-pointer',
@@ -115,8 +112,8 @@ export function IntakeShell({
                     <span
                       className={cn(
                         'flex h-4 w-4 items-center justify-center rounded-full border text-[10px]',
-                        active && 'border-primary-foreground/40',
-                        done && !active && 'border-emerald-600/50 bg-emerald-600/10 text-emerald-700',
+                        active && 'border-foreground/30',
+                        done && !active && 'border-transparent text-muted-foreground',
                       )}
                     >
                       {done ? <Check className="h-2.5 w-2.5" /> : i + 1}
@@ -128,6 +125,10 @@ export function IntakeShell({
               );
             })}
           </ol>
+          {/* Blauer Fortschritt wie in der Aufnahme im Dashboard (23.11.2026). */}
+          <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-muted" aria-hidden>
+            <div className="h-full rounded-full bg-klick transition-all" style={{ width: `${((activeIndex + 1) / Math.max(steps.length, 1)) * 100}%` }} />
+          </div>
         </div>
 
         {/* Der Link startet in einer anderen Sprache als der Browser: einmalige Hinweiszeile. */}
@@ -141,15 +142,15 @@ export function IntakeShell({
           {ownerName && <p className="mb-1">{t('shell.contactPerson', { name: ownerName })}</p>}
           <p>
             {t('shell.footerNote')}{' '}
-            <a href="/datenschutz" className="underline hover:text-foreground" target="_blank" rel="noreferrer">
+            <a href="/datenschutz" className="text-klick hover:underline" target="_blank" rel="noreferrer">
               {t('shell.privacy')}
             </a>
             {' · '}
-            <a href="/agb" className="underline hover:text-foreground" target="_blank" rel="noreferrer">
+            <a href="/agb" className="text-klick hover:underline" target="_blank" rel="noreferrer">
               {t('shell.terms')}
             </a>
             {' · '}
-            <a href="/impressum" className="underline hover:text-foreground" target="_blank" rel="noreferrer">
+            <a href="/impressum" className="text-klick hover:underline" target="_blank" rel="noreferrer">
               {t('shell.imprint')}
             </a>
           </p>
@@ -186,7 +187,7 @@ function SaveState({ saving, error, at }: { saving?: boolean; error?: string | n
   if (at) {
     return (
       <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex" role="status">
-        <Check className="h-3.5 w-3.5 text-emerald-600" /> {t('shell.saved')}
+        <Check className="h-3.5 w-3.5" /> {t('shell.saved')}
       </span>
     );
   }

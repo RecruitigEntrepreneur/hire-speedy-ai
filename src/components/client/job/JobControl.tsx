@@ -15,7 +15,7 @@ import {
 import { BewerberStatusPill } from '@/components/candidates/BewerberStatusPill';
 import type { BewerberItem, BewerberTab } from '@/hooks/useBewerber';
 import { avatarUrl, errorText, getJobSearchers, requestJobChange, type JobSearcher } from '@/lib/jobSearch';
-import { taskMainLabel, type ClientDoneItem, type ClientTask, type ClientWaitingItem } from '@/lib/clientTasksApi';
+import { TASK_ACTION, taskMainLabel, type ClientDoneItem, type ClientTask, type ClientWaitingItem } from '@/lib/clientTasksApi';
 import { fmtDate, fmtDayMonth, fmtNumber } from '@/lib/localeFormat';
 import { cn } from '@/lib/utils';
 import { experienceBandLabel, regionLabel, remoteLabel } from '@/lib/clientCandidateLabels';
@@ -813,7 +813,7 @@ export function ForYouCard({ tasks, waiting, items, loading, onOpen, title, whoO
       <p className="mt-4 text-xl font-semibold leading-snug tracking-tight">{nameOf(cur) ? t('foryou.headline', { title: cur.title, who: nameOf(cur) }) : cur.title}</p>
       {(subOf ? subOf(cur) : cur.detail) && <p className="mt-2 text-sm text-muted-foreground">{subOf ? subOf(cur) : cur.detail}</p>}
       <div className="mt-5 flex flex-wrap gap-2">
-        <Button className="rounded-full px-5" onClick={() => onOpen(cur)} {...(tour ? { 'data-tour-task': cur.kind } : {})}>{taskMainLabel(cur.kind)}</Button>
+        <Button className="rounded-full px-5" onClick={() => onOpen(cur)} {...(tour ? { 'data-tour-task': cur.kind } : {})}>{cur.kind === 'review' ? TASK_ACTION.review : taskMainLabel(cur.kind)}</Button>
         {ordered.length > 1 && <Button variant="secondary" className="rounded-full px-5" onClick={later}>{t('foryou.later')}</Button>}
       </div>
       {ordered.length > 1 && (
