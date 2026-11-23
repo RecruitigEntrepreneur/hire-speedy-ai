@@ -44,11 +44,11 @@ export function DropOffAnalysis({ metrics, isLoading }: DropOffAnalysisProps) {
 
   const getStageColor = (stage: string) => {
     switch (stage) {
-      case 'screening': return 'bg-red-500';
-      case 'opt_in': return 'bg-orange-500';
-      case 'interview': return 'bg-yellow-500';
-      case 'offer': return 'bg-amber-500';
-      default: return 'bg-gray-500';
+      case 'screening': return 'bg-destructive/70';
+      case 'opt_in': return 'bg-destructive/70';
+      case 'interview': return 'bg-destructive/70';
+      case 'offer': return 'bg-destructive/70';
+      default: return 'bg-destructive/70';
     }
   };
 
@@ -56,7 +56,7 @@ export function DropOffAnalysis({ metrics, isLoading }: DropOffAnalysisProps) {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <AlertTriangle className="w-5 h-5 text-amber-500" />
+          <AlertTriangle className="w-5 h-5 text-destructive" />
           {t('analytics.dropOff')}
         </CardTitle>
       </CardHeader>
@@ -105,7 +105,7 @@ export function DropOffAnalysis({ metrics, isLoading }: DropOffAnalysisProps) {
                 .slice(0, 5)
                 .map(([reason, count], index) => {
                   const percentage = totalReasons > 0 ? ((count as number) / totalReasons) * 100 : 0;
-                  const colors = ['bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-blue-500', 'bg-gray-500'];
+                  const colors = ['bg-destructive/80', 'bg-destructive/65', 'bg-destructive/50', 'bg-destructive/40', 'bg-destructive/30'];
                   return (
                     <div key={reason} className="flex items-center gap-3">
                       <div className={`w-3 h-3 rounded-full ${colors[index]}`} />
@@ -122,11 +122,11 @@ export function DropOffAnalysis({ metrics, isLoading }: DropOffAnalysisProps) {
         <div className="pt-4 border-t">
           <div className="grid grid-cols-2 gap-4 text-center">
             <div>
-              <p className="text-2xl font-bold text-red-600">{totalDropOffs}</p>
+              <p className="text-2xl font-bold text-destructive">{totalDropOffs}</p>
               <p className="text-xs text-muted-foreground">{t('analytics.totalDropOffs')}</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-amber-600">
+              <p className="text-2xl font-bold text-destructive">
                 {metrics?.total_submissions && totalDropOffs > 0
                   ? ((totalDropOffs / metrics.total_submissions) * 100).toFixed(0)
                   : 0}%

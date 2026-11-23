@@ -15,6 +15,7 @@ export default {
   	extend: {
   		fontFamily: {
   			sans: [
+  				'Inter Tight',
   				'Inter',
   				'ui-sans-serif',
   				'system-ui',
@@ -82,6 +83,10 @@ export default {
 				DEFAULT: 'hsl(var(--card))',
 				foreground: 'hsl(var(--card-foreground))'
 			},
+			klick: {
+				DEFAULT: 'hsl(var(--klick))',
+				foreground: 'hsl(var(--klick-foreground))'
+			},
 			success: {
 				DEFAULT: 'hsl(var(--success))',
 				foreground: 'hsl(var(--success-foreground))'
@@ -104,7 +109,8 @@ export default {
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
-  			sm: 'calc(var(--radius) - 4px)'
+  			sm: 'calc(var(--radius) - 4px)',
+  			xl: '1.125rem'
   		},
   		boxShadow: {
   			sm: 'var(--shadow-sm)',

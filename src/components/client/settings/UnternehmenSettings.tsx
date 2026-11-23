@@ -109,6 +109,8 @@ export function UnternehmenSettings({ company, onBack }: { company: ReturnType<t
     <SettingsSubpage title={t('unternehmen.title')} description={t('unternehmen.description')} saveState={saveState} onBack={onBack}>
       <FirmenBlock />
 
+      {/* Apple-Stil (22.11.2026): Über Ihr Unternehmen links, Rechnungsanschrift rechts */}
+      <div className="grid items-start gap-5 lg:grid-cols-2">
       <SettingsBlock title={t('unternehmen.about')}>
         <div className="flex items-center gap-4">
           {logoUrl ? (
@@ -177,7 +179,7 @@ export function UnternehmenSettings({ company, onBack }: { company: ReturnType<t
           <SettingsBlock
             title={t('unternehmen.billingAddress')}
             aside={main.status === 'verified' && (
-              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-500">
+              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                 {main.decided_at ? t('unternehmen.verifiedOn', { date: fmtDate(main.decided_at) }) : t('unternehmen.verified')}
               </span>
             )}
@@ -188,7 +190,7 @@ export function UnternehmenSettings({ company, onBack }: { company: ReturnType<t
               <div><dt className="text-xs text-muted-foreground">{t('unternehmen.registration')}</dt><dd>{main.registration_number || '–'}</dd></div>
               <div><dt className="text-xs text-muted-foreground">{t('unternehmen.vatId')}</dt><dd>{main.vat_id || '–'}</dd></div>
             </dl>
-            <div className="space-y-2 md:w-1/2">
+            <div className="space-y-2">
               <Label htmlFor="billing_email">{t('unternehmen.billingEmail')}<AusAufnahme show={ausAufnahme('billing_email')} /><Fehlt show={!profile.billing_email?.trim()} /></Label>
               <Input id="billing_email" type="email" value={profile.billing_email || ''} placeholder={t('unternehmen.billingEmailPh')} onChange={(e) => update({ billing_email: e.target.value })} />
             </div>
@@ -199,7 +201,7 @@ export function UnternehmenSettings({ company, onBack }: { company: ReturnType<t
           title={t('unternehmen.billingAddress')}
           aside={
             <div className="flex flex-wrap items-center gap-2">
-              {verifiedAt && <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-500">{t('unternehmen.verifiedOn', { date: fmtDate(verifiedAt) })}</span>}
+              {verifiedAt && <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">{t('unternehmen.verifiedOn', { date: fmtDate(verifiedAt) })}</span>}
               <Button type="button" variant="outline" size="sm" className="h-7 text-xs" disabled={impressumLaedt || !profile.website} onClick={() => void impressum()}>
                 {impressumLaedt ? t('unternehmen.imprintReading') : t('unternehmen.imprintApply')}
               </Button>
@@ -210,7 +212,7 @@ export function UnternehmenSettings({ company, onBack }: { company: ReturnType<t
             <Label htmlFor="legal_name">{t('unternehmen.legalName')}<AusAufnahme show={ausAufnahme('legal_name')} /><Fehlt show={!profile.legal_name?.trim()} /></Label>
             <Input id="legal_name" value={profile.legal_name || ''} placeholder={t('unternehmen.legalNamePh')} onChange={(e) => update({ legal_name: e.target.value })} />
           </div>
-          <div className="grid gap-4 md:grid-cols-[minmax(0,2fr)_7rem_minmax(0,1fr)]">
+          <div className="grid gap-4 sm:grid-cols-[minmax(0,2fr)_6rem] xl:grid-cols-[minmax(0,2fr)_6rem_minmax(0,1fr)]">
             <div className="space-y-2">
               <Label htmlFor="street">{t('unternehmen.street')}<AusAufnahme show={ausAufnahme('street')} /></Label>
               <Input id="street" value={profile.street || ''} placeholder={t('unternehmen.streetPh')} onChange={(e) => update({ street: e.target.value })} />
@@ -224,7 +226,7 @@ export function UnternehmenSettings({ company, onBack }: { company: ReturnType<t
               <Input id="city" value={profile.city || ''} placeholder={t('unternehmen.cityPh')} onChange={(e) => update({ city: e.target.value })} />
             </div>
           </div>
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="registration_number">{t('unternehmen.registration')}<AusAufnahme show={ausAufnahme('registration_number')} /></Label>
               <Input id="registration_number" value={profile.registration_number || ''} placeholder={t('unternehmen.registrationPh')} onChange={(e) => update({ registration_number: e.target.value })} />
@@ -241,6 +243,7 @@ export function UnternehmenSettings({ company, onBack }: { company: ReturnType<t
           <p className="flex items-start gap-1.5 text-xs text-muted-foreground"><Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />{t('unternehmen.onContract')}</p>
         </SettingsBlock>
         )}
+      </div>
       </div>
 
     </SettingsSubpage>

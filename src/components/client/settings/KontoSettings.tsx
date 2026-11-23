@@ -97,6 +97,8 @@ export function KontoSettings({ onBack }: { onBack: () => void }) {
 
   return (
     <SettingsSubpage title={t('konto.title')} description={t('konto.description')} saveState={saveState} onBack={onBack}>
+      {/* Apple-Stil (22.11.2026): links Ihre Angaben, rechts Sprache, Mails und Datenschutz */}
+      <div className="grid items-start gap-5 lg:grid-cols-2">
       <SettingsBlock title={t('konto.aboutYou')}>
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2"><Label htmlFor="full_name">{t('konto.name')}</Label><Input id="full_name" value={p.full_name} onChange={(e) => change({ full_name: e.target.value })} placeholder={t('konto.namePh')} /></div>
@@ -113,6 +115,7 @@ export function KontoSettings({ onBack }: { onBack: () => void }) {
         </div>
       </SettingsBlock>
 
+      <div className="space-y-5">
       <SettingsBlock title={t('common:language.label')}>
         <LanguageSelect className="max-w-xs" />
         <p className="text-xs text-muted-foreground">{t('common:language.settingsHintClient')}</p>
@@ -133,10 +136,12 @@ export function KontoSettings({ onBack }: { onBack: () => void }) {
         </p>
       </SettingsBlock>
 
-      <Link to="/dashboard/privacy" className="flex items-center justify-between rounded-xl border border-border bg-card p-5 text-sm hover:bg-muted/40">
+      <Link to="/dashboard/privacy" className="flex items-center justify-between rounded-xl border bg-card p-5 text-sm hover:bg-secondary/60">
         <span><span className="font-medium">{t('konto.privacy')}</span><span className="block text-xs text-muted-foreground">{t('konto.privacyHint')}</span></span>
         <ChevronRight className="h-4 w-4 text-muted-foreground" />
       </Link>
+      </div>
+      </div>
 
       <PasswortDialog open={pwOpen} onOpenChange={setPwOpen} onDone={() => toast({ title: t('konto.pw.changed') })} />
     </SettingsSubpage>

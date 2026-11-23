@@ -14,6 +14,11 @@ const nb: Messages<typeof de> = {
   },
 
   hub: {
+    summaryReady: '{{company}} er klart.',
+    summaryOpen_one: '{{company}}: {{count}} punkt gjenstår.',
+    summaryOpen_other: '{{company}}: {{count}} punkter gjenstår.',
+    calendarOnly: 'Det eneste som gjenstår er kalenderen din.',
+    calendarAlso: 'Kalenderen din er ikke tilkoblet ennå.',
     title: 'Innstillinger',
     complete: 'Komplett',
     openPoints_one: ' · {{count}} punkt gjenstår',
@@ -39,6 +44,7 @@ const nb: Messages<typeof de> = {
         checking: 'Kontrollerer …',
         connected: 'Outlook tilkoblet',
         notConnected: 'Ikke tilkoblet',
+        connectNow: 'Koble til nå',
       },
       auftritt: {
         title: 'Profil for headhuntere',
@@ -46,7 +52,7 @@ const nb: Messages<typeof de> = {
         missing_one: '{{count}} opplysning mangler',
         missing_other: '{{count}} opplysninger mangler',
       },
-      team: { title: 'Team', text: 'Kolleger og tilganger', status: 'Åpner teamsiden' },
+      team: { title: 'Team', text: 'Kolleger og tilganger', status: 'Åpner teamsiden', people_one: '{{count}} person', people_other: '{{count}} personer' },
       unternehmen: { title: 'Firma', text: 'Navn, logo, fakturaadresse', missing: 'Mangler: {{fields}}' },
       vertrag: { title: 'Avtale og fakturaer', text: 'Rammeavtale, fakturaer' },
     },

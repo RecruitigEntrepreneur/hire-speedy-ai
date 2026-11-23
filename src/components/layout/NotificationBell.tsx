@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bell, CheckCheck, ChevronDown } from "lucide-react";
+import { Bell, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -12,7 +12,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useRealtimeNotifications } from "@/hooks/useRealtimeNotifications";
 import { cn } from "@/lib/utils";
 import { Honorar } from '@/components/recruiter/Honorar';
-import { HinweisIcon } from '@/components/notifications/HinweisIcon';
 import { hinweisPfad, hinweisZiel } from '@/lib/hinweisZiel';
 import { buendeln, headhunterAus, stelleAus } from '@/lib/hinweisBuendel';
 import { Link, useNavigate } from "react-router-dom";
@@ -32,6 +31,13 @@ function hinweisZeit(dateString: string, t: (k: string, o?: Record<string, unkno
   if (diffHours < 24) return t("hoursAgo", { count: diffHours });
   if (diffDays < 7) return t("daysAgo", { count: diffDays });
   return fmtDate(date);
+}
+
+const istHeute = (iso: string) => new Date(iso).toDateString() === new Date().toDateString();
+
+/** Ungelesen = blauer Punkt links; gelesen bleibt der Platz frei, damit die Titel bündig stehen. */
+function Punkt({ an }: { an: boolean }) {
+  return <span className={cn("mt-1.5 h-2 w-2 shrink-0 rounded-full", an && "bg-klick")} aria-hidden />;
 }
 
 /**
@@ -68,15 +74,14 @@ export function NotificationBell() {
         key={n.id}
         onSelect={() => void oeffnen(n)}
         className={cn(
-          "flex items-start gap-3 rounded-none border-b border-border/60 px-3 py-2.5 last:border-b-0",
+          "flex items-start gap-2.5 rounded-none border-b border-border/60 px-4 py-2.5 last:border-b-0",
           hatZiel ? "cursor-pointer" : "cursor-default",
-          !n.is_read && "bg-muted/50",
           eingerueckt && "border-b-0 pl-8",
         )}
       >
-        <HinweisIcon type={n.type} className="mt-0.5" />
+        <Punkt an={!n.is_read} />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium leading-snug line-clamp-2 break-words">{n.title}</p>
+          <p className={cn("text-sm leading-snug line-clamp-2 break-words", !n.is_read && "font-medium")}>{n.title}</p>
           {n.message && (
             <p className="text-xs text-muted-foreground line-clamp-2 break-words mt-0.5">
               {/* „Provision: … €“ nach einer Platzierung folgt dem Auge in der Kopfleiste. */}
@@ -85,7 +90,6 @@ export function NotificationBell() {
           )}
           <p className="text-xs text-muted-foreground mt-1">{hinweisZeit(n.created_at, t)}</p>
         </div>
-        {!n.is_read && <div className="h-2 w-2 rounded-full bg-primary mt-1.5 flex-shrink-0" />}
       </DropdownMenuItem>
     );
   };
@@ -96,20 +100,22 @@ export function NotificationBell() {
         <Button variant="ghost" size="icon" className="relative" aria-label={t("title")} data-tour="header.bell">
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center font-medium">
-              {unreadCount > 9 ? "9+" : unreadCount}
+            <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium leading-none text-destructive-foreground">
+              {unreadCount > 99 ? "99+" : unreadCount}
             </span>
           )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80 p-0" data-tour="bell.menu">
         <div className="flex items-center justify-between px-4 py-2 border-b">
-          <span className="font-semibold">{t("title")}</span>
+          <span className="text-[15px] font-semibold tracking-tight">
+            {t("title")}
+            {unreadCount > 0 && <span className="text-xs font-normal text-muted-foreground"> · {t("newCount", { count: unreadCount })}</span>}
+          </span>
           {unreadCount > 0 && (
-            <Button variant="ghost" size="sm" className="h-auto p-1 text-xs" onClick={() => markAllAsRead()}>
-              <CheckCheck className="h-3 w-3 mr-1" />
+            <button type="button" className="text-xs text-klick hover:underline" onClick={() => markAllAsRead()}>
               {t("markAllRead")}
-            </Button>
+            </button>
           )}
         </div>
         {/* Radix legt um den Inhalt eine Tabelle, die mit langen Titeln breiter wird als das Fenster:
@@ -120,8 +126,13 @@ export function NotificationBell() {
               {t("empty")}
             </div>
           ) : (
-            buendeln(notifications.slice(0, 30)).slice(0, 10).map((e) => {
-              if (e.art === 'einzeln') return einzeln(e.hinweis, false);
+            buendeln(notifications.slice(0, 30)).slice(0, 10).map((e, i, alle) => {
+              // Gliederung „Heute“ / „Früher“: die Zeile steht einmal vor dem ersten Eintrag ihrer Gruppe.
+              const tag = (x: (typeof alle)[number]) => istHeute(x.art === 'einzeln' ? x.hinweis.created_at : x.hinweise[0].created_at);
+              const kopf = i === 0 || tag(alle[i - 1]) !== tag(e)
+                ? <p key={`kopf-${i}`} className="px-4 pb-0.5 pt-2.5 text-xs text-muted-foreground">{tag(e) ? t('group.today') : t('group.earlier')}</p>
+                : null;
+              if (e.art === 'einzeln') return <div key={e.hinweis.id}>{kopf}{einzeln(e.hinweis, false)}</div>;
               const offen = aufgeklappt.has(e.key);
               const ungelesen = e.hinweise.some((x) => !x.is_read);
               const namen = [...new Set(e.hinweise.map((x) => headhunterAus(x.message)))];
@@ -132,23 +143,23 @@ export function NotificationBell() {
                 : e.type === 'pause_ended' ? t('bundle.pauseEnded', { count }) : t('bundle.pauseEnding', { count });
               return (
                 <div key={e.key} className="border-b border-border/60 last:border-b-0">
+                  {kopf}
                   <DropdownMenuItem
                     onSelect={(ev) => { ev.preventDefault(); umschalten(e.key); }}
                     aria-expanded={offen}
-                    className={cn("flex cursor-pointer items-start gap-3 rounded-none px-3 py-2.5", ungelesen && "bg-muted/50")}
+                    className="flex cursor-pointer items-start gap-2.5 rounded-none px-4 py-2.5"
                   >
-                    <HinweisIcon type={e.type} className="mt-0.5" />
+                    <Punkt an={ungelesen} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium leading-snug line-clamp-2 break-words">{titel}</p>
+                      <p className={cn("text-sm leading-snug line-clamp-2 break-words", ungelesen && "font-medium")}>{titel}</p>
                       {stellen.length > 0 && (
                         <p className="text-xs text-muted-foreground line-clamp-2 break-words mt-0.5">{stellen.join(' · ')}</p>
                       )}
                       <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                        {hinweisZeit(e.hinweise[0].created_at, t)} · {offen ? t('bundle.collapse') : t('bundle.expand')}
-                        <ChevronDown className={cn("h-3 w-3 transition-transform", offen && "rotate-180")} />
+                        {hinweisZeit(e.hinweise[0].created_at, t)} · <span className="text-klick">{offen ? t('bundle.collapse') : t('bundle.expand')}</span>
+                        <ChevronDown className={cn("h-3 w-3 text-klick transition-transform", offen && "rotate-180")} />
                       </p>
                     </div>
-                    {ungelesen && <div className="h-2 w-2 rounded-full bg-primary mt-1.5 flex-shrink-0" />}
                   </DropdownMenuItem>
                   {offen && e.hinweise.map((n) => einzeln(n, true))}
                 </div>
@@ -159,8 +170,8 @@ export function NotificationBell() {
         {notifications.length > 0 && (
           <>
             <DropdownMenuSeparator className="m-0" />
-            <DropdownMenuItem asChild className="justify-center py-2.5 text-sm text-muted-foreground">
-              <Link to={role === "recruiter" ? "/recruiter/notifications" : "/dashboard/notifications"}>{t("showAll")}</Link>
+            <DropdownMenuItem asChild className="justify-center py-2.5 text-sm text-klick focus:text-klick">
+              <Link to={role === "recruiter" ? "/recruiter/notifications" : "/dashboard/notifications"}>{t("showAll")} ›</Link>
             </DropdownMenuItem>
           </>
         )}

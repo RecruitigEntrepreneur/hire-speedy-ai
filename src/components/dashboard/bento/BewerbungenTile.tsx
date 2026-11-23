@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PIPELINE_STAGES } from '@/hooks/useHiringPipeline';
 import { BentoTile } from './BentoTile';
+import { KachelLeer, KachelReiter, KachelZeile } from './KachelTeile';
 import { Inbox } from 'lucide-react';
 
 interface Row {
@@ -81,14 +80,22 @@ export function BewerbungenTile() {
     [active],
   );
 
+  // Neue zuerst (dort ist der Kunde dran), sonst die Reihenfolge des Eingangs. Kein Score.
   const visible = useMemo(
     () =>
       (tab === 'all' ? active : active.filter((r) => r.stage === tab))
         .slice()
-        .sort((a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0))
+        .sort((a, b) => Number(b.stage === 'submitted') - Number(a.stage === 'submitted'))
         .slice(0, MAX_ROWS),
     [active, tab],
   );
+
+  const reiter = [
+    { key: 'all', label: t('tiles.allCount', { count: active.length }) },
+    ...PIPELINE_STAGES.slice(0, 5)
+      .filter((st) => (stageCounts[st.key] || 0) > 0)
+      .map((st) => ({ key: st.key as string, label: `${t(`tiles.stage.${st.key}`, { defaultValue: st.label })} (${stageCounts[st.key]})` })),
+  ];
 
   return (
     <BentoTile icon={Inbox} title={t('tiles.applications')} count={loading ? undefined : active.length} to="/dashboard/candidates">
@@ -98,60 +105,25 @@ export function BewerbungenTile() {
             <Skeleton key={i} className="h-10 w-full" />
           ))}
         </div>
-      ) : active.length === 0 ? (
-        <div className="flex h-full items-center justify-center py-6 text-center text-sm text-muted-foreground">
-          {t('tiles.noApplications')}
-        </div>
       ) : (
         <div className="flex h-full flex-col">
-          <div className="mb-2.5 flex flex-wrap gap-1.5 border-b pb-2.5">
-            <Button
-              variant={tab === 'all' ? 'default' : 'ghost'}
-              size="sm"
-              className="h-7 text-xs"
-              onClick={() => setTab('all')}
-            >
-              {t('tiles.allCount', { count: active.length })}
-            </Button>
-            {PIPELINE_STAGES.slice(0, 5).map((st) => {
-              const c = stageCounts[st.key] || 0;
-              if (!c) return null;
-              return (
-                <Button
-                  key={st.key}
-                  variant={tab === st.key ? 'default' : 'ghost'}
-                  size="sm"
-                  className="h-7 text-xs"
-                  onClick={() => setTab(st.key)}
-                >
-                  {t(`tiles.stage.${st.key}`, { defaultValue: st.label })} ({c})
-                </Button>
-              );
-            })}
-          </div>
-          <div className="space-y-0.5">
-            {visible.map((r) => (
-              <Link
-                key={r.submissionId}
-                to={`/dashboard/candidates/${r.submissionId}`}
-                className="group flex items-center gap-3 rounded-lg px-2.5 py-2 transition-all hover:bg-accent/50"
-              >
-                {r.isNew && <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-mono text-sm font-medium transition-colors group-hover:text-primary">
-                    {r.anonId}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {r.role ?? t('tiles.notSpecified')}
-                    {r.region ? ` · ${r.region}` : ''}
-                  </p>
-                </div>
-                {r.matchScore != null && (
-                  <span className="shrink-0 text-sm font-semibold text-emerald-600">{r.matchScore}%</span>
-                )}
-              </Link>
-            ))}
-          </div>
+          <KachelReiter items={reiter} value={tab} onChange={setTab} />
+          {active.length === 0 ? (
+            <KachelLeer>{t('tiles.noApplications')}</KachelLeer>
+          ) : (
+            <div>
+              {visible.map((r) => (
+                <KachelZeile
+                  key={r.submissionId}
+                  to={`/dashboard/candidates/${r.submissionId}`}
+                  title={r.role ?? t('tiles.notSpecified')}
+                  sub={`${r.region ? `${r.region} · ` : ''}${r.anonId}`}
+                  action={r.stage === 'submitted' ? t('tiles.review') : undefined}
+                  state={t(`tiles.stage.${r.stage}`, { defaultValue: '' }) || undefined}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </BentoTile>

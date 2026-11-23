@@ -65,13 +65,13 @@ export function VertragSettings({ billingEmail, onBack }: { billingEmail: string
       {isLoading ? (
         <div className="flex min-h-32 items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
       ) : (
-        <>
+        <div className="grid items-start gap-5 lg:grid-cols-2">
           <SettingsBlock title={t('vertrag.framework')}>
             {a ? (
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-sm">
-                    {a.agreement_number ?? t('vertrag.framework')} · <span className={a.status === 'active' ? 'text-emerald-500' : 'text-amber-500'}>{STATUS.has(a.status) ? t(`vertrag.status.${a.status}`) : a.status}</span>
+                    {a.agreement_number ?? t('vertrag.framework')} · <span className={a.status === 'active' ? 'text-green-600' : 'text-muted-foreground'}>{STATUS.has(a.status) ? t(`vertrag.status.${a.status}`) : a.status}</span>
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {[a.customer_signed_at && t('vertrag.signedYou', { date: day(a.customer_signed_at) }), a.countersigned_at && t('vertrag.signedMatchunt', { date: day(a.countersigned_at) })].filter(Boolean).join(' · ') || t('vertrag.notSigned')}
@@ -85,7 +85,7 @@ export function VertragSettings({ billingEmail, onBack }: { billingEmail: string
           </SettingsBlock>
 
           {/* Rechnungen haben seit Etappe 3 (25.10.2026) einen eigenen Bereich; hier nur der Stand */}
-          <SettingsBlock title={t('vertrag.invoices')} aside={<Link to="/dashboard/rechnungen" className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground">{t('vertrag.toInvoices')}</Link>}>
+          <SettingsBlock title={t('vertrag.invoices')} aside={<Link to="/dashboard/rechnungen" className="text-sm text-klick hover:underline">{t('vertrag.toInvoices')} ›</Link>}>
             {!invoices.data ? (
               <p className="text-sm text-muted-foreground">{t('vertrag.loading')}</p>
             ) : invoices.data.invoices.length === 0 ? (
@@ -98,10 +98,10 @@ export function VertragSettings({ billingEmail, onBack }: { billingEmail: string
             )}
             <p className="text-xs text-muted-foreground">
               {t('vertrag.sentTo', { email: billingEmail || t('vertrag.noBillingEmail') })} ·{' '}
-              <Link to="/dashboard/rechnungen?reiter=daten" className="underline underline-offset-2 hover:text-foreground">{t('vertrag.billingData')}</Link>
+              <Link to="/dashboard/rechnungen?reiter=daten" className="text-klick hover:underline">{t('vertrag.billingData')} ›</Link>
             </p>
           </SettingsBlock>
-        </>
+        </div>
       )}
     </SettingsSubpage>
   );

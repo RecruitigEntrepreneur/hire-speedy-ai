@@ -31,25 +31,25 @@ export function FunnelChart({ metrics, isLoading }: FunnelChartProps) {
     {
       name: t('analytics.stage.submitted'),
       value: metrics?.total_submissions || 0,
-      color: 'bg-blue-500',
+      color: 'bg-klick',
       percentage: 100,
     },
     {
       name: t('analytics.stage.optedIn'),
       value: metrics?.submissions_to_opt_in || 0,
-      color: 'bg-cyan-500',
+      color: 'bg-klick',
       percentage: metrics?.opt_in_rate || 0,
     },
     {
       name: t('analytics.stage.interviewed'),
       value: metrics?.opt_in_to_interview || 0,
-      color: 'bg-emerald-500',
+      color: 'bg-klick',
       percentage: metrics?.interview_rate || 0,
     },
     {
       name: t('analytics.stage.offered'),
       value: metrics?.interview_to_offer || 0,
-      color: 'bg-amber-500',
+      color: 'bg-klick',
       percentage: metrics?.offer_rate || 0,
     },
     {

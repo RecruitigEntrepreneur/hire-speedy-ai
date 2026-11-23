@@ -106,7 +106,7 @@ function RequiredToggle({ value, onChange, disabled }: { value: boolean; onChang
           onClick={() => onChange(o.v)}
           className={cn(
             'rounded-full px-2 py-0.5 transition-colors',
-            value === o.v ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground',
+            value === o.v ? 'bg-secondary font-medium text-foreground' : 'text-muted-foreground hover:text-foreground',
             disabled && value !== o.v && 'hidden',
             disabled && 'cursor-default',
           )}
@@ -248,7 +248,7 @@ export function ParticipantsSection({ submissionId, jobTitle, invite, me, team, 
                 title={t('people.decidesHint')}
                 className={cn(
                   'inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] transition-colors',
-                  a.decisionMaker ? 'border-foreground bg-foreground text-background' : 'text-muted-foreground hover:text-foreground',
+                  a.decisionMaker ? 'border-foreground font-medium text-foreground' : 'text-muted-foreground hover:text-foreground',
                 )}
               >
                 <Gavel className="h-3 w-3" /> {t('people.decider')}

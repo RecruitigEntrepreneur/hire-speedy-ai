@@ -1,6 +1,5 @@
 import { Fragment } from 'react';
 import { CalendarClock, CheckCircle2, Clock, FileSignature, FileText, Gift, HelpCircle, MessageSquare, PauseCircle, Receipt, RefreshCw, UserCheck, UserX, Users, type LucideIcon } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import {
@@ -29,10 +28,29 @@ export const TASK_ICON: Record<ClientTaskKind, LucideIcon> = {
 export function Chip({ chip, className }: { chip: TaskChip; className?: string }) {
   return (
     <span className={cn('inline-block whitespace-nowrap rounded px-1.5 py-px align-middle text-[11px] font-medium',
-      chip.tone === 'good' ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-        : chip.tone === 'warn' ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400' : 'bg-destructive/10 text-destructive', className)}>
+      chip.tone === 'bad' ? 'bg-destructive/10 text-destructive' : 'bg-secondary text-muted-foreground', className)}>
       {chip.text}
     </span>
+  );
+}
+
+/** Aufgabe als Karte auf der Seite „Aufgaben“ (22.11.2026): Aufgabe, Stelle, unten Wartezeit und die eine Handlung. */
+export function TaskCard({ task, onOpen }: { task: ClientTask; onOpen: (t: ClientTask) => void }) {
+  useTranslation('clientTasks');
+  const c = task.context;
+  const istRechnung = task.kind === 'invoice' || task.kind === 'purchase_order';
+  return (
+    <button type="button" onClick={() => onOpen(task)} className="flex flex-col rounded-xl border bg-card p-4 text-left transition-colors hover:bg-secondary/70" data-tour-task-row={task.kind}>
+      <p className="w-full truncate text-sm font-medium">
+        {task.title}
+        {c?.chip?.tone === 'bad' && <Chip chip={c.chip} className="ml-2" />}
+      </p>
+      <p className="w-full truncate text-xs text-muted-foreground">{[task.jobTitle ?? task.who, istRechnung && c?.line.length ? c.line[0] : null].filter(Boolean).join(' · ')}</p>
+      <span className="mt-4 flex w-full items-center justify-between gap-2 text-xs">
+        <span className="text-muted-foreground">{sinceLabel(task.since)}</span>
+        <span className="whitespace-nowrap font-medium text-klick" data-tour-task={task.kind}>{TASK_ACTION[task.kind]} ›</span>
+      </span>
+    </button>
   );
 }
 
@@ -45,8 +63,8 @@ export function TaskRow({ task, onOpen, compact = false, active = false }: { tas
   // Etikett direkt hinter den Wert, zu dem es gehört (Wunsch, Fälligkeit), sonst ans Ende
   const chipAt = facts && c?.chip ? (() => { const i = facts.findIndex((p) => /^(Wunsch|fällig)/.test(p)); return i >= 0 ? i : facts.length - 1; })() : -1;
   return (
-    <div className={cn('flex items-center gap-3 rounded-lg px-2.5 py-2 transition-colors', task.urgent ? 'bg-destructive/[0.04] hover:bg-destructive/[0.08]' : 'hover:bg-accent/50', active && 'ring-1 ring-primary')} data-tour-task-row={task.kind}>
-      <span className={cn('h-2 w-2 shrink-0 rounded-full', task.urgent ? 'bg-destructive' : 'bg-amber-500')} />
+    <div className={cn('flex items-center gap-3 rounded-lg px-2.5 py-2 transition-colors hover:bg-secondary/60', active && 'ring-1 ring-klick')} data-tour-task-row={task.kind}>
+      {/* Apple-Stil (21.11.2026): kein roter Grund und kein Farbpunkt mehr; die Abschnitte ordnen nach Dringlichkeit. */}
       <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
       <button type="button" className="min-w-0 flex-1 text-left" onClick={() => onOpen(task)}>
         <p className="truncate text-sm font-medium">{task.title}</p>
@@ -67,13 +85,13 @@ export function TaskRow({ task, onOpen, compact = false, active = false }: { tas
             {c?.quote ? `${c.quote.by.split(' ')[0]}: „${c.quote.text}“` : ''}{c?.quote && c?.why ? ' · ' : ''}{c?.why ?? ''}
           </p>
         )}
-        {!compact && task.note && <p className="truncate text-xs text-amber-600 dark:text-amber-400">{task.note}</p>}
+        {!compact && task.note && <p className="truncate text-xs text-muted-foreground">{task.note}</p>}
       </button>
       {!compact && <span className="hidden shrink-0 text-xs text-muted-foreground sm:block">{waitingLabel(task)}</span>}
       {/* „seit 33 Tagen“ statt „33 Tagen“ (17.11.2026) */}
       {compact && <span className="shrink-0 text-xs text-muted-foreground">{sinceLabel(task.since)}</span>}
       {/* Auf dem Handy reicht die Zeile als Knopf, der Text bekommt den Platz */}
-      <Button size="sm" variant={task.urgent ? 'default' : 'outline'} className="hidden h-7 shrink-0 text-xs sm:inline-flex" onClick={() => onOpen(task)} data-tour-task={task.kind}>{TASK_ACTION[task.kind]}</Button>
+      <button type="button" className="hidden shrink-0 whitespace-nowrap text-xs font-medium text-klick hover:underline sm:inline-flex" onClick={() => onOpen(task)} data-tour-task={task.kind}>{TASK_ACTION[task.kind]} ›</button>
     </div>
   );
 }
@@ -96,7 +114,7 @@ export function WaitingRow({ item, onOpen }: { item: ClientWaitingItem; onOpen?:
 export function DoneRow({ item }: { item: ClientDoneItem }) {
   return (
     <div className="flex items-center gap-3 rounded-lg px-2.5 py-1.5 text-sm text-muted-foreground">
-      <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
+      <CheckCircle2 className="h-4 w-4 shrink-0 text-muted-foreground/70" />
       <span className="min-w-0 flex-1 truncate">{item.label}{item.answer ? ` · ${item.answer}` : ''}</span>
       <span className="shrink-0 text-xs">{new Date(item.doneAt).toLocaleString(intlLocale(i18n.language), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
     </div>
@@ -137,7 +155,7 @@ export function ContextView({ context: c, detail, questions = [], note }: { cont
             </thead>
             <tbody>
               {c.compare.rows.map((r) => (
-                <tr key={r.label} className={cn(r.changed && 'bg-amber-500/10')}>
+                <tr key={r.label} className={cn(r.changed && 'bg-secondary')}>
                   <td className="py-0.5 pl-1 pr-2 text-muted-foreground">{r.label}</td>
                   {r.cells.map((cell, i) => <td key={i} className={cn('py-0.5 pr-2', r.changed && i < 2 && 'font-medium')}>{cell}</td>)}
                 </tr>
@@ -170,34 +188,44 @@ export function ContextView({ context: c, detail, questions = [], note }: { cont
 /** Läuft-bei-anderen-Einträge rund um den Arbeitsvertrag (öffnen das Vertrags-Fenster) */
 export const isContractWaiting = (key: string) => /^(sign-company|docusign-cand|contract-self|contract-undo):/.test(key);
 
-/** Kopf des Bewerberprofils: „IHRE AUFGABEN“ und „LÄUFT BEI ANDEREN“ als Karten. */
+/** Karte im Profilkopf: reines Weiß bzw. Schwarz auf der grauen Fläche, mit feiner Kante, damit sie sich
+ *  in beiden Modi abhebt (22.11.2026: Weiß auf Hellgrau war kaum zu sehen). */
+const PROFIL_KARTE = 'rounded-lg bg-background px-3 py-2 shadow-[0_0_0_1px_hsl(var(--foreground)/0.07),0_1px_3px_hsl(var(--foreground)/0.06)]';
+
+/** Kopf des Bewerberprofils: „Ihre Aufgaben“ und „Läuft bei anderen“ als Karten. */
 export function ProfileTaskCards({ tasks, waiting, onOpen, onOpenWaiting }: { tasks: ClientTask[]; waiting: ClientWaitingItem[]; onOpen: (t: ClientTask) => void; onOpenWaiting?: (w: ClientWaitingItem) => void }) {
   const { t: tr } = useTranslation('clientTasks');
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <div>
-        <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{tr('cards.yourTasks', { count: tasks.length })}</p>
+        <p className="mb-1.5 text-[13px] font-semibold tracking-tight">{tr('cards.yourTasks', { count: tasks.length })}</p>
         {tasks.length === 0 ? (
           <p className="text-sm text-muted-foreground">{tr('cards.nothing')}</p>
         ) : (
           <div className="space-y-1.5">
             {tasks.map((t) => (
               <button key={t.key} type="button" onClick={() => onOpen(t)}
-                className={cn('block w-full rounded-lg border bg-card px-3 py-2 text-left transition-colors hover:bg-accent/40', t.urgent ? 'border-l-[3px] border-l-destructive' : 'border-l-[3px] border-l-amber-500')}>
+                className={cn(PROFIL_KARTE, 'block w-full text-left transition-shadow hover:shadow-[0_0_0_1px_hsl(var(--klick)/0.5),0_1px_3px_hsl(var(--foreground)/0.06)]')}>
                 <div className="flex items-center gap-2 text-[11px]">
-                  <span className={cn('rounded px-1.5 py-0.5 font-medium', t.urgent ? 'bg-destructive/10 text-destructive' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400')}>{TASK_CHIP[t.kind]}</span>
+                  <span className="rounded bg-secondary px-1.5 py-0.5 font-medium text-muted-foreground">{TASK_CHIP[t.kind]}</span>
                   <span className="text-muted-foreground">{waitingLabel(t)}</span>
                 </div>
-                <p className="mt-1 text-sm font-medium">{t.title}</p>
-                <p className="text-xs text-muted-foreground">{t.detail}</p>
-                {t.note && <p className="text-xs text-amber-600 dark:text-amber-400">{t.note}</p>}
+                <div className="mt-1 flex items-end justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{t.title}</p>
+                    <p className="text-xs text-muted-foreground">{t.detail}</p>
+                    {t.note && <p className="text-xs text-muted-foreground">{t.note}</p>}
+                  </div>
+                  {/* Die Aufgabe ist die Karte mit der Handlung: blau, damit sie sich von „Läuft bei anderen“ abhebt */}
+                  <span className="shrink-0 whitespace-nowrap text-xs font-medium text-klick">{TASK_ACTION[t.kind]} ›</span>
+                </div>
               </button>
             ))}
           </div>
         )}
       </div>
       <div>
-        <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{tr('cards.withOthers', { count: waiting.length })}</p>
+        <p className="mb-1.5 text-[13px] font-semibold tracking-tight">{tr('cards.withOthers', { count: waiting.length })}</p>
         {waiting.length === 0 ? (
           <p className="text-sm text-muted-foreground">–</p>
         ) : (
@@ -207,14 +235,14 @@ export function ProfileTaskCards({ tasks, waiting, onOpen, onOpenWaiting }: { ta
               const clickable = !!onOpenWaiting && isContractWaiting(w.key);
               const body = (
                 <>
-                  <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">{byLabel(w.by)}</span>
+                  <span className="rounded bg-secondary px-1.5 py-0.5 text-[11px] text-muted-foreground">{byLabel(w.by)}</span>
                   <p className="mt-1 text-sm font-medium">{w.title}</p>
                   <p className="text-xs text-muted-foreground">{w.detail}</p>
                 </>
               );
               return clickable
-                ? <button key={w.key} type="button" onClick={() => onOpenWaiting!(w)} className="block w-full rounded-lg border bg-card px-3 py-2 text-left transition-colors hover:bg-accent/40">{body}</button>
-                : <div key={w.key} className="rounded-lg border bg-card px-3 py-2">{body}</div>;
+                ? <button key={w.key} type="button" onClick={() => onOpenWaiting!(w)} className={cn(PROFIL_KARTE, 'block w-full text-left')}>{body}</button>
+                : <div key={w.key} className={PROFIL_KARTE}>{body}</div>;
             })}
           </div>
         )}
@@ -229,11 +257,11 @@ export function ProfileTaskCardsLoading() {
   return (
     <div className="grid gap-3 sm:grid-cols-2" aria-busy="true">
       <div>
-        <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{tr('cards.yourTasksTitle')}</p>
+        <p className="mb-1.5 text-[13px] font-semibold tracking-tight">{tr('cards.yourTasksTitle')}</p>
         <Skeleton className="h-[78px] w-full rounded-lg" />
       </div>
       <div>
-        <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{tr('cards.withOthersTitle')}</p>
+        <p className="mb-1.5 text-[13px] font-semibold tracking-tight">{tr('cards.withOthersTitle')}</p>
         <Skeleton className="h-4 w-8" />
       </div>
     </div>

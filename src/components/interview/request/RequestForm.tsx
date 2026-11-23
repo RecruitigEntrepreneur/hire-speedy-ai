@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Building2, Info, Loader2, Lock, Phone, Send, Video } from 'lucide-react';
+import { Building2, Info, Loader2, Phone, Send, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -82,7 +82,7 @@ function Chip({ active, children, onClick }: { active: boolean; children: React.
       aria-pressed={active}
       className={cn(
         'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-colors',
-        active ? 'border-foreground bg-foreground text-background' : 'bg-background hover:border-primary/40 hover:bg-accent',
+        active ? 'border-foreground ring-1 ring-foreground font-medium' : 'bg-background hover:bg-secondary/70',
       )}
     >
       {children}
@@ -207,9 +207,9 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
     <>
       <DialogHeader className="space-y-1 border-b px-4 py-4 pr-12 text-left sm:px-6">
         <DialogTitle>{roundTitle(ctx.round)}</DialogTitle>
+        {/* Apple-Stil (22.11.2026): Kandidat als ruhige Zeile, keine Schreibmaschinen-Schrift, kein Schloss */}
         <DialogDescription className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-          {!ctx.identityUnlocked && <Lock className="h-3.5 w-3.5 shrink-0" aria-label={t('request.anonymous')} />}
-          <span className={cn('text-foreground', !ctx.identityUnlocked && 'font-mono')}>{candidateShown}</span>
+          <span className="font-medium text-foreground">{candidateShown}</span>
           <span>{t('request.forJob', { title: ctx.jobTitle })}</span>
           {recruiter && <span>{t('request.headhunter', { name: recruiter })}</span>}
         </DialogDescription>
@@ -217,8 +217,8 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
 
       <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-4 py-4 sm:px-6">
         {ctx.openRequest ? (
-          <div className="flex gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm">
-            <Info className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+          <div className="flex gap-2 rounded-lg bg-secondary/60 p-3 text-sm">
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
             <p>
               {t('request.openExists', { date: fmtDateDayMonth(ctx.openRequest.createdAt) })}
             </p>
@@ -384,10 +384,10 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
           type="button"
           onClick={() => previewMail.mutate(buildInput())}
           disabled={previewMail.isPending}
-          className="inline-flex items-center gap-1.5 self-start text-sm font-medium text-primary underline underline-offset-2 hover:opacity-80 disabled:opacity-60 sm:self-auto"
+          className="inline-flex items-center gap-1.5 self-start text-sm font-medium text-klick hover:underline disabled:opacity-60 sm:self-auto"
         >
           {previewMail.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-          {t('request.previewMail')}
+          {t('request.previewMail')} ›
         </button>
         <div className="flex flex-col items-stretch gap-1 sm:flex-row sm:items-center sm:gap-3">
           {needsName ? (
@@ -397,6 +397,7 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
           ) : addressMissing ? (
             <span className="text-xs text-muted-foreground sm:text-right">{t('request.needAddress')}</span>
           ) : null}
+          <Button type="button" variant="outline" onClick={onClose} className="max-sm:hidden">{t('request.cancel')}</Button>
           <Button
             type="button"
             onClick={() => send.mutate(buildInput())}

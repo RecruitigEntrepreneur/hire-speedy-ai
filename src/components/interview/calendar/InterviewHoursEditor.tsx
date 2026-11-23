@@ -199,12 +199,14 @@ function AddAbsence({ onAdd }: { onAdd: (a: { from: string; to: string }) => voi
  * Vorlauf, Planungshorizont, Feiertage und Abwesenheiten. Rein kontrolliert --
  * Laden und Speichern macht der Aufrufer (useInterviewHours).
  */
-export function InterviewHoursEditor({ value, onChange, compact, noticeOptions }: {
+export function InterviewHoursEditor({ value, onChange, compact, noticeOptions, split }: {
   value: InterviewHoursRules;
   onChange: (v: InterviewHoursRules) => void;
   compact?: boolean;
   /** Auswahl „Frühester Termin“; die Terminseite des Headhunters rechnet in Stunden (21.10.2026). */
   noticeOptions?: { value: number; label: string }[];
+  /** Breite Ansicht (Einstellungen, 22.11.2026): Wochentage links, Regeln und Abwesenheiten rechts. */
+  split?: boolean;
 }) {
   const { t } = useTranslation('interviews');
   const holidayId = useId();
@@ -226,9 +228,7 @@ export function InterviewHoursEditor({ value, onChange, compact, noticeOptions }
     </div>
   );
 
-  return (
-    <div className={compact ? 'space-y-4' : 'space-y-6'}>
-      {section(t('hours.weekdays'), (
+  const weekdays = section(t('hours.weekdays'), (
         <div className={compact ? 'space-y-1' : 'space-y-1.5'}>
           {days.map((day) => {
             const windows = value.weekly[day] ?? [];
@@ -263,7 +263,7 @@ export function InterviewHoursEditor({ value, onChange, compact, noticeOptions }
             <button
               type="button"
               onClick={() => setWeekendOpen(true)}
-              className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+              className="text-xs text-klick hover:underline"
             >
               {t('hours.weekendAdd')}
             </button>
@@ -272,15 +272,15 @@ export function InterviewHoursEditor({ value, onChange, compact, noticeOptions }
             <button
               type="button"
               onClick={() => setWeekendOpen(false)}
-              className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+              className="text-xs text-klick hover:underline"
             >
               {t('hours.weekendHide')}
             </button>
           )}
         </div>
-      ))}
+      ));
 
-      {section(t('hours.rules'), (
+  const rules = section(t('hours.rules'), (
         <div className={compact ? 'space-y-1.5' : 'space-y-2.5'}>
           <ChoiceChips label={t('hours.buffer')} compact={compact} options={bufferOptions()} value={value.bufferMinutes}
                        onChange={(v) => onChange({ ...value, bufferMinutes: v })} />
@@ -299,9 +299,9 @@ export function InterviewHoursEditor({ value, onChange, compact, noticeOptions }
             </Label>
           </div>
         </div>
-      ))}
+      ));
 
-      {!compact && section(t('hours.absences'), (
+  const absences = !compact && section(t('hours.absences'), (
         <div className="space-y-2">
           {value.absences.length === 0 && <p className="text-xs text-muted-foreground">{t('hours.noAbsences')}</p>}
           {value.absences.length > 0 && (
@@ -328,7 +328,21 @@ export function InterviewHoursEditor({ value, onChange, compact, noticeOptions }
             })}
           />
         </div>
-      ))}
+      ));
+
+  if (split && !compact) {
+    return (
+      <div className="grid gap-x-10 gap-y-6 lg:grid-cols-2">
+        {weekdays}
+        <div className="space-y-6">{rules}{absences}</div>
+      </div>
+    );
+  }
+  return (
+    <div className={compact ? 'space-y-4' : 'space-y-6'}>
+      {weekdays}
+      {rules}
+      {absences}
     </div>
   );
 }

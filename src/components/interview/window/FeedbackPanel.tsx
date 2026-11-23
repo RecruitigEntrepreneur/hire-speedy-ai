@@ -126,7 +126,7 @@ export function FeedbackPanel({ interviewId, round, candidateName, recruiterName
   if (turn) {
     return (
       <div className="space-y-4">
-        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/[0.06] p-3 text-sm">
+        <div className="rounded-lg bg-secondary/60 p-3 text-sm">
           <p className="font-medium">{turn.decided ? t('feedback.saved') : t('feedback.feedbackSaved')}</p>
           <p className="text-muted-foreground">
             {turn.way === 'offer'
@@ -136,8 +136,8 @@ export function FeedbackPanel({ interviewId, round, candidateName, recruiterName
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           {turn.way === 'offer'
-            ? <button type="button" className="text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => onNext('offer')}>{t('feedback.offerAnyway')}</button>
-            : <button type="button" className="text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => setSkipHint(true)}>{t('feedback.decideNow')}</button>}
+            ? <button type="button" className="text-sm text-klick hover:underline" onClick={() => onNext('offer')}>{t('feedback.offerAnyway')}</button>
+            : <button type="button" className="text-sm text-klick hover:underline" onClick={() => setSkipHint(true)}>{t('feedback.decideNow')}</button>}
           {onClose && <Button onClick={onClose}>{t('common.close')}</Button>}
         </div>
       </div>

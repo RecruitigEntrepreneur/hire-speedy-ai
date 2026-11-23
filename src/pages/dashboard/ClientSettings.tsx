@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useMyOrganization } from '@/hooks/useOrganization';
+import { useTeamData } from '@/hooks/useTeamData';
+import { useAuth } from '@/lib/auth';
 import { useCalendarStatus } from '@/components/interview/calendar/useCalendarStatus';
 import { useCompanyProfile } from '@/components/client/settings/useCompanyProfile';
 import { SettingsHub, type Bereich } from '@/components/client/settings/SettingsHub';
@@ -33,6 +35,11 @@ export default function ClientSettings() {
   const company = useCompanyProfile();
   const calendar = useCalendarStatus();
   const vertrag = useVertragStand();
+  const { user } = useAuth();
+  const team = useTeamData(organization?.id);
+  // Wie auf der Team-Seite: der Inhaber zählt mit, auch wenn er nicht in der Mitgliederliste steht.
+  const members = team.data?.members ?? [];
+  const teamCount = team.data ? members.length + (members.some((m) => m.user_id === user?.id) ? 0 : 1) : null;
 
   const roh = params.get('bereich') as Bereich | null;
   const bereich = roh && BEREICHE.includes(roh) && (isOwner || !FIRMA.includes(roh)) && (!financeOnly || roh === 'konto') ? roh : null;
@@ -78,6 +85,7 @@ export default function ClientSettings() {
             financeOnly={financeOnly}
             calendarConnected={calendar.isLoading ? null : calendar.state === 'connected'}
             contractStatus={contractStatus}
+            teamCount={teamCount}
             onOpen={open}
           />
         )}

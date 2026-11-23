@@ -158,13 +158,15 @@ function WindowBody({
             {iv.identityUnlocked ? initials(name) : <Lock className="h-4 w-4 text-muted-foreground" />}
           </div>
           <div className="min-w-0 flex-1">
-            <PanelPrimitive.Title className={cn('truncate text-base font-semibold', !iv.identityUnlocked && 'font-mono')}>{name}</PanelPrimitive.Title>
+            <PanelPrimitive.Title className="truncate text-base font-semibold">{name}</PanelPrimitive.Title>
+            {/* Apple-Stil (22.11.2026): Stelle klein, der Termin als eigene, gut lesbare Zeile */}
             <PanelPrimitive.Description className="text-xs text-muted-foreground">
               {iv.jobTitle}{d ? t('window.round', { n: d.round }) : ''}
-              {iv.scheduledAt ? ` · ${fmtDayLong(iv.scheduledAt)} · ${timeRange(iv.scheduledAt, iv.durationMinutes)}` : ''}
-              {` · ${formatLabel}`}
               {future && iv.scheduledAt ? ` · ${relative(iv.scheduledAt)}` : ''}
             </PanelPrimitive.Description>
+            <p className="mt-0.5 text-sm font-medium">
+              {iv.scheduledAt ? `${fmtDayLong(iv.scheduledAt)} · ${timeRange(iv.scheduledAt, iv.durationMinutes)} · ` : ''}{formatLabel}
+            </p>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             {live && (
@@ -300,7 +302,7 @@ function WindowBody({
               <div className="space-y-6">
                 <GuideChecklist interviewId={iv.id} active={tab === 'guide'} />
                 <div className="min-h-[14rem] border-t pt-4">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('window.tab.notes')}</p>
+                  <p className="mb-2 text-[13px] font-semibold tracking-tight">{t('window.tab.notes')}</p>
                   <LiveNotesPanel
                     notes={notes.notes}
                     pinnedNotes={notes.pinnedNotes}
@@ -385,8 +387,8 @@ function MissingLink({ interviewId, onSaved }: { interviewId: string; onSaved: (
 function Banner({ tone, children }: { tone: 'info' | 'warn'; children: ReactNode }) {
   return (
     <div className={cn(
-      'flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-sm',
-      tone === 'warn' ? 'border-warning/40 bg-warning/10' : 'border-primary/30 bg-primary/5',
+      'flex flex-wrap items-center gap-2 rounded-lg px-3 py-2 text-sm',
+      tone === 'warn' ? 'bg-secondary font-medium' : 'bg-secondary/60',
     )}>
       {children}
     </div>
@@ -396,7 +398,7 @@ function Banner({ tone, children }: { tone: 'info' | 'warn'; children: ReactNode
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="space-y-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3>
+      <h3 className="text-[13px] font-semibold tracking-tight">{title}</h3>
       {children}
     </section>
   );
@@ -421,7 +423,7 @@ function Overview({ d, name, formatLabel, candidateFirst }: { d: InterviewDetail
           {d.inOutlook && d.scheduledAt ? <span className="text-muted-foreground">{t('window.inOutlook')}</span> : ''}
         </p>
         {d.format === 'teams' && d.joinUrl && <p className="truncate text-xs text-muted-foreground">{d.joinUrl}</p>}
-        {d.format === 'phone' && d.callPhone && <p className="text-sm">{t('window.youCall')} <a className="underline" href={`tel:${d.callPhone}`}>{d.callPhone}</a></p>}
+        {d.format === 'phone' && d.callPhone && <p className="text-sm">{t('window.youCall')} <a className="text-klick hover:underline" href={`tel:${d.callPhone}`}>{d.callPhone}</a></p>}
         {d.format === 'onsite' && d.onsite && (
           <p className="whitespace-pre-line text-sm">
             {d.onsite.address}{d.onsite.note ? `\n${d.onsite.note}` : ''}

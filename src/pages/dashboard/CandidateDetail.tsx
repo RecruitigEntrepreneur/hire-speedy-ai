@@ -770,7 +770,7 @@ export default function CandidateDetail() {
         >
           <div className="flex h-full items-center gap-3 rounded-xl border bg-card/95 px-4 shadow-md backdrop-blur">
             {/* Am Handy nur Name und Hauptknopf, sonst ragt die Leiste über den Rand (16.11.2026) */}
-            <span className="min-w-0 truncate font-semibold sm:shrink-0">{identityUnlocked ? displayName : anonCode}</span>
+            <span className="min-w-0 truncate font-semibold sm:shrink-0">{identityUnlocked ? displayName : currentRole || anonCode}</span>
             {subStateLoading ? <Skeleton className="h-5 w-32 rounded-full shrink-0 max-sm:hidden" /> : <StatePill state={state} archiveKind={subState?.archiveKind} className="shrink-0 max-sm:hidden" />}
             <span className="hidden lg:inline min-w-0 text-sm text-muted-foreground truncate">{tc('card.for', { job: jobTitle })}</span>
             <div className="ml-auto flex items-center gap-1.5 shrink-0">
@@ -822,13 +822,14 @@ export default function CandidateDetail() {
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h1 className="text-xl md:text-2xl font-bold truncate" data-tour="candidate.name">
-                    {identityUnlocked ? displayName : anonCode}
+                    {/* Apple-Stil (22.11.2026): ohne Namen ist die Rolle die Überschrift, die Kennung steht leise darunter. */}
+                    {identityUnlocked ? displayName : currentRole || anonCode}
                   </h1>
                   {!identityUnlocked && <Lock className="h-4 w-4 text-muted-foreground shrink-0" />}
                   {subStateLoading ? <Skeleton className="h-5 w-32 rounded-full" /> : <StatePill state={state} archiveKind={subState?.archiveKind} />}
                 </div>
                 <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-muted-foreground">
-                  <span className="font-medium text-foreground">{currentRole}</span>
+                  <span className={identityUnlocked ? 'font-medium text-foreground' : undefined}>{identityUnlocked || !currentRole ? currentRole : anonCode}</span>
                   <span className="text-border">·</span>
                   <span>{tc('card.for', { job: jobTitle })}</span>
                 </div>
@@ -1048,7 +1049,7 @@ export default function CandidateDetail() {
             {candidateView.recruiterNotes?.trim() && (
               <Card>
                 <CardContent className="p-5">
-                  <h3 className="mb-3 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{tc('preview.recommendation', { name: hhName })}</h3>
+                  <h3 className="mb-3 text-[15px] font-semibold tracking-tight">{tc('preview.recommendation', { name: hhName })}</h3>
                   <p className="text-sm leading-6">{tc('preview.quote', { text: candidateView.recruiterNotes.trim() })}</p>
                 </CardContent>
               </Card>
@@ -1102,30 +1103,30 @@ export default function CandidateDetail() {
             <CardContent className="space-y-3">
               {industryExperience.length > 0 && (
                 <div>
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{t('bewerber.detail.branchen')}</p>
+                  <p className="text-xs text-muted-foreground mb-1.5">{t('bewerber.detail.branchen')}</p>
                   <div className="flex flex-wrap gap-1">
                     {industryExperience.map((ie, idx) => (
-                      <Badge key={idx} variant="outline" className="text-[10px] font-normal">{term(ie)}</Badge>
+                      <Badge key={idx} variant="outline" className="border-transparent bg-secondary text-[10px] font-normal text-muted-foreground">{term(ie)}</Badge>
                     ))}
                   </div>
                 </div>
               )}
               {targetRoles.length > 0 && (
                 <div>
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{t('bewerber.detail.zielrollen')}</p>
+                  <p className="text-xs text-muted-foreground mb-1.5">{t('bewerber.detail.zielrollen')}</p>
                   <div className="flex flex-wrap gap-1">
                     {targetRoles.map((tr, idx) => (
-                      <Badge key={idx} variant="outline" className="text-[10px] font-normal">{term(tr)}</Badge>
+                      <Badge key={idx} variant="outline" className="border-transparent bg-secondary text-[10px] font-normal text-muted-foreground">{term(tr)}</Badge>
                     ))}
                   </div>
                 </div>
               )}
               {languageSkills.length > 0 && (
                 <div>
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{t('bewerber.detail.sprachen')}</p>
+                  <p className="text-xs text-muted-foreground mb-1.5">{t('bewerber.detail.sprachen')}</p>
                   <div className="flex flex-wrap gap-1">
                     {languageSkills.map((ls, idx) => (
-                      <Badge key={idx} variant="outline" className="text-[10px] font-normal">
+                      <Badge key={idx} variant="outline" className="border-transparent bg-secondary text-[10px] font-normal text-muted-foreground">
                         {ls.level ? `${term(ls.language)} (${term(ls.level)})` : term(ls.language)}
                       </Badge>
                     ))}
@@ -1134,7 +1135,7 @@ export default function CandidateDetail() {
               )}
               {certifications.length > 0 && (
                 <div>
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{t('bewerber.detail.zertifikate')}</p>
+                  <p className="text-xs text-muted-foreground mb-1.5">{t('bewerber.detail.zertifikate')}</p>
                   <div className="flex flex-wrap gap-1">
                     {certifications.map((cert, idx) => (
                       <Badge key={idx} variant="outline" className="text-[10px] font-normal text-amber-600 border-amber-400/50">{cert}</Badge>
@@ -1144,7 +1145,7 @@ export default function CandidateDetail() {
               )}
               {careerGoals && (
                 <div>
-                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">{t('bewerber.detail.karriereziele')}</p>
+                  <p className="text-xs text-muted-foreground mb-1.5">{t('bewerber.detail.karriereziele')}</p>
                   <p className="text-xs text-muted-foreground">{careerGoals}</p>
                 </div>
               )}
@@ -1173,7 +1174,7 @@ export default function CandidateDetail() {
           {submitter && (
             <Card>
               <CardContent className="p-5">
-                <h3 className="mb-3 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{tc('detail.questionsTo', { name: hhName })}</h3>
+                <h3 className="mb-3 text-[15px] font-semibold tracking-tight">{tc('detail.questionsTo', { name: hhName })}</h3>
                 {(questions.data?.messages.length ?? 0) > 0 ? (
                   <QuestionThreadList messages={questions.data!.messages} name={hhName} />
                 ) : (
@@ -1260,7 +1261,8 @@ export default function CandidateDetail() {
               onClick={handleAddComment}
               disabled={!newComment.trim() || commentLoading}
               size="sm"
-              className="w-full"
+              variant="outline"
+              className="ml-auto flex"
             >
               {commentLoading ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />

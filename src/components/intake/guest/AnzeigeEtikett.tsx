@@ -4,8 +4,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { findeZitat, wertAlsText } from '@/lib/anzeigeZitat';
 
 /**
- * "aus der Anzeige" -- blau (Entscheidung Marko 13.11.2026, Farbe 2A), damit es
- * sich vom Orange fuer "fehlt noch" abhebt. Faehrt man darueber (oder tippt
+ * "· aus der Anzeige" -- grauer Zusatz an der Beschriftung (Apple-Stil,
+ * 22.11.2026; vorher eine blaue Pille). Faehrt man darueber (oder tippt
  * auf dem Handy), erscheint der Satz aus der Anzeige, aus dem der Wert stammt.
  * Steht nichts woertlich in der Anzeige, sagt das Etikett, dass er abgeleitet ist.
  */
@@ -36,11 +36,9 @@ export function AnzeigeEtikett({ anzeige, wert, abweichend = false, anzeigeText,
         <button
           type="button"
           onClick={(e) => { e.preventDefault(); setOffen((o) => !o); }}
-          className={abweichend
-            ? 'cursor-help rounded-full border border-dashed border-blue-500/60 px-1.5 py-px text-[10px] font-normal text-blue-600 dark:text-blue-300'
-            : 'cursor-help rounded-full border border-blue-500/40 bg-blue-500/10 px-1.5 py-px text-[10px] font-normal text-blue-600 dark:text-blue-300'}
+          className="cursor-help text-xs font-normal text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
         >
-          {text}
+          · {text}
         </button>
       </TooltipTrigger>
       <TooltipContent side="top" align="start" className="max-w-sm space-y-1.5 p-3 text-xs">
@@ -50,7 +48,7 @@ export function AnzeigeEtikett({ anzeige, wert, abweichend = false, anzeigeText,
         {zitat ? (
           <>
             {zitat.saetze.map((s) => (
-              <p key={s} className="border-l-2 border-blue-500/50 pl-2 italic leading-snug">„{s}“</p>
+              <p key={s} className="border-l-2 border-border pl-2 leading-snug">„{s}“</p>
             ))}
             <p className="text-[10px] text-muted-foreground">
               {zitat.vollstaendig ? t('etappen.anzeige.fromAd') : t('etappen.anzeige.fromAdPartial')}

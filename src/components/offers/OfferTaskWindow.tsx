@@ -80,8 +80,8 @@ export function OfferTaskWindow({ submissionId, open, onOpenChange, onAdjust, on
         ) : done ? (
           <>
             <DialogHeader className="text-left"><DialogTitle>{t('client.task.offerFor', { first })}</DialogTitle><DialogDescription>{ctx.jobTitle}</DialogDescription></DialogHeader>
-            <div className="flex items-start gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/[0.06] p-3 text-sm">
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+            <div className="flex items-start gap-2 rounded-lg bg-secondary/60 p-3 text-sm">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
               <div><p className="font-medium">{t('client.task.done')}</p><p className="text-muted-foreground">{done}</p></div>
             </div>
             {next ? (
@@ -117,7 +117,7 @@ export function OfferTaskWindow({ submissionId, open, onOpenChange, onAdjust, on
               <>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <button type="button" disabled={busy} onClick={() => run(() => offerApi.acceptCounter(o.id), t('client.task.acceptDone', { first, n: o.version + 1, wish: wishText || t('client.task.wishedValues'), hh: hhFirst }))}
-                    className="rounded-lg border border-primary bg-primary/[0.04] p-3 text-left text-sm transition-colors hover:bg-primary/[0.08]">
+                    className="rounded-lg border p-3 text-left text-sm transition-colors hover:bg-secondary/70">
                     <p className="font-medium">{t('client.task.accept')}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">{t('client.task.acceptHint', { n: o.version + 1 })}</p>
                   </button>
@@ -128,8 +128,8 @@ export function OfferTaskWindow({ submissionId, open, onOpenChange, onAdjust, on
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3">
                   <div className="flex flex-wrap gap-3 text-xs">
-                    <button type="button" className="text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => setKeepNote('')}>{t('client.task.keep')}</button>
-                    <button type="button" className="text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => handoff(onReject)}>{t('client.box.reject')}</button>
+                    <button type="button" className="text-klick hover:underline" onClick={() => setKeepNote('')}>{t('client.task.keep')}</button>
+                    <button type="button" className="text-klick hover:underline" onClick={() => handoff(onReject)}>{t('client.box.reject')}</button>
                   </div>
                   <Button variant="ghost" onClick={() => onOpenChange(false)}>{t('common.close')}</Button>
                 </div>

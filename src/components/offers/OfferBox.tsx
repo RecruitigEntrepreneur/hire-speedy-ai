@@ -84,7 +84,7 @@ export function OfferBox({ submissionId, onAdjust, onReject, onContract }: Props
 
   return (
     <div className={cn('mt-3 rounded-lg border p-3 text-sm',
-      tone === 'warn' && 'border-amber-500/30 bg-amber-500/[0.06]',
+      tone === 'warn' && 'border-border bg-secondary/50',
       tone === 'ok' && 'border-emerald-500/30 bg-emerald-500/[0.06]',
       tone === 'crit' && 'border-destructive/30 bg-destructive/[0.05]',
       tone === 'info' && 'border-primary/20 bg-primary/[0.04]')}>
@@ -97,7 +97,7 @@ export function OfferBox({ submissionId, onAdjust, onReject, onContract }: Props
       )}
       {(o.status === 'with_recruiter' || o.status === 'considering') && (
         <>
-          <p className="font-medium">
+          <p className={late ? 'font-medium text-destructive' : 'font-medium'}>
             {!late && o.status === 'considering' ? (r?.until ? tc('box.consideringUntil', { first, date: dayDe(r.until) }) : tc('box.considering', { first })) : offerStandLine(o, first, hhFirst)}
           </p>
           <p className="text-muted-foreground">{offerSummary(o)}{o.version > 1 ? tc('version', { n: o.version }) : ''}</p>
@@ -115,6 +115,26 @@ export function OfferBox({ submissionId, onAdjust, onReject, onContract }: Props
               <span>{tc('box.withdrawQ')}</span>
               <Button size="sm" variant="destructive" disabled={busy} onClick={() => run(() => offerApi.withdraw(o.id), tc('box.withdrawn', { hh: hhFirst }))}>{tc('box.withdraw')}</Button>
               <Button size="sm" variant="ghost" onClick={() => setConfirmWithdraw(false)}>{i18n.t('offers:common.cancel')}</Button>
+            </div>
+          ) : late ? (
+            // D3 (22.11.2026): Frist abgelaufen – statt drei Knöpfen die Frage, wie es weitergeht, mit dem, was dann passiert.
+            <div className="mt-3">
+              <p className="font-medium">{tc('box.whatNext')}</p>
+              <div className="mt-1 divide-y">
+                {([
+                  { key: 'extend', title: tc('box.extend'), hint: tc('box.extendHint', { hh: hhFirst, first }), go: () => setNewDue(plusWorkdays(3)), stark: true },
+                  { key: 'change', title: tc('box.adjust'), hint: tc('box.changeHint', { n: o.version + 1 }), go: onAdjust, stark: false },
+                  { key: 'withdraw', title: tc('box.withdrawOffer'), hint: tc('box.withdrawHint', { first }), go: () => setConfirmWithdraw(true), stark: false },
+                ]).map((x) => (
+                  <button key={x.key} type="button" onClick={x.go} className="flex w-full items-center gap-3 py-2.5 text-left transition-colors hover:text-foreground">
+                    <span className="min-w-0 flex-1">
+                      <span className={x.stark ? 'block font-medium' : 'block'}>{x.title}</span>
+                      <span className="block text-xs text-muted-foreground">{x.hint}</span>
+                    </span>
+                    <span className="text-klick">›</span>
+                  </button>
+                ))}
+              </div>
             </div>
           ) : (
             <div className="mt-2 flex flex-wrap gap-2">

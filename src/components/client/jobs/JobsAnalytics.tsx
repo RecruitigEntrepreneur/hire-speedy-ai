@@ -1,10 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { FileDown } from 'lucide-react';
 import i18n from '@/i18n';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { BewerberItem } from '@/hooks/useBewerber';
 import { fmtDate, fmtNumber } from '@/lib/localeFormat';
 import { cn } from '@/lib/utils';
@@ -12,6 +13,8 @@ import { cn } from '@/lib/utils';
 /**
  * Auswertung (15.11.2026, Etappe 1): ehrlich aus den eigenen Daten, keine erfundenen
  * Vergleichswerte. Über alle Stellen (Meine Stellen) oder für eine Stelle (Stellenseite).
+ * 22.11.2026 (Apple-Stil): die eine Auswertung der Kunden-Seite – Zeitraum wählbar, Verlauf als
+ * vier große Zahlen, Hinweis „Was Sie tun können“. Der Zeitraum zählt nach dem Tag des Vorschlags.
  * Etappe 2 (Server): Zeit je Abschnitt vollständig, Trefferquote je Headhunter,
  * Markt gegen Budget, Reaktionszeit im Team.
  */
@@ -47,14 +50,14 @@ function weekKey(d: Date) {
 function Card({ title, children, className }: { title: string; children: React.ReactNode; className?: string }) {
   return (
     <div className={cn('rounded-2xl border bg-card p-5', className)}>
-      <h3 className="mb-3 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{title}</h3>
+      <h3 className="mb-3 text-[15px] font-semibold tracking-tight">{title}</h3>
       {children}
     </div>
   );
 }
 
-function Bar({ value, max, muted }: { value: number; max: number; muted?: boolean }) {
-  return <div className="mt-1 h-1.5 rounded-full bg-muted"><div className={cn('h-1.5 rounded-full', muted ? 'bg-border' : 'bg-foreground/70')} style={{ width: `${max ? Math.max(4, (value / max) * 100) : 0}%` }} /></div>;
+function Bar({ value, max, muted, erfolg }: { value: number; max: number; muted?: boolean; erfolg?: boolean }) {
+  return <div className="mt-1 h-1.5 rounded-full bg-muted"><div className={cn('h-1.5 rounded-full', muted ? 'bg-border' : erfolg ? 'bg-green-500' : 'bg-klick/80')} style={{ width: `${max ? Math.max(4, (value / max) * 100) : 0}%` }} /></div>;
 }
 
 export function JobsAnalytics({ items, jobs, single = false, title }: { items: BewerberItem[]; jobs: AnalyticsJob[]; single?: boolean; title?: string }) {
@@ -62,18 +65,32 @@ export function JobsAnalytics({ items, jobs, single = false, title }: { items: B
   useTranslation('clientCandidates');
   const navigate = useNavigate();
   const jobIds = useMemo(() => new Set(jobs.map((j) => j.id)), [jobs]);
-  const mine = useMemo(() => items.filter((i) => jobIds.has(i.jobId)), [items, jobIds]);
+  const { t: td } = useTranslation('clientDashboard');
+  const [period, setPeriod] = useState(90);
+  const periods = [
+    { value: 30, label: td('analytics.period.days', { count: 30 }) },
+    { value: 90, label: td('analytics.period.days', { count: 90 }) },
+    { value: 180, label: td('analytics.period.sixMonths') },
+    { value: 365, label: td('analytics.period.year') },
+  ];
+  const periodLabel = periods.find((x) => x.value === period)?.label ?? '';
+  // Alle Vorschläge zu diesen Stellen – und davon die aus dem gewählten Zeitraum (zählt der Tag des Vorschlags).
+  const all = useMemo(() => items.filter((i) => jobIds.has(i.jobId)), [items, jobIds]);
+  const mine = useMemo(() => {
+    const since = Date.now() - period * DAY;
+    return all.filter((i) => i.submittedAt && Date.parse(i.submittedAt) >= since);
+  }, [all, period]);
 
-  const since90 = Date.now() - 90 * DAY;
-  const recent = mine.filter((i) => i.submittedAt && Date.parse(i.submittedAt) >= since90);
+  const recent = mine;
   const interviewsRecent = recent.filter((i) => !!i.requestedAt).length;
-  const hiredRecent = mine.filter((i) => i.archiveKind === 'eingestellt').length;
+  const hiredRecent = all.filter((i) => i.archiveKind === 'eingestellt').length;
 
   // Je Stelle: erster Vorschlag, Ihre Prüfzeit, Trefferquote, Laufzeit
   const rows = jobs.map((j) => {
     const its = mine.filter((i) => i.jobId === j.id);
     const start = j.approved_at || j.created_at;
-    const first = its.map((i) => i.submittedAt).filter(Boolean).sort()[0] ?? null;
+    // Der erste Vorschlag überhaupt – unabhängig vom gewählten Zeitraum.
+    const first = all.filter((i) => i.jobId === j.id).map((i) => i.submittedAt).filter(Boolean).sort()[0] ?? null;
     const review = avg(its.map((i) => { const d = decidedAt(i); return d && i.submittedAt ? days(i.submittedAt, d) : null; }).filter((x): x is number => x !== null));
     const decided = its.filter((i) => decidedAt(i));
     const hits = its.filter((i) => !!i.requestedAt).length;
@@ -117,7 +134,7 @@ export function JobsAnalytics({ items, jobs, single = false, title }: { items: B
     const d = new Date(Date.now() - (7 - n) * 7 * DAY);
     return { ...weekKey(d), count: 0 };
   });
-  for (const i of mine) {
+  for (const i of all) {
     if (!i.submittedAt) continue;
     const k = weekKey(new Date(i.submittedAt));
     const w = weeks.find((x) => x.year === k.year && x.week === k.week);
@@ -130,7 +147,7 @@ export function JobsAnalytics({ items, jobs, single = false, title }: { items: B
   const fillDays = avg(filled.map((j) => days(j.approved_at || j.created_at, j.closed_at!)));
 
   const sentence = [
-    t('ana.sentence', { proposals: recent.length, interviews: interviewsRecent }),
+    t('ana.sentencePeriod', { period: periodLabel, proposals: recent.length, interviews: interviewsRecent }),
     hiredRecent ? t('ana.hiresTotal', { count: hiredRecent }) : null,
     allReview !== null && allReview >= 1 ? t('ana.reviewSentence', { days: one(allReview) }) : null,
   ].filter(Boolean).join(' ');
@@ -150,12 +167,59 @@ export function JobsAnalytics({ items, jobs, single = false, title }: { items: B
     w.document.close();
   };
 
+  const slow = allReview !== null && allReview >= 3;
+  const namedReasons = reasonRows.some(([k]) => !!k);
+  // Ein Hinweis, der zu den Zahlen passt – sonst keine Karte.
+  const tip = slow
+    ? t('ana.time.tipSlow')
+    : lost.withdrawn + lost.expired > 0
+      ? t('ana.lostTip')
+      : topReason && reasonTotal > 0 && topReason[1] / reasonTotal >= 0.5
+        ? t(`ana.reasonTip.${topReason[0] === 'salary' ? 'salary' : 'other'}`, { reason: reasonLabel(topReason[0]) })
+        : null;
+  const funnel = [['proposed', reached.proposed], ['requested', reached.requested], ['interview', reached.interview], ['hired', reached.hired]] as const;
+
+  const weeksCard = (
+    <Card title={t('ana.activityTitle')}>
+      <div className="flex h-16 items-end gap-1.5">
+        {weeks.map((w) => (
+          <div key={`${w.year}-${w.week}`} className="flex h-full flex-1 flex-col justify-end">
+            <div className={cn('w-full rounded-t-sm', w.count ? 'bg-klick/80' : 'bg-border')} style={{ height: w.count ? `${(w.count / maxWeek) * 100}%` : 2 }} title={String(w.count)} />
+          </div>
+        ))}
+      </div>
+      <div className="mt-1 flex gap-1.5 text-[10px] text-muted-foreground">{weeks.map((w) => <span key={`${w.year}-${w.week}-l`} className="flex-1 text-center">{t('ana.kw', { week: w.week })}</span>)}</div>
+      <p className="mt-3 text-xs text-muted-foreground">{t('ana.activityHint')}</p>
+    </Card>
+  );
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <p className="max-w-3xl text-base leading-relaxed">{sentence}</p>
-        <Button variant="outline" size="sm" className="gap-1.5 rounded-full" onClick={share}><FileDown className="h-3.5 w-3.5" />{t('ana.pdf')}</Button>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
+        <p className="max-w-3xl text-base leading-relaxed lg:flex-1">{sentence}</p>
+        <div className="flex shrink-0 items-center gap-2">
+          <Select value={String(period)} onValueChange={(v) => setPeriod(parseInt(v, 10))}>
+            <SelectTrigger className="h-9 w-auto gap-2 rounded-full border-0 bg-secondary px-4 text-sm" aria-label={t('ana.periodAria')}><SelectValue /></SelectTrigger>
+            <SelectContent align="end">
+              {periods.map((x) => <SelectItem key={x.value} value={String(x.value)}>{x.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-full" onClick={share}><FileDown className="h-3.5 w-3.5" />{t('ana.pdf')}</Button>
+        </div>
       </div>
+
+      <Card title={t('ana.funnelTitle')}>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-5 md:grid-cols-4">
+          {funnel.map(([k, n]) => (
+            <div key={k}>
+              <p className={cn('text-3xl font-semibold tracking-tight', k === 'hired' ? 'text-green-600' : 'text-klick')}>{n}</p>
+              <p className="mt-0.5 text-sm">{t(`ana.funnel.${k}`)}</p>
+              <Bar value={n} max={Math.max(1, reached.proposed)} erfolg={k === 'hired'} />
+            </div>
+          ))}
+        </div>
+        <p className="mt-4 text-xs text-muted-foreground">{t('ana.lostLine', lost)}</p>
+      </Card>
 
       {!single && (
         <Card title={t('ana.tableTitle')}>
@@ -169,10 +233,10 @@ export function JobsAnalytics({ items, jobs, single = false, title }: { items: B
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.job.id} className="cursor-pointer border-t hover:bg-muted/40" onClick={() => navigate(`/dashboard/jobs/${r.job.id}/auswertung`)}>
-                    <td className="py-2 pr-3 font-medium">{r.job.title}</td>
+                    <td className="py-2 pr-3 font-medium">{r.job.title} <span className="text-klick">›</span></td>
                     <td className="py-2 pr-3">{r.count}</td>
                     <td className="py-2 pr-3">{r.firstDays === null ? '–' : t('ana.days', { value: one(r.firstDays) })}</td>
-                    <td className={cn('py-2 pr-3', r.review !== null && r.review >= 3 && 'text-amber-400 dark:text-amber-600')}>{r.review === null ? '–' : t('ana.days', { value: one(r.review) })}</td>
+                    <td className={cn('py-2 pr-3', r.review !== null && r.review >= 3 && 'font-semibold')}>{r.review === null ? '–' : t('ana.days', { value: one(r.review) })}</td>
                     <td className="py-2 pr-3">{r.hitRate === null ? '–' : `${r.hitRate} %`}</td>
                     <td className="py-2 pr-3 text-muted-foreground">{r.runDays === null ? '–' : t('ana.days', { value: Math.round(r.runDays) })}</td>
                   </tr>
@@ -189,64 +253,43 @@ export function JobsAnalytics({ items, jobs, single = false, title }: { items: B
           <Card title={t('ana.timeTitle')}>
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between"><span className="text-muted-foreground">{t('ana.time.first')}</span><span>{rows[0].firstDays === null ? '–' : t('ana.days', { value: one(rows[0].firstDays) })}</span></div>
-              <div className={cn('flex justify-between', rows[0].review !== null && rows[0].review >= 3 && 'text-amber-400 dark:text-amber-600')}><span>{t('ana.time.review')}</span><span>{rows[0].review === null ? '–' : t('ana.days', { value: one(rows[0].review) })}</span></div>
+              <div className={cn('flex justify-between', rows[0].review !== null && rows[0].review >= 3 && 'font-semibold')}><span>{t('ana.time.review')}</span><span>{rows[0].review === null ? '–' : t('ana.days', { value: one(rows[0].review) })}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">{t('ana.time.hit')}</span><span>{rows[0].hitRate === null ? '–' : t('ana.hitValue', { hits: rows[0].hits, total: rows[0].count, pct: rows[0].hitRate })}</span></div>
             </div>
             <p className="mt-3 border-t pt-3 text-xs text-muted-foreground">{rows[0].review !== null && rows[0].review >= 3 ? t('ana.time.tipSlow') : t('ana.time.tip')}</p>
           </Card>
         )}
 
-        <Card title={t('ana.lostTitle')}>
-          <div className="space-y-1 text-xs">
-            {([['proposed', reached.proposed], ['requested', reached.requested], ['interview', reached.interview], ['hired', reached.hired]] as const).map(([k, n]) => (
-              <div key={k}>
-                <div className="flex justify-between"><span>{t(`ana.funnel.${k}`)}</span><span>{n}</span></div>
-                <Bar value={n} max={Math.max(1, reached.proposed)} />
-              </div>
-            ))}
-          </div>
-          <p className="mt-3 text-xs text-muted-foreground">{t('ana.lostLine', lost)}</p>
-          {(lost.withdrawn + lost.expired) > 0 && <p className="mt-3 border-t pt-3 text-xs text-muted-foreground">{t('ana.lostTip')}</p>}
-        </Card>
+        {weeksCard}
 
-        <Card title={t('ana.reasonsTitle')}>
-          {reasonRows.length === 0 ? <p className="text-sm text-muted-foreground">{t('market.reasonsNone')}</p> : (
+        {/* Eigener Maßstab braucht alle Stellen des Kunden, deshalb nur in der Gesamt-Auswertung. */}
+        {!single && (
+          <Card title={t('ana.speedTitle')}>
+            <div className="text-sm">
+              <div className={cn('flex justify-between gap-3 py-2', slow && 'font-semibold')}><span>{t('ana.time.review')}</span><span className="whitespace-nowrap">{allReview === null ? '–' : t('ana.days', { value: one(allReview) })}</span></div>
+              <div className="flex justify-between gap-3 border-t py-2"><span>{t('ana.speedFill', { count: filled.length })}</span><span className="whitespace-nowrap">{filled.length ? t('ana.days', { value: Math.round(fillDays ?? 0) }) : '–'}</span></div>
+            </div>
+            <p className="mt-1 border-t pt-3 text-xs text-muted-foreground">{t('ana.benchNote')}</p>
+          </Card>
+        )}
+
+        {namedReasons && (
+          <Card title={t('ana.reasonsTitle')}>
             <div className="space-y-1.5 text-xs">
               {reasonRows.map(([k, n]) => (
                 <div key={k || 'none'}><div className="flex justify-between"><span>{reasonLabel(k)}</span><span>{n}</span></div><Bar value={n} max={reasonRows[0][1]} muted={!k} /></div>
               ))}
             </div>
-          )}
-          {topReason && reasonTotal > 0 && topReason[1] / reasonTotal >= 0.5 && (
-            <p className="mt-3 border-t pt-3 text-xs text-muted-foreground">{t(`ana.reasonTip.${['salary'].includes(topReason[0]) ? 'salary' : 'other'}`, { reason: reasonLabel(topReason[0]) })}</p>
-          )}
-        </Card>
-
-        <Card title={t('ana.activityTitle')}>
-          <div className="flex h-16 items-end gap-1.5">
-            {weeks.map((w) => (
-              <div key={`${w.year}-${w.week}`} className="flex h-full flex-1 flex-col justify-end">
-                <div className={cn('w-full rounded-t-sm', w.count ? 'bg-foreground/70' : 'bg-border')} style={{ height: w.count ? `${(w.count / maxWeek) * 100}%` : 2 }} title={String(w.count)} />
-              </div>
-            ))}
-          </div>
-          <div className="mt-1 flex gap-1.5 text-[10px] text-muted-foreground">{weeks.map((w) => <span key={`${w.year}-${w.week}-l`} className="flex-1 text-center">{t('ana.kw', { week: w.week })}</span>)}</div>
-          <p className="mt-3 text-xs text-muted-foreground">{t('ana.activityHint')}</p>
-        </Card>
-
-        {/* Eigener Maßstab braucht alle Stellen des Kunden, deshalb nur in der Gesamt-Auswertung. */}
-        {!single && <Card title={t('ana.benchTitle')}>
-          {filled.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t('ana.benchNone')}</p>
-          ) : (
-            <p className="text-sm">{t('ana.bench', { count: filled.length, days: Math.round(fillDays ?? 0) })}</p>
-          )}
-          {single && rows[0]?.runDays !== null && rows[0] && filled.length > 0 && (
-            <p className="mt-2 text-xs text-muted-foreground">{t('ana.benchThis', { days: Math.round(rows[0].runDays ?? 0) })}</p>
-          )}
-          <p className="mt-3 border-t pt-3 text-xs text-muted-foreground">{t('ana.benchNote')}</p>
-        </Card>}
+          </Card>
+        )}
       </div>
+
+      {!single && tip && (
+        <Card title={t('ana.tipTitle')}>
+          <p className="text-sm">{tip}</p>
+          <Link to="/dashboard/candidates" className="mt-2 inline-block text-sm text-klick hover:underline">{t('ana.tipLink')} ›</Link>
+        </Card>
+      )}
     </div>
   );
 }

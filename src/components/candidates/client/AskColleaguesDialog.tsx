@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { Loader2, UserPlus } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { InviteMemberDialog } from '@/components/organization/InviteMemberDialog';
@@ -80,26 +81,29 @@ export function AskColleaguesDialog({ open, onOpenChange, members, currentUserId
           <DialogTitle>{t('ask.title')}</DialogTitle>
           <DialogDescription>{jobTitle} · {t('ask.description')}</DialogDescription>
         </DialogHeader>
+        {/* B1 (22.11.2026): Personen als Zeilen mit Häkchen, dann Frist, dann Nachricht */}
         <div className="space-y-4">
           <div>
-            <p className="mb-2 text-sm font-medium">{t('ask.who')}</p>
+            <p className="mb-1 text-sm font-medium">{t('ask.who')}</p>
             {kollegen.length === 0 && <p className="mb-2 text-sm text-muted-foreground">{t('ask.noColleagues')}</p>}
-            <div className="flex flex-wrap gap-2">
+            <div className="divide-y">
               {kollegen.map((m) => {
                 const an = auswahl.includes(m.user_id);
                 return (
-                  <button key={m.user_id} type="button" onClick={() => setAuswahl((a) => (an ? a.filter((x) => x !== m.user_id) : [...a, m.user_id]))}
-                    className={cn('rounded-full border px-3 py-1 text-sm', an ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-muted/50')}>
-                    {m.full_name} <span className="text-xs text-muted-foreground">· {ROLLEN.includes(m.role) ? t(`ask.roles.${m.role}`) : m.role}</span>
-                  </button>
+                  <label key={m.user_id} className="flex cursor-pointer items-center gap-3 py-2.5 text-sm">
+                    <Checkbox checked={an} onCheckedChange={() => setAuswahl((a) => (an ? a.filter((x) => x !== m.user_id) : [...a, m.user_id]))} />
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-medium">
+                      {(m.full_name ?? '').split(' ').map((x) => x[0]).join('').slice(0, 2).toUpperCase()}
+                    </span>
+                    <span className={cn('min-w-0 flex-1 truncate', an && 'font-medium')}>{m.full_name}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">{ROLLEN.includes(m.role) ? t(`ask.roles.${m.role}`) : m.role}</span>
+                  </label>
                 );
               })}
-              {organizationId && (
-                <button type="button" onClick={() => setInviteOpen(true)} className="inline-flex items-center gap-1 rounded-full border border-dashed border-border px-3 py-1 text-sm text-muted-foreground hover:bg-muted/50">
-                  <UserPlus className="h-3.5 w-3.5" />{t('ask.invite')}
-                </button>
-              )}
             </div>
+            {organizationId && (
+              <button type="button" onClick={() => setInviteOpen(true)} className="mt-2 text-sm text-klick hover:underline">{t('ask.invite')} ›</button>
+            )}
             {offen.length > 0 && (
               <p className="mt-2 text-xs text-muted-foreground">
                 {t('ask.pending', { count: offen.length, emails: offen.map((i) => i.email).join(', ') })}
@@ -107,22 +111,22 @@ export function AskColleaguesDialog({ open, onOpenChange, members, currentUserId
             )}
           </div>
           <div>
-            <p className="mb-2 text-sm font-medium">{t('ask.message')} <span className="font-normal text-muted-foreground">{t('ask.optional')}</span></p>
-            <Textarea rows={3} value={nachricht} onChange={(e) => setNachricht(e.target.value)} placeholder={t('ask.messagePlaceholder')} />
-          </div>
-          <div>
             <p className="mb-2 text-sm font-medium">{t('ask.until')}</p>
             <div className="flex flex-wrap gap-2">
               {optionen.map((o) => (
                 <button key={o.key} type="button" onClick={() => setFrist(o.key)}
-                  className={cn('rounded-md border px-3 py-1 text-sm', frist === o.key ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-muted/50')}>{t(`ask.deadline.${o.key}`)}</button>
+                  className={cn('rounded-full border px-3 py-1 text-sm', frist === o.key ? 'border-foreground ring-1 ring-foreground font-medium' : 'border-border hover:bg-secondary/70')}>{t(`ask.deadline.${o.key}`)}</button>
               ))}
             </div>
+          </div>
+          <div>
+            <p className="mb-2 text-sm font-medium">{t('ask.message')} <span className="font-normal text-muted-foreground">{t('ask.optional')}</span></p>
+            <Textarea rows={2} value={nachricht} onChange={(e) => setNachricht(e.target.value)} placeholder={t('ask.messagePlaceholder')} />
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>{t('ask.cancel')}</Button>
-          <Button onClick={() => void senden()} disabled={busy || auswahl.length === 0}>{busy && <Loader2 className="h-4 w-4 animate-spin" />}{t('ask.send')}</Button>
+          <Button onClick={() => void senden()} disabled={busy || auswahl.length === 0}>{busy && <Loader2 className="h-4 w-4 animate-spin" />}{auswahl.length === 1 ? t('ask.sendOne', { name: (kollegen.find((m) => m.user_id === auswahl[0])?.full_name ?? '').split(' ')[0] }) : auswahl.length > 1 ? t('ask.sendMany', { count: auswahl.length }) : t('ask.send')}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

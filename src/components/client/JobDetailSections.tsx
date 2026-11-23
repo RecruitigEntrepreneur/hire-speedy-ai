@@ -5,7 +5,7 @@ import {
   AlertTriangle,
   ArrowRight,
   CalendarClock,
-  Eye,
+  ChevronRight,
   Info,
   Lock,
   Pause,
@@ -105,12 +105,12 @@ export function JobTermineCard({ agenda, empty }: { agenda: JobAgendaSlice; empt
   if (rows.length === 0) {
     if (!empty) return null;
     return (
-      <div className="rounded-xl border bg-card p-4">
+      <div className="rounded-xl border bg-card p-5">
         <div className="mb-1 flex items-center justify-between">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('jobdetail.termine.title')}</p>
-          <Button variant="ghost" size="sm" className="h-8 gap-1 px-2 text-xs text-primary" onClick={() => navigate('/dashboard/interviews')}>
+          <p className="text-[15px] font-semibold tracking-tight">{t('jobdetail.termine.title')}</p>
+          <Button variant="ghost" size="sm" className="h-8 gap-1 px-2 text-xs font-normal text-muted-foreground" onClick={() => navigate('/dashboard/interviews')}>
             {t('jobdetail.termine.all')}
-            <ArrowRight className="h-3 w-3" />
+            <ChevronRight className="h-3 w-3" />
           </Button>
         </div>
         <p className="text-sm">{empty.title}</p>
@@ -121,19 +121,19 @@ export function JobTermineCard({ agenda, empty }: { agenda: JobAgendaSlice; empt
   const more = agenda.upcoming.length - 1;
 
   return (
-    <div className="rounded-xl border bg-card p-4">
+    <div className="rounded-xl border bg-card p-5">
       <div className="mb-1 flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <p className="text-[15px] font-semibold tracking-tight">
           {t('jobdetail.termine.title')}
         </p>
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 gap-1 px-2 text-xs text-primary"
+          className="h-8 gap-1 px-2 text-xs font-normal text-muted-foreground"
           onClick={() => navigate('/dashboard/interviews')}
         >
           {t('jobdetail.termine.all')}
-          <ArrowRight className="h-3 w-3" />
+          <ChevronRight className="h-3 w-3" />
         </Button>
       </div>
       <div>
@@ -226,7 +226,7 @@ export function JobKonditionen({
               </td>
               <td className="py-1">
                 {t('jobdetail.konditionen.fee_value', { pct: feePercentage })}
-                <Badge variant="outline" className="ml-2 text-[10px] font-normal text-muted-foreground">
+                <Badge variant="outline" className="ml-2 border-transparent bg-secondary text-[10px] font-normal text-muted-foreground">
                   {t('jobdetail.konditionen.fee_hint')}
                 </Badge>
               </td>
@@ -242,8 +242,7 @@ export function JobKonditionen({
       </table>
 
       <div className="rounded-lg bg-muted/40 p-3">
-        <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
-          <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+        <p className="mb-1 text-xs font-semibold text-muted-foreground">
           {t('jobdetail.konditionen.preview_title')}
         </p>
         <p className="text-sm italic text-muted-foreground">

@@ -62,6 +62,7 @@ const de = {
     you: 'Sie',
     recruiter: 'Headhunter',
     label: 'dran: {{who}}',
+    yourTurn: 'Sie sind dran',
   },
   steps: {
     offer: 'Angebot V{{version}}',

@@ -61,7 +61,7 @@ export function BewerberNotes({ submissionId }: { submissionId: string }) {
 
   return (
     <div className="p-4 border-t">
-      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+      <h4 className="text-[15px] font-semibold tracking-tight mb-2 flex items-center gap-1.5">
         <Users className="h-3 w-3" />
         {t('bewerber.notes.title')}
       </h4>

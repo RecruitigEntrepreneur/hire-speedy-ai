@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { CheckCircle2, Loader2 } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -86,8 +86,11 @@ function optionsFor(t: ClientTask, h: TaskHandlers | null, extra: { recruiter: s
   const hh = extra.recruiter;
   const go = (to: string): Option['run'] => async () => { extra.navigate(to); return 'handoff'; };
   const besetzung = (melden?: string) => `/dashboard/besetzungen?besetzung=${t.submissionId ?? ''}${melden ? `&melden=${melden}` : ''}`;
-  const handoff = (fn: () => void): Option['run'] => async () => { fn(); return 'handoff'; };
-  const needH = (fn: (x: TaskHandlers) => void): Option['run'] => async () => { if (h) fn(h); return 'handoff'; };
+  // Weiterleitungen öffnen nur ein anderes Fenster – die dürfen mit einem Klick laufen (A2).
+  // Alles andere hat Folgen (bestätigen, melden, annehmen) und braucht den zweiten Klick.
+  const weiter = (run: Option['run']): Option['run'] => Object.assign(run, { nurWeiter: true });
+  const handoff = (fn: () => void): Option['run'] => weiter(async () => { fn(); return 'handoff'; });
+  const needH = (fn: (x: TaskHandlers) => void): Option['run'] => weiter(async () => { if (h) fn(h); return 'handoff'; });
   const sid = t.submissionId ?? '';
   switch (t.kind) {
     case 'review':
@@ -290,7 +293,8 @@ export function ClientTaskWindow({ task, open, onOpenChange, handlers, recruiter
 
   useEffect(() => {
     if (!open || !task) return;
-    setChoice(options[0]?.key ?? '');
+    // A2 (22.11.2026): keine Vorauswahl – jede Antwort ist selbst ein Knopf.
+    setChoice('');
     setValues({ reason: '', date: task.kind === 'offer_overdue' ? nextDue(task.ref.responseDue) : task.kind === 'invoice' ? todayIso() : '', text: '', colleague: '', cost: '' });
     setError(null);
     setDone(null);
@@ -309,7 +313,8 @@ export function ClientTaskWindow({ task, open, onOpenChange, handlers, recruiter
   const index = list.findIndex((x) => x.key === task.key);
   const next = list.find((x) => x.key !== task.key) ?? null;
 
-  const submit = async () => {
+  const submit = async (direct?: (typeof options)[number]) => {
+    const opt = direct ?? options.find((o) => o.key === choice) ?? null;
     if (!opt) return;
     const msg = opt.check?.(values) ?? null;
     if (msg) { setError(msg); return; }
@@ -347,8 +352,8 @@ export function ClientTaskWindow({ task, open, onOpenChange, handlers, recruiter
 
         {done ? (
           <div className="space-y-4">
-            <div className="flex items-start gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/[0.06] p-3 text-sm">
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+            <div className="flex items-start gap-2 rounded-lg bg-secondary/60 p-3 text-sm">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
               <div><p className="font-medium">{t('done')}</p><p className="text-muted-foreground">{done}</p></div>
             </div>
             {next ? (
@@ -367,12 +372,24 @@ export function ClientTaskWindow({ task, open, onOpenChange, handlers, recruiter
           <div className="space-y-3">
             <TaskContextBlock task={task} />
 
-            <div className="flex flex-wrap gap-1.5">
-              {options.map((o) => (
-                <Button key={o.key} type="button" size="sm" variant={choice === o.key ? 'default' : 'outline'} className="h-8 text-xs" onClick={() => { setChoice(o.key); setError(null); }}>
-                  {o.label}
-                </Button>
-              ))}
+            {/* A2: Antworten untereinander. Ohne Zusatzangabe reicht ein Klick; mit Zusatzangabe klappt das Feld darunter auf. */}
+            <div className="space-y-1.5">
+              {options.map((o, n) => {
+                const gewaehlt = choice === o.key;
+                return (
+                  <Button
+                    key={o.key}
+                    type="button"
+                    variant={n === 0 && !choice ? 'default' : 'outline'}
+                    disabled={busy}
+                    className={cn('h-10 w-full justify-center border text-sm', gewaehlt ? 'border-foreground bg-card ring-1 ring-foreground hover:bg-card' : 'border-transparent')}
+                    onClick={() => { setError(null); if (o.field || !(o.run as { nurWeiter?: boolean }).nurWeiter) setChoice(o.key); else void submit(o); }}
+                  >
+                    {busy && !o.field && choice === '' && n === 0 ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : null}
+                    {o.label}
+                  </Button>
+                );
+              })}
             </div>
 
             {opt?.hint && <p className="text-xs text-muted-foreground">{opt.hint}</p>}
@@ -381,7 +398,7 @@ export function ClientTaskWindow({ task, open, onOpenChange, handlers, recruiter
               <div className="flex flex-wrap gap-1.5">
                 <span className="w-full text-xs text-muted-foreground">{t('reasonRequired')}</span>
                 {(opt.reasons ?? []).map((r) => (
-                  <Button key={r.key} type="button" size="sm" variant={values.reason === r.key ? 'secondary' : 'outline'} className="h-7 text-xs" onClick={() => setValues((v) => ({ ...v, reason: r.key }))}>{r.label}</Button>
+                  <Button key={r.key} type="button" size="sm" variant="outline" className={cn('h-7 border text-xs', values.reason === r.key ? 'border-foreground bg-card ring-1 ring-foreground hover:bg-card' : 'border-transparent')} onClick={() => setValues((v) => ({ ...v, reason: r.key }))}>{r.label}</Button>
                 ))}
               </div>
             )}
@@ -406,7 +423,7 @@ export function ClientTaskWindow({ task, open, onOpenChange, handlers, recruiter
                 {colleagues === null ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                   : colleagues.length === 0 ? <p className="text-xs text-muted-foreground">{t('noColleagues')}</p>
                   : colleagues.map((c) => (
-                    <Button key={c.userId} type="button" size="sm" variant={values.colleague === c.userId ? 'secondary' : 'outline'} className="h-7 text-xs" onClick={() => setValues((v) => ({ ...v, colleague: c.userId }))}>{c.name}</Button>
+                    <Button key={c.userId} type="button" size="sm" variant="outline" className={cn('h-7 border text-xs', values.colleague === c.userId ? 'border-foreground bg-card ring-1 ring-foreground hover:bg-card' : 'border-transparent')} onClick={() => setValues((v) => ({ ...v, colleague: c.userId }))}>{c.name}</Button>
                   ))}
               </div>
             )}
@@ -414,10 +431,18 @@ export function ClientTaskWindow({ task, open, onOpenChange, handlers, recruiter
             {error && <p className="text-sm text-destructive">{error}</p>}
 
             <div className="flex items-center justify-between gap-2 border-t pt-3">
-              <span className={cn('text-xs text-muted-foreground', index < 0 && 'invisible')}>{t('position', { n: index + 1, total: list.length })}</span>
+              <span className={cn('flex items-center gap-1 text-xs text-muted-foreground', index < 0 && 'invisible')}>
+                {t('position', { n: index + 1, total: list.length })}
+                {list.length > 1 && index >= 0 && (
+                  <>
+                    <button type="button" aria-label={t('prevTask')} disabled={index === 0} className="rounded-full p-1 hover:bg-secondary disabled:opacity-30" onClick={() => { onOpenChange(false); navigate(taskHref(list[index - 1])); }}><ChevronLeft className="h-3.5 w-3.5" /></button>
+                    <button type="button" aria-label={t('nextTaskAria')} disabled={index === list.length - 1} className="rounded-full p-1 hover:bg-secondary disabled:opacity-30" onClick={() => { onOpenChange(false); navigate(taskHref(list[index + 1])); }}><ChevronRight className="h-3.5 w-3.5" /></button>
+                  </>
+                )}
+              </span>
               <div className="flex gap-2">
-                <Button variant="ghost" onClick={() => onOpenChange(false)}>{t('cancel')}</Button>
-                <Button disabled={busy || !opt} onClick={() => void submit()}>{busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}{opt?.cta ?? t('continue')}</Button>
+                <Button variant="ghost" onClick={() => onOpenChange(false)}>{t('later')}</Button>
+                {opt && <Button disabled={busy} onClick={() => void submit()}>{busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}{opt.cta ?? t('continue')}</Button>}
               </div>
             </div>
           </div>

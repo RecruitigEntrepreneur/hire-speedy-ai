@@ -60,6 +60,22 @@ const sv: Messages<typeof de> = {
     feedbackDue: 'Återkoppling väntar',
     past: 'Tidigare · {{count}}',
     saving: 'Sparar …',
+    next: 'Härnäst',
+    position: '{{n}} av {{total}}',
+    later: 'Senare',
+    prev: 'Föregående steg',
+    nextStep: 'Nästa steg',
+    heroWas: 'Intervjun var {{when}}',
+    upcoming: 'Kommande möten',
+    pastTab: 'Tidigare',
+    allTypes: 'Alla typer',
+    noneForFilter: 'Inget för det här filtret.',
+    sumFeedback_one: '{{count}} återkoppling öppen',
+    sumFeedback_other: '{{count}} återkopplingar öppna',
+    sumAwaiting_one: '{{count}} väntar på kandidatens svar',
+    sumAwaiting_other: '{{count}} väntar på kandidatens svar',
+    sumCounter_one: '{{count}} kandidat ber om en annan tid',
+    sumCounter_other: '{{count}} kandidater ber om en annan tid',
   },
 
   common: {
@@ -125,6 +141,7 @@ const sv: Messages<typeof de> = {
   },
 
   cancel: {
+    keep: 'Behåll tiden',
     withdrawn: 'Förfrågan är tillbakadragen. Kandidat och headhunter är informerade.',
     cancelled: 'Intervjun är inställd. Alla inblandade får besked.',
     failed: 'Det gick inte att ställa in.',
@@ -146,6 +163,8 @@ const sv: Messages<typeof de> = {
   },
 
   hero: {
+
+    title: 'Ditt nästa möte',
     live: 'pågår just nu',
     inMinutes: 'börjar om {{m}} min',
     inHours: 'börjar om {{h}} tim. {{m}} min',
@@ -289,6 +308,7 @@ const sv: Messages<typeof de> = {
       phone: 'När tiden är bokad: {{names}} får inbjudan med kandidatens nummer, kandidaten får sin egen',
       onsite: 'När tiden är bokad: {{names}} får inbjudan med adressen, kandidaten får sin egen',
     },
+    cancel: 'Avbryt',
     previewMail: 'Se mejlet så som kandidaten får det',
     needName: 'Ange ditt namn ovan.',
     needSlot: 'Välj minst en tid.',
@@ -342,6 +362,9 @@ const sv: Messages<typeof de> = {
     dayEmpty: 'Inga tider den här dagen inom dina intervjutider.',
     removeAria: 'Ta bort {{slot}}',
     legendGreen: 'grön = alla lediga',
+    legendBlue: 'Blått: ditt förslag',
+    legendDot: 'Punkt: bara obligatoriska deltagare är lediga',
+    legendBusy: 'upptagen',
     legendYellow: 'gul = alla obligatoriska deltagare lediga',
     legendGrey: 'grå = upptagen',
     legendDashed: 'streckad = okontrollerad',

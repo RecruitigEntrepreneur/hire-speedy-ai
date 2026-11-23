@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { useMyOrganization } from '@/hooks/useOrganization';
 import { useTeamData } from '@/hooks/useTeamData';
+import { useOrganizationInvites } from '@/hooks/useOrganizationInvites';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { TeamMemberList } from '@/components/organization/TeamMemberList';
@@ -37,6 +38,7 @@ export default function TeamManagement() {
   const queryClient = useQueryClient();
   const { organization, myRole, isAdmin, isLoading: orgLoading, ensureOrganization } = useMyOrganization();
   const teamQuery = useTeamData(organization?.id);
+  const { invites } = useOrganizationInvites(isAdmin ? organization?.id : undefined);
 
   const [orgName, setOrgName] = useState<string | null>(null);
   const [billingEmail, setBillingEmail] = useState<string | null>(null);
@@ -150,20 +152,23 @@ export default function TeamManagement() {
     );
   }
 
+  const members = teamQuery.data?.members ?? [];
+  const personCount = members.length + (myRole && !members.some((m) => m.user_id === user?.id) ? 1 : 0);
+  const inviteCount = invites?.length ?? 0;
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
         <div data-tour="team.header" className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold">{t('team.title')}</h1>
-            <p className="text-muted-foreground">
-              {organization.name}
-              {myRole && (
-                <Badge variant="outline" className="ml-2 align-middle text-xs">
-                  {t(`team.roles.${myRole}`, myRole)}
-                </Badge>
-              )}
-            </p>
+            {/* Apple-Stil (22.11.2026): ein Satz zum Stand, wie auf den anderen Kunden-Seiten */}
+            {teamQuery.data && (
+              <p className="mt-1 text-sm">
+                {tt('page.summary', { count: personCount })}
+                {inviteCount > 0 && <> {tt('page.invitesOpen', { count: inviteCount })}</>}
+              </p>
+            )}
           </div>
 
           {isAdmin && <InviteMemberDialog organizationId={organization.id} />}
@@ -172,26 +177,31 @@ export default function TeamManagement() {
         <Tabs defaultValue="members">
           <TabsList>
             <TabsTrigger value="members">
-              <Users className="mr-2 h-4 w-4" />
               {t('team.tabs.members')}
+              {personCount > 0 && <span className="ml-1.5 text-xs text-muted-foreground">{personCount}</span>}
             </TabsTrigger>
             {isAdmin && (
+              <TabsTrigger value="invites">
+                {tt('page.tabInvites')}
+                {inviteCount > 0 && <span className="ml-1.5 text-xs text-muted-foreground">{inviteCount}</span>}
+              </TabsTrigger>
+            )}
+            {isAdmin && (
               <TabsTrigger value="audit">
-                <ScrollText className="mr-2 h-4 w-4" />
                 {t('team.tabs.audit')}
               </TabsTrigger>
             )}
             {isAdmin && (
               <TabsTrigger value="settings">
-                <Settings className="mr-2 h-4 w-4" />
                 {t('team.tabs.settings')}
               </TabsTrigger>
             )}
           </TabsList>
 
           <TabsContent value="members" className="mt-6 space-y-6">
-            {isAdmin && <PendingInvites organizationId={organization.id} />}
             <TeamMemberList
+              selfRole={myRole}
+              selfName={(user?.user_metadata?.full_name as string | undefined) ?? null}
               organizationId={organization.id}
               currentUserId={user?.id || ''}
               members={teamQuery.data?.members}
@@ -199,6 +209,12 @@ export default function TeamManagement() {
               isAdmin={isAdmin}
             />
           </TabsContent>
+
+          {isAdmin && (
+            <TabsContent value="invites" className="mt-6">
+              <PendingInvites organizationId={organization.id} />
+            </TabsContent>
+          )}
 
           {isAdmin && (
             <TabsContent value="audit" className="mt-6">
@@ -215,11 +231,11 @@ export default function TeamManagement() {
                       ))}
                     </div>
                   ) : auditQuery.data?.length ? (
-                    <div className="space-y-2">
+                    <div>
                       {auditQuery.data.map((entry) => (
                         <div
                           key={entry.id}
-                          className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm"
+                          className="flex items-center justify-between border-t py-2.5 text-sm first:border-t-0"
                         >
                           <span>{auditLabel(entry)}</span>
                           <span className="whitespace-nowrap text-xs text-muted-foreground">
@@ -249,7 +265,7 @@ export default function TeamManagement() {
                   <CardDescription>{t('team.settings.intake_description')}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center justify-between rounded-lg border p-4">
+                  <div className="flex items-center justify-between rounded-lg border bg-background p-4">
                     <div className="pr-4">
                       <p className="font-medium">{t('team.settings.intake_label')}</p>
                       <p className="text-sm text-muted-foreground">
@@ -291,6 +307,7 @@ export default function TeamManagement() {
                     </div>
                   </div>
                   <Button
+                    variant="outline"
                     onClick={() =>
                       updateOrg.mutate({
                         name: orgName ?? organization.name,

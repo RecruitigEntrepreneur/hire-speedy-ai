@@ -16,6 +16,7 @@ const de = {
     unreadShort_one: '{{count}} ungelesen',
     unreadShort_other: '{{count}} ungelesen',
     allReadShort: 'Alles gelesen',
+    unreadOf: '{{count}} ungelesen von {{total}}',
     emptyUnreadShort: 'Alles gelesen.',
     emptyAllDu: 'Du hast noch keine Benachrichtigungen.',
     emptyAllSie: 'Sie haben noch keine Benachrichtigungen.',

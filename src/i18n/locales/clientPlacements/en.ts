@@ -63,6 +63,7 @@ const en: Messages<typeof de> = {
     you: 'You',
     recruiter: 'Headhunter',
     label: 'up next: {{who}}',
+    yourTurn: 'Your turn',
   },
   steps: {
     offer: 'Offer V{{version}}',

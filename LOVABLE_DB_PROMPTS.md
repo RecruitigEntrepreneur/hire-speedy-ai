@@ -1766,6 +1766,30 @@ bleibt alles, wie es ist. Keine neue Tabelle, keine neuen Secrets.
 
 ---
 
+## 60 — Neuer Look der Plattform (Apple-Stil): Grundlage für alle, Kunden-Seite ausgearbeitet (23.11.2026)
+
+Commit siehe `git log` („Apple-Stil: Grundlage + Kunden-Seite“). **Keine Migration, keine Edge Function,
+nur Publish.** Schließt Nr. 59 mit ein, falls dort noch nicht veröffentlicht wurde (ein Publish bringt den ganzen
+Stand von `main` live). Die Plattform bekommt die Gestaltung der neuen Website: reines Schwarz bzw. Weiß, graue
+Flächen mit feinem Rand, Schrift Inter Tight, Knöpfe als Pille und ein Blau nur für die eine Handlung. Diese
+Grundlage gilt überall, auch auf der Headhunter-Seite und im Admin; dort sind die Seiten selbst noch nicht einzeln
+überarbeitet. Glocke, Posteingang-Knopf, Konto-Menü und die Seite „Benachrichtigungen“ sind gemeinsame Bausteine und
+sehen für alle Rollen neu aus.
+
+Auf der Kunden-Seite einzeln überarbeitet: Dashboard, Aufgaben (mit Aufgaben-Fenster), Meine Stellen, die Stellenseite
+mit allen Reitern samt neuer Auswertung je Stelle, Bewerber und Bewerberprofil, Interviews (Anfragen, Fenster, Absagen),
+Angebot, Ablehnen, Stelle pausieren und schließen, Team, Analytics (neu aufgebaut, allgemeine Statistik über alle
+Stellen), Einstellungen, die Stellenaufnahme in Schritten samt „Paket und Anfragen“, Kopfleiste, Suche,
+Benachrichtigungen und Nachrichten. In den Kunden-Texten heißt es „Stelle“ statt „Position“ bzw. „Job“. Neue Texte
+liegen in Deutsch, Englisch, Schwedisch und Norwegisch vor. Keine neue Tabelle, keine neuen Secrets.
+
+> 1. Aktuellen Stand von `main` übernehmen.
+> 2. Keine Migration ausführen, keine Edge Function deployen, keine Secrets ändern.
+> 3. Publish.
+> 4. Am Code nichts ändern. Am Ende melden, dass Publish durch ist.
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über

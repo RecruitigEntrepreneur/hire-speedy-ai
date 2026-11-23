@@ -214,27 +214,23 @@ export default function ClientIntake() {
       <button
         type="button"
         onClick={() => toast.info(t('clientIntake.personioToast'))}
-        className="flex w-full items-start gap-3 rounded-xl border border-dashed p-4 text-left text-muted-foreground transition-colors hover:bg-muted/40"
+        className="flex w-full items-start gap-3 rounded-xl border bg-card p-4 text-left text-muted-foreground transition-colors hover:border-foreground/30 hover:bg-accent/40"
       >
         <Building2 className="mt-0.5 h-5 w-5 shrink-0" />
         <span>
-          <span className="flex items-center gap-2 font-medium text-foreground">
-            {t('clientIntake.personioTitle')} <span className="rounded-full border px-2 py-0.5 text-[10px]">{t('clientIntake.previewBadge')}</span>
-          </span>
-          <span className="mt-0.5 block text-sm">{t('clientIntake.personioText')}</span>
+          <span className="block font-medium text-foreground">{t('clientIntake.personioTitle')}</span>
+          <span className="mt-0.5 block text-sm">{t('clientIntake.previewBadge')} · {t('clientIntake.personioText')}</span>
         </span>
       </button>
       <button
         type="button"
         onClick={() => toast.info(t('clientIntake.mailToast'))}
-        className="flex w-full items-start gap-3 rounded-xl border border-dashed p-4 text-left text-muted-foreground transition-colors hover:bg-muted/40"
+        className="flex w-full items-start gap-3 rounded-xl border bg-card p-4 text-left text-muted-foreground transition-colors hover:border-foreground/30 hover:bg-accent/40"
       >
         <Mail className="mt-0.5 h-5 w-5 shrink-0" />
         <span>
-          <span className="flex items-center gap-2 font-medium text-foreground">
-            {t('clientIntake.mailTitle')} <span className="rounded-full border px-2 py-0.5 text-[10px]">{t('clientIntake.previewBadge')}</span>
-          </span>
-          <span className="mt-0.5 block text-sm">{t('clientIntake.mailText')}</span>
+          <span className="block font-medium text-foreground">{t('clientIntake.mailTitle')}</span>
+          <span className="mt-0.5 block text-sm">{t('clientIntake.previewBadge')} · {t('clientIntake.mailText')}</span>
         </span>
       </button>
     </div>
@@ -259,7 +255,7 @@ export default function ClientIntake() {
                         onClick={() => past && setStep('capture')}
                         className={cn(
                           'flex items-center gap-1 rounded-full px-2.5 py-1',
-                          active ? 'bg-primary text-primary-foreground' : past ? 'text-emerald-600 hover:underline' : 'text-muted-foreground',
+                          active ? 'bg-muted font-medium text-foreground' : past ? 'text-foreground hover:underline' : 'text-muted-foreground',
                         )}
                       >
                         {past ? <Check className="h-3 w-3" /> : <span>{i + 1}</span>} {s.label}

@@ -129,7 +129,7 @@ export function InviteColleagueDialog({ open, onOpenChange, submissionId, jobTit
                   onClick={() => pickFunction(key)}
                   className={cn(
                     'rounded-full border px-3 py-1 text-sm transition-colors',
-                    fn === key ? 'border-foreground bg-foreground text-background' : 'hover:bg-accent',
+                    fn === key ? 'border-foreground ring-1 ring-foreground font-medium' : 'hover:bg-secondary/70',
                   )}
                 >
                   {key === 'andere' ? t('invite.otherMore') : t(`invite.fn.${key}`)}
@@ -158,7 +158,7 @@ export function InviteColleagueDialog({ open, onOpenChange, submissionId, jobTit
                 onClick={() => { setAccess(o.v); setAccessTouched(true); }}
                 className={cn(
                   'block w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors',
-                  access === o.v ? 'border-primary ring-1 ring-primary' : 'hover:bg-accent',
+                  access === o.v ? 'border-foreground ring-1 ring-foreground' : 'hover:bg-secondary/70',
                 )}
               >
                 <span className="font-medium">{o.title}</span>

@@ -179,7 +179,7 @@ const en: Messages<typeof de> = {
     },
     'c-done': {
       title: 'Done',
-      body: 'You now know the path of your position all the way to the hire. Once it is live, you will see it under “My jobs”. You can restart the tour any time via “Tour” on the dashboard.',
+      body: 'You now know the path of your position all the way to the hire. Once it is live, you will see it under “My positions”. You can restart the tour any time via “Tour” on the dashboard.',
       bodyLive: 'You now know the path of your position all the way to the hire. You can restart the tour any time via “Tour” on the dashboard.',
       bodyExample: 'You now know the path from the position to the hire. You can restart the tour any time via “Tour” on the dashboard.',
     },

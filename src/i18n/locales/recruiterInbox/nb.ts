@@ -18,6 +18,7 @@ const nb: Messages<typeof de> = {
     unreadShort_one: '{{count}} ulest',
     unreadShort_other: '{{count}} uleste',
     allReadShort: 'Alt er lest',
+    unreadOf: '{{count}} uleste av {{total}}',
     emptyUnreadShort: 'Alt er lest.',
     emptyAllDu: 'Du har ingen varsler ennå.',
     emptyAllSie: 'Du har ingen varsler ennå.',

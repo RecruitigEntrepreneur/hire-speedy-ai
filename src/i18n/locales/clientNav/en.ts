@@ -5,7 +5,7 @@ const en: Messages<typeof de> = {
   items: {
     dashboard: 'Dashboard',
     tasks: 'Tasks',
-    jobs: 'My jobs',
+    jobs: 'My positions',
     candidates: 'Candidates',
     interviews: 'Interviews',
     placements: 'Placements',
@@ -16,7 +16,7 @@ const en: Messages<typeof de> = {
   },
   short: {
     dashboard: 'Dashboard',
-    jobs: 'Jobs',
+    jobs: 'Positions',
   },
   settings: 'Settings',
   signOut: 'Sign out',

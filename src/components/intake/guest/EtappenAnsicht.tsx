@@ -26,7 +26,7 @@ import { SEKUNDEN } from './etappenZeit';
 import { AnzeigeEtikett } from './AnzeigeEtikett';
 import { gleicherWert } from '@/lib/anzeigeZitat';
 import { aufbauAlsText, istAufbau } from '../../../../supabase/functions/_shared/abteilung';
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, CheckCircle2, Sparkles, X } from 'lucide-react';
+import { AlertTriangle, Check, X } from 'lucide-react';
 
 /**
  * Die Aufnahme in Etappen (J12, 04.11.2026; Standard seit 11.11.2026).
@@ -641,21 +641,19 @@ export function EtappenAnsicht({
       case 'eckdaten':
         return (
           <div key={i} className="space-y-3">
-            <p className="text-base font-semibold">{t('etappen.whatAbout')}</p>
+            <p className="text-base font-semibold tracking-tight">{t('etappen.whatAbout')}</p>
             {/* Variante A (Entscheidung Marko 13.11.2026): statt einer langen
                 Liste ein Satz -- geprueft wird dort, wo die Frage steht. */}
             {ausAnzeigeAnzahl > 0 && (
-              <p className="rounded-lg border px-3 py-2 text-xs text-muted-foreground">
-                {t('etappen.anzeige.taken', { count: ausAnzeigeAnzahl })}
-              </p>
+              <p className="text-xs text-muted-foreground md:hidden">{t('etappen.anzeige.taken', { count: ausAnzeigeAnzahl })}</p>
             )}
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <p className={cn('mb-1 text-sm font-medium', versucht && !built.title?.trim() && 'text-amber-600')}>{t('shared.jobTitle')}</p>
+                <p className="mb-1 text-sm font-medium">{t('shared.jobTitle')}{versucht && !built.title?.trim() && <Fehlt />}</p>
                 <Input data-feld="title" value={built.title} onChange={(e) => setBuilt({ title: e.target.value })} placeholder={t('etappen.titlePlaceholder')} />
               </div>
               <div>
-                <p className={cn('mb-1 text-sm font-medium', versucht && !built.location?.trim() && 'text-amber-600')}>{t('shared.location')}</p>
+                <p className="mb-1 text-sm font-medium">{t('shared.location')}{versucht && !built.location?.trim() && <Fehlt />}</p>
                 <Input data-feld="location" value={built.location} onChange={(e) => setBuilt({ location: e.target.value })} placeholder={t('etappen.locationPlaceholder')} />
               </div>
             </div>
@@ -702,15 +700,19 @@ export function EtappenAnsicht({
         const hatPflicht = q.slots.some((s) => s.required && (!s.only || s.only === type));
         return (
           <div key={i} className="space-y-3">
-            {q.intro && <p className="text-xs italic text-muted-foreground">{frageIntroT(q)}</p>}
-            <p className="text-base font-semibold leading-snug">{frageTextT(q, type)}</p>
+            {q.intro && <p className="text-xs text-muted-foreground">{frageIntroT(q)}</p>}
+            <div>
+              <p className="text-base font-semibold leading-snug tracking-tight">{frageTextT(q, type)}</p>
+              {q.why && <p className="mt-1 text-xs text-muted-foreground">{frageWhyT(q)}</p>}
+            </div>
             <div className="space-y-3">
               {slots.map((s) => (
                 <div key={s.key} data-feld={s.key} tabIndex={-1} className="scroll-mt-24 outline-none"
                      data-aus-anzeige={katalogKnown[s.key]?.from === 'ad' ? 'ja' : undefined}>
                   <p className="mb-1.5 flex flex-wrap items-baseline gap-x-1.5 text-xs text-muted-foreground">
-                    <span className={cn('text-sm font-medium', versucht && s.required && !istGestellt && !hatWert(katalogKnown, s.key) ? 'text-amber-600' : 'text-foreground')}>
+                    <span className="text-sm font-medium text-foreground">
                       {slotLabelT(s, type)}
+                      {versucht && s.required && !istGestellt && !hatWert(katalogKnown, s.key) && <Fehlt />}
                     </span>
                     {!s.required && <span className="text-[10px]">{t('shared.optional')}</span>}
                     {adVon(s.key) !== undefined ? (
@@ -756,9 +758,6 @@ export function EtappenAnsicht({
                 </div>
               ))}
             </div>
-            <p className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
-              <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-primary/60" /> {frageWhyT(q)}
-            </p>
             {hatPflicht && istGestellt && unbeantwortet.length > 0 && (
               <p className="text-[11px] text-muted-foreground">{t('etappen.notedDontKnow')}</p>
             )}
@@ -784,14 +783,10 @@ export function EtappenAnsicht({
               anzeigeWerte={anzeigeWerte}
             />
             {teil.nur.map((k) => frage(k)).filter((q): q is BriefQuestion => !!q && (!q.only || q.only === type)).map((q) => (
-              <p key={q.key} className="mt-2 flex items-start gap-1.5 text-[11px] text-muted-foreground">
-                <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-primary/60" /> {frageWhyT(q)}
-              </p>
+              <p key={q.key} className="mt-3 text-xs text-muted-foreground">{frageWhyT(q)}</p>
             ))}
             {teil.nur.includes('department_structure') && frage('team')?.why && (
-              <p className="mt-2 flex items-start gap-1.5 text-[11px] text-muted-foreground">
-                <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-primary/60" /> {frageWhyT(frage('team')!)}
-              </p>
+              <p className="mt-3 text-xs text-muted-foreground">{frageWhyT(frage('team')!)}</p>
             )}
           </div>
         );
@@ -802,7 +797,12 @@ export function EtappenAnsicht({
           <div key={i} className="space-y-4">
             {/* Der Katalog hat fuer Contracting keine eigene Fassung dieser
                 Frage ("Fixgehalt") -- dort steht die Zeile selbst als Frage. */}
-            {q && !isFreelance && <p className="text-base font-semibold leading-snug">{frageTextT(q, type)}</p>}
+            {q && !isFreelance && (
+              <div>
+                <p className="text-base font-semibold leading-snug tracking-tight">{frageTextT(q, type)}</p>
+                {q.why && <p className="mt-1 text-xs text-muted-foreground">{frageWhyT(q)}</p>}
+              </div>
+            )}
             {isFreelance ? (
               <div className="space-y-3">
                 <div>
@@ -854,12 +854,10 @@ export function EtappenAnsicht({
                 />
               </div>
             )}
-            <CatalogFields place="verguetung" known={katalogKnown} onSet={setKatalog} onConfirm={bestaetige} contract={type} gross anzeige={anzeigeText} anzeigeWerte={anzeigeWerte} />
-            {q?.why && (
-              <p className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
-                <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-primary/60" /> {frageWhyT(q)}
-              </p>
-            )}
+            <div className={cn(!isFreelance && 'border-t pt-4')}>
+              <CatalogFields place="verguetung" known={katalogKnown} onSet={setKatalog} onConfirm={bestaetige} contract={type} gross anzeige={anzeigeText} anzeigeWerte={anzeigeWerte} />
+            </div>
+            {q?.why && isFreelance && <p className="text-xs text-muted-foreground">{frageWhyT(q)}</p>}
           </div>
         );
       }
@@ -888,7 +886,7 @@ export function EtappenAnsicht({
       case 'firma':
         return (
           <div key={i} className="space-y-3">
-            <p className="text-base font-semibold">{t('etappen.companyHeading')}</p>
+            <p className="text-base font-semibold tracking-tight">{t('etappen.companyHeading')}</p>
             <CompanyBlock
               werte={company}
               ausAnzeige={{ company_name: built.company_name, industry: built.industry }}
@@ -905,26 +903,32 @@ export function EtappenAnsicht({
     }
   };
 
+  const pruefSperren = sperren.flatMap((x) => {
+    if (x.key !== 'briefing') return [x];
+    const offeneSchritte = schritte.filter((st) => fehlendeImSchritt(st).length > 0);
+    return offeneSchritte.length > 0
+      ? offeneSchritte.map((st) => ({ key: `schritt:${st.id}`, label: titelVon(st) }))
+      : [x];
+  });
+  const springe = (k: string) => {
+    const z = k.startsWith('schritt:') ? k.slice('schritt:'.length) : schrittFuer(k);
+    if (z) geheZu(z);
+  };
+
   const etappeVon = schritt?.etappe ?? null;
   const inEtappe = etappeVon === null ? [] : schritte.filter((s) => s.etappe === etappeVon);
   const posInEtappe = schritt ? inEtappe.findIndex((s) => s.id === schritt.id) + 1 : 0;
-  // ---- Kopf wie eine Stellenanzeige: Initialen und Kaertchen ------------
-  const firmenName = String((firmaFest as { name?: string } | null)?.name || company?.company_name || built.company_name || '');
-  const initialen = firmenName.split(/\s+/).filter((w) => /^[A-Za-zÄÖÜ0-9]/.test(w) && !/^(gmbh|ag|kg|se|ug|co\.?|&)$/i.test(w))
-    .slice(0, 2).map((w) => w[0].toUpperCase()).join('') || '·';
+  // ---- Kopf: eine ruhige Zeile mit dem, was schon feststeht -------------
   const euro = (n?: number | null) => (n ? `${Number(n).toLocaleString(intlLocale(i18n.language))} €` : null);
-  const spanne = (a?: number | null, b?: number | null) => (a && b ? `${euro(a)} – ${euro(b)}` : euro(a) ?? euro(b));
+  const spanne = (a?: number | null, b?: number | null) => (a && b ? t('etappen.kopf.range', { from: Number(a).toLocaleString(intlLocale(i18n.language)), to: euro(b) }) : euro(a) ?? euro(b));
   const gehalt = isFreelance ? spanne(freelance.dayRateMin, freelance.dayRateMax) : spanne(built.salary_min, built.salary_max);
-  const monate = katalogKnown.salary_months?.value;
   const befristung = katalogKnown.contract_limitation?.value;
-  const kaertchen: { key: string; leer: string; wert: string | null }[] = [
-    { key: 'remote', leer: t('shared.workModel'), wert: gewaehlt('remote_type') ? t(`shared.remote.${built.remote_type || 'hybrid'}`) : null },
-    { key: 'erfahrung', leer: t('shared.experience'), wert: gewaehlt('experience_level') ? t(`shared.level.${built.experience_level || 'mid'}`) : null },
-    isFreelance
-      ? { key: 'budget', leer: t('etappen.kopf.budgetPerDay'), wert: gehalt ? t('etappen.kopf.perDay', { value: gehalt }) : null }
-      : { key: 'gehalt', leer: t('etappen.kopf.salary'), wert: gehalt ? `${gehalt}${monate ? ` · ${t('etappen.kopf.salaries', { n: String(monate) })}` : ''}` : null },
-    ...(befristung && !isFreelance ? [{ key: 'befristung', leer: '', wert: String(wertAnzeigeT('contract_limitation', befristung, type)) }] : []),
-  ];
+  const fakten = [
+    gewaehlt('remote_type') ? t(`shared.remote.${built.remote_type || 'hybrid'}`) : null,
+    gewaehlt('experience_level') ? t(`shared.level.${built.experience_level || 'mid'}`) : null,
+    gehalt ? (isFreelance ? t('etappen.kopf.perDay', { value: gehalt }) : gehalt) : null,
+    befristung && !isFreelance ? String(wertAnzeigeT('contract_limitation', befristung, type)) : null,
+  ].filter((x): x is string => !!x);
 
   const ortZeile = istPruefen ? t('etappen.review')
     : etappeVon !== null ? t('etappen.placeLine', { stage: etappenName(t, etappeVon, isFreelance), pos: posInEtappe, total: inEtappe.length }) : '';
@@ -937,59 +941,44 @@ export function EtappenAnsicht({
     <div
       ref={oben}
       className={cn(
-        'flex min-h-full flex-col gap-3 [&_.border-primary]:border-foreground [&_.border-primary]:bg-foreground [&_.border-primary]:text-background',
-        // Farbe 2A (13.11.2026): Was aus der Anzeige kommt und noch nicht
-        // uebernommen ist, traegt einen blauen Rand -- Orange bleibt "fehlt noch".
-        '[&_[data-aus-anzeige=ja]_.border-primary]:ring-2 [&_[data-aus-anzeige=ja]_.border-primary]:ring-blue-500/70',
-        '[&_[data-aus-anzeige=ja]_textarea]:border-blue-500/60 [&_[data-aus-anzeige=ja]_input]:border-blue-500/60',
-        '[&_[data-aus-anzeige=ja]_.bg-foreground]:ring-2 [&_[data-aus-anzeige=ja]_.bg-foreground]:ring-blue-500/70',
+        // Apple-Stil (22.11.2026): Gewaehlt = dunkler Ring ohne Fuellung. Was aus
+        // der Anzeige kommt, sagt der graue Zusatz an der Beschriftung -- keine Farbe.
+        'flex min-h-full flex-col gap-3',
+        '[&_button.border-primary]:border-foreground [&_button.border-primary]:bg-transparent [&_button.border-primary]:font-medium [&_button.border-primary]:text-foreground [&_button.border-primary]:ring-1 [&_button.border-primary]:ring-foreground',
+        // Tastatur-Fokus: derselbe blaue Ring wie an den Feldern, statt des Browser-Rahmens.
+        '[&_button:focus-visible]:outline-none [&_button:focus-visible]:ring-2 [&_button:focus-visible]:ring-klick',
+        '[&_span.border-primary]:border-foreground [&_span.border-primary]:bg-transparent [&_span.border-primary]:font-medium [&_span.border-primary]:ring-1 [&_span.border-primary]:ring-foreground',
       )}
     >
       {/* ---- Kopf wie eine Stellenanzeige (Entscheidung Marko 13.11.2026, J1) ----
           Logo, Titel, Firma und Ort, darunter Kaertchen, die sich aus den
           Antworten fuellen -- leere sind gestrichelt. Der Titel steht nur hier
           (nicht noch einmal im Fensterkopf), die Firmenzeile kam aus der Leiste. */}
-      <div className="shrink-0 border-b">
-        <div className="flex items-start gap-3 pb-3 pr-8">
-          <div className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-semibold text-primary sm:flex" aria-hidden>
-            {initialen}
-          </div>
+      <div className="shrink-0">
+        <div className="flex flex-col-reverse gap-2 pr-8 sm:flex-row sm:items-start sm:gap-3">
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-xl font-semibold tracking-tight">{built.title || t('etappen.newPosition')}</h2>
-            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground [&>*]:mt-0">{firmaZeile}</div>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              <button
-                type="button"
-                onClick={onVertragsart}
-                className="rounded-md border bg-muted/40 px-2 py-0.5 text-xs text-foreground transition-colors hover:bg-accent"
-              >
-                {t('etappen.changeKind', { kind: isFreelance ? t('shared.contracting') : t('shared.permanent') })}
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground [&>*]:mt-0">{firmaZeile}</div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {[isFreelance ? t('shared.contracting') : t('shared.permanent'), ...fakten].join(' · ')}
+              {' · '}
+              <button type="button" onClick={onVertragsart} className="text-klick hover:underline">
+                {t('etappen.change')} ›
               </button>
-              {kaertchen.map((k) => (
-                <span
-                  key={k.key}
-                  className={cn(
-                    'rounded-md border px-2 py-0.5 text-xs',
-                    k.wert ? 'bg-muted/40 text-foreground' : 'border-dashed text-muted-foreground/70',
-                  )}
-                >
-                  {k.wert ?? k.leer}
-                </span>
-              ))}
-            </div>
+            </p>
           </div>
-          <div className="flex shrink-0 flex-col items-end gap-1.5">
-            {kopfRechts}
-            <span className="text-xs text-muted-foreground">
-              {!istPruefen && sekundenOffen > 0 && t('etappen.minutesLeft', { minutes: minuten })}
-              {!istPruefen && sekundenOffen > 0 && speicherStand && ' · '}
-              {speicherStand}
-            </span>
-          </div>
+          <div className="shrink-0 [&>ol]:ml-0 sm:[&>ol]:ml-auto">{kopfRechts}</div>
         </div>
-        <div className="h-[3px] bg-muted" title={`${fortschritt.pct} %`}>
-          <div className="h-full bg-foreground/70 transition-all" style={{ width: `${fortschritt.pct}%` }} />
+        <div className="mt-3 h-1 overflow-hidden rounded-full bg-muted" title={`${fortschritt.pct} %`}>
+          <div className="h-full rounded-full bg-klick transition-all" style={{ width: `${fortschritt.pct}%` }} />
         </div>
+        <p className="mt-1.5 text-xs text-muted-foreground">
+          {[
+            ortZeile,
+            !istPruefen && sekundenOffen > 0 ? t('etappen.minutesLeft', { minutes: minuten }) : null,
+          ].filter(Boolean).join(' · ')}
+          {speicherStand && <> · {speicherStand}</>}
+        </p>
       </div>
 
       <div className="grid flex-1 gap-5 md:grid-cols-[11.5rem_minmax(0,1fr)] md:items-start">
@@ -1013,15 +1002,7 @@ export function EtappenAnsicht({
                 >
                   {fertig && !istAktiv ? <Check className="h-3.5 w-3.5 shrink-0" /> : <span className="w-3.5 shrink-0" />}
                   {etappenName(t, e, isFreelance)}
-                  {ausAnzeigeEtappe(e) > 0 && (
-                    <span className="ml-auto text-[10px] font-normal text-muted-foreground" title={t('etappen.anzeige.countTitle')}>
-                      {ausAnzeigeEtappe(e)}
-                    </span>
-                  )}
                 </button>
-                {istAktiv && (
-                  <p className="pb-1 pl-8 pt-0.5 text-xs text-muted-foreground">{t('etappen.stepOf', { pos: posInEtappe, total: inEtappe.length })}</p>
-                )}
               </div>
             );
           })}
@@ -1036,28 +1017,23 @@ export function EtappenAnsicht({
             <span className="w-3.5 shrink-0" />
             {t('etappen.review')}
           </button>
-          {ausAnzeigeAnzahl > 0 && <p className="px-2.5 pt-1 text-[10px] text-muted-foreground">{t('etappen.anzeige.countLegend')}</p>}
+          {ausAnzeigeAnzahl > 0 && <p className="px-2.5 pt-4 text-xs text-muted-foreground">{t('etappen.anzeige.taken', { count: ausAnzeigeAnzahl })}</p>}
           <button
             type="button"
             onClick={onZurAuswahl}
-            className="mt-4 px-2.5 text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            className={cn('px-2.5 text-xs text-klick hover:underline', ausAnzeigeAnzahl > 0 ? 'mt-1' : 'mt-4')}
           >
-            {t('etappen.backToChoice')}
+            {t('etappen.backToChoice')} ›
           </button>
         </nav>
 
         {/* ---- Der Schritt ---- */}
         <div className="min-w-0 space-y-2">
-          <p className="text-xs text-muted-foreground md:hidden">
-            {ortZeile}{!istPruefen && sekundenOffen > 0 && <> · {t('etappen.minutesLeft', { minutes: minuten })}</>}
-          </p>
           <div ref={inhalt} className="space-y-4 rounded-xl border bg-card p-4">
             {/* Die Nachfrage der KI zur letzten Antwort -- sichtbar als solche. */}
             {followUp && !istPruefen && (
-              <div className="rounded-xl border border-primary/40 bg-primary/5 p-4">
-                <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
-                  <Sparkles className="h-3 w-3" /> {t('etappen.followUpHead')}
-                </p>
+              <div className="rounded-xl border bg-secondary/60 p-4">
+                <p className="mb-1.5 text-xs text-muted-foreground">{t('etappen.followUpHead')}</p>
                 <p className="mb-2.5 text-sm font-medium leading-snug">{followUp.question}</p>
                 {followUp.chips.length > 0 && (
                   <div className="mb-2 flex flex-wrap gap-1.5">
@@ -1080,8 +1056,8 @@ export function EtappenAnsicht({
             )}
 
             {katalog.conflicts.map((c, i) => (
-              <div key={`${c.slot}-${i}`} className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-2.5 text-xs">
-                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
+              <div key={`${c.slot}-${i}`} className="flex items-start gap-2 rounded-lg border bg-secondary/60 p-2.5 text-xs">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 <span>{c.note || t('etappen.conflict', { slot: c.slot, existing: c.existing, neu: c.neu })}</span>
                 <button type="button" className="ml-auto shrink-0 text-muted-foreground hover:text-foreground"
                   onClick={() => setCatalog((p) => ({ ...p, conflicts: p.conflicts.filter((_, j) => j !== i) }))}>
@@ -1095,17 +1071,8 @@ export function EtappenAnsicht({
                 state={state}
                 // Statt "Briefing (2 von 10 Fragen)" die Schritte mit offenen
                 // Fragen beim Namen, je mit Sprung dorthin (N5, 06.11.2026).
-                sperren={sperren.flatMap((x) => {
-                  if (x.key !== 'briefing') return [x];
-                  const offeneSchritte = schritte.filter((st) => fehlendeImSchritt(st).length > 0);
-                  return offeneSchritte.length > 0
-                    ? offeneSchritte.map((st) => ({ key: `schritt:${st.id}`, label: titelVon(st) }))
-                    : [x];
-                })}
-                onSprung={(k) => {
-                  const z = k.startsWith('schritt:') ? k.slice('schritt:'.length) : schrittFuer(k);
-                  if (z) geheZu(z);
-                }}
+                sperren={pruefSperren}
+                onSprung={springe}
                 vorbelegt={[...(!gewaehlt('remote_type') ? ['remote_type'] : []), ...(!gewaehlt('experience_level') ? ['experience_level'] : [])]}
               />
             ) : (
@@ -1118,25 +1085,22 @@ export function EtappenAnsicht({
       </div>
 
       {/* ---- Fussleiste: ein einziges "Weiter", immer unten ---- */}
-      <div className="sticky -bottom-5 z-20 -mx-4 -mb-5 mt-auto flex shrink-0 items-center gap-3 border-t bg-background px-4 pb-8 pt-3 md:-mx-6 md:px-6">
-        <Button variant="ghost" size="sm" className="gap-1.5" onClick={zurueck} disabled={index <= 0}>
-          <ArrowLeft className="h-4 w-4" /> {t('shared.back')}
+      <div className="sticky -bottom-5 z-20 -mx-4 -mb-5 mt-auto flex shrink-0 items-center gap-2 border-t sm:gap-3 bg-background px-4 pb-8 pt-3 md:-mx-6 md:px-6">
+        <Button variant="secondary" size="sm" className="rounded-full px-4" onClick={zurueck} disabled={index <= 0}>
+          {t('shared.back')}
         </Button>
-        <div className="flex min-w-0 flex-1 items-center gap-2 text-xs">
-          {istPruefen && sperren.length > 0 && (
-            <span className="truncate text-muted-foreground">{t('etappen.fillFirst')}</span>
-          )}
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-xs">
           {!istPruefen && !(versucht && (fehltEck.length > 0 || fehlend.length > 0)) && schritt && offenAusAnzeige(schritt.id) > 0 && (
             <span className="truncate text-muted-foreground">{t('etappen.anzeige.prefilledHint')}</span>
           )}
           {/* Erst nach einem Klick auf "Weiter": was fehlt, und der Ausweg. */}
           {!istPruefen && versucht && fehltEck.length > 0 && (
-            <span className="truncate text-amber-600">{t('shared.stillMissing', { fields: fehltEck.map((x) => x.label).join(', ') })}</span>
+            <span className="truncate font-medium">{t('shared.stillMissing', { fields: fehltEck.map((x) => x.label).join(', ') })}</span>
           )}
           {!istPruefen && versucht && fehltEck.length === 0 && fehlend.length > 0 && (
             <>
-              <span className="truncate text-amber-600">{t('shared.stillMissing', { fields: fehlend.map((x) => slotLabelT(x, type)).join(', ') })}</span>
-              <Button size="sm" variant="outline" className="h-7 shrink-0 px-2 text-xs" onClick={() => { schrittAbschliessen(schritt, true); uebernimmAusAnzeige(schritt); geheZu(schritte[index + 1]?.id ?? PRUEFEN); }}>
+              <span className="truncate font-medium">{t('shared.stillMissing', { fields: fehlend.map((x) => slotLabelT(x, type)).join(', ') })}</span>
+              <Button size="sm" variant="secondary" className="h-7 shrink-0 rounded-full px-3 text-xs" onClick={() => { schrittAbschliessen(schritt, true); uebernimmAusAnzeige(schritt); geheZu(schritte[index + 1]?.id ?? PRUEFEN); }}>
                 {t('shared.dontKnow')}
               </Button>
             </>
@@ -1145,22 +1109,21 @@ export function EtappenAnsicht({
         <button
           type="button"
           onClick={onResumeLater}
-          className="shrink-0 text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+          className="text-right text-xs leading-tight text-muted-foreground hover:text-foreground sm:shrink-0"
         >
           {t('shared.resumeLater')}
         </button>
         {istPruefen ? (
-          <Button
-            onClick={weiter}
-            disabled={sperren.length > 0}
-            className={cn('shrink-0 gap-2', sperren.length > 0 && 'border border-input bg-muted text-muted-foreground opacity-100')}
-          >
-            {nextLabel} <ArrowRight className="h-4 w-4" />
-          </Button>
+          pruefSperren.length > 0 ? (
+            <Button onClick={() => springe(pruefSperren[0].key)} className="shrink-0">
+              <span className="hidden sm:inline">{t('etappen.pruefen.fillFirstButton')}</span>
+              <span className="sm:hidden">{t('etappen.pruefen.fill')}</span>
+            </Button>
+          ) : (
+            <Button onClick={weiter} className="shrink-0">{nextLabel}</Button>
+          )
         ) : (
-          <Button onClick={vor} className="shrink-0 gap-2">
-            {t('shared.next')} <ArrowRight className="h-4 w-4" />
-          </Button>
+          <Button onClick={vor} className="shrink-0">{t('shared.next')}</Button>
         )}
       </div>
     </div>
@@ -1168,6 +1131,12 @@ export function EtappenAnsicht({
 }
 
 /* ------------------------------------------------------------------ */
+
+/** "· fehlt noch" hinter einer Beschriftung -- erst nach einem Klick auf "Weiter", ohne Warnfarbe. */
+function Fehlt() {
+  const { t } = useTranslation(['intake', 'intakeCatalog']);
+  return <span className="font-normal text-muted-foreground"> · {t('etappen.missing')}</span>;
+}
 
 function ChipWahl({ optionen, wert, onWahl, anzeige }: { optionen: [string, string][]; wert: string; onWahl: (v: string) => void; anzeige?: string }) {
   const { t } = useTranslation(['intake', 'intakeCatalog']);
@@ -1182,7 +1151,7 @@ function ChipWahl({ optionen, wert, onWahl, anzeige }: { optionen: [string, stri
             'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs transition-colors',
             wert === v ? 'border-primary bg-primary/10 text-foreground'
               // Was die Anzeige sagt, bleibt gestrichelt sichtbar (13.11.2026).
-              : anzeige === v ? 'border-dashed border-blue-500/70 text-blue-600 hover:bg-accent dark:text-blue-300'
+              : anzeige === v ? 'border-dashed border-foreground/50 text-foreground hover:bg-accent'
               : 'border-input text-muted-foreground hover:bg-accent hover:text-foreground',
           )}
           title={anzeige === v && wert !== v ? t('etappen.anzeige.optionTitle') : undefined}
@@ -1259,7 +1228,7 @@ function BausteinFeld({ wert, angebote, onSet, anzeige }: {
         {bausteine.length > 0 && (
           <div className="mb-1 flex flex-wrap gap-1.5">
             {bausteine.map((b) => (
-              <span key={b} className="inline-flex items-center gap-1 rounded-full bg-foreground px-2.5 py-0.5 text-xs text-background">
+              <span key={b} className="inline-flex items-center gap-1 rounded-full border border-foreground px-2.5 py-0.5 text-xs font-medium ring-1 ring-foreground">
                 {anzeige(b)}
                 <button type="button" aria-label={t('etappen.block.remove', { name: anzeige(b) })} onClick={() => schreibe(bausteine.filter((x) => x !== b), frei)}>
                   <X className="h-3 w-3" />
@@ -1319,7 +1288,12 @@ function BenefitsTeil({ type, gewaehlt, automatisch, onChange }: {
   );
   return (
     <div className="space-y-3">
-      <p className="text-base font-semibold">{t('etappen.benefits.heading')} <span className="text-xs font-normal text-muted-foreground">{t('shared.optional')}</span></p>
+      <p className="text-base font-semibold tracking-tight">
+        {t('etappen.benefits.heading')}{' '}
+        <span className="text-xs font-normal text-muted-foreground">
+          · {t('etappen.benefits.optional')}{gewaehlt.length > 0 && <> · {t('etappen.benefits.chosen', { count: gewaehlt.length })}</>}
+        </span>
+      </p>
       <div className="space-y-2">
         {gruppen.map((g) => (
           <div key={g.titel} className="grid grid-cols-[6rem_minmax(0,1fr)] items-start gap-2">
@@ -1342,7 +1316,7 @@ function BenefitsTeil({ type, gewaehlt, automatisch, onChange }: {
           placeholder={t('etappen.benefits.morePlaceholder')}
           className="h-8 text-sm"
         />
-        <Button type="button" size="sm" variant="outline" className="h-8 shrink-0" disabled={!eigenes.trim()} onClick={dazu}>
+        <Button type="button" size="sm" variant="secondary" className="h-8 shrink-0 rounded-full px-4" disabled={!eigenes.trim()} onClick={dazu}>
           {t('etappen.benefits.addButton')}
         </Button>
       </div>
@@ -1381,51 +1355,57 @@ function KriterienTeil({ state, onState }: { state: CaptureState; onState: Props
     <div className="space-y-3 [&_input]:w-full sm:[&_input]:w-96" data-feld="kriterien" tabIndex={-1}>
       {/* Markos ganzer Satz steht immer da -- er verschwand vorher, sobald
           ein Kriterium eingetragen war (Durchklick 04.11.2026). */}
-      {q?.intro && <p className="text-xs italic text-muted-foreground">{frageIntroT(q)}</p>}
-      <p className="text-base font-semibold leading-snug">{q ? frageTextT(q, state.type) : ''}</p>
-      {kriterien.length > 0 && q && frageKurz(q, state.type) && (
-        <p className="-mt-1 text-xs text-muted-foreground">{frageKurzT(q, state.type)}</p>
-      )}
+      {q?.intro && <p className="text-xs text-muted-foreground">{frageIntroT(q)}</p>}
+      <div>
+        <p className="text-base font-semibold leading-snug tracking-tight">{q ? frageTextT(q, state.type) : ''}</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {kriterien.length > 0
+            ? <>
+                {unmarkiert.length > 0
+                  ? t('profile.countsUnrated', { fix: nach('fix').length, negotiable: nach('negotiable').length, flexible: nach('flexible').length, unrated: unmarkiert.length })
+                  : t('profile.counts', { fix: nach('fix').length, negotiable: nach('negotiable').length, flexible: nach('flexible').length })}
+                {' '}{t('etappen.kriterienHint')}
+              </>
+            : q && frageKurz(q, state.type) ? frageKurzT(q, state.type) : null}
+        </p>
+      </div>
 
-      {/* Voller Name, darunter EINE Auswahl je Zeile -- statt abgeschnittener
-          Namen und vier einzelner Ziele. */}
+      {/* Eine Zeile je Kriterium: Name links, daneben EINE graue Auswahl. */}
       <div>
         {kriterien.map((s) => {
           const flex = flexibility[s];
           return (
-            /* Immer dieselbe Ordnung: Name oben, Stufen darunter. Vorher standen
-               die Stufen bei kurzen Namen rechts, bei langen darunter (N2, 05.11.2026). */
-            <div key={s} className="space-y-1.5 border-b py-2 last:border-b-0">
-              <p className="min-w-0 text-sm">{s}</p>
-              <div className="flex flex-wrap items-center gap-3">
-              <div className="inline-flex overflow-hidden rounded-md border text-xs">
+            <div key={s} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b py-2 last:border-b-0">
+              <p className="min-w-[10rem] flex-1 text-sm">{s}</p>
+              <div className="inline-flex rounded-lg bg-muted p-0.5 text-xs">
                 {STUFEN.map((wert) => (
                   <button
                     key={wert}
                     type="button"
                     onClick={() => setFlex({ ...flexibility, [s]: flex === wert ? undefined : wert } as FlexibilityMap)}
                     className={cn(
-                      'border-r px-2.5 py-1 transition-colors',
-                      flex === wert ? 'bg-foreground font-medium text-background' : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+                      'rounded-md border px-2.5 py-1 transition-colors',
+                      flex === wert ? 'border-border bg-background font-medium text-foreground shadow-sm' : 'border-transparent text-muted-foreground hover:text-foreground',
                     )}
                   >
                     {t(`shared.flex.${wert}`)}
                   </button>
                 ))}
               </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    set({ must_haves: built.must_haves.filter((x) => x !== s), nice_to_haves: (built.nice_to_haves ?? []).filter((x) => x !== s) });
-                    const rest = { ...flexibility };
-                    delete rest[s];
-                    setFlex(rest);
-                  }}
-                  className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-                >
-                  {t('shared.remove')}
-                </button>
-              </div>
+              <button
+                type="button"
+                aria-label={`${t('shared.remove')}: ${s}`}
+                title={t('shared.remove')}
+                onClick={() => {
+                  set({ must_haves: built.must_haves.filter((x) => x !== s), nice_to_haves: (built.nice_to_haves ?? []).filter((x) => x !== s) });
+                  const rest = { ...flexibility };
+                  delete rest[s];
+                  setFlex(rest);
+                }}
+                className="rounded p-1 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
             </div>
           );
         })}
@@ -1465,21 +1445,9 @@ function KriterienTeil({ state, onState }: { state: CaptureState; onState: Props
       )}
 
       {nach('fix').length >= 8 && (
-        <p className="flex items-start gap-1.5 text-xs text-warning">
-          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          {t('profile.tooManyFix', { n: nach('fix').length })}
-        </p>
+        <p className="text-xs font-medium">{t('profile.tooManyFix', { n: nach('fix').length })}</p>
       )}
-      <p className="text-xs text-muted-foreground">
-        {unmarkiert.length > 0
-          ? t('profile.countsUnrated', { fix: nach('fix').length, negotiable: nach('negotiable').length, flexible: nach('flexible').length, unrated: unmarkiert.length })
-          : t('profile.counts', { fix: nach('fix').length, negotiable: nach('negotiable').length, flexible: nach('flexible').length })}
-      </p>
-      {q?.why && (
-        <p className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
-          <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-primary/60" /> {frageWhyT(q)}
-        </p>
-      )}
+      {q?.why && <p className="text-xs text-muted-foreground">{frageWhyT(q)}</p>}
     </div>
   );
 }
@@ -1517,8 +1485,10 @@ function Pruefen({
   ];
   return (
     <div className="space-y-4">
-      <p className="text-base font-semibold">{t('etappen.pruefen.title')}</p>
-      <p className="text-xs text-muted-foreground">{t('etappen.pruefen.lead')}</p>
+      <div>
+        <p className="text-base font-semibold tracking-tight">{t('etappen.pruefen.title')}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{t('etappen.pruefen.lead')}</p>
+      </div>
       <div className="rounded-lg border p-3">
         {zeilen.map(([l, v]) => (
           <p key={l} className="flex justify-between gap-3 py-0.5 text-sm">
@@ -1528,22 +1498,19 @@ function Pruefen({
         ))}
       </div>
       {sperren.length > 0 ? (
-        <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-sm">
-          <p className="mb-1.5 flex items-center gap-1.5 font-medium">
-            <AlertTriangle className="h-4 w-4 text-amber-600" /> {t('etappen.pruefen.missingHead')}
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {sperren.map((x) => (
-              <button key={x.key} type="button" onClick={() => onSprung(x.key)}
-                className="rounded-full border border-amber-500/40 px-2.5 py-0.5 text-xs hover:bg-amber-500/10">
-                {x.label} →
-              </button>
-            ))}
-          </div>
+        <div className="rounded-lg border px-3 pt-3 text-sm">
+          <p className="pb-2 font-medium">{t('etappen.pruefen.missingCount', { count: sperren.length })}</p>
+          {sperren.map((x) => (
+            <button key={x.key} type="button" onClick={() => onSprung(x.key)}
+              className="flex w-full items-center justify-between gap-3 border-t py-2 text-left hover:bg-accent/40">
+              <span className="min-w-0 truncate">{x.label}</span>
+              <span className="shrink-0 text-klick">{t('etappen.pruefen.fill')} ›</span>
+            </button>
+          ))}
         </div>
       ) : (
-        <p className="flex items-center gap-1.5 text-sm text-emerald-600">
-          <CheckCircle2 className="h-4 w-4" /> {t('etappen.pruefen.allSet')}
+        <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <Check className="h-4 w-4" /> {t('etappen.pruefen.allSet')}
         </p>
       )}
     </div>

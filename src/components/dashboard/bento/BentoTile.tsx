@@ -23,7 +23,7 @@ export function BentoTile({ icon: Icon, title, count, to, toLabel, children }: B
       <CardContent className="p-5 flex flex-col h-full">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2 min-w-0">
-            <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+            <Icon className="h-4 w-4 text-klick shrink-0" />
             <h2 className="font-semibold truncate">{title}</h2>
             {count != null && count !== '' && (
               <span className="text-sm text-muted-foreground shrink-0">{count}</span>

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Loader2, Search } from 'lucide-react';
+import { ChevronDown, Loader2, Search } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { useBesetzungen, type BesetzungGroup, type BesetzungItem } from '@/lib/besetzungApi';
 import { useClientTasks } from '@/lib/clientTasksApi';
@@ -60,6 +61,7 @@ export default function ClientBesetzungen() {
     for (const i of items) m.set(i.jobId, { id: i.jobId, title: i.jobTitle, n: (m.get(i.jobId)?.n ?? 0) + 1 });
     return [...m.values()];
   }, [items]);
+  const aktiveStelle = jobFilter ? jobs.find((j) => j.id === jobFilter) ?? null : null;
   const filtered = useMemo(() => {
     const s = search.trim().toLowerCase();
     return items.filter((i) => (!jobFilter || i.jobId === jobFilter) && (!s || `${i.name} ${i.jobTitle} ${i.recruiterName ?? ''}`.toLowerCase().includes(s)));
@@ -116,35 +118,48 @@ export default function ClientBesetzungen() {
             </div>
 
             <div className="space-y-3">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <div className="handy-wischen contents max-md:flex max-md:w-full max-md:gap-1.5">
+              {/* Apple-Stil (22.11.2026): Reiter als ruhige graue Pillen, die Stelle über ein Menü statt zwei Zeilen Pillen */}
+              <div className="flex flex-wrap items-center gap-2">
+                <div role="tablist" className="handy-wischen flex min-w-0 gap-1 max-md:w-full">
                   {TABS.map((tb) => (
-                    <Button key={tb.key} size="sm" variant={tab === tb.key ? 'default' : 'outline'} className="h-8" onClick={() => setTab(tb.key)}>
-                      {t('page.tabCount', { label: t(`page.tabs.${tb.key}`), count: counts[tb.key] })}
-                    </Button>
+                    <button key={tb.key} type="button" role="tab" aria-selected={tab === tb.key} onClick={() => setTab(tb.key)}
+                      className={cn('h-8 shrink-0 whitespace-nowrap rounded-full px-3.5 text-xs font-medium transition-colors', tab === tb.key ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground')}>
+                      {t(`page.tabs.${tb.key}`)} <span className="font-normal">{counts[tb.key]}</span>
+                    </button>
                   ))}
                 </div>
-                <div className="relative ml-auto w-full sm:w-56">
-                  <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                  <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('page.searchPlaceholder')} className="h-8 pl-8 text-sm" aria-label={t('page.search')} />
+                <div className="ml-auto flex w-full items-center gap-2 sm:w-auto">
+                  {jobs.length > 1 && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" className="h-8 max-w-[14rem] shrink-0 gap-1.5 text-xs">
+                          <span className="truncate">{aktiveStelle ? <StellenTitelKurz titel={aktiveStelle.title} /> : t('page.allJobs')}</span>
+                          <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-72">
+                        <DropdownMenuItem className="cursor-pointer" onClick={() => setJobFilter(null)}><span className={cn(!jobFilter && 'font-medium')}>{t('page.allJobs')}</span></DropdownMenuItem>
+                        {jobs.map((j) => (
+                          <DropdownMenuItem key={j.id} className="cursor-pointer justify-between gap-3" onClick={() => setJobFilter(j.id)}>
+                            <span className={cn('truncate', jobFilter === j.id && 'font-medium')}>{j.title}</span>
+                            <span className="text-xs text-muted-foreground">{j.n}</span>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                  <div className="relative w-full sm:w-56">
+                    <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('page.searchPlaceholder')} className="h-8 pl-8 text-sm" aria-label={t('page.search')} />
+                  </div>
                 </div>
               </div>
-              {jobs.length > 1 && (
-                <div className="handy-wischen flex flex-wrap items-center gap-1.5">
-                  <Button size="sm" variant={jobFilter ? 'outline' : 'secondary'} className="h-7 text-xs" onClick={() => setJobFilter(null)}>{t('page.allJobs')}</Button>
-                  {jobs.map((j) => (
-                    <Button key={j.id} size="sm" variant={jobFilter === j.id ? 'secondary' : 'outline'} className="h-7 max-w-[16rem] text-xs" onClick={() => setJobFilter(jobFilter === j.id ? null : j.id)}>
-                      <span className="truncate"><StellenTitelKurz titel={j.title} /></span>&nbsp;· {j.n}
-                    </Button>
-                  ))}
-                </div>
-              )}
               <p className="text-sm text-muted-foreground">{introOf(tab)}</p>
             </div>
 
             <div className="space-y-2">
               {list.length === 0 ? (
-                <p className={cn('rounded-xl border bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground')}>{search || jobFilter ? t('page.nothingFound') : t(`page.empty.${tab}`)}</p>
+                <p className="rounded-xl border bg-card px-4 py-6 text-center text-sm text-muted-foreground">{search || jobFilter ? t('page.nothingFound') : t(`page.empty.${tab}`)}</p>
               ) : list.map((i) => <BesetzungCard key={i.submissionId} item={i} hasTask={taskSubs.has(i.submissionId)} onOpen={() => open(i)} />)}
             </div>
           </>

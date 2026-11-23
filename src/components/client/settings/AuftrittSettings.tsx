@@ -27,8 +27,8 @@ function Vorschau({ p }: { p: CompanyProfile }) {
     .slice(0, 3);
   const kopf = [p.industry, groesse(p.headcount)].filter(Boolean).join(' · ');
   return (
-    <aside className="space-y-2 rounded-xl border border-border bg-card p-5 lg:sticky lg:top-24">
-      <h2 className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{t('auftritt.previewTitle')}</h2>
+    <aside className="space-y-2 rounded-xl border bg-card p-5 lg:sticky lg:top-24">
+      <h2 className="mb-1 text-[15px] font-semibold tracking-tight">{t('auftritt.previewTitle')}</h2>
       <p className="text-sm font-medium">{kopf || t('auftritt.previewMissing')}</p>
       <p className="text-xs text-muted-foreground">{t('auftritt.previewName')}</p>
       {punkte.length > 0
@@ -48,7 +48,7 @@ export function AuftrittSettings({ company, onBack }: { company: ReturnType<type
 
   return (
     <SettingsSubpage title={t('auftritt.title')} description={t('auftritt.description')} saveState={saveState} onBack={onBack}>
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_240px]">
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="space-y-5">
           <SettingsBlock title={t('auftritt.facts')}>
             <div className="grid gap-4 md:grid-cols-3">

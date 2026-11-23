@@ -4,6 +4,8 @@ import type { Messages } from '../../types';
 const nb: Messages<typeof de> = {
   title: 'Varsler',
   markAllRead: 'Merk alle som lest',
+  newCount: '{{count}} nye',
+  group: { today: 'I dag', week: 'Siste 7 dager', earlier: 'Tidligere' },
   empty: 'Ingen varsler',
   showAll: 'Vis alle',
   justNow: 'Akkurat nå',

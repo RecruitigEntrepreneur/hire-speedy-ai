@@ -34,7 +34,7 @@ import { taskHref, useClientTasks, type ClientTask } from '@/lib/clientTasksApi'
 import { ClientTaskWindow } from '@/components/client/tasks/ClientTaskWindow';
 import { CandidatesTab, ContractTab, InterviewsTab, JobTabsBar, MarketTab, TeamTab, costLineOf, isJobTab, type HistoryEvent, type JobTab } from '@/components/client/job/JobSubpages';
 import { SectionCard } from '@/components/client/job/JobControl';
-import { JobsAnalytics } from '@/components/client/jobs/JobsAnalytics';
+import { JobAnalytics } from '@/components/client/analytics/JobAnalytics';
 import { computeJobState } from '@/lib/jobCockpit';
 import { useBewerber } from '@/hooks/useBewerber';
 import { useClientInterviewAgenda } from '@/hooks/useClientInterviewAgenda';
@@ -882,11 +882,11 @@ export default function ClientJobDetail() {
           />
         )}
         {activeTab === 'auswertung' && (
-          <JobsAnalytics
-            single
-            title={job.title}
-            items={bewerberItems}
-            jobs={[{ id: job.id, title: job.title, status: job.status, approved_at: job.approved_at, created_at: job.created_at, closed_at: (rawJob.closed_at as string | null) ?? null }]}
+          <JobAnalytics
+            job={{
+              id: job.id, title: job.title, status: job.status, approved_at: job.approved_at, created_at: job.created_at,
+              closed_at: (rawJob.closed_at as string | null) ?? null, salary_min: job.salary_min, salary_max: job.salary_max,
+            }}
           />
         )}
         {activeTab === 'team' && (

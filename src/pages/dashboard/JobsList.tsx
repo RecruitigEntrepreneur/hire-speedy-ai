@@ -21,8 +21,8 @@ import { avatarUrl, errorText, getJobSearchers, getJobsSearcherCounts, resumeJob
 import { PauseJobDialog } from '@/components/client/job-manage/PauseJobDialog';
 import { JobPrepChecklist } from '@/components/client/job/JobPrepChecklist';
 import { ClientTaskWindow } from '@/components/client/tasks/ClientTaskWindow';
-import { JobsAnalytics } from '@/components/client/jobs/JobsAnalytics';
 import { stellenVerlauf, verlaufDatum, type VerlaufJob } from '@/lib/stellenVerlauf';
+import { JobsAnalytics } from '@/components/client/jobs/JobsAnalytics';
 import { useBewerber, type BewerberItem } from '@/hooks/useBewerber';
 import { useClientInterviewAgenda, type AgendaInterview } from '@/hooks/useClientInterviewAgenda';
 import { taskHref, useClientTasks, type ClientNewsItem, type ClientTask } from '@/lib/clientTasksApi';
@@ -306,7 +306,7 @@ export default function JobsList() {
               {copySources.length > 0 && (
                 <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="text-[11px] font-normal uppercase tracking-wide text-muted-foreground">{t('jobs2.new.copyLabel')}</DropdownMenuLabel>
+                  <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">{t('jobs2.new.copyLabel')}</DropdownMenuLabel>
                   {copySources.map((j) => (
                     <DropdownMenuItem key={j.id} onClick={() => duplicate(j)}>
                       <Copy className="mr-2 h-4 w-4 shrink-0" /><span className="truncate">{j.title}</span>
@@ -322,7 +322,7 @@ export default function JobsList() {
         <nav className="mt-8 flex gap-6 overflow-x-auto border-b" aria-label={t('list.title')}>
           {TABS.map((x) => (
             <button key={x} type="button" onClick={() => { setTab(x); setOwner(null); setPicked([]); }}
-              className={cn('shrink-0 border-b-2 px-0.5 pb-2.5 text-sm transition-colors', tab === x ? 'border-foreground font-medium text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground')}>
+              className={cn('shrink-0 border-b-2 px-0.5 pb-2.5 text-sm transition-colors', tab === x ? 'border-klick font-medium text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground')}>
               {t(`jobs2.tab.${x}`)}{x !== 'analytics' && <span className="ml-1.5 text-muted-foreground">{counts[x]}</span>}
             </button>
           ))}
@@ -568,7 +568,7 @@ function ActiveCard({ job, owner, ownerFull, items, news, searchers, nextIntervi
           <h3 className="truncate text-base font-semibold tracking-tight">{job.title}</h3>
           <p className="text-[13px] text-muted-foreground">{metaLine(job, t('jobs2.since', { count: live }))}</p>
           <div className="mt-3 w-72 max-w-full" data-card="steps">
-            <div className="flex gap-1">{STEPS.map((st, i) => <span key={st} className={cn('h-1 flex-1 rounded-full', i <= stage ? 'bg-foreground' : 'bg-border')} />)}</div>
+            <div className="flex gap-1">{STEPS.map((st, i) => <span key={st} className={cn('h-1 flex-1 rounded-full', i <= stage ? 'bg-klick' : 'bg-border')} />)}</div>
             <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
               {STEPS.map((st, i) => <span key={st} className={cn(i === stage && 'font-medium text-foreground')}>{t(`jobs2.step.${st}`)}</span>)}
             </div>
@@ -659,7 +659,7 @@ function ReviewCard({ job, owner, ownerFull, onWithdraw }: { job: JobRow; owner:
       </div>
       <div className="mt-5 grid max-w-xl gap-2" style={{ gridTemplateColumns: `repeat(${steps.length + (eta ? 0 : 0)}, minmax(0,1fr))` }}>
         {steps.map((s) => (
-          <div key={s.key} className={cn('border-t-2 pt-2 text-[11px]', s.zustand === 'offen' ? 'border-border text-muted-foreground' : 'border-foreground')}>
+          <div key={s.key} className={cn('border-t-2 pt-2 text-[11px]', s.zustand === 'offen' ? 'border-border text-muted-foreground' : 'border-klick')}>
             <p className="font-medium text-foreground">{s.zustand === 'erledigt' && s.datum ? verlaufDatum(s.datum) : s.zustand === 'aktuell' ? t('jobs2.review.now') : s.key === 'live' && eta ? fmtWeekdayDayMonth(eta) : '–'}</p>
             <p className="text-muted-foreground">{s.key === 'live' && eta ? t('jobs2.review.expectedLive') : s.label}</p>
           </div>
@@ -681,7 +681,7 @@ function DraftsList({ jobs, ownerName, picked, onPick, onPickAll, onDelete, onOp
   const ids = jobs.map((j) => j.id);
   const group = (title: string, list: JobRow[]) => list.length > 0 && (
     <div className="space-y-3">
-      <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">{title} · {list.length}</p>
+      <p className="px-1 text-[15px] font-semibold tracking-tight">{title} <span className="font-normal text-muted-foreground">· {list.length}</span></p>
       {list.map((j) => <DraftCard key={j.id} job={j} owner={ownerName(j.client_id)} picked={picked.includes(j.id)} onPick={() => onPick(j.id)} onOpen={() => onOpen(j)} />)}
     </div>
   );
@@ -695,7 +695,7 @@ function DraftsList({ jobs, ownerName, picked, onPick, onPickAll, onDelete, onOp
       {group(t('jobs2.drafts.working'), working)}
       {resting.length > 0 && (
         <div className="space-y-3">
-          <button type="button" onClick={onToggleResting} className="flex items-center gap-1 text-[11px] uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground">
+          <button type="button" onClick={onToggleResting} className="flex items-center gap-1 px-1 text-xs font-medium text-muted-foreground hover:text-foreground">
             {t('jobs2.drafts.resting', { count: resting.length })}<ChevronDown className={cn('h-3.5 w-3.5 transition-transform', showResting && 'rotate-180')} />
           </button>
           {showResting && resting.map((j) => <DraftCard key={j.id} job={j} owner={ownerName(j.client_id)} picked={picked.includes(j.id)} onPick={() => onPick(j.id)} onOpen={() => onOpen(j)} />)}
@@ -712,7 +712,7 @@ function DraftCard({ job, owner, picked, onPick, onOpen }: { job: JobRow; owner:
   const missing = missingOf(job);
   const done = 4 - missing.length;
   return (
-    <div className={cn('flex gap-4 rounded-2xl border bg-card px-5 py-4', reason && 'border-l-4 border-l-amber-500')}>
+    <div className={cn('flex gap-4 rounded-2xl border bg-card px-5 py-4', reason && 'border-transparent')}>
       <Checkbox checked={picked} onCheckedChange={onPick} className="mt-1.5" aria-label={t('jobs2.drafts.pick')} />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -731,7 +731,7 @@ function DraftCard({ job, owner, picked, onPick, onOpen }: { job: JobRow; owner:
           <p className="mt-3 text-sm">{t('jobs2.drafts.returnedBecause', { reason })}</p>
         ) : (
           <div className="mt-4 flex flex-wrap items-center gap-4">
-            <div className="flex w-32 gap-1">{[0, 1, 2, 3].map((i) => <span key={i} className={cn('h-1 flex-1 rounded-full', i < done ? 'bg-foreground' : 'bg-border')} />)}</div>
+            <div className="flex w-32 gap-1">{[0, 1, 2, 3].map((i) => <span key={i} className={cn('h-1 flex-1 rounded-full', i < done ? 'bg-klick' : 'bg-border')} />)}</div>
             <span className="text-sm text-muted-foreground">
               {missing.length === 0 ? t('jobs2.drafts.complete') : t('jobs2.drafts.missing', { list: missing.map((m) => t(`jobs2.missing.${m}`)).join(', '), minutes: missing.length * 2 })}
             </span>

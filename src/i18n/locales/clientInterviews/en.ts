@@ -60,6 +60,22 @@ const en: Messages<typeof de> = {
     feedbackDue: 'Feedback due',
     past: 'Past · {{count}}',
     saving: 'Saving …',
+    next: 'Up next',
+    position: '{{n}} of {{total}}',
+    later: 'Later',
+    prev: 'Previous step',
+    nextStep: 'Next step',
+    heroWas: 'Interview was on {{when}}',
+    upcoming: 'Upcoming',
+    pastTab: 'Past',
+    allTypes: 'All types',
+    noneForFilter: 'Nothing for this filter.',
+    sumFeedback_one: '{{count}} feedback open',
+    sumFeedback_other: '{{count}} feedbacks open',
+    sumAwaiting_one: '{{count}} waiting for the candidate to reply',
+    sumAwaiting_other: '{{count}} waiting for the candidate to reply',
+    sumCounter_one: '{{count}} candidate asks for another time',
+    sumCounter_other: '{{count}} candidates ask for another time',
   },
 
   common: {
@@ -125,6 +141,7 @@ const en: Messages<typeof de> = {
   },
 
   cancel: {
+    keep: 'Keep appointment',
     withdrawn: 'Request withdrawn. Candidate and headhunter have been informed.',
     cancelled: 'Interview cancelled. Everyone involved receives the cancellation.',
     failed: 'Cancellation failed.',
@@ -146,6 +163,8 @@ const en: Messages<typeof de> = {
   },
 
   hero: {
+
+    title: 'Your next interview',
     live: 'in progress',
     inMinutes: 'starts in {{m}} min',
     inHours: 'starts in {{h}} h {{m}} min',
@@ -289,6 +308,7 @@ const en: Messages<typeof de> = {
       phone: 'Once the time is set: {{names}} receive the invitation with the candidate’s number, the candidate gets their own',
       onsite: 'Once the time is set: {{names}} receive the invitation with the address, the candidate gets their own',
     },
+    cancel: 'Cancel',
     previewMail: 'View the email as the candidate receives it',
     needName: 'Please enter your name above.',
     needSlot: 'Choose at least one time.',
@@ -342,6 +362,9 @@ const en: Messages<typeof de> = {
     dayEmpty: 'No times on this day within your interview hours.',
     removeAria: 'Remove {{slot}}',
     legendGreen: 'green = everyone free',
+    legendBlue: 'Blue: your proposal',
+    legendDot: 'Dot: only the required attendees are free',
+    legendBusy: 'busy',
     legendYellow: 'yellow = all required attendees free',
     legendGrey: 'grey = busy',
     legendDashed: 'dashed = unchecked',

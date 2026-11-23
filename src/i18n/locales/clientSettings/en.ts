@@ -14,6 +14,11 @@ const en: Messages<typeof de> = {
   },
 
   hub: {
+    summaryReady: '{{company}} is set up.',
+    summaryOpen_one: '{{company}}: {{count}} item is still open.',
+    summaryOpen_other: '{{company}}: {{count}} items are still open.',
+    calendarOnly: 'Only your calendar is still open.',
+    calendarAlso: 'Your calendar is not connected yet.',
     title: 'Settings',
     complete: 'Complete',
     openPoints_one: ' · {{count}} item open',
@@ -39,6 +44,7 @@ const en: Messages<typeof de> = {
         checking: 'Checking …',
         connected: 'Outlook connected',
         notConnected: 'Not connected',
+        connectNow: 'Connect now',
       },
       auftritt: {
         title: 'Profile for headhunters',
@@ -46,7 +52,7 @@ const en: Messages<typeof de> = {
         missing_one: '{{count}} detail missing',
         missing_other: '{{count}} details missing',
       },
-      team: { title: 'Team', text: 'Colleagues and permissions', status: 'Opens the team page' },
+      team: { title: 'Team', text: 'Colleagues and permissions', status: 'Opens the team page', people_one: '{{count}} person', people_other: '{{count}} people' },
       unternehmen: { title: 'Company', text: 'Name, logo, billing address', missing: 'Missing: {{fields}}' },
       vertrag: { title: 'Contract and invoices', text: 'Framework agreement, invoices' },
     },

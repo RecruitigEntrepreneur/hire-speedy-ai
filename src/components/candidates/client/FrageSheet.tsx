@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Lock } from 'lucide-react';
+import { ArrowUp, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -102,68 +102,48 @@ export function FrageSheet({ open, onOpenChange, submitter, submissionId, jobId,
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-md">
-        <SheetHeader className="space-y-0 text-left">
-          <div className="flex items-center gap-3">
-            <Avatar className="h-9 w-9">
-              {submitter?.photo && <AvatarImage src={submitter.photo} alt="" />}
-              <AvatarFallback className="bg-primary/10 text-xs text-primary">{initialsOf(name)}</AvatarFallback>
-            </Avatar>
-            <div className="min-w-0">
-              <SheetTitle className="text-base">{t('preview.askHh', { name })}</SheetTitle>
-              <SheetDescription className="text-xs">
-                {iv?.interview_date ? t('frage.interviewed') : t('frage.submitted')}
-              </SheetDescription>
+        {/* C1 (22.11.2026): wie ein Gespräch – Verlauf oben, Vorschläge und Eingabe unten */}
+        <SheetHeader className="space-y-0.5 text-left">
+          <SheetTitle className="text-base">{t('preview.askHh', { name })}</SheetTitle>
+          <SheetDescription asChild>
+            <div>
+              <p className="text-sm font-medium text-foreground">{role || code}</p>
+              <p className="text-xs">{role ? `${code} · ` : ''}{jobTitle} · {iv?.interview_date ? t('frage.interviewed') : t('frage.submitted')}</p>
             </div>
-          </div>
+          </SheetDescription>
         </SheetHeader>
 
-        <div className="mt-4 rounded-md bg-muted/50 px-3 py-2 text-xs">
-          {t('frage.about')} <span className="font-medium">{code}</span>{role ? ` · ${role}` : ''}
-          <br />
-          <span className="text-muted-foreground">{t('card.for', { job: jobTitle })}</span>
-        </div>
-
-        {common.length > 0 && (
-          <div className="mt-4">
-            <p className="text-xs text-muted-foreground">{t('frage.common')}</p>
-            <div className="mt-1.5 flex flex-wrap gap-1.5">{common.map((q) => <Chip key={q.text} label={q.label} value={q.text} />)}</div>
-          </div>
-        )}
-        {fromAssessment.length > 0 && (
-          <div className="mt-3">
-            <p className="text-xs text-muted-foreground">{t('frage.fromAssessment')}</p>
-            <div className="mt-1.5 flex flex-wrap gap-1.5">{fromAssessment.map((q) => <Chip key={q.text} label={q.label} value={q.text} />)}</div>
-          </div>
-        )}
-
-        <Textarea
-          value={text}
-          onChange={(e) => { setText(e.target.value); setError(''); }}
-          placeholder={t('frage.placeholder', { name })}
-          className="mt-4 min-h-[90px] text-sm"
-          maxLength={1000}
-        />
-        {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
-        {!identityUnlocked && (
-          <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Lock className="h-3 w-3 shrink-0" />
-            {t('frage.protected')}
-          </p>
-        )}
-        <Button className="mt-3 w-full" onClick={() => void send()} disabled={busy}>
-          {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {t('frage.send')}
-        </Button>
-        <p className="mt-3 border-t pt-3 text-xs text-muted-foreground">
-          {t('frage.footer', { name })}
-        </p>
-
         {(thread.data?.messages.length ?? 0) > 0 && (
-          <div className="mt-4">
-            <p className="mb-1.5 text-xs text-muted-foreground">{t('frage.previous')}</p>
-            <QuestionThreadList messages={thread.data!.messages} name={name} />
+          <div className="mt-4 border-t pt-4">
+            <QuestionThreadList messages={thread.data!.messages} name={name} blasen />
           </div>
         )}
+
+        <div className="mt-4 border-t pt-4">
+          {(common.length > 0 || fromAssessment.length > 0) && (
+            <div className="mb-3 flex flex-wrap gap-1.5">
+              {common.map((q) => <Chip key={q.text} label={q.label} value={q.text} />)}
+              {fromAssessment.map((q) => <Chip key={q.text} label={q.label} value={q.text} />)}
+            </div>
+          )}
+          <div className="flex items-end gap-2">
+            <Textarea
+              value={text}
+              onChange={(e) => { setText(e.target.value); setError(''); }}
+              placeholder={t('frage.placeholder', { name })}
+              className="min-h-[44px] flex-1 text-sm"
+              rows={text.length > 60 ? 3 : 1}
+              maxLength={1000}
+            />
+            <Button size="icon" className="h-10 w-10 shrink-0 rounded-full" onClick={() => void send()} disabled={busy || !text.trim()} aria-label={t('frage.send')}>
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" />}
+            </Button>
+          </div>
+          {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
+          <p className="mt-3 text-xs text-muted-foreground">
+            {t('frage.footer', { name })}{!identityUnlocked && <> {t('frage.protected')}</>}
+          </p>
+        </div>
       </SheetContent>
     </Sheet>
   );

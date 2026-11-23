@@ -65,13 +65,13 @@ export function InvoiceExport({ invoices, recipientName }: { invoices: ClientInv
   };
 
   const choice = (active: boolean, onClick: () => void, label: string) => (
-    <Button key={label} size="sm" variant={active ? 'default' : 'outline'} className="h-8" onClick={onClick}>{label}</Button>
+    <Button key={label} size="sm" variant={active ? 'secondary' : 'ghost'} className="h-8" onClick={onClick}>{label}</Button>
   );
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">{t('export.intro')}</p>
-      <div className="rounded-xl border p-4">
+      <div className="rounded-xl border bg-card p-4">
         <p className="mb-2 text-xs text-muted-foreground">{t('export.rangeTitle')}</p>
         <div className="flex flex-wrap gap-1.5">
           {choice(range === 'month', () => setRange('month'), rangeOf('month', '', '').label)}
@@ -88,7 +88,7 @@ export function InvoiceExport({ invoices, recipientName }: { invoices: ClientInv
           </div>
         )}
       </div>
-      <div className="rounded-xl border p-4">
+      <div className="rounded-xl border bg-card p-4">
         <p className="mb-2 text-xs text-muted-foreground">{t('export.format')}</p>
         <div className="flex flex-wrap items-center gap-1.5">
           {choice(format === 'csv', () => setFormat('csv'), t('export.csv'))}

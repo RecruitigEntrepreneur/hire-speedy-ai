@@ -7,9 +7,7 @@ export function KalenderSettings({ onBack }: { onBack: () => void }) {
   const { t } = useTranslation('clientSettings');
   return (
     <SettingsSubpage title={t('calendar.title')} description={t('calendar.description')} onBack={onBack}>
-      <div id="kalender" className="scroll-mt-24">
-        <CalendarSettingsSection />
-      </div>
+      <CalendarSettingsSection />
     </SettingsSubpage>
   );
 }

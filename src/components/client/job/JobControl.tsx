@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowRight, Check, ChevronDown, ChevronRight, FileDown, History, Loader2, Lock, MoreHorizontal, Pause, PencilLine, Play } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, FileDown, History, Loader2, Lock, MoreHorizontal, Pause, PencilLine, Play } from 'lucide-react';
 import i18n from '@/i18n';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -36,7 +36,7 @@ export function SectionCard({ title, aside, children, className }: { title: Reac
   return (
     <div className={cn('rounded-xl border bg-card p-4', className)}>
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{title}</h3>
+        <h3 className="text-[15px] font-semibold tracking-tight">{title}</h3>
         {aside}
       </div>
       {children}
@@ -69,10 +69,8 @@ export function JobStatusMenu({ state, stateLabel, canManage, onPause, onResume,
   state: JobRunState; stateLabel: string; canManage: boolean; onPause: () => void; onResume: () => void; onClose: () => void;
 }) {
   const { t } = useTranslation('clientJobs');
-  const dot = state === 'active' ? 'bg-success' : state === 'paused' ? 'bg-amber-500' : 'bg-muted-foreground';
   const trigger = (
     <Button variant="outline" size="sm" className="gap-2" disabled={state === 'terminal' || !canManage}>
-      <span className={cn('h-2 w-2 rounded-full', dot)} aria-hidden="true" />
       {stateLabel}
       {state !== 'terminal' && canManage && <ChevronDown className="h-3.5 w-3.5" />}
     </Button>
@@ -207,7 +205,7 @@ export function SearcherLine({ searchers, onDetails }: { searchers: JobSearcher[
             {current.length > 1 && <span className="text-muted-foreground"> {t('cockpit.searchers.more', { count: current.length - 1 })}</span>}
             {lastActive && <span className="text-muted-foreground"> · {t('cockpit.searchers.active', { date: fmtDayMonth(lastActive) })}</span>}
           </p>
-          <button type="button" className={cn(linkBtn, 'max-sm:basis-full max-sm:justify-start')} onClick={onDetails}>{t('cockpit.searchers.all')}<ArrowRight className="h-3 w-3" /></button>
+          <button type="button" className={cn(linkBtn, 'max-sm:basis-full max-sm:justify-start')} onClick={onDetails}>{t('cockpit.searchers.all')}<ChevronRight className="h-3 w-3" /></button>
         </>
       )}
     </div>
@@ -240,7 +238,7 @@ export function WorkList({ tasks, waiting, items, jobId, loading, onOpen }: {
   return (
     <SectionCard
       title={t('cockpit.work.title')}
-      aside={<button type="button" className={linkBtn} onClick={() => navigate(`/dashboard/candidates?job=${jobId}&tab=alle`)}>{t('cockpit.work.inbox')}<ArrowRight className="h-3 w-3" /></button>}
+      aside={<button type="button" className={linkBtn} onClick={() => navigate(`/dashboard/candidates?job=${jobId}&tab=alle`)}>{t('cockpit.work.inbox')}<ChevronRight className="h-3 w-3" /></button>}
     >
       {loading ? (
         <div className="py-2"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
@@ -309,7 +307,7 @@ export function WorkList({ tasks, waiting, items, jobId, loading, onOpen }: {
                   {waiting.find((w) => w.submissionId === item.submissionId)?.title ?? t('cockpit.work.since', { count: Math.floor(item.hoursWaiting / 24) })}
                 </span>
               </span>
-              <BewerberStatusPill item={item} />
+              <BewerberStatusPill item={item} className="bg-transparent px-0 text-xs font-normal text-muted-foreground dark:bg-transparent dark:text-muted-foreground" />
               <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60" aria-hidden="true" />
             </button>
           ))}
@@ -407,7 +405,7 @@ export function SearchStatusCard({ liveDays, searchers, items, tabCounts, hiredC
       <div className="grid grid-cols-4 gap-1.5">
         {steps.map(([label, n]) => (
           <div key={label}>
-            <div className={cn('h-0.5 rounded-full', n > 0 ? 'bg-foreground' : 'bg-border')} />
+            <div className={cn('h-0.5 rounded-full', n > 0 ? 'bg-klick' : 'bg-border')} />
             <p className="mt-1.5 text-sm font-semibold">{n}</p>
             <p className="text-[11px] text-muted-foreground">{label}</p>
           </div>
@@ -445,7 +443,7 @@ export function SpeedCard({ openQuestions, items, onAnswer, onRequestChange, can
       {row(
         t('cockpit.speed.questions', { count: openQuestions.length }),
         t('cockpit.speed.questionsHint'),
-        openQuestions.length > 0 ? <Button size="sm" variant="outline" className="h-7 shrink-0 px-2.5 text-xs" onClick={() => onAnswer(openQuestions[0])}>{t('cockpit.speed.answer')}</Button> : undefined,
+        openQuestions.length > 0 ? <button type="button" className="shrink-0 whitespace-nowrap text-xs font-medium text-klick hover:underline" onClick={() => onAnswer(openQuestions[0])}>{t('cockpit.speed.answer')} ›</button> : undefined,
       )}
       {rejectedTotal > 0 && row(
         t('cockpit.speed.reasons', { with: withReason, total: rejectedTotal }),
@@ -454,7 +452,7 @@ export function SpeedCard({ openQuestions, items, onAnswer, onRequestChange, can
       {canRequest && row(
         t('cockpit.speed.change'),
         t('cockpit.speed.changeHint'),
-        <Button size="sm" variant="outline" className="h-7 shrink-0 px-2.5 text-xs" onClick={onRequestChange}>{t('cockpit.speed.changeCta')}</Button>,
+        <button type="button" className="shrink-0 whitespace-nowrap text-xs font-medium text-klick hover:underline" onClick={onRequestChange}>{t('cockpit.speed.changeCta')} ›</button>,
       )}
     </SectionCard>
   );
@@ -494,7 +492,7 @@ export function AgreementCard({ facts, onDetails, onHeadhunterView, onRequestCha
 }) {
   const { t } = useTranslation('clientJobs');
   return (
-    <SectionCard title={t('cockpit.agreement.title')} aside={<button type="button" className={linkBtn} onClick={onDetails}>{t('cockpit.agreement.details')}<ArrowRight className="h-3 w-3" /></button>}>
+    <SectionCard title={t('cockpit.agreement.title')} aside={<button type="button" className={linkBtn} onClick={onDetails}>{t('cockpit.agreement.details')}<ChevronRight className="h-3 w-3" /></button>}>
       {facts.length > 0 ? (
         <dl className="mb-3 space-y-1 text-sm">
           {facts.map(([label, value]) => (
@@ -508,8 +506,8 @@ export function AgreementCard({ facts, onDetails, onHeadhunterView, onRequestCha
         <p className="mb-3 text-xs text-muted-foreground">{t('cockpit.agreement.inHead')}</p>
       )}
       <div className="flex flex-col gap-1.5">
-        <button type="button" className={linkBtn} onClick={onHeadhunterView}>{t('cockpit.agreement.hhView')}<ArrowRight className="h-3 w-3" /></button>
-        {canRequest && <button type="button" className={linkBtn} onClick={onRequestChange}>{t('cockpit.agreement.change')}<ArrowRight className="h-3 w-3" /></button>}
+        <button type="button" className={cn(linkBtn, 'font-medium text-klick hover:text-klick hover:underline')} onClick={onHeadhunterView}>{t('cockpit.agreement.hhView')}<ChevronRight className="h-3 w-3" /></button>
+        {canRequest && <button type="button" className={cn(linkBtn, 'font-medium text-klick hover:text-klick hover:underline')} onClick={onRequestChange}>{t('cockpit.agreement.change')}<ChevronRight className="h-3 w-3" /></button>}
       </div>
     </SectionCard>
   );
@@ -522,7 +520,7 @@ export function InvolvedCard({ searchers, onDetails, invite }: { searchers: JobS
   const delivering = current.filter((s) => s.candidates > 0).sort((a, b) => b.candidates - a.candidates);
   const silent = current.length - delivering.length;
   return (
-    <SectionCard title={t('cockpit.involved.title')} aside={<button type="button" className={linkBtn} onClick={onDetails}>{t('cockpit.involved.details')}<ArrowRight className="h-3 w-3" /></button>}>
+    <SectionCard title={t('cockpit.involved.title')} aside={<button type="button" className={linkBtn} onClick={onDetails}>{t('cockpit.involved.details')}<ChevronRight className="h-3 w-3" /></button>}>
       {searchers === null ? (
         <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
       ) : current.length === 0 ? (
@@ -718,8 +716,20 @@ function writeSnoozed(keys: string[]) {
  * und „Später“. Weiterblättern über Punkte und Pfeile; „Alle anzeigen“ zeigt alle Schritte
  * ruhig nach Heute und Diese Woche. „Später“ schiebt nur für heute ans Ende (im Browser gemerkt).
  */
-export function ForYouCard({ tasks, waiting, items, loading, onOpen }: {
+export function ForYouCard({ tasks, waiting, items, loading, onOpen, title, whoOf, subOf, onCurrent, tour = false, noAll = false }: {
   tasks: ClientTask[]; waiting: ClientWaitingItem[]; items: BewerberItem[]; loading: boolean; onOpen: (t: ClientTask) => void;
+  /** Seite „Aufgaben“ (21.11.2026): dieselbe Karte als „Als Nächstes“ über der Liste. */
+  title?: string;
+  /** Wer oder was hinter dem Doppelpunkt steht (Standard: Name bzw. Rolle des Kandidaten). */
+  whoOf?: (t: ClientTask) => string | null;
+  /** Der eine Satz unter der Überschrift (Standard: task.detail). */
+  subOf?: (t: ClientTask) => string | null;
+  /** Meldet die gerade gezeigte Aufgabe, damit die Liste darunter sie nicht doppelt zeigt. */
+  onCurrent?: (key: string | null) => void;
+  /** Anker für den Kunden-Rundgang auf Karte und Knopf. */
+  tour?: boolean;
+  /** Ohne „Alle anzeigen“ (wenn die Liste ohnehin darunter steht). */
+  noAll?: boolean;
 }) {
   const { t } = useTranslation('clientJobs');
   const [snoozed, setSnoozed] = useState<string[]>(() => readSnoozed());
@@ -733,7 +743,11 @@ export function ForYouCard({ tasks, waiting, items, loading, onOpen }: {
     || (a.since ?? '').localeCompare(b.since ?? ''));
   const cur = ordered[Math.min(idx, Math.max(0, ordered.length - 1))];
 
+  const curKey = cur?.key ?? null;
+  useEffect(() => { onCurrent?.(loading ? null : curKey); }, [curKey, loading]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const nameOf = (task: ClientTask) => {
+    if (whoOf) return whoOf(task);
     const it = task.submissionId ? bySub.get(task.submissionId) : undefined;
     if (it?.fullName) return it.fullName;
     if (it?.currentRole) return it.currentRole;
@@ -754,20 +768,20 @@ export function ForYouCard({ tasks, waiting, items, loading, onOpen }: {
   if (ordered.length === 0) {
     return (
       <div className="rounded-[20px] border bg-card p-6">
-        <h3 className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{t('foryou.title')}</h3>
+        <h3 className="text-[15px] font-semibold tracking-tight">{title ?? t('foryou.title')}</h3>
         <p className="mt-4 text-xl font-semibold tracking-tight">{t('foryou.nothing')}</p>
         {waiting[0] && <p className="mt-2 text-sm text-muted-foreground">{t('foryou.expected', { what: waiting[0].title })}</p>}
       </div>
     );
   }
 
-  if (all) {
+  if (all && !noAll) {
     const isToday = (x: ClientTask) => x.urgent || daysSince(x.since) >= 3;
     const groups: [string, ClientTask[]][] = [[t('foryou.today'), ordered.filter(isToday)], [t('foryou.week'), ordered.filter((x) => !isToday(x))]];
     return (
       <div className="rounded-[20px] border bg-card p-6">
         <div className="flex items-center justify-between">
-          <h3 className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{t('foryou.title')}</h3>
+          <h3 className="text-[15px] font-semibold tracking-tight">{t('foryou.title')}</h3>
           <button type="button" className={linkBtn} onClick={() => setAll(false)}>{t('foryou.back')}</button>
         </div>
         {groups.filter(([, list]) => list.length).map(([label, list]) => (
@@ -790,18 +804,16 @@ export function ForYouCard({ tasks, waiting, items, loading, onOpen }: {
 
   const dots = Math.min(ordered.length, 7);
   return (
-    <div className="rounded-[20px] border bg-card p-6">
+    <div className="rounded-[20px] border bg-card p-6" {...(tour ? { 'data-tour-task-row': cur.kind } : {})}>
       <div className="flex items-center justify-between">
-        <h3 className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{t('foryou.title')}</h3>
+        <h3 className="text-[15px] font-semibold tracking-tight">{title ?? t('foryou.title')}</h3>
         <span className="text-xs text-muted-foreground">{t('foryou.position', { n: Math.min(idx, ordered.length - 1) + 1, total: ordered.length })}</span>
       </div>
-      <p className="mt-4 text-[11px] font-medium uppercase tracking-[0.06em] text-amber-400 dark:text-amber-600">
-        {daysSince(cur.since) === 0 ? t('foryou.since_zero') : t('foryou.since', { count: daysSince(cur.since) })}
-      </p>
-      <p className="mt-2 text-xl font-semibold leading-snug tracking-tight">{nameOf(cur) ? t('foryou.headline', { title: cur.title, who: nameOf(cur) }) : cur.title}</p>
-      {cur.detail && <p className="mt-2 text-sm text-muted-foreground">{cur.detail}</p>}
+      {/* Apple-Stil (21.11.2026): die orange Versal-Zeile „wartet seit n Tagen“ ist entfallen, die Wartezeit steht im Satz darunter. */}
+      <p className="mt-4 text-xl font-semibold leading-snug tracking-tight">{nameOf(cur) ? t('foryou.headline', { title: cur.title, who: nameOf(cur) }) : cur.title}</p>
+      {(subOf ? subOf(cur) : cur.detail) && <p className="mt-2 text-sm text-muted-foreground">{subOf ? subOf(cur) : cur.detail}</p>}
       <div className="mt-5 flex flex-wrap gap-2">
-        <Button className="rounded-full px-5" onClick={() => onOpen(cur)}>{taskMainLabel(cur.kind)}</Button>
+        <Button className="rounded-full px-5" onClick={() => onOpen(cur)} {...(tour ? { 'data-tour-task': cur.kind } : {})}>{taskMainLabel(cur.kind)}</Button>
         {ordered.length > 1 && <Button variant="secondary" className="rounded-full px-5" onClick={later}>{t('foryou.later')}</Button>}
       </div>
       {ordered.length > 1 && (
@@ -815,7 +827,7 @@ export function ForYouCard({ tasks, waiting, items, loading, onOpen }: {
           <div className="flex items-center gap-1.5">
             <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full" aria-label={t('foryou.prev')} onClick={() => setIdx((i) => (i - 1 + ordered.length) % ordered.length)}><ChevronRight className="h-4 w-4 rotate-180" /></Button>
             <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full" aria-label={t('foryou.next')} onClick={() => setIdx((i) => (i + 1) % ordered.length)}><ChevronRight className="h-4 w-4" /></Button>
-            <Button variant="secondary" size="sm" className="h-8 rounded-full px-3 text-xs" onClick={() => setAll(true)}>{t('foryou.all')}</Button>
+            {!noAll && <Button variant="secondary" size="sm" className="h-8 rounded-full px-3 text-xs" onClick={() => setAll(true)}>{t('foryou.all')}</Button>}
           </div>
         </div>
       )}
@@ -840,7 +852,7 @@ export function OthersCard({ tasks, waiting, items }: { tasks: ClientTask[]; wai
             <span className="block truncate text-sm">{item.fullName || item.currentRole || item.anonymizedName}</span>
             <span className="block truncate text-xs text-muted-foreground">{waiting.find((w) => w.submissionId === item.submissionId)?.title ?? ''}</span>
           </span>
-          <BewerberStatusPill item={item} />
+          <BewerberStatusPill item={item} className="bg-transparent px-0 text-xs font-normal text-muted-foreground dark:bg-transparent dark:text-muted-foreground" />
           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/60" aria-hidden="true" />
         </button>
       ))}

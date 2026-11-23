@@ -173,7 +173,7 @@ function OfferForm({ c, onClose, onSent, onAsk, onReject }: { c: OfferContext; o
   };
 
   const Hint = ({ ok, children }: { ok: boolean; children: React.ReactNode }) => (
-    <p className={cn('mt-1 flex items-center gap-1 text-xs', ok ? 'text-emerald-600' : 'text-amber-600')}>
+    <p className={cn('mt-1 flex items-center gap-1 text-xs', ok ? 'text-muted-foreground' : 'font-medium text-foreground')}>
       {ok ? <Check className="h-3 w-3" /> : <TriangleAlert className="h-3 w-3" />}{children}
     </p>
   );
@@ -185,8 +185,8 @@ function OfferForm({ c, onClose, onSent, onAsk, onReject }: { c: OfferContext; o
           <DialogTitle>{cur ? tf('titleAdjust', { name }) : tf('title', { name })}</DialogTitle>
           <DialogDescription>{c.jobTitle}</DialogDescription>
         </DialogHeader>
-        <div className="flex items-start gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/[0.06] p-3 text-sm">
-          <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+        <div className="flex items-start gap-2 rounded-lg bg-secondary/60 p-3 text-sm">
+          <Check className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
           <div>
             <p className="font-medium">{tf('withRecruiter', { hh })}</p>
             <p className="text-muted-foreground">{tf('willCall', { hh: hhFirst, first })}{sentMailAt ? tf('mailLatest', { when: whenDe(sentMailAt, Date.now()), first }) : ''}</p>
@@ -224,14 +224,14 @@ function OfferForm({ c, onClose, onSent, onAsk, onReject }: { c: OfferContext; o
           <DialogTitle>{cur ? tf('titleAdjust', { name }) : tf('title', { name })}</DialogTitle>
           <DialogDescription>{c.jobTitle}</DialogDescription>
         </DialogHeader>
-        <div className="flex gap-3 border-b pb-2 text-xs text-muted-foreground">
-          <span className="text-emerald-600">{tf('stepConditionsDone')}</span>
-          <span className="font-medium text-foreground">{tf('stepCheck')}</span>
+        <div>
+          <div className="h-1 rounded-full bg-secondary"><div className="h-1 rounded-full bg-klick" style={{ width: '100%' }} /></div>
+          <p className="mt-1.5 text-xs text-muted-foreground">{tf('stepCheck')}</p>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
           <span>{tf('mailInfo', { first, hh: hhFirst })}</span>
-          <button type="button" className="underline underline-offset-2 hover:text-foreground" onClick={() => setStep(1)}>{tf('changeConditions')}</button>
+          <button type="button" className="text-klick hover:underline" onClick={() => setStep(1)}>{tf('changeConditions')}</button>
         </div>
 
         <div className="space-y-2.5 rounded-lg bg-white p-4 text-sm text-neutral-900">
@@ -253,11 +253,11 @@ function OfferForm({ c, onClose, onSent, onAsk, onReject }: { c: OfferContext; o
                   ))}
                 </div>
                 {candidateMessage.trim() && (
-                  <button type="button" className="text-xs text-neutral-500 underline underline-offset-2 hover:text-neutral-900" onClick={() => { setCandidateMessage(''); setUsedChips([]); }}>{tf('removeLine')}</button>
+                  <button type="button" className="text-xs text-klick hover:underline" onClick={() => { setCandidateMessage(''); setUsedChips([]); }}>{tf('removeLine')}</button>
                 )}
               </div>
             </div>
-            {lineUnfinished && <p className="mt-1 text-xs text-amber-700">{tf('unfinished')}</p>}
+            {lineUnfinished && <p className="mt-1 text-xs font-medium">{tf('unfinished')}</p>}
           </div>
           <p className="text-xs text-neutral-500">{tf('notContract', { company: c.companyName })}</p>
           <p>{tf('questions', { hh: hhFirst })}</p>
@@ -273,7 +273,7 @@ function OfferForm({ c, onClose, onSent, onAsk, onReject }: { c: OfferContext; o
           <div className="flex flex-wrap gap-1.5">
             {[...SPIELRAUM, NO_ROOM].map((x) => (
               <button key={x} type="button" aria-pressed={room.includes(x)} onClick={() => toggleRoom(x)}
-                className={cn('rounded-full border px-3 py-1 text-xs transition-colors', room.includes(x) ? 'border-foreground bg-foreground text-background' : 'hover:bg-accent')}>
+                className={cn('rounded-full border px-3 py-1 text-xs transition-colors', room.includes(x) ? 'border-foreground ring-1 ring-foreground font-medium' : 'hover:bg-secondary/70')}>
                 {tf(`room.${x}`)}
               </button>
             ))}
@@ -306,18 +306,18 @@ function OfferForm({ c, onClose, onSent, onAsk, onReject }: { c: OfferContext; o
         <DialogDescription>{tf('descTo', { job: c.jobTitle, hh, hhFirst: hh.split(' ')[0], first })}</DialogDescription>
       </DialogHeader>
 
-      <div className="flex gap-3 border-b pb-2 text-xs text-muted-foreground">
-        <span className="font-medium text-foreground">{tf('stepConditions')}</span>
-        <span>{tf('stepCheck')}</span>
-      </div>
+      <div>
+          <div className="h-1 rounded-full bg-secondary"><div className="h-1 rounded-full bg-klick" style={{ width: '50%' }} /></div>
+          <p className="mt-1.5 text-xs text-muted-foreground">{tf('stepConditions')}</p>
+        </div>
 
       {!rec && !cur && (
-        <p className="rounded-lg border border-amber-500/30 bg-amber-500/[0.06] p-3 text-sm">
+        <p className="rounded-lg bg-secondary p-3 text-sm">
           {tf('noRec', { hh: hhFirst })}
         </p>
       )}
       {rec && (
-        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/[0.06] p-3 text-sm">
+        <div className="rounded-lg bg-secondary/60 p-3 text-sm">
           <p className="font-medium">{tf('recFrom', { hh })}</p>
           {rec.intro && <p className="mt-0.5 text-muted-foreground">{tf('quote', { text: rec.intro })}</p>}
           <ul className="mt-1.5 grid gap-x-4 gap-y-0.5 sm:grid-cols-2">
@@ -326,7 +326,7 @@ function OfferForm({ c, onClose, onSent, onAsk, onReject }: { c: OfferContext; o
         </div>
       )}
       {wish && (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/[0.06] p-3 text-sm">
+        <div className="rounded-lg bg-secondary p-3 text-sm">
           {tf('counterFrom', { first, wish: [wish.salary && i18n.t('offers:client.box.wishFix', { amount: euro(wish.salary) }), wish.variable && i18n.t('offers:client.box.wishVariable', { amount: euro(wish.variable) }), wish.startDate && i18n.t('offers:client.box.wishStart', { date: dayDe(wish.startDate) }), wish.other].filter(Boolean).join(' · ') })}
           {cur?.response?.reason && <span className="text-muted-foreground"> · {tf('quote', { text: cur.response.reason })}</span>}
         </div>
@@ -353,16 +353,22 @@ function OfferForm({ c, onClose, onSent, onAsk, onReject }: { c: OfferContext; o
           <Input id="offer-due" type="date" value={responseDue} onChange={(e) => setResponseDue(e.target.value)} className="mt-1" />
           <p className="mt-1 text-xs text-muted-foreground">{tf('default5')}</p>
         </div>
+        {/* E1 (22.11.2026): Vertragsart und Probezeit als Pillen statt Auswahllisten */}
         <div>
-          <label htmlFor="offer-contract" className="text-sm font-medium">{tf('contractProbation')}</label>
-          <div className="mt-1 flex gap-2">
-            <select id="offer-contract" value={contractType} onChange={(e) => setContractType(e.target.value as 'permanent' | 'fixed_term')} className="h-10 flex-1 rounded-md border bg-background px-2 text-sm">
-              <option value="permanent">{tf('permanent')}</option>
-              <option value="fixed_term">{tf('fixedTerm')}</option>
-            </select>
-            <select aria-label={tf('probationLabel')} value={probation} onChange={(e) => setProbation(Number(e.target.value))} className="h-10 w-36 rounded-md border bg-background px-2 text-sm">
-              {[0, 3, 6].map((m) => <option key={m} value={m}>{m ? tf('probation', { count: m }) : tf('noProbation')}</option>)}
-            </select>
+          <p className="text-sm font-medium">{tf('contractProbation')}</p>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {(['permanent', 'fixed_term'] as const).map((k) => (
+              <button key={k} type="button" aria-pressed={contractType === k} onClick={() => setContractType(k)} className={cn('rounded-full border px-3 py-1 text-xs transition-colors', contractType === k ? 'border-foreground ring-1 ring-foreground font-medium' : 'hover:bg-secondary/70')}>
+                {k === 'permanent' ? tf('permanent') : tf('fixedTerm')}
+              </button>
+            ))}
+          </div>
+          <div className="mt-1.5 flex flex-wrap gap-1.5" role="group" aria-label={tf('probationLabel')}>
+            {[0, 3, 6].map((m) => (
+              <button key={m} type="button" aria-pressed={probation === m} onClick={() => setProbation(m)} className={cn('rounded-full border px-3 py-1 text-xs transition-colors', probation === m ? 'border-foreground ring-1 ring-foreground font-medium' : 'hover:bg-secondary/70')}>
+                {m ? tf('probation', { count: m }) : tf('noProbation')}
+              </button>
+            ))}
           </div>
         </div>
         <div>
@@ -376,7 +382,7 @@ function OfferForm({ c, onClose, onSent, onAsk, onReject }: { c: OfferContext; o
         <div className="mt-1.5 flex flex-wrap gap-1.5">
           {[...extraOptions, ...custom.filter((x) => !extraOptions.includes(x))].map((x) => (
             <button key={x} type="button" aria-pressed={extras.includes(x)} onClick={() => toggleExtra(x)}
-              className={cn('rounded-full border px-3 py-1 text-xs transition-colors', extras.includes(x) ? 'border-foreground bg-foreground text-background' : 'hover:bg-accent')}>
+              className={cn('rounded-full border px-3 py-1 text-xs transition-colors', extras.includes(x) ? 'border-foreground ring-1 ring-foreground font-medium' : 'hover:bg-secondary/70')}>
               {x}
             </button>
           ))}
@@ -390,8 +396,8 @@ function OfferForm({ c, onClose, onSent, onAsk, onReject }: { c: OfferContext; o
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-3 text-sm">
           <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
-          {!cur && onAsk && <button type="button" className="text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => { onClose(); onAsk(); }}>{tf('askFirst', { hh: hhFirst })}</button>}
-          {!cur && onReject && <button type="button" className="text-muted-foreground underline underline-offset-2 hover:text-foreground" onClick={() => { onClose(); onReject(); }}>{tf('rejectInstead')}</button>}
+          {!cur && onAsk && <button type="button" className="text-klick hover:underline" onClick={() => { onClose(); onAsk(); }}>{tf('askFirst', { hh: hhFirst })}</button>}
+          {!cur && onReject && <button type="button" className="text-klick hover:underline" onClick={() => { onClose(); onReject(); }}>{tf('rejectInstead')}</button>}
         </div>
         <Button disabled={!ready} onClick={() => setStep(2)} data-tour="offer.next">{tf('nextCheck')}</Button>
       </div>

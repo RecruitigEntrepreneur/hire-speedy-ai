@@ -4,6 +4,8 @@ import type { Messages } from '../../types';
 const sv: Messages<typeof de> = {
   title: 'Aviseringar',
   markAllRead: 'Markera alla som lästa',
+  newCount: '{{count}} nya',
+  group: { today: 'I dag', week: 'Senaste 7 dagarna', earlier: 'Tidigare' },
   empty: 'Inga aviseringar',
   showAll: 'Visa alla',
   justNow: 'Nyss',

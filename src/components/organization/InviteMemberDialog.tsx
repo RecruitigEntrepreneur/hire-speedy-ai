@@ -248,7 +248,7 @@ export function InviteMemberDialog({
                       key={c.key}
                       type="button"
                       onClick={() => setRole(c.key)}
-                      className={cn('rounded-lg border p-2.5 text-left transition-colors', role === c.key ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/40')}
+                      className={cn('rounded-xl border p-3 text-left transition-colors', role === c.key ? 'border-foreground ring-1 ring-foreground' : 'border-border hover:bg-secondary/60')}
                     >
                       <span className="block font-medium">{tt(`dialog.choices.${c.text}`)}</span>
                       <span className="block text-xs text-muted-foreground">{tt(`dialog.choices.${c.text}_text`)}</span>
@@ -266,7 +266,7 @@ export function InviteMemberDialog({
                       type="button"
                       data-role={key}
                       onClick={() => setRole(key)}
-                      className={cn('rounded-lg border p-2.5 text-left transition-colors', key === 'finance' && 'col-span-2', role === key ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/40')}
+                      className={cn('rounded-xl border p-3 text-left transition-colors', key === 'finance' && 'col-span-2', role === key ? 'border-foreground ring-1 ring-foreground' : 'border-border hover:bg-secondary/60')}
                     >
                       <span className="block font-medium">{tt(`dialog.roles.${key}`)}</span>
                       <span className="block text-xs text-muted-foreground">{tt(`dialog.roles.${key}_text`)}</span>
@@ -289,7 +289,7 @@ export function InviteMemberDialog({
                   <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <Lock className="h-3.5 w-3.5" />
                     {tt('dialog.onlyThisJob')}
-                    <button type="button" className="text-primary hover:underline" onClick={() => setShowMoreJobs(true)}>
+                    <button type="button" className="text-klick hover:underline" onClick={() => setShowMoreJobs(true)}>
                       {tt('dialog.addMoreJobs')}
                     </button>
                   </p>
@@ -313,7 +313,7 @@ export function InviteMemberDialog({
                       <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                       <Input value={jobQuery} onChange={(e) => setJobQuery(e.target.value)} placeholder={tt('dialog.searchJob')} className="h-8 pl-8 text-sm" />
                     </div>
-                    <div className="rounded-lg border md:max-h-44 md:overflow-y-auto">
+                    <div className="rounded-xl border md:max-h-44 md:overflow-y-auto">
                       {filteredJobs.length === 0 ? (
                         <p className="p-3 text-xs text-muted-foreground">{orgJobs ? tt('dialog.noJobMatch') : tt('dialog.jobsLoading')}</p>
                       ) : (

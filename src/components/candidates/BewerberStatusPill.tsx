@@ -5,12 +5,16 @@ import type { ArchiveKind, BewerberItem, BewerberState, BewerberTone } from '@/h
 
 const TONE_CLASSES: Record<BewerberTone, string> = {
   ok: 'bg-success/10 text-success',
-  warn: 'bg-warning/10 text-warning',
+  // Apple-Stil (22.11.2026): kein Gelb mehr; „wartet …“ ist ein Stand, keine Warnung.
+  warn: 'bg-secondary text-muted-foreground',
   crit: 'bg-destructive/10 text-destructive',
-  neutral: 'bg-muted text-muted-foreground',
+  neutral: 'bg-secondary text-muted-foreground',
 };
 
 type T = (key: string, opts?: Record<string, unknown>) => string;
+
+const istErfolg = (state: BewerberState, archiveKind?: ArchiveKind | null) =>
+  state.key === 'vertrag_unterschrieben' || (state.key === 'archiv' && archiveKind === 'eingestellt');
 
 /** Pillentext: mit Datum bei Anfrage („Angefragt 12.10. · seit 8 Tagen“) und Absage („Abgelehnt 23.07. · Gehaltsvorstellung“). */
 export function stateLabel(state: BewerberState, archiveKind: ArchiveKind | null | undefined, t: T): string {
@@ -53,7 +57,9 @@ export function StatePill({
     <span
       className={cn(
         'inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium',
-        TONE_CLASSES[state.tone],
+        // Apple-Stil (22.11.2026): Grün nur, wenn wirklich eingestellt oder der Vertrag unterschrieben ist;
+        // alle anderen „guten“ Stände sind ein Stand, kein Erfolg, und bleiben grau.
+        state.tone === 'ok' && !istErfolg(state, archiveKind) ? TONE_CLASSES.neutral : TONE_CLASSES[state.tone],
         className
       )}
     >

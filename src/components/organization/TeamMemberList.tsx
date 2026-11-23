@@ -2,9 +2,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
 import { TeamMember } from '@/hooks/useTeamData';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -14,16 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  MoreHorizontal,
-  Shield,
-  UserMinus,
-  UserCheck,
-  Crown,
-  Eye,
-  Briefcase,
-  ClipboardList,
-} from 'lucide-react';
+import { MoreHorizontal } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNow } from 'date-fns';
 import { dfLocale } from '@/lib/localeFormat';
@@ -35,25 +25,10 @@ interface TeamMemberListProps {
   members: TeamMember[] | undefined;
   isLoading: boolean;
   isAdmin: boolean;
+  /** Eigene Rolle und eigener Name – für die Karte „Sie“, wenn man selbst nicht in der Liste steht (Inhaber). */
+  selfRole?: string | null;
+  selfName?: string | null;
 }
-
-const roleIcons: Record<string, React.ReactNode> = {
-  owner: <Crown className="h-3 w-3" />,
-  admin: <Shield className="h-3 w-3" />,
-  hr: <ClipboardList className="h-3 w-3" />,
-  hiring_manager: <Briefcase className="h-3 w-3" />,
-  viewer: <Eye className="h-3 w-3" />,
-  finance: <ClipboardList className="h-3 w-3" />,
-};
-
-const roleColors: Record<string, string> = {
-  owner: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
-  admin: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-  hr: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200',
-  hiring_manager: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-  viewer: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
-  finance: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-};
 
 export function TeamMemberList({
   organizationId,
@@ -61,8 +36,11 @@ export function TeamMemberList({
   members,
   isLoading,
   isAdmin,
+  selfRole,
+  selfName,
 }: TeamMemberListProps) {
   const { t } = useTranslation();
+  const { t: tt } = useTranslation('clientTeam');
   const queryClient = useQueryClient();
 
   const roleLabel = (role: string) => t(`team.roles.${role}`, role);
@@ -111,146 +89,115 @@ export function TeamMemberList({
 
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('team.members.title')}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="flex items-center gap-4">
-              <Skeleton className="h-10 w-10 rounded-full" />
-              <div className="flex-1 space-y-2">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-3 w-48" />
-              </div>
-              <Skeleton className="h-6 w-20" />
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {[1, 2, 3].map((i) => <Skeleton key={i} className="h-40 rounded-xl" />)}
+      </div>
     );
   }
 
+  const initials = (name: string | null | undefined) =>
+    name?.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() || '?';
+
+  // Apple-Stil (22.11.2026, Vorschlag 1): eine Karte je Person – wer, welche Rolle, was die Person darf, welche Stellen.
+  const selfMissing = !!selfRole && !members?.some((m) => m.user_id === currentUserId);
+  const rights = (role: string, jobs: number) => {
+    if (role === 'hiring_manager') return jobs ? tt('page.decides', { count: jobs }) : tt('dialog.roles.hiring_manager_text');
+    if (role === 'viewer') return jobs ? tt('page.reads', { count: jobs }) : tt('dialog.roles.viewer_text');
+    return tt(`dialog.roles.${role === 'owner' ? 'admin' : role}_text`);
+  };
+  const karte = 'flex flex-col rounded-xl border bg-card p-5';
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          {t('team.members.title')} ({members?.length || 0})
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {members?.map((member) => {
-            const isCurrentUser = member.user_id === currentUserId;
-            const isOwner = member.role === 'owner';
-            const isInactive = member.status === 'inactive';
-            const jobScoped = member.role === 'hiring_manager' || member.role === 'viewer';
-
-            return (
-              <div
-                key={member.id}
-                className={`flex flex-col gap-3 rounded-lg border bg-card p-3 transition-colors hover:bg-accent/50 sm:flex-row sm:items-center sm:justify-between ${
-                  isInactive ? 'opacity-60' : ''
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Avatar>
-                    {member.avatar_url && <AvatarImage src={member.avatar_url} />}
-                    <AvatarFallback>
-                      {member.full_name
-                        ?.split(' ')
-                        .map((n) => n[0])
-                        .join('')
-                        .toUpperCase() || '?'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0">
-                    <p className="font-medium">
-                      {member.full_name || t('team.members.unknown')}
-                      {isCurrentUser && (
-                        <span className="ml-2 text-sm text-muted-foreground">
-                          ({t('team.members.you')})
-                        </span>
-                      )}
-                    </p>
-                    <p className="truncate text-sm text-muted-foreground">{member.email}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {isInactive
-                        ? t('team.members.deactivated')
-                        : member.last_sign_in_at
-                          ? `${t('team.members.last_login')}: ${formatDistanceToNow(new Date(member.last_sign_in_at), { locale: dfLocale(), addSuffix: true })}`
-                          : isAdmin
-                            ? t('team.members.never_logged_in')
-                            : ''}
-                    </p>
-                    {jobScoped && member.assigned_jobs.length > 0 && (
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        {member.assigned_jobs.slice(0, 3).map((job) => (
-                          <Badge key={job.id} variant="outline" className="text-[10px]">
-                            {job.title}
-                          </Badge>
-                        ))}
-                        {member.assigned_jobs.length > 3 && (
-                          <Badge variant="outline" className="text-[10px]">
-                            +{member.assigned_jobs.length - 3}
-                          </Badge>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 self-end sm:self-auto">
-                  <Badge variant="secondary" className={roleColors[member.role]}>
-                    {roleIcons[member.role]}
-                    <span className="ml-1">{roleLabel(member.role)}</span>
-                  </Badge>
-
-                  {isAdmin && !isOwner && !isCurrentUser && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>{t('team.members.change_role')}</DropdownMenuLabel>
-                        {(['admin', 'hr', 'hiring_manager', 'viewer', 'finance'] as const)
-                          .filter((r) => r !== member.role)
-                          .map((r) => (
-                            <DropdownMenuItem key={r} onClick={() => void handleRoleChange(member, r)}>
-                              {roleIcons[r]}
-                              <span className="ml-2">{roleLabel(r)}</span>
-                            </DropdownMenuItem>
-                          ))}
-                        <DropdownMenuSeparator />
-                        {isInactive ? (
-                          <DropdownMenuItem onClick={() => handleReactivate(member)}>
-                            <UserCheck className="h-4 w-4 mr-2" />
-                            {t('team.members.reactivate')}
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem
-                            onClick={() => handleDeactivate(member)}
-                            className="text-destructive"
-                          >
-                            <UserMinus className="h-4 w-4 mr-2" />
-                            {t('team.members.deactivate')}
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-
-          {!members?.length && (
-            <p className="py-8 text-center text-muted-foreground">{t('team.members.empty')}</p>
-          )}
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      {selfMissing && (
+        <div className={karte}>
+          <div className="flex items-center gap-3">
+            <Avatar><AvatarFallback>{initials(selfName)}</AvatarFallback></Avatar>
+            <div className="min-w-0">
+              <p className="font-medium">{tt('page.you')}</p>
+              <p className="text-xs text-muted-foreground">{roleLabel(selfRole!)}</p>
+            </div>
+          </div>
+          <p className="mt-4 text-sm">{rights(selfRole!, 0)}</p>
+          <p className="mt-3 text-xs text-muted-foreground">{selfRole === 'finance' ? tt('page.noJobs') : tt('page.allJobs')}</p>
         </div>
-      </CardContent>
-    </Card>
+      )}
+
+      {members?.map((member) => {
+        const isCurrentUser = member.user_id === currentUserId;
+        const isOwner = member.role === 'owner';
+        const isInactive = member.status === 'inactive';
+        const jobScoped = member.role === 'hiring_manager' || member.role === 'viewer';
+        const jobs = member.assigned_jobs;
+
+        return (
+          <div key={member.id} className={cn(karte, isInactive && 'opacity-60')}>
+            <div className="flex items-center gap-3">
+              <Avatar>
+                {member.avatar_url && <AvatarImage src={member.avatar_url} />}
+                <AvatarFallback>{initials(member.full_name)}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium">{isCurrentUser ? tt('page.you') : member.full_name || t('team.members.unknown')}</p>
+                <p className="text-xs text-muted-foreground">{roleLabel(member.role)}</p>
+              </div>
+              {isAdmin && !isOwner && !isCurrentUser && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="-mr-2 shrink-0">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>{t('team.members.change_role')}</DropdownMenuLabel>
+                    {(['admin', 'hr', 'hiring_manager', 'viewer', 'finance'] as const)
+                      .filter((r) => r !== member.role)
+                      .map((r) => (
+                        <DropdownMenuItem key={r} onClick={() => void handleRoleChange(member, r)}>
+                          {roleLabel(r)}
+                        </DropdownMenuItem>
+                      ))}
+                    <DropdownMenuSeparator />
+                    {isInactive ? (
+                      <DropdownMenuItem onClick={() => handleReactivate(member)}>
+                        {t('team.members.reactivate')}
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem onClick={() => handleDeactivate(member)} className="text-destructive">
+                        {t('team.members.deactivate')}
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
+
+            <p className="mt-4 text-sm">{rights(member.role, jobs.length)}</p>
+            <p className="mt-3 text-xs text-muted-foreground">
+              {jobScoped
+                ? jobs.length
+                  ? [...jobs.slice(0, 3).map((j) => j.title), ...(jobs.length > 3 ? [tt('page.more', { count: jobs.length - 3 })] : [])].join(' · ')
+                  : tt('page.noJobsYet')
+                : member.role === 'finance' ? tt('page.noJobs') : tt('page.allJobs')}
+            </p>
+            <p className="mt-auto pt-3 text-xs text-muted-foreground">
+              {!isCurrentUser && member.email}
+              {!isCurrentUser && member.email && (isInactive || member.last_sign_in_at || isAdmin) ? ' · ' : ''}
+              {isInactive
+                ? t('team.members.deactivated')
+                : member.last_sign_in_at
+                  ? `${t('team.members.last_login')} ${formatDistanceToNow(new Date(member.last_sign_in_at), { locale: dfLocale(), addSuffix: true })}`
+                  : isAdmin && !isCurrentUser
+                    ? t('team.members.never_logged_in')
+                    : ''}
+            </p>
+          </div>
+        );
+      })}
+
+      {!members?.length && !selfMissing && (
+        <p className="py-8 text-center text-muted-foreground sm:col-span-2 xl:col-span-3">{t('team.members.empty')}</p>
+      )}
+    </div>
   );
 }

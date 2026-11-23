@@ -1,15 +1,13 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '@/i18n';
 import { fmtTime, fmtWeekdayDayMonth } from '@/lib/localeFormat';
 import { meetingTypeLabel } from '@/components/interview/agenda/meetingType';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
 import { BentoTile } from './BentoTile';
+import { KachelLeer, KachelReiter, KachelZeile } from './KachelTeile';
 import { useClientUpcomingInterviews, type UpcomingInterview } from '@/hooks/useClientUpcomingInterviews';
-import { CalendarDays, Video, Phone, MapPin, type LucideIcon } from 'lucide-react';
-import { cn } from '@/lib/utils';
-
-const formatIcon = (f: string | null): LucideIcon => (f === 'phone' ? Phone : f === 'onsite' ? MapPin : Video);
+import { CalendarDays } from 'lucide-react';
 
 const isTodayIso = (iso: string) => new Date(iso).toDateString() === new Date().toDateString();
 
@@ -27,11 +25,20 @@ const dateLabel = (iso: string) => {
 
 const timeLabel = (iso: string) => fmtTime(iso);
 
-/** Tile D – Anstehende (bestätigte, zukünftige) Interviews mit Join-Link. */
+/** Tile D – Anstehende (bestätigte, zukünftige) Interviews mit Join-Link.
+ *  Apple-Stil (21.11.2026): gleiche Zeilen wie die anderen Kacheln, der Termin ist die Hauptzeile. */
 export function AnstehendeInterviewsTile() {
   const { t } = useTranslation(['clientDashboard', 'interviews']);
   const { data, isLoading } = useClientUpcomingInterviews();
+  const [tab, setTab] = useState<'all' | 'today'>('all');
   const items = data || [];
+  const heute = items.filter((iv) => isTodayIso(iv.scheduledAt));
+  const aktiv = tab === 'today' && heute.length ? 'today' : 'all';
+  const reiter: { key: 'all' | 'today'; label: string }[] = [
+    { key: 'all', label: t('tiles.allCount', { count: items.length }) },
+    ...(heute.length ? [{ key: 'today' as const, label: `${t('tiles.today')} (${heute.length})` }] : []),
+  ];
+  const visible = (aktiv === 'today' ? heute : items).slice(0, 5);
 
   return (
     <BentoTile
@@ -47,46 +54,24 @@ export function AnstehendeInterviewsTile() {
             <Skeleton key={i} className="h-12 w-full" />
           ))}
         </div>
-      ) : items.length === 0 ? (
-        <div className="flex h-full items-center justify-center py-6 text-center text-sm text-muted-foreground">
-          {t('tiles.noUpcoming')}
-        </div>
       ) : (
-        <div className="space-y-1.5">
-          {items.map((iv: UpcomingInterview) => {
-            const Icon = formatIcon(iv.meetingFormat);
-            const isToday = isTodayIso(iv.scheduledAt);
-            return (
-              <div
-                key={iv.id}
-                className="flex items-center gap-3 rounded-lg border border-border/40 p-2 transition-all hover:border-primary/30"
-              >
-                <div
-                  className={cn(
-                    'min-w-[52px] rounded-md py-1 text-center',
-                    isToday ? 'bg-primary text-primary-foreground' : 'bg-muted',
-                  )}
-                >
-                  <p className="text-[10px] font-medium leading-tight">{dateLabel(iv.scheduledAt)}</p>
-                  <p className="text-sm font-bold leading-tight">{timeLabel(iv.scheduledAt)}</p>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-mono text-sm font-medium">{iv.anonId}</p>
-                  <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Icon className="h-3 w-3" />
-                    {meetingTypeLabel(iv.meetingFormat)}
-                  </p>
-                </div>
-                {iv.joinUrl && (
-                  <Button asChild size="sm" variant="outline" className="h-7 shrink-0 text-xs">
-                    <a href={iv.joinUrl} target="_blank" rel="noreferrer">
-                      {t('tiles.join')}
-                    </a>
-                  </Button>
-                )}
-              </div>
-            );
-          })}
+        <div className="flex h-full flex-col">
+          <KachelReiter<'all' | 'today'> items={reiter} value={aktiv} onChange={setTab} />
+          {items.length === 0 ? (
+            <KachelLeer>{t('tiles.noUpcoming')}</KachelLeer>
+          ) : (
+            <div>
+              {visible.map((iv: UpcomingInterview) => (
+                <KachelZeile
+                  key={iv.id}
+                  title={`${dateLabel(iv.scheduledAt)} · ${timeLabel(iv.scheduledAt)}`}
+                  sub={`${iv.anonId} · ${meetingTypeLabel(iv.meetingFormat)}`}
+                  action={iv.joinUrl ? t('tiles.join') : undefined}
+                  actionHref={iv.joinUrl ?? undefined}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </BentoTile>

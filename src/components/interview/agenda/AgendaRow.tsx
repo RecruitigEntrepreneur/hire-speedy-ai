@@ -38,6 +38,8 @@ interface Props {
   onRemind?: (iv: AgendaInterview) => void;
   onFeedback?: (iv: AgendaInterview) => void;
   onOpenGuide?: (iv: AgendaInterview) => void;
+  /** Karte statt Zeile (Apple-Stil, 23.11.2026): Person oder Rolle, Stelle, unten Termin und die eine Handlung. */
+  karte?: boolean;
 }
 
 // Anzeige immer in deutscher Zeit, egal wo der Browser steht; Format in der Sprache der Oberfläche
@@ -69,7 +71,7 @@ const PAST_LABEL: Record<string, { label: string; cls: string }> = {
 /** Eine Interview-Zeile – die Variante bestimmt Zeitblock, Status und Aktionen. */
 export function AgendaRow({
   iv, variant, onDetails, onNewRequest, onConfirmAlternative, confirming, onCancel, onNoShow, onRespondCounter, onRemind,
-  onFeedback, onOpenGuide,
+  onFeedback, onOpenGuide, karte = false,
 }: Props) {
   const { t } = useTranslation(['clientInterviews', 'interviews']);
   // „Kandidat fragt eine andere Zeit an“: die angefragte Zeit steht in counter_slots[0]
@@ -106,6 +108,93 @@ export function AgendaRow({
     ) : (
       <div className="min-w-[60px]" />
     );
+
+  const menu = (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground" aria-label={t('row.moreActions')}>
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuItem onClick={() => onDetails(iv)}>{t('row.details')}</DropdownMenuItem>
+          {iv.identityUnlocked && onOpenGuide && (
+            <DropdownMenuItem onClick={() => onOpenGuide(iv)}>{t('row.guide')}</DropdownMenuItem>
+          )}
+          {iv.scheduledAt && (variant === 'agenda' || variant === 'counter') && (
+            <DropdownMenuItem onClick={addToCalendar}>
+              <CalendarPlus className="mr-2 h-4 w-4" /> {t('row.toCalendar')}
+            </DropdownMenuItem>
+          )}
+          {variant === 'counter' && onRespondCounter && (
+            <DropdownMenuItem onClick={() => onRespondCounter(iv)}>{t('row.viewRequest')}</DropdownMenuItem>
+          )}
+          {onNewRequest && (variant === 'agenda' || variant === 'awaiting') && (
+            <DropdownMenuItem onClick={() => onNewRequest(iv)}>
+              {variant === 'awaiting' ? t('row.newSlots') : t('row.rebook')}
+            </DropdownMenuItem>
+          )}
+          {variant === 'feedback' && onNoShow && (
+            <DropdownMenuItem onClick={() => onNoShow(iv)}>
+              <UserX className="mr-2 h-4 w-4" /> {t('row.reportNoShow')}
+            </DropdownMenuItem>
+          )}
+          {onCancel && variant !== 'past' && variant !== 'feedback' && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => onCancel(iv)}>
+                <XCircle className="mr-2 h-4 w-4" /> {variant === 'agenda' ? t('row.cancel') : t('row.withdraw')}
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+  );
+
+  if (karte) {
+    // Ohne freigegebenen Namen ist die Rolle die Hauptzeile, die Kennung steht leise dahinter.
+    const ohneName = !iv.identityUnlocked && !!iv.candidateRole;
+    const wann = iv.scheduledAt ? `${dateShort(iv.scheduledAt)}, ${timeShort(iv.scheduledAt)}` : null;
+    const art = meetingTypeLabel(iv.meetingType);
+    const meta =
+      variant === 'counter' ? [requested ? t('row.asksFor', { time: fmtRange(requested, iv.durationMinutes) }) : t('row.asksOther'), waitLabel(iv.waitingHours)].join(' · ')
+        : variant === 'awaiting' ? [art, iv.slotsExpired ? t('row.slotsExpired') : awaitingLabel(iv)].join(' · ')
+          : variant === 'past' ? [wann, PAST_LABEL[iv.status] ? t(`row.past.${PAST_LABEL[iv.status].label}`) : iv.status].filter(Boolean).join(' · ')
+            : [wann, art, variant === 'agenda' && !iv.confirmed ? t('row.unconfirmed') : null, iv.rescheduleRequested ? t('row.rescheduleRequested') : null].filter(Boolean).join(' · ');
+    const blau = 'whitespace-nowrap text-xs font-medium text-klick hover:underline disabled:opacity-50';
+    const grau = 'whitespace-nowrap text-xs text-muted-foreground hover:text-foreground';
+    return (
+      <div className="flex flex-col rounded-xl border bg-card p-4">
+        <div className="flex items-start gap-2">
+          <button type="button" onClick={() => onDetails(iv)} className="min-w-0 flex-1 text-left">
+            <p className="truncate text-sm font-medium">{ohneName ? iv.candidateRole : iv.candidateName}</p>
+            <p className="truncate text-xs text-muted-foreground">{[iv.jobTitle, ohneName ? iv.candidateName : null].filter(Boolean).join(' · ')}</p>
+          </button>
+          {menu}
+        </div>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+          <span className="min-w-0 truncate text-xs text-muted-foreground">{meta}</span>
+          <span className="ml-auto flex shrink-0 items-center gap-3">
+            {variant === 'agenda' && iv.joinUrl && <a href={iv.joinUrl} target="_blank" rel="noreferrer" className={blau}>{t('row.join')} ›</a>}
+            {variant === 'counter' && requestedOpen && onConfirmAlternative && (
+              <button type="button" className={blau} disabled={confirming} onClick={() => onConfirmAlternative(iv)}>{t('row.confirmTime')} ›</button>
+            )}
+            {variant === 'counter' && !requestedOpen && !onNewRequest && onRespondCounter && (
+              <button type="button" className={blau} onClick={() => onRespondCounter(iv)}>{t('row.respond')} ›</button>
+            )}
+            {variant === 'counter' && onNewRequest && (
+              <button type="button" className={requestedOpen ? grau : blau} disabled={confirming} onClick={() => onNewRequest(iv)}>{t('row.newSlots')}{requestedOpen ? '' : ' ›'}</button>
+            )}
+            {variant === 'awaiting' && onRemind && <button type="button" className={grau} onClick={() => onRemind(iv)}>{t('row.remind')}</button>}
+            {variant === 'awaiting' && iv.slotsExpired && onNewRequest && (
+              <button type="button" className={blau} onClick={() => onNewRequest(iv)}>{t('row.newSlots')} ›</button>
+            )}
+            {variant === 'feedback' && onFeedback && <button type="button" className={blau} onClick={() => onFeedback(iv)}>{t('row.giveFeedback')} ›</button>}
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -236,45 +325,7 @@ export function AgendaRow({
       )}
 
       {/* Sekundäraktionen */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground" aria-label={t('row.moreActions')}>
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-52">
-          <DropdownMenuItem onClick={() => onDetails(iv)}>{t('row.details')}</DropdownMenuItem>
-          {iv.identityUnlocked && onOpenGuide && (
-            <DropdownMenuItem onClick={() => onOpenGuide(iv)}>{t('row.guide')}</DropdownMenuItem>
-          )}
-          {iv.scheduledAt && (variant === 'agenda' || variant === 'counter') && (
-            <DropdownMenuItem onClick={addToCalendar}>
-              <CalendarPlus className="mr-2 h-4 w-4" /> {t('row.toCalendar')}
-            </DropdownMenuItem>
-          )}
-          {variant === 'counter' && onRespondCounter && (
-            <DropdownMenuItem onClick={() => onRespondCounter(iv)}>{t('row.viewRequest')}</DropdownMenuItem>
-          )}
-          {onNewRequest && (variant === 'agenda' || variant === 'awaiting') && (
-            <DropdownMenuItem onClick={() => onNewRequest(iv)}>
-              {variant === 'awaiting' ? t('row.newSlots') : t('row.rebook')}
-            </DropdownMenuItem>
-          )}
-          {variant === 'feedback' && onNoShow && (
-            <DropdownMenuItem onClick={() => onNoShow(iv)}>
-              <UserX className="mr-2 h-4 w-4" /> {t('row.reportNoShow')}
-            </DropdownMenuItem>
-          )}
-          {onCancel && variant !== 'past' && variant !== 'feedback' && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => onCancel(iv)}>
-                <XCircle className="mr-2 h-4 w-4" /> {variant === 'agenda' ? t('row.cancel') : t('row.withdraw')}
-              </DropdownMenuItem>
-            </>
-          )}
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {menu}
     </div>
   );
 }

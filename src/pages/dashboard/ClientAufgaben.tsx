@@ -1,34 +1,37 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { TFunction } from 'i18next';
 import { CheckCircle2, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { DoneRow, TaskRow, WaitingRow } from '@/components/client/tasks/ClientTaskParts';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DoneRow, TaskCard, WaitingRow } from '@/components/client/tasks/ClientTaskParts';
+import { ForYouCard } from '@/components/client/job/JobControl';
 import { ClientTaskWindow } from '@/components/client/tasks/ClientTaskWindow';
-import { taskHref, useClientTasks, type ClientTask } from '@/lib/clientTasksApi';
+import { taskHref, useClientTasks, waitingLabel, type ClientTask, type ClientTaskKind } from '@/lib/clientTasksApi';
+import { cn } from '@/lib/utils';
 import { StellenTitelKurz } from '@/components/client/StellenTitelKurz';
 
 /**
  * Seite „Aufgaben“ des Kunden (23.10.2026): alles, wo der Kunde dran ist, an einem Ort –
  * erst wo jemand wartet, dann der Rest der Woche; was bei anderen liegt und was erledigt
- * ist, eingeklappt darunter. Oben Zahlen und Filter nach Stelle.
+ * ist, eingeklappt darunter.
+ * Apple-Stil (22.11.2026): ein Satz statt Zahlen-Kisten, „Als Nächstes“ groß, darunter die Aufgaben als
+ * Karten mit Reitern nach Art; die Stelle wählt man oben rechts.
  */
 
-const GROUP_KEY = 'matchunt:aufgaben:nach-stelle';
-/** Dauer des ältesten Wartens für die Kennzahl: „eben“, „5 Std.“, „3 Tage“. */
-const waitedFor = (iso: string, t: TFunction) => {
-  const h = Math.max(0, Math.floor((Date.now() - Date.parse(iso)) / 3600000));
-  if (h < 1) return t('tasks.waitedJustNow');
-  if (h < 24) return t('tasks.waitedHours', { count: h });
-  return t('tasks.waitedDays', { count: Math.floor(h / 24) });
-};
-
-const readGroup = () => {
-  try { return localStorage.getItem(GROUP_KEY) === '1'; } catch { return false; }
-};
+/** Art der Aufgabe für die Reiter über den Karten; die Namen stehen unter tasks.kind.<key>. */
+const ARTEN: { key: string; kinds: ClientTaskKind[] }[] = [
+  { key: 'pruefen', kinds: ['review'] },
+  { key: 'feedback', kinds: ['feedback', 'decide_unsure'] },
+  { key: 'termine', kinds: ['alternative', 'expired_request'] },
+  { key: 'angebote', kinds: ['make_offer', 'counter', 'offer_overdue'] },
+  { key: 'vertraege', kinds: ['send_contract', 'contract_signed_check', 'docusign_sign', 'confirm_signature'] },
+  { key: 'fragen', kinds: ['recruiter_question'] },
+  { key: 'rechnungen', kinds: ['invoice', 'purchase_order'] },
+  { key: 'start', kinds: ['confirm_start', 'start_check', 'end_confirm'] },
+  { key: 'sonstiges', kinds: ['research_position', 'research_offer', 'job_paused'] },
+];
 
 export default function ClientAufgaben() {
   const { t } = useTranslation('clientDashboard');
@@ -37,7 +40,6 @@ export default function ClientAufgaben() {
   const [showWaiting, setShowWaiting] = useState(false);
   const [showDone, setShowDone] = useState(false);
   const [jobFilter, setJobFilter] = useState<string | null>(null);
-  const [byJob, setByJob] = useState(readGroup);
   const location = useLocation();
   const [active, setActive] = useState<ClientTask | null>(null);
   // Aufgaben einer Bewerbung öffnen im Bewerberprofil; Fragen zur Stelle und Rechnungen hier
@@ -76,33 +78,60 @@ export default function ClientAufgaben() {
   const tasks = jobFilter ? allTasks.filter((x) => x.jobId === jobFilter) : allTasks;
   const waiting = (data?.waiting ?? []).filter((w) => !jobFilter || w.jobId === jobFilter);
   const done = (data?.done ?? []).filter((d) => !jobFilter || d.jobId === jobFilter);
-  const urgent = tasks.filter((x) => x.urgent);
-  const rest = tasks.filter((x) => !x.urgent);
-  const oldest = tasks.reduce<string | null>((o, x) => (!o || Date.parse(x.since) < Date.parse(o) ? x.since : o), null);
-  const today = new Date().toDateString();
-  const doneToday = done.filter((d) => new Date(d.doneAt).toDateString() === today).length;
-  const groups = useMemo(() => {
-    if (!byJob) return [];
-    const m = new Map<string, { title: string; items: ClientTask[] }>();
-    for (const x of tasks) {
-      const k = x.jobId ?? 'ohne';
-      if (!m.has(k)) m.set(k, { title: x.jobTitle ?? t('tasks.noJob'), items: [] });
-      m.get(k)!.items.push(x);
-    }
-    return [...m.entries()].map(([k, g]) => ({ key: k, ...g }));
-  }, [byJob, tasks, t]);
-  const toggleGroup = (v: boolean) => {
-    setByJob(v);
-    try { localStorage.setItem(GROUP_KEY, v ? '1' : '0'); } catch { /* nur Komfort */ }
-  };
+  // „Als Nächstes“ (21.11.2026): die eine Aufgabe steht groß oben und fehlt deshalb in der Liste darunter.
+  const [nextKey, setNextKey] = useState<string | null>(null);
+  const listed = tasks.filter((x) => x.key !== nextKey);
+  const [art, setArt] = useState<string | null>(null);
+  // Reiter nach Art, nur Arten mit Aufgaben
+  const arten = ARTEN.map((a) => ({ ...a, items: listed.filter((x) => a.kinds.includes(x.kind)) })).filter((a) => a.items.length);
+  const nachArt = art ? arten.find((a) => a.key === art)?.items ?? listed : listed;
+  const waitingCount = tasks.filter((x) => x.urgent).length;
+  const aktiveStelle = jobFilter ? jobs.find((j) => j.id === jobFilter) ?? null : null;
+  // Wechselt die Stelle, gilt wieder „Alle“ bei der Art
+  useEffect(() => { setArt(null); }, [jobFilter]);
 
+  // „Als Nächstes“ (21.11.2026): die wichtigste Aufgabe groß, mit einem Knopf und „Später“.
+  const karte = tasks.length > 0 ? (
+    <ForYouCard
+      tasks={tasks} waiting={waiting} items={[]} loading={false} onOpen={open}
+      title={t('tasks.next')} noAll tour onCurrent={setNextKey}
+      whoOf={(x) => x.jobTitle ?? x.who ?? null}
+      subOf={(x) => [x.detail, waitingLabel(x)].filter(Boolean).join(' · ') || null}
+    />
+  ) : null;
   return (
     <DashboardLayout>
       <div className="mx-auto max-w-4xl space-y-5">
         {/* data-tour: Ziel des Kunden-Rundgangs (lib/clientGuide.ts) */}
-        <div data-tour="tasks.main">
-          <h1 className="text-2xl font-bold">{t('tasks.title')}</h1>
-          <p className="text-sm text-muted-foreground">{t('tasks.lead')}</p>
+        <div data-tour="tasks.main" className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold">{t('tasks.title')}</h1>
+            {/* Apple-Stil (22.11.2026): ein Satz statt der vier Zahlen-Kisten */}
+            <p className="text-sm text-muted-foreground">{allTasks.length > 0 ? t('tasks.summary', { total: tasks.length, waiting: waitingCount }) : t('tasks.lead')}</p>
+          </div>
+          {jobs.length > 1 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="max-w-[18rem] gap-1.5 text-xs">
+                  <span className="truncate">{aktiveStelle ? <StellenTitelKurz titel={aktiveStelle.title} /> : t('tasks.allJobsPlain')}</span>
+                  <span className="font-normal text-muted-foreground">{aktiveStelle ? aktiveStelle.n : allTasks.length}</span>
+                  <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-72">
+                <DropdownMenuItem className="cursor-pointer justify-between gap-3" onClick={() => setJobFilter(null)}>
+                  <span className={cn(!jobFilter && 'font-medium')}>{t('tasks.allJobsPlain')}</span>
+                  <span className="text-xs text-muted-foreground">{allTasks.length}</span>
+                </DropdownMenuItem>
+                {jobs.map((j) => (
+                  <DropdownMenuItem key={j.id} className="cursor-pointer justify-between gap-3" onClick={() => setJobFilter(j.id)}>
+                    <span className={cn('truncate', jobFilter === j.id && 'font-medium')}>{j.title}</span>
+                    <span className="text-xs text-muted-foreground">{j.n}</span>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
 
         {isLoading ? (
@@ -111,66 +140,25 @@ export default function ClientAufgaben() {
           <p className="text-sm text-destructive">{t('tasks.loadError')}</p>
         ) : (
           <>
-            {allTasks.length > 0 && (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  <Kpi value={String(tasks.length)} label={t('tasks.kpiTasks', { count: tasks.length })} />
-                  <Kpi value={String(urgent.length)} label={t('tasks.kpiWaiting')} tone={urgent.length ? 'urgent' : undefined} />
-                  <Kpi value={oldest ? waitedFor(oldest, t) : '–'} label={t('tasks.kpiOldest')} />
-                  <Kpi value={String(doneToday)} label={t('tasks.kpiDoneToday')} />
-                </div>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {/* Handy: Stellen-Knöpfe in einer Zeile zum Wischen, der Schalter darunter */}
-                  <div className="handy-wischen contents max-md:flex max-md:w-full max-md:gap-1.5">
-                    <Button size="sm" variant={jobFilter ? 'outline' : 'default'} className="h-7 text-xs" onClick={() => setJobFilter(null)}>{t('tasks.allJobs', { count: allTasks.length })}</Button>
-                    {jobs.map((j) => (
-                      <Button key={j.id} size="sm" variant={jobFilter === j.id ? 'default' : 'outline'} className="h-7 max-w-[16rem] text-xs" onClick={() => setJobFilter(jobFilter === j.id ? null : j.id)}>
-                        <span className="truncate"><StellenTitelKurz titel={j.title} /></span>&nbsp;· {j.n}
-                      </Button>
-                    ))}
-                  </div>
-                  {jobs.length > 1 && !jobFilter && (
-                    <label className="ml-auto flex items-center gap-2 text-xs text-muted-foreground max-md:ml-0 max-md:mt-1">
-                      <Switch checked={byJob} onCheckedChange={toggleGroup} aria-label={t('tasks.byJob')} />
-                      {t('tasks.byJob')}
-                    </label>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Faire Zusammenarbeit, Stufe 1 (F3): Sammelhinweis, wenn Vorstellungen länger als 5 Werktage warten */}
-            {data?.reminder && (
-              <p className="rounded-lg border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">{data.reminder.text}</p>
-            )}
             {allTasks.length === 0 && (
-              <div className="flex flex-col items-center rounded-xl border py-10 text-center">
-                <CheckCircle2 className="mb-2 h-8 w-8 text-emerald-500/70" />
+              <div className="flex flex-col items-center rounded-xl border bg-card py-10 text-center">
+                <CheckCircle2 className="mb-2 h-8 w-8 text-muted-foreground/60" />
                 <p className="text-sm font-medium">{t('tiles.allDone')}</p>
                 <p className="text-sm text-muted-foreground">{t('tasks.nobodyWaiting')}</p>
               </div>
             )}
-            {byJob && !jobFilter && jobs.length > 1 ? (
-              groups.map((g) => (
-                <section key={g.key} className="space-y-1">
-                  <h2 className="px-2.5 text-xs font-medium text-muted-foreground">{g.title} · {g.items.length}</h2>
-                  {g.items.map((x) => <TaskRow key={x.key} task={x} onOpen={open} />)}
-                </section>
-              ))
-            ) : (
+            {allTasks.length > 0 && (
               <>
-                {urgent.length > 0 && (
-                  <section className="space-y-1">
-                    <h2 className="px-2.5 text-xs font-medium text-muted-foreground">{t('tasks.urgent', { count: urgent.length })}</h2>
-                    {urgent.map((x) => <TaskRow key={x.key} task={x} onOpen={open} />)}
-                  </section>
-                )}
-                {rest.length > 0 && (
-                  <section className="space-y-1">
-                    <h2 className="px-2.5 text-xs font-medium text-muted-foreground">{t('tasks.thisWeek', { count: rest.length })}</h2>
-                    {rest.map((x) => <TaskRow key={x.key} task={x} onOpen={open} />)}
-                  </section>
-                )}
+                    {karte}
+                    <div role="tablist" className="flex gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                      {[{ key: null as string | null, label: t('tiles.all'), n: listed.length }, ...arten.map((a) => ({ key: a.key as string | null, label: t(`tasks.kind.${a.key}`), n: a.items.length }))].map((a) => (
+                        <button key={a.key ?? 'alle'} type="button" role="tab" aria-selected={art === a.key} onClick={() => setArt(a.key)}
+                          className={cn('h-8 shrink-0 whitespace-nowrap rounded-full px-3.5 text-xs font-medium transition-colors', art === a.key ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground')}>
+                          {a.label} <span className="font-normal">{a.n}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2">{nachArt.map((x) => <TaskCard key={x.key} task={x} onOpen={open} />)}</div>
               </>
             )}
             <section className="space-y-1 border-t pt-4">
@@ -192,14 +180,5 @@ export default function ClientAufgaben() {
       </div>
       <ClientTaskWindow task={active} open={!!active} onOpenChange={(o) => { if (!o) setActive(null); }} handlers={null} />
     </DashboardLayout>
-  );
-}
-
-function Kpi({ value, label, tone }: { value: string; label: string; tone?: 'urgent' }) {
-  return (
-    <div className="rounded-lg border px-3 py-2">
-      <p className={tone === 'urgent' ? 'text-lg font-semibold text-destructive' : 'text-lg font-semibold'}>{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
-    </div>
   );
 }

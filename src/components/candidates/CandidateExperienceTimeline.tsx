@@ -166,7 +166,7 @@ export function CandidateExperienceTimeline({ candidateId, onReparse, isReparsin
                     </span>
                   </div>
                   {exp.is_current && (
-                    <Badge variant="default" className="text-xs">{t('common.current')}</Badge>
+                    <Badge variant="secondary" className="text-xs font-medium text-muted-foreground">{t('common.current')}</Badge>
                   )}
                 </div>
               </div>

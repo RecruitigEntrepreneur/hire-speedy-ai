@@ -178,7 +178,7 @@ const de = {
     },
     'c-done': {
       title: 'Geschafft',
-      body: 'Sie kennen jetzt den Weg Ihrer Stelle bis zur Einstellung. Sobald sie live ist, sehen Sie es unter „Meine Jobs“. Den Rundgang starten Sie jederzeit neu über „Rundgang“ im Dashboard.',
+      body: 'Sie kennen jetzt den Weg Ihrer Stelle bis zur Einstellung. Sobald sie live ist, sehen Sie es unter „Meine Stellen“. Den Rundgang starten Sie jederzeit neu über „Rundgang“ im Dashboard.',
       bodyLive: 'Sie kennen jetzt den Weg Ihrer Stelle bis zur Einstellung. Den Rundgang starten Sie jederzeit neu über „Rundgang“ im Dashboard.',
       bodyExample: 'Sie kennen jetzt den Weg von der Stelle bis zur Einstellung. Den Rundgang starten Sie jederzeit neu über „Rundgang“ im Dashboard.',
     },

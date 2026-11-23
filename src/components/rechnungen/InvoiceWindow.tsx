@@ -60,7 +60,7 @@ export function InvoiceWindow({ invoice, settings, financeOnly, canManage = true
     catch (e) { toast.error(e instanceof Error ? e.message : t('common.pdfUnavailable')); }
   };
   const fact = (label: string, value: string) => (
-    <div className="rounded-lg border p-2.5"><p className="text-xs text-muted-foreground">{label}</p><p className="text-sm">{value}</p></div>
+    <div className="rounded-lg bg-secondary/60 p-2.5"><p className="text-xs text-muted-foreground">{label}</p><p className="text-sm">{value}</p></div>
   );
   const r = i.recipient ?? {};
   const address = [r.street, r.city].filter(Boolean).join(' · ');
@@ -73,7 +73,7 @@ export function InvoiceWindow({ invoice, settings, financeOnly, canManage = true
     body = (
       <>
         <div className="flex items-start gap-2 rounded-lg border p-3 text-sm">
-          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
           <div><p className="font-medium">{t('common.done')}</p><p className="text-muted-foreground">{done}</p></div>
         </div>
         <div className="flex justify-end gap-2 border-t pt-3">
@@ -121,7 +121,7 @@ export function InvoiceWindow({ invoice, settings, financeOnly, canManage = true
             {i.correctsNumber ? t('window.refers', { number: i.correctsNumber }) : ''}{i.correctsNumber && i.cancelledByNumber ? ' ' : ''}{i.cancelledByNumber ? t('window.cancelledBy', { number: i.cancelledByNumber }) : ''}
           </p>
         )}
-        <div className="rounded-lg border p-2.5 text-sm">
+        <div className="rounded-lg bg-secondary/60 p-2.5 text-sm">
           <p className="text-xs text-muted-foreground">{t('window.recipient')}</p>
           <p>{r.name ?? settings?.name ?? '–'}</p>
           <p className="text-xs text-muted-foreground">{[address || t('window.noAddress'), r.vatId ? t('window.vatId', { id: r.vatId }) : null].filter(Boolean).join(' · ')}</p>
@@ -139,7 +139,7 @@ export function InvoiceWindow({ invoice, settings, financeOnly, canManage = true
         </div>
         {payments.length > 0 && (
           <div>
-            <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('window.payments')}</p>
+            <p className="mb-1.5 text-[15px] font-semibold tracking-tight">{t('window.payments')}</p>
             <div className="divide-y text-sm">
               {payments.map((p, n) => (
                 <div key={n} className="flex justify-between gap-3 py-1.5">
@@ -165,7 +165,7 @@ export function InvoiceWindow({ invoice, settings, financeOnly, canManage = true
         </div>
         {i.events.length > 0 && (
           <div>
-            <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('window.history')}</p>
+            <p className="mb-1.5 text-[15px] font-semibold tracking-tight">{t('window.history')}</p>
             <ol className="divide-y text-sm">
               {i.events.map((e, n) => (
                 <li key={n} className="flex justify-between gap-3 py-1.5"><span>{e.text}</span><span className="shrink-0 text-xs text-muted-foreground">{dateDe(e.at)}</span></li>

@@ -12,7 +12,7 @@ export function SaveIndicator({ state }: { state: SaveState }) {
   if (state === 'error') {
     return <span className="inline-flex items-center gap-1.5 text-xs text-destructive"><AlertCircle className="h-3.5 w-3.5" />{t('save.error')}</span>;
   }
-  return <span className="inline-flex items-center gap-1.5 text-xs text-emerald-500"><Check className="h-3.5 w-3.5" />{t('save.saved')}</span>;
+  return <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><Check className="h-3.5 w-3.5" />{t('save.saved')}</span>;
 }
 
 /** Rahmen einer Unterseite: zurück zur Übersicht, Titel, Erklärung, Speicherstand. */
@@ -25,7 +25,7 @@ export function SettingsSubpage({ title, description, saveState = 'idle', onBack
 }) {
   const { t } = useTranslation('clientSettings');
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="space-y-6">
       <button type="button" onClick={onBack} className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" />{t('hub.title')}
       </button>
@@ -41,12 +41,12 @@ export function SettingsSubpage({ title, description, saveState = 'idle', onBack
   );
 }
 
-/** Ein Abschnitt innerhalb einer Unterseite: flache Karte mit kleiner Überschrift. */
+/** Ein Abschnitt innerhalb einer Unterseite: Karte mit Überschrift (Apple-Stil 22.11.2026: keine Großbuchstaben mehr). */
 export function SettingsBlock({ title, aside, children }: { title: string; aside?: ReactNode; children: ReactNode }) {
   return (
-    <section className="space-y-4 rounded-xl border border-border bg-card p-5">
+    <section className="space-y-4 rounded-xl border bg-card p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{title}</h2>
+        <h2 className="text-[15px] font-semibold tracking-tight">{title}</h2>
         {aside}
       </div>
       {children}
@@ -56,10 +56,10 @@ export function SettingsBlock({ title, aside, children }: { title: string; aside
 
 export function AusAufnahme({ show }: { show: boolean }) {
   const { t } = useTranslation('clientSettings');
-  return show ? <span className="ml-1.5 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-normal text-emerald-500">{t('fromIntake')}</span> : null;
+  return show ? <span className="ml-1.5 text-[11px] font-normal text-muted-foreground">· {t('fromIntake')}</span> : null;
 }
 
 export function Fehlt({ show }: { show: boolean }) {
   const { t } = useTranslation('clientSettings');
-  return show ? <span className="ml-1.5 text-[11px] font-normal text-amber-500">{t('missing')}</span> : null;
+  return show ? <span className="ml-1.5 text-[11px] font-medium text-klick">· {t('missing')}</span> : null;
 }

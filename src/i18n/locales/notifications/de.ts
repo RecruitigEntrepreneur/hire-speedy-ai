@@ -3,6 +3,8 @@
 const de = {
   title: 'Benachrichtigungen',
   markAllRead: 'Alle gelesen',
+  newCount: '{{count}} neu',
+  group: { today: 'Heute', week: 'Letzte 7 Tage', earlier: 'Früher' },
   empty: 'Keine Benachrichtigungen',
   showAll: 'Alle anzeigen',
   justNow: 'Gerade eben',

@@ -1022,7 +1022,7 @@ export function CaptureStep({
         {...dropProps}
       >
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">{t('capture.entry.title')}</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">{t('capture.entry.title')}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {entrySub ?? t('capture.entry.subDefault')}
           </p>
@@ -1046,7 +1046,7 @@ export function CaptureStep({
             icon={FileText}
             title={t('capture.entry.pasteTitle')}
             hint={t('capture.entry.cardPasteHint')}
-            badge={t('capture.entry.recommended')}
+            action={t('capture.entry.pasteButton')}
             way="paste"
             onClick={() => setEntryMode('paste')}
           />
@@ -1068,9 +1068,9 @@ export function CaptureStep({
           type="button"
           onClick={() => startManual()}
           data-intake-way="manual"
-          className="text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
+          className="text-sm text-klick hover:underline"
         >
-          {t('capture.entry.manualLong')}
+          {t('capture.entry.manualLong')} ›
         </button>
 
         {aiNote && (
@@ -1105,7 +1105,7 @@ firmaFest ? (
                    nach der Prüfung durch Matchunt. */
                 <Popover open={firmaWahlOffen} onOpenChange={setFirmaWahlOffen}>
                   <PopoverTrigger asChild>
-                    <button type="button" className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 hover:bg-muted">
+                    <button type="button" className={cn('inline-flex items-center gap-1', ansicht === 'etappen' ? 'hover:text-foreground' : 'rounded-md border border-border px-2 py-0.5 hover:bg-muted')}>
                       {ansicht === 'etappen'
                         ? (firmaFest.name || company.company_legal_name || company.company_name)
                         : t('capture.company.forCompany', { name: firmaFest.name || company.company_legal_name || company.company_name })}
@@ -1133,7 +1133,7 @@ firmaFest ? (
                           </span>
                         </span>
                         {f.id === firmaId ? <Check className="mt-0.5 h-4 w-4 shrink-0" />
-                          : f.verifiziert ? <span className="mt-0.5 shrink-0 text-xs text-emerald-600">✓</span> : null}
+                          : f.verifiziert ? <span className="mt-0.5 shrink-0 text-xs text-muted-foreground">✓</span> : null}
                       </button>
                     ))}
                     <a
@@ -1148,18 +1148,18 @@ firmaFest ? (
                 <span>{firmaFest.name || company.company_legal_name || company.company_name}</span>
               )}
               {firmaFest.inPruefung ? (
-                <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs text-amber-600">{t('capture.company.inReview')}</span>
+                <span className="text-muted-foreground">· {t('capture.company.inReview')}</span>
               ) : firmaFest.verifiziertAm && (
-                <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-600">{t('capture.company.verified')}</span>
+                <span className="text-muted-foreground">· {t('capture.company.verified')}</span>
               )}
               {built.location && <span className="text-muted-foreground">· {built.location}</span>}
               <Popover>
                 <PopoverTrigger asChild>
                   <button
                     type="button"
-                    className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                    className="text-klick hover:underline"
                   >
-                    {t('capture.company.details')}
+                    <span className="text-muted-foreground">· </span>{t('capture.company.details')} ›
                   </button>
                 </PopoverTrigger>
                 <PopoverContent align="start" className="w-auto max-w-sm p-3 text-xs">
@@ -1167,12 +1167,12 @@ firmaFest ? (
                   {firmaFest.adresse && <p className="text-muted-foreground">{firmaFest.adresse}</p>}
                   {firmaFest.register && <p className="text-muted-foreground">{firmaFest.register}</p>}
                   {firmaFest.verifiziertAm && (
-                    <p className="mt-1.5 text-emerald-600">
+                    <p className="mt-1.5 text-muted-foreground">
                       {t('capture.company.verifiedOn', { date: new Date(firmaFest.verifiziertAm).toLocaleDateString(intlLocale(i18n.language)) })}
                     </p>
                   )}
                   {firmaFest.inPruefung && (
-                    <p className="mt-1.5 text-amber-600">{t('capture.company.inReviewLong')}</p>
+                    <p className="mt-1.5 text-muted-foreground">{t('capture.company.inReviewLong')}</p>
                   )}
                   <a
                     href="/dashboard/settings#firmendaten"
@@ -1521,30 +1521,26 @@ export const captureBriefingText = (answers: Answers): string | null => serializ
 
 /** Ein Einstiegsweg als Karte. Klarer als drei gleich laute Knöpfe. */
 function EntryCard({
-  icon: Icon, title, hint, badge, spinning, way, onClick,
+  icon: Icon, title, hint, action, spinning, way, onClick,
 }: {
   /** `way`: Anker für die Schilder des Kunden-Rundgangs (lib/clientGuide.ts). */
-  icon: any; title: string; hint: string; badge?: string; spinning?: boolean; way?: string; onClick: () => void;
+  icon: any; title: string; hint: string; /** Der eine blaue Knopf auf dem schnellsten Weg. */ action?: string; spinning?: boolean; way?: string; onClick: () => void;
 }) {
   return (
     <button
       type="button"
       data-intake-way={way}
       onClick={onClick}
-      className="flex w-full items-start gap-3 rounded-xl border p-4 text-left transition-colors hover:border-primary/40 hover:bg-muted/40"
+      className="flex w-full items-start gap-3 rounded-xl border bg-card p-4 text-left transition-colors hover:border-foreground/30 hover:bg-accent/40"
     >
       <Icon className={cn('mt-0.5 h-5 w-5 shrink-0 text-muted-foreground', spinning && 'animate-spin')} />
-      <span className="min-w-0">
-        <span className="flex flex-wrap items-center gap-2">
-          <span className="font-medium">{title}</span>
-          {badge && (
-            <span className="rounded-full border border-primary/40 px-2 py-0.5 text-[10px] font-medium text-primary">
-              {badge}
-            </span>
-          )}
-        </span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-medium">{title}</span>
         <span className="mt-0.5 block text-sm text-muted-foreground">{hint}</span>
       </span>
+      {action && (
+        <span className="shrink-0 self-center rounded-full bg-klick px-4 py-1.5 text-sm font-medium text-klick-foreground">{action}</span>
+      )}
     </button>
   );
 }

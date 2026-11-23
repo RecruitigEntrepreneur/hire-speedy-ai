@@ -24,7 +24,7 @@ function StatusPill({ c }: { c: ClientCompany }) {
   const { t } = useTranslation('clientSettings');
   if (c.status === 'verified') {
     return (
-      <span className="shrink-0 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-600">
+      <span className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
         {c.decided_at ? t('companies.verifiedOn', { date: fmt(c.decided_at) }) : t('companies.verified')}
       </span>
     );
@@ -33,7 +33,7 @@ function StatusPill({ c }: { c: ClientCompany }) {
     return <span className="shrink-0 rounded-full bg-destructive/10 px-2 py-0.5 text-xs text-destructive">{t('companies.notVerified')}</span>;
   }
   if (c.admin_question) {
-    return <span className="shrink-0 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs text-amber-600">{t('companies.question')}</span>;
+    return <span className="shrink-0 text-xs font-medium text-klick">{t('companies.question')}</span>;
   }
   return <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{t('companies.inReview')}</span>;
 }
@@ -69,7 +69,7 @@ export function FirmenBlock() {
           <Button size="sm" className="mt-3" onClick={() => setForm({ company: null, role: 'main' })}>{t('companies.add')}</Button>
         </div>
       ) : (
-        <ul className="divide-y divide-border rounded-lg border border-border">
+        <ul className="divide-y divide-border rounded-lg border">
           {companies.map((c) => {
             const facts = companyFacts(c);
             const change = c.status === 'verified' && c.pending_change;
@@ -92,7 +92,7 @@ export function FirmenBlock() {
                 {facts && <p className="text-xs text-muted-foreground">{facts}</p>}
 
                 {c.admin_question && (
-                  <p className="rounded-md bg-amber-500/10 px-2.5 py-1.5 text-xs text-amber-700 dark:text-amber-400">
+                  <p className="rounded-md bg-secondary px-2.5 py-1.5 text-xs">
                     <span className="font-medium">{change ? t('companies.questionChange') : t('companies.questionFrom')}</span> {c.admin_question}
                   </p>
                 )}
@@ -113,13 +113,13 @@ export function FirmenBlock() {
                 <div className="flex flex-wrap gap-3 pt-0.5">
                   <button
                     type="button"
-                    className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                    className="text-xs text-klick hover:underline"
                     onClick={() => setForm({ company: c, role: c.role })}
                   >
                     {c.admin_question ? t('companies.supplement')
                       : c.status === 'rejected' ? t('companies.correct')
                       : c.status === 'verified' ? (change ? t('companies.editChange') : t('companies.requestChange'))
-                      : t('companies.edit')}
+                      : t('companies.edit')} ›
                   </button>
                 </div>
               </li>
@@ -247,7 +247,7 @@ function FirmaDialog({ company, role: startRole, mainName, onClose, onSubmit }: 
         </DialogHeader>
 
         {company?.admin_question && (
-          <p className="rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+          <p className="rounded-md bg-secondary px-3 py-2 text-xs">
             <span className="font-medium">{t('companies.questionFrom')}</span> {company.admin_question}
           </p>
         )}

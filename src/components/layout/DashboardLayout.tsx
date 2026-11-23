@@ -113,6 +113,10 @@ export function DashboardLayout({ children, fluid = false, activeHref }: Dashboa
   const clientInvoices = useClientInvoices();
   const clientWaiting = useClientWaiting().waiting;
 
+  // Konto-Menü: Name statt nur E-Mail, Kürzel im runden Knopf (22.11.2026)
+  const kontoName = String((user?.user_metadata as { full_name?: string } | undefined)?.full_name ?? '').trim();
+  const kontoKuerzel = kontoName.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]?.toUpperCase()).join('');
+
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
@@ -258,14 +262,14 @@ export function DashboardLayout({ children, fluid = false, activeHref }: Dashboa
             
             <DropdownMenu onOpenChange={(o) => { if (!o) setSpracheOffen(false); }}>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" className="rounded-full">
-                  <User className="h-4 w-4" />
+                <Button variant="outline" size="icon" className="rounded-full text-xs font-medium" aria-label={kontoName || user?.email || undefined}>
+                  {kontoKuerzel || <User className="h-4 w-4" />}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <div className="px-2 py-1.5">
-                  <p className="text-sm font-medium">{user?.email}</p>
-                  <p className="text-xs text-muted-foreground capitalize">{role}</p>
+                  <p className="truncate text-sm font-medium">{kontoName || user?.email}</p>
+                  {kontoName && <p className="truncate text-xs text-muted-foreground">{user?.email}</p>}
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
@@ -300,7 +304,7 @@ export function DashboardLayout({ children, fluid = false, activeHref }: Dashboa
                   {spracheOffen && <div className="ml-3 border-l border-border pl-1"><LanguageItems /></div>}
                 </div>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive">
+                <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
                   <LogOut className="mr-2 h-4 w-4" />
                   {isRecruiter ? tNav('signOut') : isClient ? tClient('signOut') : 'Abmelden'}
                 </DropdownMenuItem>
@@ -332,7 +336,7 @@ export function DashboardLayout({ children, fluid = false, activeHref }: Dashboa
                     className={cn(
                       'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
                       isActive
-                        ? 'bg-primary text-primary-foreground'
+                        ? 'bg-secondary font-medium text-foreground'
                         : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                     )}
                   >
@@ -344,7 +348,7 @@ export function DashboardLayout({ children, fluid = false, activeHref }: Dashboa
                       <span
                         className={cn(
                           'ml-auto rounded-full px-1.5 text-[11px] font-medium leading-5',
-                          isActive ? 'bg-primary-foreground text-primary' : 'bg-destructive text-destructive-foreground',
+                          'bg-destructive text-destructive-foreground',
                         )}
                       >
                         {item.badge}
@@ -364,7 +368,7 @@ export function DashboardLayout({ children, fluid = false, activeHref }: Dashboa
                 className={cn(
                   'flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors',
                   location.pathname === settingsHref || (role === 'recruiter' && location.pathname === '/recruiter/integrations')
-                    ? 'bg-primary text-primary-foreground'
+                    ? 'bg-secondary font-medium text-foreground'
                     : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                 )}
               >

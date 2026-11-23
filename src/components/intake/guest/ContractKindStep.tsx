@@ -57,7 +57,7 @@ export function ContractKindStep({ onChoose, onDecline, onBack }: Props) {
   const { t } = useTranslation('clientFunnel');
   return (
     <div className="mx-auto max-w-3xl">
-      <h2 className="text-2xl font-bold tracking-tight">{t('kind.title')}</h2>
+      <h2 className="text-2xl font-semibold tracking-tight">{t('kind.title')}</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         {t('kind.lead')}
       </p>
@@ -74,7 +74,7 @@ export function ContractKindStep({ onChoose, onDecline, onBack }: Props) {
             // hin. Eine ausgegraute Karte ohne Erklaerung waere schlechter.
             className="rounded-xl border bg-card p-4 text-left transition-colors hover:border-foreground/30 hover:bg-accent/40"
           >
-            <Icon className="mb-2 h-5 w-5 text-muted-foreground" />
+            <Icon className="mb-2 h-5 w-5 text-klick" />
             <p className="text-sm font-semibold">{t(`kind.${text}Title`)}</p>
             <p className="mt-0.5 text-xs text-muted-foreground">{t(`kind.${text}Line`)}</p>
             <p className="mt-2 text-xs text-muted-foreground/80">{t(`kind.${text}Hint`)}</p>

@@ -15,7 +15,7 @@ const satz = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 function Kopf({ children, aside }: { children: ReactNode; aside?: ReactNode }) {
   return (
     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-      <h3 className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{children}</h3>
+      <h3 className="text-[15px] font-semibold tracking-tight">{children}</h3>
       {aside}
     </div>
   );
@@ -110,7 +110,7 @@ export function FitTextCard({ fit }: { fit: ReturnType<typeof useCandidateFitAss
   return (
     <Card data-tour="candidate.fit">
       <CardContent className="p-5">
-        <Kopf aside={<Badge variant="outline" className="text-[10px] font-normal">{tc('preview.aiBadge')}</Badge>}>{tc('preview.fitTitle')}</Kopf>
+        <Kopf aside={<Badge variant="outline" className="border-transparent bg-secondary text-[10px] font-normal text-muted-foreground">{tc('preview.aiBadge')}</Badge>}>{tc('preview.fitTitle')}</Kopf>
         {stuck ? (
           <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
             <p className="min-w-0 flex-1">{tc('cards.fitFailed')}</p>

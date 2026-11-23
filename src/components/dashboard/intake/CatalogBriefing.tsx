@@ -680,7 +680,7 @@ export function SlotEingabe({
               className={cn(
                 'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs transition-colors',
                 an ? 'border-primary bg-primary/10 text-foreground'
-                   : laut ? 'border-dashed border-blue-500/70 text-blue-600 hover:bg-accent dark:text-blue-300'
+                   : laut ? 'border-dashed border-foreground/50 text-foreground hover:bg-accent'
                    : 'border-input text-muted-foreground hover:bg-accent hover:text-foreground',
               )}>
               {an && <Check className="h-2.5 w-2.5 shrink-0" />}

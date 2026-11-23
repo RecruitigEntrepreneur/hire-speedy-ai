@@ -42,8 +42,8 @@ export function PosteingangKnopf({ href }: { href: string }) {
       <Link to={href} aria-label={zahl ? t(role === 'client' ? 'inboxWaitingClient' : 'inboxWaiting', { count: zahl }) : t('inbox')} title={t('inbox')}>
         <MessageCircle className="h-5 w-5" />
         {zahl > 0 && (
-          <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-xs font-medium text-destructive-foreground">
-            {zahl > 9 ? '9+' : zahl}
+          <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium leading-none text-destructive-foreground">
+            {zahl > 99 ? '99+' : zahl}
           </span>
         )}
       </Link>

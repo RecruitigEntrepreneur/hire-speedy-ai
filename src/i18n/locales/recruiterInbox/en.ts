@@ -18,6 +18,7 @@ const en: Messages<typeof de> = {
     unreadShort_one: '{{count}} unread',
     unreadShort_other: '{{count}} unread',
     allReadShort: 'All read',
+    unreadOf: '{{count}} unread of {{total}}',
     emptyUnreadShort: 'All read.',
     emptyAllDu: 'You have no notifications yet.',
     emptyAllSie: 'You have no notifications yet.',

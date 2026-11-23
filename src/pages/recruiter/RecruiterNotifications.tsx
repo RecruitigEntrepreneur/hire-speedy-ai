@@ -2,16 +2,12 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { intlLocale } from '@/i18n/languages';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Check, ChevronRight, Loader2 } from 'lucide-react';
+import { Bell, ChevronRight, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Honorar } from '@/components/recruiter/Honorar';
-import { HinweisIcon } from '@/components/notifications/HinweisIcon';
 import { hinweisPfad, hinweisZiel } from '@/lib/hinweisZiel';
 import { cn } from '@/lib/utils';
 
@@ -93,6 +89,18 @@ export default function RecruiterNotifications() {
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
   const liste = notifications.filter((n) => filter === 'all' || !n.is_read);
+  // Gliederung nach Tagen: Heute, letzte 7 Tage, Früher (22.11.2026)
+  const gruppen = (['today', 'week', 'earlier'] as const)
+    .map((key) => ({
+      key,
+      eintraege: liste.filter((n) => {
+        const d = new Date(n.created_at);
+        const heute = d.toDateString() === new Date().toDateString();
+        const woche = Date.now() - d.getTime() < 7 * 86_400_000;
+        return key === 'today' ? heute : key === 'week' ? !heute && woche : !heute && !woche;
+      }),
+    }))
+    .filter((g) => g.eintraege.length > 0);
 
   if (loading) {
     return (
@@ -109,43 +117,47 @@ export default function RecruiterNotifications() {
       <div className="space-y-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t('notifications.title')}</h1>
-            <p className="text-muted-foreground">{unreadCount > 0 ? t('notifications.unreadShort', { count: unreadCount }) : t('notifications.allReadShort')}</p>
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{t('notifications.title')}</h1>
+            <p className="text-muted-foreground">{unreadCount > 0 ? t('notifications.unreadOf', { count: unreadCount, total: notifications.length }) : t('notifications.allReadShort')}</p>
           </div>
           {unreadCount > 0 && (
-            <Button variant="outline" onClick={() => void alleGelesen()}>
-              <Check className="mr-2 h-4 w-4" />
+            <Button variant="secondary" className="rounded-full px-4" onClick={() => void alleGelesen()}>
               {t('notifications:markAllRead')}
             </Button>
           )}
         </div>
 
-        <Tabs value={filter} onValueChange={(v) => setFilter(v as 'all' | 'unread')}>
-          <TabsList>
-            <TabsTrigger value="all">
-              {t('notifications.all')}
-              <Badge variant="secondary" className="ml-2">{notifications.length}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="unread">
-              {t('notifications.unreadTab')}
-              {unreadCount > 0 && <Badge className="ml-2 bg-destructive">{unreadCount}</Badge>}
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="flex flex-wrap gap-2">
+          {([['all', t('notifications.all'), notifications.length], ['unread', t('notifications.unreadTab'), unreadCount]] as const).map(([wert, name, zahl]) => (
+            <button
+              key={wert}
+              type="button"
+              onClick={() => setFilter(wert)}
+              aria-pressed={filter === wert}
+              className={cn(
+                'rounded-full border px-3 py-1 text-sm transition-colors',
+                filter === wert ? 'border-foreground font-medium ring-1 ring-foreground' : 'border-input text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {name} <span className="tabular-nums text-muted-foreground">{zahl}</span>
+            </button>
+          ))}
+        </div>
 
-        <Card>
-          <CardContent className="p-0">
-            {liste.length === 0 ? (
-              <div className="py-16 text-center">
-                <Bell className="mx-auto h-12 w-12 text-muted-foreground/50" />
-                <h3 className="mt-4 text-lg font-semibold">{t('notifications.emptyTitle')}</h3>
-                <p className="text-muted-foreground">
-                  {filter === 'unread' ? t('notifications.emptyUnreadShort') : sie ? t('notifications.emptyAllSie') : t('notifications.emptyAllDu')}
-                </p>
-              </div>
-            ) : (
-              <div className="divide-y">
-                {liste.map((n) => {
+        {liste.length === 0 ? (
+          <div className="rounded-xl border bg-card py-16 text-center">
+            <Bell className="mx-auto h-10 w-10 text-muted-foreground/50" />
+            <h3 className="mt-4 text-[15px] font-semibold tracking-tight">{t('notifications.emptyTitle')}</h3>
+            <p className="text-sm text-muted-foreground">
+              {filter === 'unread' ? t('notifications.emptyUnreadShort') : sie ? t('notifications.emptyAllSie') : t('notifications.emptyAllDu')}
+            </p>
+          </div>
+        ) : (
+          gruppen.map((g) => (
+            <section key={g.key} className="space-y-2">
+              <p className="text-xs text-muted-foreground">{t(`notifications:group.${g.key}`)}</p>
+              <div className="divide-y overflow-hidden rounded-xl border bg-card">
+                {g.eintraege.map((n) => {
                   const hatZiel = !!hinweisZiel(n, role);
                   return (
                     <button
@@ -153,41 +165,35 @@ export default function RecruiterNotifications() {
                       type="button"
                       onClick={() => void oeffnen(n)}
                       className={cn(
-                        'flex w-full items-start gap-3 p-3 text-left transition-colors sm:gap-4 sm:p-4',
-                        !n.is_read ? 'bg-primary/5' : 'hover:bg-muted/30',
+                        'flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-accent/40',
                         !hatZiel && 'cursor-default',
                       )}
                     >
-                      <HinweisIcon type={n.type} className="h-8 w-8 sm:h-10 sm:w-10 [&>svg]:h-4 [&>svg]:w-4 sm:[&>svg]:h-5 sm:[&>svg]:w-5" />
+                      <span className={cn('mt-2 h-2 w-2 shrink-0 rounded-full', !n.is_read && 'bg-klick')} aria-hidden />
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className={cn('font-medium', n.is_read && 'text-muted-foreground')}>{n.title}</p>
-                            {n.message && (
-                              <p className="mt-1 line-clamp-3 text-sm text-muted-foreground">
-                                {n.type === 'placement_created' ? <Honorar>{n.message}</Honorar> : n.message}
-                              </p>
-                            )}
-                            {n.type === 'opt_in_request' && (
-                              <p className="mt-2 text-xs text-muted-foreground">{t('notifications.optInNote')}</p>
-                            )}
-                            {/* Am Handy steht die Zeit unter dem Text, damit der Titel die Breite bekommt */}
-                            <p className="mt-1 text-xs text-muted-foreground sm:hidden">{formatTime(n.created_at)}</p>
-                          </div>
-                          <div className="flex shrink-0 items-center gap-2 pt-1 sm:pt-0">
-                            <span className="hidden text-xs text-muted-foreground sm:inline">{formatTime(n.created_at)}</span>
-                            {!n.is_read && <div className="h-2 w-2 rounded-full bg-primary" />}
-                            {hatZiel && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-                          </div>
-                        </div>
+                        <p className={cn('text-sm', !n.is_read && 'font-medium')}>{n.title}</p>
+                        {n.message && (
+                          <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">
+                            {n.type === 'placement_created' ? <Honorar>{n.message}</Honorar> : n.message}
+                          </p>
+                        )}
+                        {n.type === 'opt_in_request' && (
+                          <p className="mt-1 text-xs text-muted-foreground">{t('notifications.optInNote')}</p>
+                        )}
+                        {/* Am Handy steht die Zeit unter dem Text, damit der Titel die Breite bekommt */}
+                        <p className="mt-1 text-xs text-muted-foreground sm:hidden">{formatTime(n.created_at)}</p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2 pt-0.5">
+                        <span className="hidden text-xs text-muted-foreground sm:inline">{formatTime(n.created_at)}</span>
+                        {hatZiel && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                       </div>
                     </button>
                   );
                 })}
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </section>
+          ))
+        )}
       </div>
     </DashboardLayout>
   );

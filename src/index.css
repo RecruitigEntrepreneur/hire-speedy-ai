@@ -7,26 +7,26 @@
 @layer base {
   /* Dark-first: root = dark mode (default) */
   :root {
-    --background: 0 0% 4%;
-    --foreground: 0 0% 98%;
+    --background: 0 0% 0%;
+    --foreground: 240 5% 96%;
 
-    --card: 0 0% 8%;
-    --card-foreground: 0 0% 98%;
+    --card: 240 3% 12%;
+    --card-foreground: 240 5% 96%;
 
-    --popover: 0 0% 10%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 240 3% 12%;
+    --popover-foreground: 240 5% 96%;
 
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 4%;
+    --primary: 240 5% 96%;
+    --primary-foreground: 240 3% 12%;
 
-    --secondary: 0 0% 15%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 240 2% 18%;
+    --secondary-foreground: 240 5% 96%;
 
-    --muted: 0 0% 15%;
-    --muted-foreground: 0 0% 64%;
+    --muted: 240 2% 18%;
+    --muted-foreground: 240 3% 64%;
 
-    --accent: 0 0% 15%;
-    --accent-foreground: 0 0% 98%;
+    --accent: 240 2% 18%;
+    --accent-foreground: 240 5% 96%;
 
     --success: 152 69% 40%;
     --success-foreground: 0 0% 100%;
@@ -37,15 +37,22 @@
     --destructive: 0 72% 50%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 0 0% 15%;
+    --border: 240 2% 21%;
     /* Getrennt von --border: Trennlinien duerfen zurueckhaltend bleiben,
        Bedienelemente muessen sich abheben. Bei 15 % lag der Rahmen eines
        outline-Knopfes auf 4-%-Grund bei einem Kontrast von 1,3 -- unter dem,
        was fuer Bedienelemente zumutbar ist. */
-    --input: 0 0% 26%;
-    --ring: 0 0% 64%;
+    --input: 240 2% 26%;
+    --ring: 211 100% 58%;
 
-    --radius: 0.5rem;
+    --radius: 0.875rem;
+
+
+    /* Apple-Stil (21.11.2026): das eine Blau fuer die Hauptaktion, Links und den Fokus. Sonst bleibt alles grau. */
+
+    --klick: 211 100% 58%;
+
+    --klick-foreground: 0 0% 0%;
 
     /* Gradients - Monochromatic */
     --gradient-navy: linear-gradient(135deg, hsl(0 0% 6%) 0%, hsl(0 0% 2%) 100%);
@@ -64,13 +71,13 @@
     --shadow-xs: 0 1px 2px 0 hsl(0 0% 0% / 0.2);
     --shadow-2xl: 0 16px 32px -4px hsl(0 0% 0% / 0.6);
 
-    --sidebar-background: 0 0% 6%;
+    --sidebar-background: 0 0% 0%;
     --sidebar-foreground: 0 0% 98%;
     --sidebar-primary: 0 0% 98%;
     --sidebar-primary-foreground: 0 0% 4%;
-    --sidebar-accent: 0 0% 15%;
+    --sidebar-accent: 240 2% 18%;
     --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 0 0% 15%;
+    --sidebar-border: 240 2% 18%;
     --sidebar-ring: 0 0% 64%;
 
     --chart-1: 0 0% 98%;
@@ -79,7 +86,7 @@
     --chart-4: 0 0% 45%;
     --chart-5: 0 0% 30%;
 
-    --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+    --font-sans: 'Inter Tight', 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
     --spacing: 0.25rem;
 
     /* Aus dem Lebenslauf übernommen (Interview, 09.11.2026): ruhiges Blau, sonst nirgends belegt */
@@ -90,31 +97,34 @@
 
   /* Light mode override */
   .light {
+    --klick: 211 100% 45%;
+    --klick-foreground: 0 0% 100%;
+
     --cv-bg: 214 85% 95%;
     --cv-border: 213 72% 74%;
     --cv-fg: 213 74% 34%;
 
     /* Fassung C (17.11.2026): warmgrauer Grund, weiße Karten, feine Linie, weicher Schatten */
-    --background: 60 5% 96%;
-    --foreground: 0 0% 4%;
+    --background: 0 0% 100%;
+    --foreground: 240 3% 12%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 4%;
+    --card: 240 11% 96%;
+    --card-foreground: 240 3% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 4%;
+    --popover-foreground: 240 3% 12%;
 
-    --primary: 0 0% 4%;
-    --primary-foreground: 0 0% 98%;
+    --primary: 240 3% 12%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 30 6% 93%;
-    --secondary-foreground: 0 0% 4%;
+    --secondary: 240 11% 92%;
+    --secondary-foreground: 240 3% 12%;
 
-    --muted: 30 6% 93%;
-    --muted-foreground: 0 0% 45%;
+    --muted: 240 11% 92%;
+    --muted-foreground: 240 2% 44%;
 
-    --accent: 30 6% 93%;
-    --accent-foreground: 0 0% 4%;
+    --accent: 240 11% 92%;
+    --accent-foreground: 240 3% 12%;
 
     --success: 152 69% 40%;
     --success-foreground: 0 0% 100%;
@@ -125,9 +135,10 @@
     --destructive: 0 72% 50%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 20 6% 90%;
-    --input: 20 6% 86%;
-    --ring: 0 0% 45%;
+    /* Feine Kante (22.11.2026): Karten sollen sich auf Weiß leicht abzeichnen, nicht verschwinden. */
+    --border: 240 8% 88%;
+    --input: 240 6% 83%;
+    --ring: 211 100% 45%;
 
     --gradient-navy: linear-gradient(135deg, hsl(0 0% 96%) 0%, hsl(0 0% 100%) 100%);
     --gradient-hero: linear-gradient(135deg, hsl(0 0% 98%) 0%, hsl(0 0% 100%) 100%);
@@ -147,9 +158,9 @@
     --sidebar-foreground: 0 0% 4%;
     --sidebar-primary: 0 0% 4%;
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 30 6% 93%;
+    --sidebar-accent: 240 11% 92%;
     --sidebar-accent-foreground: 0 0% 4%;
-    --sidebar-border: 20 6% 90%;
+    --sidebar-border: 240 11% 92%;
     --sidebar-ring: 0 0% 45%;
 
     --chart-1: 0 0% 4%;
@@ -167,7 +178,7 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Inter Tight', 'Inter', system-ui, sans-serif;
   }
 
   h1, h2, h3, h4, h5, h6 {

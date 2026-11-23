@@ -1,28 +1,52 @@
-import { Link } from 'react-router-dom';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Badge } from '@/components/ui/badge';
-import { JobHealthIndicator } from '@/components/jobs/JobHealthIndicator';
 import { BentoTile } from './BentoTile';
+import { KachelLeer, KachelReiter, KachelZeile } from './KachelTeile';
 import type { JobStats } from '@/hooks/useClientDashboard';
-import { Briefcase, Users, Calendar, Gift } from 'lucide-react';
-import { stellenVerlauf } from '@/lib/stellenVerlauf';
-import { VerlaufPunkte } from '@/components/dashboard/StellenVerlauf';
-
+import { Briefcase } from 'lucide-react';
 
 interface Props {
   jobs: JobStats[];
   loading?: boolean;
 }
 
-const daysSince = (iso: string) => Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+type Reiter = 'all' | 'turn' | 'review';
+const MAX_ROWS = 5;
+const istPruefung = (j: JobStats) => j.status === 'pending_approval';
 
-/** Tile B – Aktive Jobs mit Health-Badge + Funnel (Kand · Intv · Angeb). */
+/** Tile B – Aktive Jobs (Apple-Stil, 21.11.2026): gleiche Zeilen wie die anderen Kacheln.
+ *  Zahlen in Worten statt Symbolen, rechts nur die Handlung (neue Kandidaten prüfen) oder der Stand.
+ *  Die errechnete Note „OK / Achtung“ ist entfallen: sie gab dem Kunden nichts zu tun. */
 export function AktiveJobsTile({ jobs, loading }: Props) {
   const { t } = useTranslation('clientDashboard');
-  // Die Kachel kennt nur den Status -- fuer die Punkte reicht das. Beim Rendern gebaut,
-  // damit die Beschriftung der Punkte der aktuellen Sprache folgt.
-  const pruefVerlauf = stellenVerlauf({ status: 'pending_approval' });
+  const [tab, setTab] = useState<Reiter>('all');
+
+  const dran = useMemo(() => jobs.filter((j) => !istPruefung(j) && j.newCandidates > 0), [jobs]);
+  const pruefung = useMemo(() => jobs.filter(istPruefung), [jobs]);
+
+  const visible = useMemo(() => {
+    const liste = tab === 'turn' ? dran : tab === 'review' ? pruefung : jobs;
+    // Wo der Kunde dran ist zuerst, Stellen in Prüfung zuletzt.
+    const rang = (j: JobStats) => (istPruefung(j) ? 2 : j.newCandidates > 0 ? 0 : 1);
+    return liste.slice().sort((a, b) => rang(a) - rang(b) || b.newCandidates - a.newCandidates).slice(0, MAX_ROWS);
+  }, [jobs, dran, pruefung, tab]);
+
+  const reiter: { key: Reiter; label: string }[] = [
+    { key: 'all', label: t('tiles.allCount', { count: jobs.length }) },
+    ...(dran.length ? [{ key: 'turn' as const, label: t('tiles.yourTurn', { count: dran.length }) }] : []),
+    ...(pruefung.length ? [{ key: 'review' as const, label: `${t('tiles.inReview')} (${pruefung.length})` }] : []),
+  ];
+
+  const zahlen = (j: JobStats) => {
+    const teile = [
+      j.totalCandidates > 0 && t('tiles.nCandidates', { count: j.totalCandidates }),
+      j.interviews > 0 && t('tiles.nInterviews', { count: j.interviews }),
+      j.offers > 0 && t('tiles.nOffers', { count: j.offers }),
+    ].filter(Boolean);
+    return teile.length ? teile.join(' · ') : t('tiles.noCandidatesYet');
+  };
+
   return (
     <BentoTile icon={Briefcase} title={t('tiles.activeJobs')} count={loading ? undefined : jobs.length} to="/dashboard/jobs">
       {loading ? (
@@ -31,56 +55,25 @@ export function AktiveJobsTile({ jobs, loading }: Props) {
             <Skeleton key={i} className="h-10 w-full" />
           ))}
         </div>
-      ) : jobs.length === 0 ? (
-        <div className="flex h-full items-center justify-center py-6 text-center text-sm text-muted-foreground">
-          {t('tiles.noActiveJobs')}
-        </div>
       ) : (
-        <div className="space-y-0.5">
-          {jobs.slice(0, 5).map((job) => (
-            <Link
-              key={job.id}
-              to={`/dashboard/jobs/${job.id}`}
-              className="group flex items-center gap-3 rounded-lg px-2.5 py-2 transition-all hover:bg-accent/50"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="truncate text-sm font-medium transition-colors group-hover:text-primary">{job.title}</p>
-                  {job.status === 'pending_approval' ? (
-                    /* Dieselbe Sprache wie Jobliste und Job-Detail (lib/stellenVerlauf). */
-                    <>
-                      <Badge variant="outline" className="h-5 shrink-0 border-amber-500/40 px-1.5 text-[10px] text-amber-600">
-                        {t('tiles.inReview')}
-                      </Badge>
-                      {pruefVerlauf && <VerlaufPunkte verlauf={pruefVerlauf} className="shrink-0" />}
-                    </>
-                  ) : (
-                    <JobHealthIndicator
-                      candidatesCount={job.totalCandidates}
-                      interviewsCount={job.interviews}
-                      activeRecruiters={job.activeRecruiters}
-                      daysOpen={daysSince(job.createdAt)}
-                      status={job.status}
-                    />
-                  )}
-                </div>
-                <div className="mt-0.5 flex items-center gap-3 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Users className="h-3 w-3" />
-                    {job.totalCandidates}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    {job.interviews}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Gift className="h-3 w-3" />
-                    {job.offers}
-                  </span>
-                </div>
-              </div>
-            </Link>
-          ))}
+        <div className="flex h-full flex-col">
+          <KachelReiter<Reiter> items={reiter} value={tab} onChange={setTab} />
+          {jobs.length === 0 ? (
+            <KachelLeer>{t('tiles.noActiveJobs')}</KachelLeer>
+          ) : (
+            <div>
+              {visible.map((job) => (
+                <KachelZeile
+                  key={job.id}
+                  to={`/dashboard/jobs/${job.id}`}
+                  title={job.title}
+                  sub={zahlen(job)}
+                  action={!istPruefung(job) && job.newCandidates > 0 ? t('tiles.newToReview', { count: job.newCandidates }) : undefined}
+                  state={istPruefung(job) ? t('tiles.inReview') : undefined}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </BentoTile>

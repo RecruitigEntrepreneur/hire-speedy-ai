@@ -18,6 +18,7 @@ const sv: Messages<typeof de> = {
     unreadShort_one: '{{count}} oläst',
     unreadShort_other: '{{count}} olästa',
     allReadShort: 'Allt är läst',
+    unreadOf: '{{count}} olästa av {{total}}',
     emptyUnreadShort: 'Allt är läst.',
     emptyAllDu: 'Du har inga aviseringar än.',
     emptyAllSie: 'Du har inga aviseringar än.',

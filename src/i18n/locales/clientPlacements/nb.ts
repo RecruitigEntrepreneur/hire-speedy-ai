@@ -63,6 +63,7 @@ const nb: Messages<typeof de> = {
     you: 'Du',
     recruiter: 'Headhunter',
     label: 'din tur: {{who}}',
+    yourTurn: 'Din tur',
   },
   steps: {
     offer: 'Tilbud V{{version}}',

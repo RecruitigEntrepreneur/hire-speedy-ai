@@ -3,7 +3,7 @@ const de = {
   items: {
     dashboard: 'Dashboard',
     tasks: 'Aufgaben',
-    jobs: 'Meine Jobs',
+    jobs: 'Meine Stellen',
     candidates: 'Bewerber',
     interviews: 'Interviews',
     placements: 'Besetzungen',
@@ -14,7 +14,7 @@ const de = {
   },
   short: {
     dashboard: 'Dashboard',
-    jobs: 'Jobs',
+    jobs: 'Stellen',
   },
   settings: 'Einstellungen',
   signOut: 'Abmelden',

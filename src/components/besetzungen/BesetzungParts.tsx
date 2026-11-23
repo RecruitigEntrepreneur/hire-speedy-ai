@@ -9,15 +9,17 @@ import { dayMonth, dranOf, factsOf, statusOf, stepsOf, titleOf, type Fact, type 
  * Etikett, Schritte, Eckdaten, Karte, Zeilen der Nachbesetzung.
  */
 
+// Apple-Stil (22.11.2026): Grün nur für „unterschrieben“, Rot für überfällig/abgelaufen als Text,
+// alles andere ruhig grau. „Sie sind dran“ steht als blaue Handlung daneben (siehe BesetzungCard).
 const PILL: Record<Tone, string> = {
-  good: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
-  warn: 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
-  bad: 'bg-destructive/10 text-destructive',
-  neutral: 'border border-border bg-muted/40 text-muted-foreground',
+  good: 'bg-emerald-500/10 px-2 text-emerald-700 dark:text-emerald-400',
+  warn: 'text-muted-foreground',
+  bad: 'text-destructive',
+  neutral: 'bg-secondary px-2 text-muted-foreground',
 };
 
 export function StatusPill({ text, tone, className }: { text: string; tone: Tone; className?: string }) {
-  return <span className={cn('inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium', PILL[tone], className)}>{text}</span>;
+  return <span className={cn('inline-flex shrink-0 items-center whitespace-nowrap rounded-full py-0.5 text-[11px] font-medium', PILL[tone], className)}>{text}</span>;
 }
 
 /** Schritte ruhig: erledigt grau, jetzt hervorgehoben, nur Abbruch rot. */
@@ -25,12 +27,12 @@ export function StepRow({ steps }: { steps: Step[] }) {
   return (
     <div className="flex flex-wrap gap-1">
       {steps.map((s, n) => (
-        <span key={n} className={cn('rounded-md border px-2 py-0.5 text-[11px]',
-          s.state === 'done' && 'text-muted-foreground',
-          s.state === 'now' && 'border-foreground/30 font-medium text-foreground',
-          s.state === 'next' && 'border-dashed text-muted-foreground',
-          s.state === 'bad' && 'border-destructive/30 text-destructive')}>
-          {s.state === 'done' ? '✓ ' : s.state === 'now' ? '● ' : s.state === 'bad' ? '✕ ' : '○ '}{s.label}
+        <span key={n} className={cn('rounded-full px-2 py-0.5 text-[11px]',
+          s.state === 'done' && 'bg-secondary text-muted-foreground',
+          s.state === 'now' && 'bg-foreground font-medium text-background',
+          s.state === 'next' && 'bg-secondary/50 text-muted-foreground',
+          s.state === 'bad' && 'bg-destructive/10 text-destructive')}>
+          {s.state === 'done' ? '✓ ' : s.state === 'bad' ? '✕ ' : ''}{s.label}
         </span>
       ))}
     </div>
@@ -49,7 +51,7 @@ export function FactGrid({ facts, limit, onAction }: { facts: Fact[]; limit?: nu
           <dd className={cn(limit ? 'truncate' : 'break-words', f.tone && FACT_TONE[f.tone])} title={f.value}>
             {f.value}
             {f.action && onAction && !limit && (
-              <button type="button" className="ml-1.5 text-xs font-medium underline underline-offset-2 hover:text-foreground" onClick={() => onAction(f.action!)}>{i18n.t('clientPlacements:facts.add')}</button>
+              <button type="button" className="ml-1.5 text-xs font-medium text-klick hover:underline" onClick={() => onAction(f.action!)}>{i18n.t('clientPlacements:facts.add')}</button>
             )}
           </dd>
         </div>
@@ -85,9 +87,11 @@ export function BesetzungCard({ item, hasTask, onOpen }: { item: BesetzungItem; 
           <span className="font-semibold">{titleOf(item)}</span>
           <span className="text-muted-foreground"> · {item.jobTitle}{item.recruiterName ? i18n.t('clientPlacements:common.via', { name: item.recruiterName }) : ''}</span>
         </p>
-        <div className="flex flex-wrap items-center gap-1.5">
-          {dran && <StatusPill text={i18n.t('clientPlacements:dran.label', { who: dran.text })} tone={dran.tone} />}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <StatusPill text={status.text} tone={status.tone} />
+          {dran && (dran.tone === 'bad'
+            ? <span className="whitespace-nowrap text-xs font-medium text-klick">{i18n.t('clientPlacements:dran.yourTurn')} ›</span>
+            : <span className="whitespace-nowrap text-[11px] text-muted-foreground">{i18n.t('clientPlacements:dran.label', { who: dran.text })}</span>)}
         </div>
       </div>
       <div className="mt-2" data-tour="besetzung.steps"><StepRow steps={stepsOf(item)} /></div>

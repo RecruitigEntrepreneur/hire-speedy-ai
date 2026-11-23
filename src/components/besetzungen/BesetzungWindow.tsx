@@ -130,7 +130,7 @@ export function BesetzungWindow({ item, open, onOpenChange, onContract, onOpenSu
     body = (
       <>
         <div className="flex items-start gap-2 rounded-lg border p-3 text-sm">
-          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
           <div><p className="font-medium">{t('window.done')}</p><p className="text-muted-foreground">{done}</p></div>
         </div>
         <div className="flex justify-end gap-2 border-t pt-3">
@@ -228,7 +228,7 @@ export function BesetzungWindow({ item, open, onOpenChange, onContract, onOpenSu
     body = (
       <>
         <div>
-          <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('window.steps')}</p>
+          <p className="mb-1.5 text-[15px] font-semibold tracking-tight">{t('window.steps')}</p>
           <StepRow steps={stepsOf(item)} />
         </div>
         {panel && (
@@ -239,7 +239,7 @@ export function BesetzungWindow({ item, open, onOpenChange, onContract, onOpenSu
             onOpenSubmission={(sub) => { if (onOpenSubmission) onOpenSubmission(sub); else go(`/dashboard/besetzungen?besetzung=${sub}`); }} />
         )}
         <div>
-          <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('window.facts')}</p>
+          <p className="mb-1.5 text-[15px] font-semibold tracking-tight">{t('window.facts')}</p>
           <FactGrid facts={factsOf(item)} onAction={(a) => { if (a === 'po') setForm('po'); }} />
         </div>
         {p && item.group === 'start' && !p.end && !p.startFixedAt && (
@@ -247,7 +247,7 @@ export function BesetzungWindow({ item, open, onOpenChange, onContract, onOpenSu
         )}
         {acts.length > 0 && (
           <div>
-            <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('window.actionsTitle')}</p>
+            <p className="mb-1.5 text-[15px] font-semibold tracking-tight">{t('window.actionsTitle')}</p>
             <div className="flex flex-wrap gap-2">
               {acts.map((k) => <Button key={k} size="sm" variant={primary(k) ? 'default' : 'outline'} onClick={RUN[k]}>{LABEL[k]}</Button>)}
             </div>
@@ -255,7 +255,7 @@ export function BesetzungWindow({ item, open, onOpenChange, onContract, onOpenSu
         )}
         {item.events.length > 0 && (
           <div>
-            <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t('window.history')}</p>
+            <p className="mb-1.5 text-[15px] font-semibold tracking-tight">{t('window.history')}</p>
             <ol className="divide-y text-sm">
               {item.events.map((e, n) => (
                 <li key={n} className="flex justify-between gap-3 py-1.5"><span>{e.text}</span><span className="shrink-0 text-xs text-muted-foreground">{dateDe(e.at)}</span></li>

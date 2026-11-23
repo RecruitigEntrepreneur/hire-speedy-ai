@@ -41,7 +41,7 @@ export function VerlaufPunkte({ verlauf, className }: { verlauf: Verlauf; classN
           key={s.key}
           className={cn(
             'h-1.5 w-1.5 rounded-full',
-            s.zustand === 'erledigt' ? 'bg-emerald-500' : s.zustand === 'aktuell' ? 'bg-primary' : 'bg-muted-foreground/30',
+            s.zustand === 'erledigt' ? 'bg-muted-foreground' : s.zustand === 'aktuell' ? 'bg-primary' : 'bg-muted-foreground/30',
           )}
         />
       ))}

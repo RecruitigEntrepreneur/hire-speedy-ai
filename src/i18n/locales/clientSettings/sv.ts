@@ -14,6 +14,11 @@ const sv: Messages<typeof de> = {
   },
 
   hub: {
+    summaryReady: '{{company}} är klart.',
+    summaryOpen_one: '{{company}}: {{count}} punkt återstår.',
+    summaryOpen_other: '{{company}}: {{count}} punkter återstår.',
+    calendarOnly: 'Det enda som återstår är din kalender.',
+    calendarAlso: 'Din kalender är inte ansluten ännu.',
     title: 'Inställningar',
     complete: 'Komplett',
     openPoints_one: ' · {{count}} punkt kvar',
@@ -39,6 +44,7 @@ const sv: Messages<typeof de> = {
         checking: 'Kontrollerar …',
         connected: 'Outlook anslutet',
         notConnected: 'Inte anslutet',
+        connectNow: 'Anslut nu',
       },
       auftritt: {
         title: 'Profil för headhunters',
@@ -46,7 +52,7 @@ const sv: Messages<typeof de> = {
         missing_one: '{{count}} uppgift saknas',
         missing_other: '{{count}} uppgifter saknas',
       },
-      team: { title: 'Team', text: 'Kollegor och behörigheter', status: 'Öppnar teamsidan' },
+      team: { title: 'Team', text: 'Kollegor och behörigheter', status: 'Öppnar teamsidan', people_one: '{{count}} person', people_other: '{{count}} personer' },
       unternehmen: { title: 'Företag', text: 'Namn, logotyp, fakturaadress', missing: 'Saknas: {{fields}}' },
       vertrag: { title: 'Avtal och fakturor', text: 'Ramavtal, fakturor' },
     },

@@ -169,7 +169,7 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
             )}
             <p className="text-xs text-muted-foreground/70 mt-0.5">
               {tc('preview.for')} <span className="font-medium text-muted-foreground">{item.jobTitle}</span>
-              <span className="ml-2 font-mono text-muted-foreground/50">{item.anonymizedName}</span>
+              <span className="ml-2 text-muted-foreground/60">{item.anonymizedName}</span>
             </p>
           </div>
         </div>
@@ -276,7 +276,7 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
             {/* Skills Card */}
             {item.skills && item.skills.length > 0 && (
               <div className="bg-card border rounded-lg p-3">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                <h4 className="text-[15px] font-semibold tracking-tight mb-2">
                   {tc('preview.skills')}
                 </h4>
                 <div className="flex flex-wrap gap-1.5">
@@ -305,13 +305,13 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
             )}
 
             {/* KI-Einschätzung Card */}
-            <div className="bg-card border rounded-lg p-3 border-l-2 border-l-amber-400">
+            <div className="rounded-lg bg-background/60 p-3">
               <div className="flex items-center justify-between mb-2">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                <h4 className="text-[15px] font-semibold tracking-tight flex items-center gap-1">
                   <Sparkles className="h-3 w-3" />
                   {tc('preview.fitTitle')}
                 </h4>
-                <Badge variant="outline" className="text-[10px] font-normal px-1.5 py-0">
+                <Badge variant="outline" className="border-transparent bg-secondary px-1.5 py-0 text-[10px] font-normal text-muted-foreground">
                   {tc('preview.aiBadge')}
                 </Badge>
               </div>
@@ -342,7 +342,7 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
             {/* Empfehlung des Headhunters beim Einreichen */}
             {item.recruiterNotes?.trim() && (
               <div className="bg-card border rounded-lg p-3">
-                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                <h4 className="text-[15px] font-semibold tracking-tight mb-2">
                   {tc('preview.recommendation', { name: hhName })}
                 </h4>
                 <p className="text-xs text-muted-foreground leading-relaxed">{tc('preview.quote', { text: item.recruiterNotes.trim() })}</p>
@@ -353,7 +353,7 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
 
           {/* ─── RIGHT: Werdegang ─── */}
           <div className="p-4">
-            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+            <h4 className="text-[15px] font-semibold tracking-tight mb-3">
               {tc('preview.lastStations')}
             </h4>
 
@@ -364,15 +364,13 @@ export function BewerberPreviewPanel({ item, onInterviewRequest, onReject }: Bew
                     key={idx}
                     className={cn(
                       'rounded-lg p-2.5 border',
-                      entry.isCurrent
-                        ? 'bg-green-500/5 border-green-500/20'
-                        : 'bg-muted/30 border-transparent'
+                      'border-transparent bg-background/60'
                     )}
                   >
                     <div className="flex items-start gap-2">
                       <div className={cn(
                         'mt-0.5 h-2 w-2 rounded-full shrink-0',
-                        entry.isCurrent ? 'bg-green-500' : 'bg-muted-foreground/30'
+                        entry.isCurrent ? 'bg-foreground' : 'bg-muted-foreground/30'
                       )} />
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium text-foreground leading-tight">

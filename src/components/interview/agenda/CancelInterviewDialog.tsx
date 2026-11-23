@@ -12,7 +12,7 @@ import type { AgendaInterview } from '@/hooks/useClientInterviewAgenda';
 import { CandidateName } from './CandidateIdentity';
 import { interviewApi } from '@/lib/interviewScheduling';
 import { toast } from 'sonner';
-import { Loader2, XCircle } from 'lucide-react';
+import {Loader2 } from 'lucide-react';
 
 interface Props {
   interview: AgendaInterview | null;
@@ -68,8 +68,7 @@ export function CancelInterviewDialog({ interview: iv, open, onOpenChange, onDon
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <XCircle className="h-5 w-5 text-destructive" />
+          <DialogTitle>
             {isRequest ? t('cancel.titleRequest') : t('cancel.title')}
           </DialogTitle>
           <DialogDescription className="flex flex-wrap items-center gap-1">
@@ -78,7 +77,7 @@ export function CancelInterviewDialog({ interview: iv, open, onOpenChange, onDon
         </DialogHeader>
 
         <div className="space-y-2">
-          <Label htmlFor="cancel-reason" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <Label htmlFor="cancel-reason" className="text-[13px] font-semibold">
             {t('cancel.reason')}
           </Label>
           <Textarea
@@ -96,11 +95,11 @@ export function CancelInterviewDialog({ interview: iv, open, onOpenChange, onDon
 
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {t('common.cancel')}
+            {isRequest ? t('common.cancel') : t('cancel.keep')}
           </Button>
           <Button variant="destructive" onClick={cancel} disabled={saving} className="gap-1.5">
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            {isRequest ? t('cancel.withdraw') : t('cancel.confirm')}
+            {isRequest ? t('cancel.withdraw') : t('cancel.title')}
           </Button>
         </DialogFooter>
       </DialogContent>

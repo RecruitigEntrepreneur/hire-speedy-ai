@@ -59,7 +59,7 @@ export function BillingSettingsForm({ settings, canManage }: { settings: Billing
         {t('settings.intro')}
         {ro && t('settings.readOnly')}
       </p>
-      <div className="grid gap-4 rounded-xl border p-4 sm:grid-cols-2">
+      <div className="grid gap-4 rounded-xl border bg-card p-4 sm:grid-cols-2">
         <div className="space-y-3">
           {field(t('settings.company'), <Input disabled={ro} value={v.name} onChange={set('name')} />)}
           {field(t('settings.street'), <Input disabled={ro} value={v.street} onChange={set('street')} />, undefined, !settings.street)}
@@ -80,7 +80,7 @@ export function BillingSettingsForm({ settings, canManage }: { settings: Billing
         <div className="space-y-3">
           {field(t('settings.billingEmail'), <Input disabled={ro} type="email" value={v.billingEmail} onChange={set('billingEmail')} placeholder={t('settings.billingEmailPlaceholder')} />)}
           {field(t('settings.cc'), <Input disabled={ro} value={v.cc} onChange={set('cc')} placeholder={t('settings.ccPlaceholder')} />, t('settings.ccHint'))}
-          <div className="flex items-start justify-between gap-3 rounded-lg border p-3 text-sm">
+          <div className="flex items-start justify-between gap-3 rounded-lg bg-background p-3 text-sm shadow-[0_0_0_1px_hsl(var(--border))]">
             <div><p>{t('settings.poRequired')}</p><p className="text-xs text-muted-foreground">{t('settings.poRequiredHint')}</p></div>
             <Switch disabled={ro} checked={v.po} onCheckedChange={(c) => setV((x) => ({ ...x, po: c }))} aria-label={t('settings.poRequired')} />
           </div>

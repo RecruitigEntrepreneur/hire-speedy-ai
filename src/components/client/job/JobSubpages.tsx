@@ -2,7 +2,7 @@ import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { ArrowRight, ChevronDown, ChevronRight, ExternalLink, FileDown } from 'lucide-react';
+import { ChevronDown, ChevronRight, ExternalLink, FileDown } from 'lucide-react';
 import i18n from '@/i18n';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -45,12 +45,12 @@ export function JobTabsBar({ jobId, active, counts, dots }: {
           aria-current={active === tab ? 'page' : undefined}
           className={cn(
             'inline-flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm transition-colors',
-            active === tab ? 'border-foreground font-medium text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
+            active === tab ? 'border-klick font-medium text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
           )}
         >
           {t(`tabs.${tab}`)}
           {counts[tab] ? <span className="text-xs text-muted-foreground">{counts[tab]}</span> : null}
-          {dots[tab] && <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-label={t('tabs.waiting')} />}
+          {dots[tab] && <span className="h-1.5 w-1.5 rounded-full bg-klick" aria-label={t('tabs.waiting')} />}
         </Link>
       ))}
     </nav>
@@ -104,13 +104,14 @@ export function CandidatesTab({ items, tasks, jobId, onOpen }: { items: Bewerber
     <div className="space-y-4">
       <SectionCard
         title={t('cand.title', { count: running.length })}
-        aside={<button type="button" className={linkBtn} onClick={() => navigate(`/dashboard/candidates?job=${jobId}&tab=alle`)}>{t('cand.inbox')}<ArrowRight className="h-3 w-3" /></button>}
+        aside={<button type="button" className={linkBtn} onClick={() => navigate(`/dashboard/candidates?job=${jobId}&tab=alle`)}>{t('cand.inbox')}<ChevronRight className="h-3 w-3" /></button>}
       >
-        <div className="handy-wischen flex flex-wrap gap-1.5">
+        {/* Apple-Stil (22.11.2026): Filter als ruhige graue Pillen wie die Reiter der Dashboard-Kacheln */}
+        <div role="tablist" className="handy-wischen flex flex-wrap gap-1">
           {(['alle', 'mine', 'neu', 'pruefung', 'interview', 'angebot', 'abgesagt'] as CandFilter[]).map((f) => (
-            <button key={f} type="button" onClick={() => setFilter(f)}
-              className={cn('rounded-full border px-2.5 py-0.5 text-xs transition-colors', filter === f ? 'border-foreground bg-foreground text-background' : 'text-muted-foreground hover:text-foreground')}>
-              {t(`cand.filter.${f}`)} {counts[f]}
+            <button key={f} type="button" role="tab" aria-selected={filter === f} onClick={() => setFilter(f)}
+              className={cn('h-7 shrink-0 whitespace-nowrap rounded-full px-3 text-xs font-medium transition-colors', filter === f ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground')}>
+              {t(`cand.filter.${f}`)} <span className="font-normal">{counts[f]}</span>
             </button>
           ))}
         </div>
@@ -123,7 +124,8 @@ export function CandidatesTab({ items, tasks, jobId, onOpen }: { items: Bewerber
           <ul className="mt-3 md:hidden">
             {shown.map((item) => {
               const task = taskBySub.get(item.submissionId);
-              const line = [item.currentRole, regionLabel(item.region), fmtDayMonth(item.submittedAt)].filter(Boolean).join(' · ');
+              // Ohne Namen ist die Rolle die Hauptzeile, die Kennung steht leise darunter (wie auf dem Dashboard).
+              const line = [item.fullName ? item.currentRole : item.currentRole ? item.anonymizedName : null, regionLabel(item.region), fmtDayMonth(item.submittedAt)].filter(Boolean).join(' · ');
               return (
                 <li key={item.submissionId} className="flex items-start gap-3 border-t py-2.5">
                   <span className="w-4 shrink-0 pt-0.5">
@@ -133,7 +135,7 @@ export function CandidatesTab({ items, tasks, jobId, onOpen }: { items: Bewerber
                   </span>
                   <div className="min-w-0 flex-1">
                     <button type="button" onClick={() => navigate(`/dashboard/candidates/${item.submissionId}`)} className="block max-w-full truncate text-left text-sm font-medium hover:underline">
-                      {item.fullName || item.anonymizedName}
+                      {item.fullName || item.currentRole || item.anonymizedName}
                     </button>
                     <p className="truncate text-xs text-muted-foreground">{line || '–'}</p>
                   </div>
@@ -142,7 +144,7 @@ export function CandidatesTab({ items, tasks, jobId, onOpen }: { items: Bewerber
                       <span className="text-xs text-muted-foreground">{reasonLabel(item.rejectReason ?? '')}</span>
                     ) : task ? (
                       <>
-                        <Button size="sm" variant={task.urgent ? 'default' : 'outline'} className="h-7 px-2.5 text-xs" onClick={() => onOpen(task)}>{taskMainLabel(task.kind)}</Button>
+                        <button type="button" className="whitespace-nowrap text-xs font-medium text-klick hover:underline" onClick={() => onOpen(task)}>{taskMainLabel(task.kind)} ›</button>
                         <span className="text-[11px] text-muted-foreground">{t('cand.since', { count: daysSince(task.since) })}</span>
                       </>
                     ) : (
@@ -178,9 +180,9 @@ export function CandidatesTab({ items, tasks, jobId, onOpen }: { items: Bewerber
                       </td>
                       <td className="py-2.5 pr-3">
                         <button type="button" onClick={() => navigate(`/dashboard/candidates/${item.submissionId}`)} className="text-left font-medium hover:underline">
-                          {item.fullName || item.anonymizedName}
+                          {item.fullName || item.currentRole || item.anonymizedName}
                         </button>
-                        <p className="text-xs text-muted-foreground">{item.currentRole || '–'}</p>
+                        <p className="text-xs text-muted-foreground">{(item.fullName ? item.currentRole : item.currentRole ? item.anonymizedName : null) || '–'}</p>
                       </td>
                       <td className="py-2.5 pr-3 text-xs text-muted-foreground">{facts || '–'}</td>
                       <td className="py-2.5 pr-3 text-xs text-muted-foreground">{fmtDayMonth(item.submittedAt)}</td>
@@ -188,14 +190,14 @@ export function CandidatesTab({ items, tasks, jobId, onOpen }: { items: Bewerber
                         {filter === 'abgesagt' ? (
                           <span className="text-xs text-muted-foreground">{reasonLabel(item.rejectReason ?? '')}</span>
                         ) : task ? (
-                          <span className="text-xs"><span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-amber-500 align-middle" />{task.title}<span className="block text-muted-foreground">{t('cand.since', { count: daysSince(task.since) })}</span></span>
+                          <span className="text-xs">{task.title}<span className="block text-muted-foreground">{t('cand.since', { count: daysSince(task.since) })}</span></span>
                         ) : (
                           <BewerberStatusPill item={item} />
                         )}
                       </td>
                       <td className="py-2.5 text-right">
                         {task ? (
-                          <Button size="sm" variant={task.urgent ? 'default' : 'outline'} className="h-7 px-2.5 text-xs" onClick={() => onOpen(task)}>{taskMainLabel(task.kind)}</Button>
+                          <button type="button" className="whitespace-nowrap text-xs font-medium text-klick hover:underline" onClick={() => onOpen(task)}>{taskMainLabel(task.kind)} ›</button>
                         ) : (
                           <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground/60" />
                         )}
@@ -232,7 +234,7 @@ export function CandidatesTab({ items, tasks, jobId, onOpen }: { items: Bewerber
                   <span>{reasonLabel(k)}</span>
                   <span className="flex items-center gap-1 text-xs text-muted-foreground">{list.length}<ChevronDown className={cn('h-3.5 w-3.5 transition-transform', openReason === k && 'rotate-180')} /></span>
                 </button>
-                <div className="mt-1 h-1.5 rounded-full bg-muted"><div className={cn('h-1.5 rounded-full', k ? 'bg-foreground/60' : 'bg-border')} style={{ width: `${(list.length / maxReason) * 100}%` }} /></div>
+                <div className="mt-1 h-1.5 rounded-full bg-muted"><div className={cn('h-1.5 rounded-full', k ? 'bg-klick/70' : 'bg-border')} style={{ width: `${(list.length / maxReason) * 100}%` }} /></div>
                 {openReason === k && (
                   <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
                     {list.map((i) => (
@@ -250,7 +252,6 @@ export function CandidatesTab({ items, tasks, jobId, onOpen }: { items: Bewerber
           </div>
         )}
       </SectionCard>
-      <p className="text-xs text-muted-foreground">{tr('jobdetail.funnel.hint')}</p>
     </div>
   );
 }
@@ -298,6 +299,7 @@ function CompareCard({ items, onClose }: { items: BewerberItem[]; onClose: () =>
 
 // ================================================================== Interviews
 
+/** Apple-Stil (22.11.2026): kein oranger Punkt, Handlungen als Textlinks (Blau nur für die eine Handlung je Zeile). */
 export function InterviewsTab({ interviews, feedbackDue }: { interviews: AgendaInterview[]; feedbackDue: AgendaInterview[] }) {
   const { t } = useTranslation('clientJobs');
   const navigate = useNavigate();
@@ -320,16 +322,16 @@ export function InterviewsTab({ interviews, feedbackDue }: { interviews: AgendaI
             {feedbackDue.map((iv) => (
               <div key={iv.id} className="flex items-center justify-between gap-3 border-t py-2.5 first:border-t-0">
                 <div className="min-w-0">
-                  <p className="truncate text-sm"><span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-amber-500 align-middle" /><span className="font-medium">{iv.candidateName}</span>{iv.scheduledAt ? ` · ${fmtWhen(iv.scheduledAt)}` : ''}</p>
+                  <p className="truncate text-sm"><span className="font-medium">{iv.candidateName}</span>{iv.scheduledAt ? ` · ${fmtWhen(iv.scheduledAt)}` : ''}</p>
                   <p className="text-xs text-muted-foreground">{t('iv.feedbackWaiting', { count: daysSince(iv.scheduledAt) })}</p>
                 </div>
-                <Button size="sm" className="h-7 shrink-0 px-2.5 text-xs" onClick={() => profile(iv, 'feedback')}>{t('iv.giveFeedback')}</Button>
+                <button type="button" className="shrink-0 whitespace-nowrap text-xs font-medium text-klick hover:underline" onClick={() => profile(iv, 'feedback')}>{t('iv.giveFeedback')} ›</button>
               </div>
             ))}
           </SectionCard>
         )}
 
-        <SectionCard title={t('iv.upcomingTitle')} aside={<button type="button" className={linkBtn} onClick={() => navigate('/dashboard/interviews')}>{t('iv.all')}<ArrowRight className="h-3 w-3" /></button>}>
+        <SectionCard title={t('iv.upcomingTitle')} aside={<button type="button" className={linkBtn} onClick={() => navigate('/dashboard/interviews')}>{t('iv.all')}<ChevronRight className="h-3 w-3" /></button>}>
           {upcoming.length === 0 && open.length === 0 ? (
             <>
               <p className="text-sm">{t('cockpit.dates.emptyTitle')}</p>
@@ -339,8 +341,8 @@ export function InterviewsTab({ interviews, feedbackDue }: { interviews: AgendaI
             <>
               {upcoming.map((iv) => (
                 <div key={iv.id} className="flex items-center gap-3 border-t py-2.5 first:border-t-0">
-                  <div className="w-12 shrink-0 rounded-lg border py-1 text-center">
-                    <p className="text-[10px] uppercase text-muted-foreground">{new Date(iv.scheduledAt!).toLocaleDateString(i18n.language, { weekday: 'short' })}</p>
+                  <div className="w-12 shrink-0 rounded-lg bg-secondary py-1 text-center">
+                    <p className="text-[11px] text-muted-foreground">{new Date(iv.scheduledAt!).toLocaleDateString(i18n.language, { weekday: 'short' })}</p>
                     <p className="text-sm font-semibold">{new Date(iv.scheduledAt!).getDate()}</p>
                   </div>
                   <div className="min-w-0 flex-1">
@@ -348,11 +350,9 @@ export function InterviewsTab({ interviews, feedbackDue }: { interviews: AgendaI
                     <p className="text-xs text-muted-foreground">{iv.confirmed ? t('iv.confirmed') : t('iv.unconfirmed')}{iv.onsiteAddress ? ` · ${iv.onsiteAddress}` : ''}</p>
                   </div>
                   {iv.joinUrl && (
-                    <Button asChild size="sm" variant="outline" className="h-7 shrink-0 gap-1 px-2.5 text-xs">
-                      <a href={iv.joinUrl} target="_blank" rel="noopener noreferrer">{t('iv.join')}<ExternalLink className="h-3 w-3" /></a>
-                    </Button>
+                    <a href={iv.joinUrl} target="_blank" rel="noopener noreferrer" className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-xs font-medium text-klick hover:underline">{t('iv.join')}<ExternalLink className="h-3 w-3" /></a>
                   )}
-                  <Button size="sm" variant="ghost" className="h-7 shrink-0 px-2 text-xs" onClick={() => profile(iv)}>{t('iv.open')}</Button>
+                  <button type="button" className="shrink-0 whitespace-nowrap text-xs text-muted-foreground hover:text-foreground" onClick={() => profile(iv)}>{t('iv.open')} ›</button>
                 </div>
               ))}
               {open.map((iv) => (
@@ -361,7 +361,7 @@ export function InterviewsTab({ interviews, feedbackDue }: { interviews: AgendaI
                     <p className="truncate text-sm"><span className="font-medium">{iv.candidateName}</span> · {t('iv.proposed', { count: iv.proposedSlots.length })}</p>
                     <p className="text-xs text-muted-foreground">{iv.counterSlots.length ? t('iv.counter') : t('iv.waitingCandidate', { count: daysSince(iv.createdAt) })}</p>
                   </div>
-                  <Button size="sm" variant="ghost" className="h-7 shrink-0 px-2 text-xs" onClick={() => profile(iv)}>{t('iv.open')}</Button>
+                  <button type="button" className="shrink-0 whitespace-nowrap text-xs text-muted-foreground hover:text-foreground" onClick={() => profile(iv)}>{t('iv.open')} ›</button>
                 </div>
               ))}
             </>
@@ -425,7 +425,7 @@ export function MarketTab({ searchersNode, searchSentence, items, budgetLabel, o
           {canRequest && (
             <div className="mt-4 flex items-center justify-between gap-3 border-t pt-3">
               <p className="text-xs text-muted-foreground">{t('market.adjustHint')}</p>
-              <Button size="sm" variant="outline" className="h-7 shrink-0 px-2.5 text-xs" onClick={onRequestChange}>{t('cockpit.speed.changeCta')}</Button>
+              <button type="button" className="shrink-0 whitespace-nowrap text-xs font-medium text-klick hover:underline" onClick={onRequestChange}>{t('cockpit.speed.changeCta')} ›</button>
             </div>
           )}
         </SectionCard>
@@ -434,8 +434,8 @@ export function MarketTab({ searchersNode, searchSentence, items, budgetLabel, o
           <SectionCard title={t('market.questionsTitle')}>
             {openQuestions.map((q) => (
               <div key={q.key} className="flex items-center justify-between gap-3 border-t py-2 first:border-t-0">
-                <p className="min-w-0 text-sm"><span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-amber-500 align-middle" />{q.detail || q.title}<span className="block text-xs text-muted-foreground">{q.who}</span></p>
-                <Button size="sm" variant="outline" className="h-7 shrink-0 px-2.5 text-xs" onClick={() => onAnswer(q)}>{t('cockpit.speed.answer')}</Button>
+                <p className="min-w-0 text-sm">{q.detail || q.title}<span className="block text-xs text-muted-foreground">{q.who}</span></p>
+                <button type="button" className="shrink-0 whitespace-nowrap text-xs font-medium text-klick hover:underline" onClick={() => onAnswer(q)}>{t('cockpit.speed.answer')} ›</button>
               </div>
             ))}
             {answered.map((q) => (
@@ -475,7 +475,7 @@ export function ContractTab({ facts, konditionenNode, canSeeFee, costLine, offer
   return (
     <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
       <div className="space-y-4">
-        <SectionCard title={t('contract.agreed')} aside={canRequest ? <button type="button" className={linkBtn} onClick={onRequestChange}>{t('cockpit.agreement.change')}<ArrowRight className="h-3 w-3" /></button> : undefined}>
+        <SectionCard title={t('contract.agreed')} aside={canRequest ? <button type="button" className={linkBtn} onClick={onRequestChange}>{t('cockpit.agreement.change')}<ChevronRight className="h-3 w-3" /></button> : undefined}>
           {facts.length > 0 && (
             <dl className="mb-3 space-y-1 text-sm">
               {facts.map(([label, value]) => (
@@ -529,8 +529,8 @@ export function ContractTab({ facts, konditionenNode, canSeeFee, costLine, offer
         <SectionCard title={t('contract.placementsTitle')}>
           <p className="text-sm text-muted-foreground">{t('contract.placementsText')}</p>
           <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
-            <button type="button" className={linkBtn} onClick={() => navigate('/dashboard/besetzungen')}>{t('contract.placementsLink')}<ArrowRight className="h-3 w-3" /></button>
-            {canSeeFee && <button type="button" className={linkBtn} onClick={() => navigate('/dashboard/rechnungen')}>{t('contract.invoicesLink')}<ArrowRight className="h-3 w-3" /></button>}
+            <button type="button" className={cn(linkBtn, 'font-medium text-klick hover:text-klick hover:underline')} onClick={() => navigate('/dashboard/besetzungen')}>{t('contract.placementsLink')}<ChevronRight className="h-3 w-3" /></button>
+            {canSeeFee && <button type="button" className={cn(linkBtn, 'font-medium text-klick hover:text-klick hover:underline')} onClick={() => navigate('/dashboard/rechnungen')}>{t('contract.invoicesLink')}<ChevronRight className="h-3 w-3" /></button>}
           </div>
         </SectionCard>
       </div>
@@ -573,7 +573,7 @@ export function TeamTab({ teamNode, events, summaryNode }: { teamNode: ReactNode
         <div className="mb-2 flex flex-wrap gap-1.5">
           {(['alle', 'kandidaten', 'interviews', 'stelle', 'team'] as const).map((k) => (
             <button key={k} type="button" onClick={() => setKind(k)}
-              className={cn('rounded-full border px-2.5 py-0.5 text-xs transition-colors', kind === k ? 'border-foreground bg-foreground text-background' : 'text-muted-foreground hover:text-foreground')}>
+              className={cn('h-7 shrink-0 whitespace-nowrap rounded-full px-3 text-xs font-medium transition-colors', kind === k ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground')}>
               {t(`team.filter.${k}`)}
             </button>
           ))}

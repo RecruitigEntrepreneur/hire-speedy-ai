@@ -277,8 +277,8 @@ export default function ClientMessages() {
     <DashboardLayout>
         <div className="space-y-6">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t('messages.title')}</h1>
-            <p className="text-muted-foreground">{t('messages.subtitle')}</p>
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{t('messages.title')}</h1>
+            <p className="text-muted-foreground">{conversations.length > 0 ? t('messages.count', { count: conversations.length }) : t('messages.subtitle')}</p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:h-[calc(100vh-250px)]">
@@ -297,7 +297,7 @@ export default function ClientMessages() {
               </CardHeader>
               <CardContent className="p-0">
                 {/* Handy: Radix legt den Inhalt in eine display:table-Hülle, die mit langen Texten breiter wird als die Liste; als Block kürzt „truncate“ wieder mit „…“. */}
-                <ScrollArea className="lg:h-[calc(100vh-380px)] max-lg:[&_[data-radix-scroll-area-viewport]>div]:!block">
+                <ScrollArea className="lg:h-[calc(100vh-380px)] [&_[data-radix-scroll-area-viewport]>div]:!block">
                   {filteredConversations.length === 0 ? (
                     <div className="text-center py-8">
                       <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground/50" />
@@ -309,8 +309,8 @@ export default function ClientMessages() {
                       <div
                         key={conv.id}
                         onClick={() => handleSelectConversation(conv)}
-                        className={`flex items-start gap-3 p-4 cursor-pointer hover:bg-muted/50 transition-colors border-b ${
-                          selectedConversation?.id === conv.id ? 'bg-muted' : ''
+                        className={`mx-2 mb-1 flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
+                          selectedConversation?.id === conv.id ? 'border-foreground ring-1 ring-foreground' : 'border-transparent hover:bg-accent/40'
                         }`}
                       >
                         <Avatar>
@@ -329,12 +329,12 @@ export default function ClientMessages() {
                               {conv.participant.full_name || conv.participant.email}
                             </p>
                             {conv.unreadCount > 0 && (
-                              <Badge className="bg-primary">{conv.unreadCount}</Badge>
+                              <span className="h-2 w-2 shrink-0 rounded-full bg-klick" aria-label={String(conv.unreadCount)} />
                             )}
                           </div>
                           {conv.code && (
                             <p className="text-xs text-muted-foreground truncate">
-                              {conv.code}{conv.jobTitle ? ` · ${conv.jobTitle}` : ''}
+                              {[conv.jobTitle, conv.code].filter(Boolean).join(' · ')}
                             </p>
                           )}
                           {conv.lastMessage && (
@@ -380,14 +380,13 @@ export default function ClientMessages() {
                           {selectedConversation.participant.full_name || selectedConversation.participant.email}
                         </CardTitle>
                         <p className="text-sm text-muted-foreground">
-                          {selectedConversation.code ? t('messages.headhunterAbout', { code: selectedConversation.code }) : t('messages.headhunter')}
-                          {selectedConversation.jobTitle ? ` · ${selectedConversation.jobTitle}` : ''}
+                          {[t('messages.headhunter'), selectedConversation.jobTitle, selectedConversation.code].filter(Boolean).join(' · ')}
                         </p>
                       </div>
                       {selectedConversation.submissionId && (
-                        <Button asChild variant="outline" size="sm" className="ml-auto max-sm:ml-[3.25rem]">
-                          <Link to={`/dashboard/candidates/${selectedConversation.submissionId}`}>{t('messages.toProfile')}</Link>
-                        </Button>
+                        <Link to={`/dashboard/candidates/${selectedConversation.submissionId}`} className="ml-auto shrink-0 text-sm text-klick hover:underline max-sm:ml-[3.25rem]">
+                          {t('messages.profileLink')} ›
+                        </Link>
                       )}
                     </div>
                   </CardHeader>
@@ -399,26 +398,24 @@ export default function ClientMessages() {
                         </div>
                       ) : (
                         <div className="space-y-4">
-                          {messages.map((msg) => {
+                          {messages.map((msg, i) => {
                             const isMine = msg.sender_id === user?.id;
+                            const tag = new Date(msg.created_at).toDateString();
+                            const neuerTag = i === 0 || new Date(messages[i - 1].created_at).toDateString() !== tag;
+                            const wartet = isMine && i === messages.length - 1;
                             return (
-                              <div
-                                key={msg.id}
-                                className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}
-                              >
-                                <div
-                                  className={`max-w-[85%] sm:max-w-[70%] rounded-lg px-4 py-2 ${
-                                    isMine
-                                      ? 'bg-primary text-primary-foreground'
-                                      : 'bg-muted'
-                                  }`}
-                                >
-                                  <p className="text-sm">{msg.content}</p>
-                                  <p className={`text-xs mt-1 ${
-                                    isMine ? 'text-primary-foreground/70' : 'text-muted-foreground'
-                                  }`}>
-                                    {fmtTime(msg.created_at)}
-                                  </p>
+                              <div key={msg.id}>
+                                {neuerTag && (
+                                  <p className="pb-3 text-center text-xs text-muted-foreground">{format(new Date(msg.created_at), 'PP', { locale: dfLocale() })}</p>
+                                )}
+                                <div className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                                  {/* Eigene Frage grau, Antwort des Headhunters als helle Karte mit Rand */}
+                                  <div className={`max-w-[85%] rounded-2xl px-4 py-2 sm:max-w-[70%] ${isMine ? 'bg-secondary' : 'border bg-card'}`}>
+                                    <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                      {fmtTime(msg.created_at)}{wartet && <> · {t('messages.noReply')}</>}
+                                    </p>
+                                  </div>
                                 </div>
                               </div>
                             );
@@ -437,12 +434,9 @@ export default function ClientMessages() {
                         onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                         disabled={sending}
                       />
-                      <Button onClick={handleSendMessage} disabled={sending || !newMessage.trim()}>
-                        {sending ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Send className="h-4 w-4" />
-                        )}
+                      <Button onClick={handleSendMessage} disabled={sending || !newMessage.trim()} className="gap-2">
+                        {sending && <Loader2 className="h-4 w-4 animate-spin" />}
+                        {t('messages.send')}
                       </Button>
                     </div>
                   </div>

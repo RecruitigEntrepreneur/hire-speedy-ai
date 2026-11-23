@@ -33,7 +33,7 @@ export function AlternativeSection({ allow, onAllowChange, rules, onRulesChange,
             {t('alt.rule', { hours: describeHours(rules), count: rules.horizonDays })}{' '}
             <button
               type="button"
-              className="font-medium text-primary underline underline-offset-2 hover:opacity-80"
+              className="font-medium text-klick hover:underline"
               onClick={() => setEditing((v) => !v)}
               aria-expanded={editing}
             >
@@ -48,7 +48,7 @@ export function AlternativeSection({ allow, onAllowChange, rules, onRulesChange,
                 {changed && (
                   <button
                     type="button"
-                    className="font-medium text-primary underline underline-offset-2 hover:opacity-80"
+                    className="font-medium text-klick hover:underline"
                     onClick={() => onRulesChange(defaultRules)}
                   >
                     {t('page.reset')}

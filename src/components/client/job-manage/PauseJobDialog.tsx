@@ -72,8 +72,8 @@ export function PauseJobDialog({
                   type="button"
                   onClick={() => setWeeks(w)}
                   className={cn(
-                    'rounded-md border px-3 py-1.5 text-sm transition-colors',
-                    weeks === w ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-muted/50',
+                    'rounded-full border px-3 py-1.5 text-sm transition-colors',
+                    weeks === w ? 'border-foreground ring-1 ring-foreground font-medium' : 'border-border hover:bg-secondary/70',
                   )}
                 >
                   {t('pause.weeks', { count: w })}
@@ -92,8 +92,8 @@ export function PauseJobDialog({
                   type="button"
                   onClick={() => setReason(r === reason ? '' : r)}
                   className={cn(
-                    'rounded-md border px-2.5 py-1 text-xs transition-colors',
-                    reason === r ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-muted/50',
+                    'rounded-full border px-2.5 py-1 text-xs transition-colors',
+                    reason === r ? 'border-foreground ring-1 ring-foreground font-medium' : 'border-border hover:bg-secondary/70',
                   )}
                 >
                   {reasonLabel(r)}
@@ -104,7 +104,7 @@ export function PauseJobDialog({
               <Input className="mt-2" value={other} onChange={(e) => setOther(e.target.value)} placeholder={t('pause.otherPh')} maxLength={120} />
             )}
           </div>
-          <ul className="space-y-1 rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
+          <ul className="divide-y border-t text-xs text-muted-foreground [&>li]:py-1.5">
             <li>{t('pause.info1', { date: fmtDayShort(until.toISOString()) })}</li>
             <li>{t('pause.info2')}</li>
             <li>{t('pause.info3')}</li>

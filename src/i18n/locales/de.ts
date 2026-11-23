@@ -2,7 +2,7 @@
 // eslint-disable
 const de = {
   "team": {
-    "title": "Team-Verwaltung",
+    "title": "Team",
     "tabs": {
       "members": "Mitglieder",
       "audit": "Audit-Log",
@@ -23,7 +23,7 @@ const de = {
     },
     "activate": {
       "title": "Team aktivieren",
-      "description": "Laden Sie Kolleginnen und Kollegen ein — z. B. Hiring Manager aus dem Fachbereich, die ihre Stellen selbst betreuen.",
+      "description": "Laden Sie Kolleginnen und Kollegen ein — z. B. Kolleginnen und Kollegen aus dem Fachbereich, die ihre Stellen selbst betreuen.",
       "button": "Team aktivieren"
     },
     "invite": {
@@ -34,7 +34,7 @@ const de = {
       "role": "Rolle",
       "role_placeholder": "Rolle auswählen",
       "jobs": "Zugewiesene Jobs",
-      "jobs_hint": "Hiring Manager und Betrachter sehen nur die hier zugewiesenen Jobs.",
+      "jobs_hint": "Fachbereich und Betrachter sehen nur die hier zugewiesenen Stellen.",
       "no_jobs": "Noch keine Jobs vorhanden — die Zuweisung kann später erfolgen.",
       "cancel": "Abbrechen",
       "submit": "Einladung senden",
@@ -83,14 +83,14 @@ const de = {
     "settings": {
       "saved": "Einstellungen gespeichert",
       "save_error": "Fehler beim Speichern",
-      "intake_title": "Intake-Freigabe",
-      "intake_description": "Steuert, ob Stellenaufnahmen von Hiring Managern intern freigegeben werden müssen, bevor sie an uns gehen.",
+      "intake_title": "Freigabe der Stellenaufnahme",
+      "intake_description": "Steuert, ob Stellenaufnahmen aus dem Fachbereich intern freigegeben werden müssen, bevor sie an uns gehen.",
       "intake_label": "Interne Freigabe erforderlich",
-      "intake_on_hint": "Intakes von Hiring Managern gehen erst an Admin/HR zur Freigabe.",
-      "intake_off_hint": "Intakes von Hiring Managern gehen direkt an uns.",
+      "intake_on_hint": "Stellenaufnahmen aus dem Fachbereich gehen erst an Admin/HR zur Freigabe.",
+      "intake_off_hint": "Stellenaufnahmen aus dem Fachbereich gehen direkt an uns.",
       "org_title": "Organisation",
       "org_name": "Name",
-      "billing_email": "Billing E-Mail",
+      "billing_email": "Rechnungs-E-Mail",
       "save": "Speichern"
     },
     "accept": {
@@ -885,7 +885,7 @@ const de = {
       "invite": "Kollegen einladen"
     },
     "termine": {
-      "title": "Termine & Feedback",
+      "title": "Termine und Feedback",
       "all": "Alle Interviews",
       "feedback": "Feedback fällig: {{name}} — Interview war am {{date}}",
       "feedback_nodate": "Feedback fällig: {{name}}",
@@ -897,7 +897,7 @@ const de = {
     "sections": {
       "stelle": "Stellendetails",
       "konditionen": "Konditionen & Anonymität",
-      "team": "Team & Zugriff",
+      "team": "Team und Zugriff",
       "verlauf": "Verlauf",
       "verwalten": "Verwalten"
     },
@@ -917,14 +917,14 @@ const de = {
       "salary": "Gehaltsband",
       "fee": "Honorar",
       "fee_value": "{{pct}} % vom Zieljahresgehalt — fällig erst bei Einstellung",
-      "fee_hint": "Nur für Owner, Admin & Finance sichtbar",
+      "fee_hint": "Nur für Owner, Admin und Finance sichtbar",
       "day_rate": "Budget je Tag",
       "day_rate_value": "{{range}} €, alles inklusive",
       "verguetung": "Vergütung",
       "reveal": "Firmenname für Headhunter",
       "reveal_search": "Sichtbar, sobald ein Headhunter für Sie sucht",
-      "preview_title": "So sehen Recruiter Ihre Firma",
-      "preview_empty": "Anonymer Firmen-Descriptor noch offen",
+      "preview_title": "So sehen Headhunter Ihre Firma",
+      "preview_empty": "Anonyme Firmenbeschreibung noch offen",
       "preview_hint": "Vorher sehen Headhunter nur diese anonyme Beschreibung."
     },
     "team": {

@@ -45,7 +45,7 @@ export function MetricCard({
   }
 
   return (
-    <Card className={cn('hover:shadow-md transition-shadow', className)}>
+    <Card className={className}>
       <CardContent className="p-6">
         <div className="flex items-start justify-between">
           <div className="space-y-1">
@@ -57,7 +57,7 @@ export function MetricCard({
               <p className="text-xs text-muted-foreground">{description}</p>
             )}
           </div>
-          <div className={cn('p-2 rounded-lg bg-primary/10', iconColor)}>
+          <div className={cn('p-2 rounded-lg bg-secondary text-klick', iconColor)}>
             <Icon className="w-5 h-5" />
           </div>
         </div>

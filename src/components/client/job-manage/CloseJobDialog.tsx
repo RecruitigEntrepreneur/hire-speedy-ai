@@ -133,20 +133,30 @@ export function CloseJobDialog({
         {step === 'reason' && (
           <div className="space-y-2 text-sm">
             <p className="font-medium">{t('close.why')}</p>
-            {CHOICES.map((key) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setChoice(key)}
-                className={cn(
-                  'block w-full rounded-md border px-3 py-2 text-left transition-colors',
-                  choice === key ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted/50',
-                )}
-              >
-                {t(`close.choice.${key}`)}
-                {key === 'temporary' && <span className="block text-xs text-muted-foreground">{t('close.pauseBetter')}</span>}
+            {/* Apple-Stil (22.11.2026): Gründe als ruhige Auswahl-Zeilen; „nur vorübergehend“ ist kein Grund, sondern ein Link zum Pausieren */}
+            <div className="divide-y">
+              {CHOICES.filter((key) => key !== 'temporary').map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="radio"
+                  aria-checked={choice === key}
+                  onClick={() => setChoice(key)}
+                  className="flex w-full items-center gap-2.5 py-2.5 text-left transition-colors hover:text-foreground"
+                >
+                  <span className={cn('flex h-4 w-4 shrink-0 items-center justify-center rounded-full border', choice === key ? 'border-klick' : 'border-muted-foreground/50')}>
+                    {choice === key && <span className="h-2 w-2 rounded-full bg-klick" />}
+                  </span>
+                  <span className={cn(choice === key && 'font-medium')}>{t(`close.choice.${key}`)}</span>
+                </button>
+              ))}
+            </div>
+            <p className="pt-1 text-xs text-muted-foreground">
+              {t('close.choice.temporary')}?{' '}
+              <button type="button" className="font-medium text-klick hover:underline" onClick={() => { handleOpenChange(false); onPauseInstead(); }}>
+                {t('close.pauseInstead')} ›
               </button>
-            ))}
+            </p>
           </div>
         )}
 
@@ -188,7 +198,7 @@ export function CloseJobDialog({
                   key={h}
                   type="button"
                   onClick={() => setHow(h)}
-                  className={cn('rounded-md border px-2.5 py-1 text-xs', how === h ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-muted/50')}
+                  className={cn('rounded-md border px-2.5 py-1 text-xs', how === h ? 'border-foreground ring-1 ring-foreground font-medium' : 'border-border hover:bg-secondary/70')}
                 >
                   {t(`close.how.h${ELSEWHERE.indexOf(h)}`)}
                 </button>
@@ -200,7 +210,7 @@ export function CloseJobDialog({
             </label>
             <p className="text-xs text-muted-foreground">
               {t('close.wasMatchunt')}{' '}
-              <button type="button" className="text-primary hover:underline" onClick={() => setChoice('filled_via_matchunt')}>
+              <button type="button" className="text-klick hover:underline" onClick={() => setChoice('filled_via_matchunt')}>
                 {t('close.thisWay')}
               </button>
             </p>

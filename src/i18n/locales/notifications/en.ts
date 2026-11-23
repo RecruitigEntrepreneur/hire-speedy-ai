@@ -4,6 +4,8 @@ import type { Messages } from '../../types';
 const en: Messages<typeof de> = {
   title: 'Notifications',
   markAllRead: 'Mark all read',
+  newCount: '{{count}} new',
+  group: { today: 'Today', week: 'Last 7 days', earlier: 'Earlier' },
   empty: 'No notifications',
   showAll: 'Show all',
   justNow: 'Just now',

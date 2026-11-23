@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fmtDayMonth, fmtNumber } from '@/lib/localeFormat';
-import { ChevronDown, Lock } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { briefingText, buildBriefingSections, getRecruiterCriteria, type BriefingJob } from '@/lib/recruiterBriefing';
@@ -51,7 +51,7 @@ function spanne(a: unknown, b: unknown): string {
 }
 
 function Kopf({ children }: { children: ReactNode }) {
-  return <h3 className="mb-3 text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{children}</h3>;
+  return <h3 className="mb-3 text-[15px] font-semibold tracking-tight">{children}</h3>;
 }
 
 function Feld({ label, children }: { label: string; children: ReactNode }) {
@@ -254,7 +254,7 @@ export function HeadhunterVorschau({ descriptor, vertraulich }: { descriptor: st
   const { t } = useTranslation('clientJobs');
   return (
     <div className="rounded-xl border bg-muted/30 p-5">
-      <Kopf><span className="inline-flex items-center gap-1.5"><Lock className="h-3.5 w-3.5" aria-hidden="true" />{t('summary.hhTitle')}</span></Kopf>
+      <Kopf>{t('summary.hhTitle')}</Kopf>
       <p className="text-sm leading-6">
         {descriptor ? t('summary.hhAnonAs', { descriptor }) : t('summary.hhAnon')}
       </p>

@@ -125,7 +125,7 @@ export function GuideChecklist({ interviewId, active }: Props) {
 
       {guide.sections.map((section, si) => (
         <section key={`${section.title}-${si}`} className="space-y-1.5">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{section.title}</h4>
+          <h4 className="text-[13px] font-semibold tracking-tight">{section.title}</h4>
           <ul className="space-y-1">
             {section.items.map((item, ii) => (
               <li key={item.id} className="flex items-start gap-2 rounded-md px-1 py-1 hover:bg-muted/40">
@@ -136,7 +136,7 @@ export function GuideChecklist({ interviewId, active }: Props) {
                   onClick={() => update(si, ii, { done: !item.done })}
                   className={cn(
                     'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors',
-                    item.done ? 'border-foreground bg-foreground text-background' : 'border-muted-foreground/50 hover:border-foreground',
+                    item.done ? 'border-klick bg-klick text-klick-foreground' : 'border-muted-foreground/50 hover:border-foreground',
                   )}
                   aria-label={item.done ? t('guide.markOpen') : t('guide.markDone')}
                 >

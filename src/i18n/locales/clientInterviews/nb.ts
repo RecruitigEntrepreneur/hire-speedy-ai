@@ -60,6 +60,22 @@ const nb: Messages<typeof de> = {
     feedbackDue: 'Tilbakemelding venter',
     past: 'Tidligere · {{count}}',
     saving: 'Lagrer …',
+    next: 'Neste',
+    position: '{{n}} av {{total}}',
+    later: 'Senere',
+    prev: 'Forrige steg',
+    nextStep: 'Neste steg',
+    heroWas: 'Intervjuet var {{when}}',
+    upcoming: 'Kommende avtaler',
+    pastTab: 'Tidligere',
+    allTypes: 'Alle typer',
+    noneForFilter: 'Ingenting for dette filteret.',
+    sumFeedback_one: '{{count}} tilbakemelding åpen',
+    sumFeedback_other: '{{count}} tilbakemeldinger åpne',
+    sumAwaiting_one: '{{count}} venter på svar fra kandidaten',
+    sumAwaiting_other: '{{count}} venter på svar fra kandidaten',
+    sumCounter_one: '{{count}} kandidat ber om et annet tidspunkt',
+    sumCounter_other: '{{count}} kandidater ber om et annet tidspunkt',
   },
 
   common: {
@@ -125,6 +141,7 @@ const nb: Messages<typeof de> = {
   },
 
   cancel: {
+    keep: 'Behold avtalen',
     withdrawn: 'Forespørselen er trukket tilbake. Kandidat og headhunter er informert.',
     cancelled: 'Intervjuet er avlyst. Alle involverte får beskjed.',
     failed: 'Avlysningen mislyktes.',
@@ -146,6 +163,8 @@ const nb: Messages<typeof de> = {
   },
 
   hero: {
+
+    title: 'Din neste avtale',
     live: 'pågår nå',
     inMinutes: 'starter om {{m}} min',
     inHours: 'starter om {{h}} t {{m}} min',
@@ -289,6 +308,7 @@ const nb: Messages<typeof de> = {
       phone: 'Når tidspunktet er avtalt: {{names}} får invitasjonen med kandidatens nummer, kandidaten får sin egen',
       onsite: 'Når tidspunktet er avtalt: {{names}} får invitasjonen med adressen, kandidaten får sin egen',
     },
+    cancel: 'Avbryt',
     previewMail: 'Se e-posten slik kandidaten får den',
     needName: 'Skriv inn navnet ditt ovenfor.',
     needSlot: 'Velg minst ett tidspunkt.',
@@ -342,6 +362,9 @@ const nb: Messages<typeof de> = {
     dayEmpty: 'Ingen tider denne dagen innenfor intervjutidene dine.',
     removeAria: 'Fjern {{slot}}',
     legendGreen: 'grønn = alle ledige',
+    legendBlue: 'Blått: ditt forslag',
+    legendDot: 'Punkt: bare obligatoriske deltakere er ledige',
+    legendBusy: 'opptatt',
     legendYellow: 'gul = alle obligatoriske deltakere ledige',
     legendGrey: 'grå = opptatt',
     legendDashed: 'stiplet = ikke kontrollert',

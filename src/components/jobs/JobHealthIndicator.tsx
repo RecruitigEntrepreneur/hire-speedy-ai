@@ -71,22 +71,22 @@ export function JobHealthIndicator({
       level = 'excellent';
       label = t('health.excellent');
       icon = <CheckCircle2 className="h-3.5 w-3.5" />;
-      colors = { text: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' };
+      colors = { text: 'text-muted-foreground', bg: 'bg-secondary', border: 'border-transparent' };
     } else if (score >= 45) {
       level = 'good';
       label = t('health.good');
       icon = <TrendingUp className="h-3.5 w-3.5" />;
-      colors = { text: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200' };
+      colors = { text: 'text-muted-foreground', bg: 'bg-secondary', border: 'border-transparent' };
     } else if (score >= 20) {
       level = 'warning';
       label = t('health.warning');
       icon = <AlertTriangle className="h-3.5 w-3.5" />;
-      colors = { text: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' };
+      colors = { text: 'text-foreground', bg: 'bg-secondary', border: 'border-transparent' };
     } else {
       level = 'critical';
       label = t('health.critical');
       icon = <XCircle className="h-3.5 w-3.5" />;
-      colors = { text: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200' };
+      colors = { text: 'text-foreground', bg: 'bg-secondary', border: 'border-transparent' };
     }
 
     return { level, label, icon, colors, issues };
@@ -99,7 +99,7 @@ export function JobHealthIndicator({
       <TooltipTrigger asChild>
         <Badge 
           variant="outline" 
-          className={`${health.colors.text} ${health.colors.bg} ${health.colors.border} gap-1 cursor-help`}
+          className={`${health.colors.text} ${health.colors.bg} ${health.colors.border} gap-1 cursor-help font-medium`}
         >
           {health.icon}
           {health.label}

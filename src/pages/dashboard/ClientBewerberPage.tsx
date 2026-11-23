@@ -137,18 +137,19 @@ export default function ClientBewerberPage() {
                 key={tab.key ?? 'alle'}
                 onClick={() => updateFilter('listTab', tab.key)}
                 className={cn(
-                  'px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
+                  // Apple-Stil (22.11.2026): ruhige graue Pille für den aktiven Reiter, die anderen ohne Fläche
+                  'h-8 px-3.5 rounded-full text-sm font-medium transition-colors',
                   isActive
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                    ? 'bg-secondary text-foreground'
+                    : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
                 )}
               >
                 {t(tab.labelKey)}
                 {count > 0 && (
                   <span
                     className={cn(
-                      'ml-1.5 px-1.5 py-0.5 rounded-full text-xs',
-                      isActive ? 'bg-primary-foreground/20' : 'bg-background'
+                      'ml-1.5 text-xs font-normal',
+                      isActive ? 'text-foreground' : 'text-muted-foreground'
                     )}
                   >
                     {count}
@@ -169,14 +170,14 @@ export default function ClientBewerberPage() {
                 key={tab.key}
                 onClick={() => updateFilter('listTab', tab.key)}
                 className={cn(
-                  'px-3 py-1.5 rounded-md text-sm font-medium transition-colors inline-flex items-center gap-1.5',
-                  isActive ? 'bg-primary text-primary-foreground' : 'text-muted-foreground/80 hover:bg-muted'
+                  'h-8 px-3.5 rounded-full text-sm font-medium transition-colors inline-flex items-center gap-1.5',
+                  isActive ? 'bg-secondary text-foreground' : 'text-muted-foreground/80 hover:bg-secondary/60 hover:text-foreground'
                 )}
               >
                 <Icon className="h-3.5 w-3.5" />
                 {t(tab.labelKey)}
                 {count > 0 && (
-                  <span className={cn('px-1.5 py-0.5 rounded-full text-xs', isActive ? 'bg-primary-foreground/20' : 'bg-background')}>
+                  <span className={cn('text-xs font-normal', isActive ? 'text-foreground' : 'text-muted-foreground')}>
                     {count}
                   </span>
                 )}

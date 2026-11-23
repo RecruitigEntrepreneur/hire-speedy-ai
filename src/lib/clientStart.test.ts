@@ -19,10 +19,10 @@ describe('Ihr Start bei Matchunt', () => {
     expect(clientStartDone(steps)).toBe(1);
   });
 
-  it('ohne Vertrag und ohne Stelle: der Weg führt über die erste Position', () => {
+  it('ohne Vertrag und ohne Stelle: der Weg führt über die erste Stelle', () => {
     const steps = clientStartSteps({ framework: null, jobs: [], missingCompany: [], calendar: null, tourDone: true });
-    expect(steps[0]).toMatchObject({ state: 'open', detail: 'Der Rahmenvertrag entsteht mit Ihrer ersten Position.' });
-    expect(steps[1]).toMatchObject({ state: 'open', action: 'Position aufnehmen' });
+    expect(steps[0]).toMatchObject({ state: 'open', detail: 'Der Rahmenvertrag entsteht mit Ihrer ersten Stelle.' });
+    expect(steps[1]).toMatchObject({ state: 'open', action: 'Stelle aufnehmen' });
     expect(clientStartDone(steps)).toBe(2);
   });
 

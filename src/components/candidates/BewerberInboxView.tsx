@@ -18,7 +18,7 @@ interface BewerberInboxViewProps {
 
 function SectionHeader({ label, count }: { label: string; count: number }) {
   return (
-    <div className="px-3 py-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground bg-muted/30 border-b sticky top-0 z-10">
+    <div className="px-3 py-2 text-xs font-semibold text-foreground bg-card border-b sticky top-0 z-10">
       {label} ({count})
     </div>
   );
@@ -52,7 +52,7 @@ function CandidateCard({
       onDoubleClick={onOpen}
       className={cn(
         'w-full text-left p-3 border-b transition-colors',
-        isSelected ? 'bg-muted/60 border-l-2 border-l-primary' : 'hover:bg-muted/30 border-l-2 border-l-transparent',
+        isSelected ? 'bg-secondary' : 'hover:bg-secondary/50',
         isArchived && 'opacity-80'
       )}
     >
@@ -64,14 +64,14 @@ function CandidateCard({
         {submitter ? tc('card.by', { name: submitter }) : ''}
       </p>
       {task && (
-        <p className={cn('mt-1 truncate text-[11px] font-medium', task.urgent ? 'text-destructive' : 'text-amber-600 dark:text-amber-400')}>
+        <p className={'mt-1 truncate text-[11px] font-medium text-foreground'}>
           {tc('card.task', { title: task.title })}
         </p>
       )}
       <div className="flex items-center justify-between gap-2 mt-1.5">
         <BewerberStatusPill item={item} />
         {title !== item.anonymizedName && (
-          <span className="text-[10px] font-mono text-muted-foreground/60 shrink-0">{item.anonymizedName}</span>
+          <span className="text-[11px] text-muted-foreground/70 shrink-0">{item.anonymizedName}</span>
         )}
       </div>
     </button>

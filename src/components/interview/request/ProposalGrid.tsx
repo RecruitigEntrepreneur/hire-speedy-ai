@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, Check, ChevronLeft, ChevronRight, Plus, RefreshCw, X } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Plus, RefreshCw, X } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
 import { OutlookKalenderIcon } from '@/components/brand/MarkenLogos';
@@ -44,19 +44,20 @@ interface Props {
   onOpenHoursSettings: () => void;
 }
 
-// Farben über die Theme-Tokens (success/warning): die App ist dunkel zuerst, „dark:“ greift hier im hellen Modus.
+// Apple-Stil (22.11.2026): keine Ampel. Freie Zeiten neutral, gewählte blau, belegte grau und durchgestrichen.
+// Ein kleiner Punkt markiert Zeiten, zu denen nur die Pflicht-Teilnehmer frei sind.
 const TILE: Record<ScheduleSlot['status'], string> = {
-  all: 'border-success/40 bg-success/10 text-foreground hover:bg-success/20',
-  required: 'border-warning/50 bg-warning/15 text-foreground hover:bg-warning/25',
-  busy: 'cursor-not-allowed border-transparent bg-muted/60 text-muted-foreground',
-  booked: 'cursor-not-allowed border-transparent bg-muted/60 text-muted-foreground',
+  all: 'border-border bg-card text-foreground hover:bg-secondary/70',
+  required: 'border-border bg-card text-foreground hover:bg-secondary/70',
+  busy: 'cursor-not-allowed border-transparent bg-muted/60 text-muted-foreground line-through',
+  booked: 'cursor-not-allowed border-transparent bg-muted/60 text-muted-foreground line-through',
 };
 
 const DOT: Record<ScheduleSlot['status'], string> = {
-  all: 'bg-success',
-  required: 'bg-warning',
-  busy: 'bg-muted-foreground/40',
-  booked: 'bg-muted-foreground/40',
+  all: 'hidden',
+  required: 'bg-muted-foreground/60',
+  busy: 'hidden',
+  booked: 'hidden',
 };
 
 // Freie Zeit ohne gelesenen eigenen Kalender: wählbar, aber nicht grün
@@ -112,8 +113,7 @@ export function ProposalGrid({
   return (
     <div className="space-y-3" data-tour="request.grid">
       {notConnected && (
-        <div className="flex flex-col gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm sm:flex-row sm:items-center">
-          <AlertTriangle className="hidden h-4 w-4 shrink-0 text-warning sm:block" />
+        <div className="flex flex-col gap-2 rounded-lg bg-secondary/60 p-3 text-sm text-muted-foreground sm:flex-row sm:items-center">
           <p className="flex-1">
             {calendar.state === 'expired'
               ? t('grid.expired')
@@ -132,8 +132,7 @@ export function ProposalGrid({
       )}
 
       {unchecked && (
-        <div className="flex flex-col gap-2 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm sm:flex-row sm:items-center">
-          <AlertTriangle className="hidden h-4 w-4 shrink-0 text-warning sm:block" />
+        <div className="flex flex-col gap-2 rounded-lg bg-secondary/60 p-3 text-sm text-muted-foreground sm:flex-row sm:items-center">
           <p className="flex-1">
             {t('grid.unreadable')}
           </p>
@@ -199,7 +198,7 @@ export function ProposalGrid({
           {totalSlots === 0 ? (
             <p className="text-xs text-muted-foreground">
               {t('grid.none')}{' '}
-              <button type="button" className="font-medium text-primary underline underline-offset-2 hover:opacity-80" onClick={onOpenHoursSettings}>
+              <button type="button" className="font-medium text-klick hover:underline" onClick={onOpenHoursSettings}>
                 {t('grid.changeHours')}
               </button>
               .
@@ -228,12 +227,12 @@ export function ProposalGrid({
                           onClick={() => { setHandyTag(c.key); if (customDay && customDay !== c.key) setCustomDay(null); }}
                           className={cn(
                             'min-w-0 flex-1 rounded-lg border px-1 py-1.5 text-center transition-colors',
-                            an ? 'border-foreground bg-foreground text-background' : 'border-border hover:bg-muted/40',
+                            an ? 'border-foreground ring-1 ring-foreground' : 'border-border hover:bg-muted/40',
                           )}
                         >
-                          <span className={cn('block text-[11px]', an ? 'text-background/70' : 'text-muted-foreground')}>{wd}</span>
+                          <span className="block text-[11px] text-muted-foreground">{wd}</span>
                           <span className="block text-base font-semibold leading-tight tabular-nums">{d}.</span>
-                          <span className={cn('block truncate text-[10.5px]', gew ? 'font-medium' : an ? 'text-background/70' : 'text-muted-foreground')}>
+                          <span className={cn('block truncate text-[10.5px]', gew ? 'font-medium text-klick' : 'text-muted-foreground')}>
                             {gew ? t('grid.dayPicked', { count: gew }) : frei ? t('grid.dayFree', { count: frei }) : t('grid.dayFull')}
                           </span>
                         </button>
@@ -254,7 +253,7 @@ export function ProposalGrid({
                                   type="button"
                                   aria-pressed
                                   onClick={() => onToggle(item.iso)}
-                                  className="flex h-12 min-w-0 flex-col items-center justify-center rounded-lg border border-foreground bg-foreground px-1 text-sm font-semibold tabular-nums text-background"
+                                  className="flex h-12 min-w-0 flex-col items-center justify-center rounded-lg border border-klick bg-klick px-1 text-sm font-semibold tabular-nums text-klick-foreground"
                                 >
                                   <span className="flex items-center gap-1"><Check className="h-3.5 w-3.5" />{fmtTime(item.iso)}</span>
                                   <span className="max-w-full truncate text-[10px] font-normal leading-tight opacity-80">{t('grid.time')}</span>
@@ -276,7 +275,7 @@ export function ProposalGrid({
                                 className={cn(
                                   'flex h-12 min-w-0 flex-col items-center justify-center rounded-lg border px-1 text-sm tabular-nums transition-colors',
                                   isSelected
-                                    ? 'border-foreground bg-foreground font-semibold text-background'
+                                    ? 'border-klick bg-klick font-semibold text-klick-foreground'
                                     : unchecked && clickable ? UNCHECKED_TILE : TILE[slot.status],
                                   blocked && 'cursor-not-allowed opacity-50',
                                 )}
@@ -325,9 +324,9 @@ export function ProposalGrid({
                           aria-pressed
                           onClick={() => onToggle(item.iso)}
                           title={t('grid.ownTimeHint')}
-                          className="flex w-full items-center gap-1.5 rounded-md border border-foreground bg-foreground px-2 py-1.5 text-left text-xs font-medium tabular-nums text-background transition-colors hover:bg-foreground/90"
+                          className="flex w-full items-center gap-1.5 rounded-md border border-klick bg-klick px-2 py-1.5 text-left text-xs font-medium tabular-nums text-klick-foreground transition-colors hover:brightness-110"
                         >
-                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-background" />
+                          <Check className="h-3 w-3 shrink-0" />
                           <span className="truncate">{t('grid.ownTime', { time: fmtTime(item.iso) })}</span>
                         </button>
                       );
@@ -352,12 +351,12 @@ export function ProposalGrid({
                         className={cn(
                           'flex w-full items-center gap-1.5 rounded-md border px-2 py-1.5 text-left text-xs tabular-nums transition-colors',
                           isSelected
-                            ? 'border-foreground bg-foreground font-medium text-background hover:bg-foreground/90'
+                            ? 'border-klick bg-klick font-medium text-klick-foreground hover:brightness-110'
                             : unchecked && clickable ? UNCHECKED_TILE : TILE[slot.status],
                           blocked && 'cursor-not-allowed opacity-50',
                         )}
                       >
-                        <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', isSelected ? 'bg-background' : unchecked && clickable ? 'bg-muted-foreground/60' : DOT[slot.status])} />
+                        <span className={cn('h-1.5 w-1.5 shrink-0 rounded-full', isSelected ? 'bg-klick-foreground' : unchecked && clickable ? 'bg-muted-foreground/60' : DOT[slot.status])} />
                         <span className="truncate">{slotText(slot, peopleCount)}</span>
                       </button>
                     );
@@ -401,12 +400,12 @@ export function ProposalGrid({
             {t('grid.selected', { n: selected.length, max: MAX_PROPOSALS })}
           </span>
           {sortedSelected.map((iso) => (
-            <span key={iso} className="inline-flex items-center gap-1 rounded-full bg-foreground py-0.5 pl-2.5 pr-1 text-background">
+            <span key={iso} className="inline-flex items-center gap-1 rounded-full bg-klick py-0.5 pl-2.5 pr-1 text-klick-foreground">
               {fmtDayShort(iso)} {fmtTime(iso)}
               <button
                 type="button"
                 onClick={() => onToggle(iso)}
-                className="rounded-full p-0.5 hover:bg-background/20"
+                className="rounded-full p-0.5 hover:bg-white/20"
                 aria-label={t('grid.removeAria', { slot: `${fmtDayShort(iso)} ${fmtTime(iso)}` })}
               >
                 <X className="h-3 w-3" />
@@ -417,16 +416,15 @@ export function ProposalGrid({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
             <span className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-success" /> {t('grid.legendGreen')}
+              <span className="h-2 w-2 rounded-sm bg-klick" /> {t('grid.legendBlue')}
             </span>
             <span>·</span>
             <span className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-warning" /> {t('grid.legendYellow')}
+              <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" /> {t('grid.legendDot')}
             </span>
             <span>·</span>
-            <span className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full bg-muted-foreground/40" /> {t('grid.legendGrey')}
-            </span>
+            <span className="line-through">{t('grid.legendBusy')}</span>
+            <span>·</span>
             {unchecked && (
               <>
                 <span>·</span>
@@ -443,7 +441,7 @@ export function ProposalGrid({
             {minNoticeHours % 24 === 0 && minNoticeHours > 24
               ? t('grid.noticeDays', { count: minNoticeHours / 24 })
               : t('grid.noticeHours', { count: minNoticeHours })}{' '}
-            <button type="button" className="font-medium text-primary underline underline-offset-2 hover:opacity-80" onClick={onOpenHoursSettings}>
+            <button type="button" className="font-medium text-klick hover:underline" onClick={onOpenHoursSettings}>
               {t('alt.change')}
             </button>
           </p>

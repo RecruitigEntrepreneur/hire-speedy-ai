@@ -1,3 +1,4 @@
+import { cn } from '@/lib/utils';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -111,7 +112,7 @@ export function GlobalSearch() {
                     key={action.href}
                     value={action.href}
                     onSelect={() => waehle(action.href)}
-                    className="cursor-pointer"
+                    className={cn('cursor-pointer', action.href === '/dashboard/jobs/new' && 'text-klick')}
                   >
                     {action.icon}
                     <span className="ml-2">{action.label}</span>

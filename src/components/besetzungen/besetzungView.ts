@@ -104,7 +104,7 @@ export function statusOf(i: BesetzungItem, today = todayKey()): { text: string; 
     return { text: tb('status.signed'), tone: 'good' };
   }
   if (i.group === 'haus') {
-    return i.package.continuityDays ? { text: tb('status.replacementPossible'), tone: 'good' } : { text: tb('status.core'), tone: 'neutral' };
+    return i.package.continuityDays ? { text: tb('status.replacementPossible'), tone: 'neutral' } : { text: tb('status.core'), tone: 'neutral' };
   }
   return { text: tb('status.done'), tone: 'neutral' };
 }

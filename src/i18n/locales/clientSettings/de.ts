@@ -12,6 +12,11 @@ const de = {
   },
 
   hub: {
+    summaryReady: '{{company}} ist eingerichtet.',
+    summaryOpen_one: '{{company}}: {{count}} Punkt ist noch offen.',
+    summaryOpen_other: '{{company}}: {{count}} Punkte sind noch offen.',
+    calendarOnly: 'Offen ist nur Ihr Kalender.',
+    calendarAlso: 'Ihr Kalender ist noch nicht verbunden.',
     title: 'Einstellungen',
     complete: 'Vollständig',
     openPoints_one: ' · {{count}} Punkt offen',
@@ -37,6 +42,7 @@ const de = {
         checking: 'Wird geprüft …',
         connected: 'Outlook verbunden',
         notConnected: 'Nicht verbunden',
+        connectNow: 'Jetzt verbinden',
       },
       auftritt: {
         title: 'Auftritt bei Headhuntern',
@@ -44,7 +50,7 @@ const de = {
         missing_one: '{{count}} Angabe fehlt',
         missing_other: '{{count}} Angaben fehlen',
       },
-      team: { title: 'Team', text: 'Kollegen und Rechte', status: 'Öffnet die Team-Seite' },
+      team: { title: 'Team', text: 'Kollegen und Rechte', status: 'Öffnet die Team-Seite', people_one: '{{count}} Person', people_other: '{{count}} Personen' },
       unternehmen: { title: 'Unternehmen', text: 'Name, Logo, Rechnungsanschrift', missing: 'Fehlt: {{fields}}' },
       vertrag: { title: 'Vertrag und Rechnungen', text: 'Rahmenvertrag, Rechnungen' },
     },
