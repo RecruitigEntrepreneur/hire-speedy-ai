@@ -80,7 +80,7 @@
 - [x] Publish angefordert — matchunt.ai liefert assets/index-C_DX4Aif.js
 
 ## Offen
-- [ ] 5 kritische Security-Bestandsbefunde: outreach_leads (Löschen durch beliebige Nutzer), interview_participants und feedback_settings (alle lesbar), cv-documents und job-documents (Download durch beliebige Nutzer) — Korrekturen außerhalb des Deployment-Auftrags
+- [ ] 7 kritische Security-Bestandsbefunde: outreach_companies (Ändern durch beliebige Nutzer), interview_participants (alle lesbar, beliebig ergänzbar), feedback_settings (alle lesbar), outreach_leads (Löschen durch beliebige Nutzer), job-documents (Download und Löschen durch beliebige Nutzer) — Korrekturen außerhalb des Deployment-Auftrags
 - [ ] Outlook-Kalender: AADSTS7000215 — in Azure der Secret-*Wert* (nicht die Secret-ID) für MS_CLIENT_SECRET eintragen, dann Verbindung erneut starten
 - [ ] DocuSign läuft in der Demo-Umgebung; Produktivumgebung fehlt
 - [ ] marko.benko@freenet.de bleibt unangetastet; Gegenzeichnung marko.benko@bluewater-bridge.de (Danny Kostic) ausstehend
@@ -90,3 +90,8 @@
 - [x] 3 Functions deployt: parse-job-url, parse-job-pdf (verify_jwt = true), intake-ai (verify_jwt = false) — Einstellungen wie in config.toml.
 - [x] Publish für https://matchunt.ai angefordert; Abschluss nicht bestätigt. 7 kritische Bestandsbefunde gemeldet, blockieren hier nicht.
 - [ ] Befund für Codex: TS2769 in supabase/functions/_shared/linkedin-api.ts:98:162 (Uint8Array nicht zuweisbar an BodyInit) — betrifft linkedin und linkedin-callback, nicht Teil dieses Auftrags.
+
+## Auftrag 61 (23.11.2026) — Kunden-Rundgang und drei kleine Seiten: nur Publish
+- [x] Arbeitskopie auf main 680ee9f (enthält 3bc6ad4 "Apple-Stil: Rundgang und kleine Seiten"); keine Migration, keine Functions, keine Secrets, kein Code.
+- [x] Publish für https://matchunt.ai angefordert und bestätigt: ausgelieferte Fassung enthält die neuen Einladungstexte ("Diese Einladung gilt nicht mehr", "Sie arbeiten als …", "Sie wurde schon verwendet oder ist abgelaufen").
+- [ ] 7 kritische Bestandsbefunde unverändert (outreach_companies, interview_participants, feedback_settings, outreach_leads, job-documents).
