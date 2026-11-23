@@ -1539,7 +1539,7 @@ function EntryCard({
         <span className="mt-0.5 block text-sm text-muted-foreground">{hint}</span>
       </span>
       {action && (
-        <span className="shrink-0 self-center rounded-full bg-klick px-4 py-1.5 text-sm font-medium text-klick-foreground">{action}</span>
+        <span data-intake-action className="shrink-0 self-center rounded-full bg-klick px-4 py-1.5 text-sm font-medium text-klick-foreground">{action}</span>
       )}
     </button>
   );

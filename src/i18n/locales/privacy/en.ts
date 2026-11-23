@@ -17,6 +17,8 @@ const en: Messages<typeof de> = {
     back: 'Back',
   },
   consent: {
+    cookies: 'Cookies',
+    alwaysOn: 'always on',
     loading: 'Loading settings...',
     title: 'Manage consents',
     description: 'Manage your cookie and data processing settings',

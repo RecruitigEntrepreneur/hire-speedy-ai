@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -16,10 +15,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { AlertTriangle, Loader2, Trash2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 export function DataDeletionRequest() {
   const { t } = useTranslation("privacy");
@@ -126,24 +124,14 @@ export function DataDeletionRequest() {
   };
 
   return (
-    <Card className="border-destructive/50">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-destructive">
-          <Trash2 className="h-5 w-5" />
-          {t("deletion.title")}
-        </CardTitle>
-        <CardDescription>
-          {t("deletion.description")}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>{t("deletion.warning")}</AlertTitle>
-          <AlertDescription>
-            {t("deletion.warningText")}
-          </AlertDescription>
-        </Alert>
+    <section className="rounded-xl border bg-card p-5">
+      {/* Ruhig statt ganz in Rot: rot ist nur der Knopf, der wirklich löscht. */}
+      <h2 className="text-[15px] font-semibold tracking-tight">{t("deletion.title")}</h2>
+      <p className="mt-0.5 text-sm text-muted-foreground">{t("deletion.description")}</p>
+      <div className="mt-4 space-y-4">
+        <p className="rounded-lg bg-secondary/60 px-3 py-2 text-sm">
+          <span className="font-medium">{t("deletion.warning")}:</span> {t("deletion.warningText")}
+        </p>
 
         {!requestSent ? (
           <>
@@ -186,11 +174,7 @@ export function DataDeletionRequest() {
           </>
         ) : (
           <>
-            <Alert>
-              <AlertDescription>
-                {t("deletion.codeSent")}
-              </AlertDescription>
-            </Alert>
+            <p className="rounded-lg bg-secondary/60 px-3 py-2 text-sm">{t("deletion.codeSent")}</p>
 
             <div className="space-y-2">
               <Label htmlFor="confirm-token">{t("deletion.code")}</Label>
@@ -211,13 +195,13 @@ export function DataDeletionRequest() {
                 {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 {t("deletion.confirm")}
               </Button>
-              <Button variant="outline" onClick={handleCancelDeletion} disabled={loading}>
+              <Button variant="secondary" className="rounded-full px-4" onClick={handleCancelDeletion} disabled={loading}>
                 {t("cancel")}
               </Button>
             </div>
           </>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }

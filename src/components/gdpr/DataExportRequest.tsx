@@ -1,11 +1,9 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Download, FileJson, Loader2 } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2 } from "lucide-react";
 
 export function DataExportRequest() {
   const { t } = useTranslation("privacy");
@@ -56,71 +54,35 @@ export function DataExportRequest() {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <FileJson className="h-5 w-5" />
-          {t("export.title")}
-        </CardTitle>
-        <CardDescription>
-          {t("export.description")}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <Alert>
-          <AlertDescription>
-            {t("export.info")}
-          </AlertDescription>
-        </Alert>
+    <section className="rounded-xl border bg-card p-5">
+      <h2 className="text-[15px] font-semibold tracking-tight">{t("export.title")}</h2>
+      <p className="mt-0.5 text-sm text-muted-foreground">{t("export.description")}</p>
+      <p className="mt-2 text-sm text-muted-foreground">{t("export.info")}</p>
 
-        {!exportData ? (
-          <Button onClick={handleExport} disabled={loading}>
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                {t("export.creating")}
-              </>
-            ) : (
-              <>
-                <Download className="h-4 w-4 mr-2" />
-                {t("export.request")}
-              </>
+      {!exportData ? (
+        <Button className="mt-4 gap-2" onClick={handleExport} disabled={loading}>
+          {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+          {loading ? t("export.creating") : t("export.request")}
+        </Button>
+      ) : (
+        <div className="mt-4 space-y-4">
+          <p className="rounded-lg bg-secondary/60 px-3 py-2 text-sm font-medium">{t("export.ready")}</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button onClick={handleDownloadJson}>{t("export.downloadJson")}</Button>
+            {downloadUrl && (
+              <a href={downloadUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-klick hover:underline">
+                {t("export.cloud")} ›
+              </a>
             )}
-          </Button>
-        ) : (
-          <div className="space-y-4">
-            <Alert className="bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800">
-              <AlertDescription className="text-green-700 dark:text-green-300">
-                {t("export.ready")}
-              </AlertDescription>
-            </Alert>
-
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={handleDownloadJson}>
-                <Download className="h-4 w-4 mr-2" />
-                {t("export.downloadJson")}
-              </Button>
-              {downloadUrl && (
-                <Button variant="outline" asChild>
-                  <a href={downloadUrl} target="_blank" rel="noopener noreferrer">
-                    <Download className="h-4 w-4 mr-2" />
-                    {t("export.cloud")}
-                  </a>
-                </Button>
-              )}
-            </div>
-
-            <div className="mt-4">
-              <h4 className="font-medium mb-2">{t("export.exported")}</h4>
-              <div className="bg-muted rounded-lg p-4 max-h-64 overflow-auto">
-                <pre className="text-xs whitespace-pre-wrap">
-                  {JSON.stringify(Object.keys(exportData), null, 2)}
-                </pre>
-              </div>
+          </div>
+          <div>
+            <h3 className="mb-2 text-sm font-medium">{t("export.exported")}</h3>
+            <div className="max-h-64 overflow-auto rounded-lg bg-muted p-4">
+              <pre className="whitespace-pre-wrap text-xs">{JSON.stringify(Object.keys(exportData), null, 2)}</pre>
             </div>
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </div>
+      )}
+    </section>
   );
 }

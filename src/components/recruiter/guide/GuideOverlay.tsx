@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, ArrowRight, ChevronRight, Compass, Eye, Hand, List, MousePointer2, MousePointerClick, X } from 'lucide-react';
+import { ChevronRight, Compass, Eye, Hand, MousePointer2, MousePointerClick, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { guideChapters, placeCard, type CardPlacement, type GuideStep, type TourRect } from '@/lib/recruiterGuide';
@@ -37,7 +37,7 @@ function useViewport() {
 const keepToGuide = (event: ReactPointerEvent) => event.stopPropagation();
 
 /** Gleiten von einem Ziel zum nächsten: Licht und Karte in einem Zug, danach ohne Verzögerung. */
-const GLIDE_MS = 450;
+const GLIDE_MS = 300;
 const GLIDE = `all ${GLIDE_MS}ms cubic-bezier(0.2, 0.8, 0.2, 1)`;
 /** Die Karte gleitet nur mit ihrer Lage. Ihre Breite wechselt sofort, damit sie gleich richtig vermessen ist
  *  (Marko 17.11.: „bewegt sich im Zickzack“ -- sonst sprang sie nach dem Gleiten noch einmal). */
@@ -216,7 +216,8 @@ export function GuideOverlay({ step, stepNumber, stepCount, firstName, target, c
     const before = el.style.scrollMarginTop;
     el.style.scrollMarginTop = `${top}px`;
     side.current = null;
-    el.scrollIntoView({ block: 'start', behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    // Sofort statt weich: sonst lief die Karte dem Scrollen noch einmal hinterher (23.11.2026).
+    el.scrollIntoView({ block: 'start', behavior: 'auto' });
     el.style.scrollMarginTop = before;
     // Neu platzieren, auch wenn die Seite nicht weiter scrollen kann (dann eben darüber).
     rerender((n) => n + 1);
@@ -339,6 +340,18 @@ export function GuideOverlay({ step, stepNumber, stepCount, firstName, target, c
 
   useEffect(() => { primaryRef.current?.focus({ preventScroll: true }); setContentsOpen(false); }, [step.id]);
 
+  // Text, Licht und Karte wechseln gemeinsam (Marko 23.11.: „der markierte Bereich hinkt hinterher“).
+  // Bisher stand der neue Text sofort in der Karte, während Licht und Karte noch am alten Platz
+  // warteten. Jetzt bleibt der alte Schritt stehen, bis das neue Ziel bereit ist; die Knöpfe ruhen
+  // so lange. Wechselt dabei die Seite, erlischt das alte Licht, statt auf der neuen Seite an der
+  // falschen Stelle zu stehen.
+  const cur = { step, stepNumber, title, body, extra, clickable, showing, lookOnly, first, last, showExample, page: window.location.pathname + window.location.search };
+  const held = useRef<typeof cur | null>(null);
+  const pending = !ready && !!held.current && held.current.step.id !== step.id;
+  const v = pending ? held.current! : cur;
+  const staleHole = pending && held.current!.page !== cur.page;
+  useEffect(() => { if (ready) held.current = cur; });
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const el = event.target as HTMLElement | null;
@@ -354,7 +367,7 @@ export function GuideOverlay({ step, stepNumber, stepCount, firstName, target, c
   }, [step.click, last, onNext, onBack, onClose]);
 
   return createPortal(<>
-    <Backdrop hole={hole} ring={ring} clickable={clickable && !showing} blocked={showing || !clickable} glide={gliding} scroller={frameEl} />
+    <Backdrop hole={staleHole ? null : hole} ring={staleHole ? null : ring} clickable={clickable && !showing && !pending} blocked={showing || !clickable || pending} glide={gliding} scroller={frameEl} />
     <GuidePointer />
     <div
       ref={cardRef}
@@ -365,75 +378,76 @@ export function GuideOverlay({ step, stepNumber, stepCount, firstName, target, c
       aria-describedby="guide-body"
       className={cn('fixed z-[102] max-h-[calc(100vh-2rem)] overflow-y-auto rounded-xl border border-border bg-popover p-5 text-popover-foreground shadow-2xl',
         display ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0',
-        narrow ? 'w-[min(260px,calc(100vw-2rem))]' : extra ? 'w-[min(420px,calc(100vw-2rem))]' : 'w-[min(380px,calc(100vw-2rem))]')}
+        narrow ? 'w-[min(260px,calc(100vw-2rem))]' : v.extra ? 'w-[min(420px,calc(100vw-2rem))]' : 'w-[min(380px,calc(100vw-2rem))]')}
       // Gleiten nur beim Wechsel zum neuen Ziel; beim Scrollen folgt die Karte ohne Verzögerung.
       style={{ top: position.top, left: position.left, transition: gliding ? CARD_GLIDE : display ? 'opacity 200ms' : 'none' }}
       aria-hidden={!display}
     >
       <div className="flex items-start justify-between gap-3">
-        <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
-          {t('ui.chapter', { current: step.chapter, total: chapters.length, name: chapters[step.chapter - 1] })}
+        <p className="text-xs text-muted-foreground">
+          {t('ui.chapter', { current: v.step.chapter, total: chapters.length, name: chapters[v.step.chapter - 1] })}
         </p>
         <button type="button" onClick={onClose} aria-label={t('ui.close')} className="-m-1 rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <X className="h-4 w-4" />
         </button>
       </div>
       {segments
-        ? <div className="mt-3 flex gap-1" role="progressbar" aria-label={t('ui.progress')} aria-valuemin={1} aria-valuemax={stepCount} aria-valuenow={stepNumber}>
+        ? <div className="mt-3 flex gap-1" role="progressbar" aria-label={t('ui.progress')} aria-valuemin={1} aria-valuemax={stepCount} aria-valuenow={v.stepNumber}>
           {segments.map((part, i) => (
             <div key={i} className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
-              <div className="h-full rounded-full bg-primary transition-all duration-300 motion-reduce:transition-none" style={{ width: `${Math.round(part * 100)}%` }} />
+              <div className="h-full rounded-full bg-klick transition-all duration-300 motion-reduce:transition-none" style={{ width: `${Math.round(part * 100)}%` }} />
             </div>
           ))}
         </div>
-        : <div className="mt-3 h-1 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label={t('ui.progress')} aria-valuemin={1} aria-valuemax={stepCount} aria-valuenow={stepNumber}>
-          <div className="h-full rounded-full bg-primary transition-all duration-300 motion-reduce:transition-none" style={{ width: `${(stepNumber / stepCount) * 100}%` }} />
+        : <div className="mt-3 h-1 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label={t('ui.progress')} aria-valuemin={1} aria-valuemax={stepCount} aria-valuenow={v.stepNumber}>
+          <div className="h-full rounded-full bg-klick transition-all duration-300 motion-reduce:transition-none" style={{ width: `${(v.stepNumber / stepCount) * 100}%` }} />
         </div>}
-      <h2 id="guide-title" className="mt-4 text-lg font-semibold leading-snug">{title}</h2>
-      <p id="guide-body" className="mt-2 text-sm leading-relaxed text-muted-foreground">{body}</p>
-      {extra}
-      {showExample && <GuideExampleView kind={step.example!} />}
-      {showing
-        ? <p className="mt-3 flex items-center gap-2 text-sm font-medium text-muted-foreground"><Hand className="h-4 w-4 text-primary" />{t(`${texts}.showing`)}</p>
-        // Marko 17.11.: „Sie sind dran“ farbig hervorheben. Ruhiges Blau wie „neu“ in den Listen;
-        // Grundklasse = dunkles Design, `dark:` = helles (tailwind darkMode ['class', '.light']).
-        : clickable && <p className="mt-3 flex items-center gap-2 rounded-lg border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-sm font-medium text-sky-100 dark:border-sky-600/30 dark:bg-sky-50 dark:text-sky-900">
-          <MousePointerClick className="h-4 w-4 shrink-0 text-sky-400 motion-safe:animate-pulse dark:text-sky-600" />{t(`${texts}.yourTurn`)}</p>}
-      {lookOnly && <p className="mt-3 flex items-center gap-2 rounded-lg border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-sm font-medium text-sky-100 dark:border-sky-600/30 dark:bg-sky-50 dark:text-sky-900">
-        <Eye className="h-4 w-4 shrink-0 text-sky-400 dark:text-sky-600" />{t(`${texts}.lookOnly`)}</p>}
+      <h2 id="guide-title" className="mt-4 text-lg font-semibold leading-snug tracking-tight">{v.title}</h2>
+      <p id="guide-body" className="mt-2 text-sm leading-relaxed text-muted-foreground">{v.body}</p>
+      {v.extra}
+      {v.showExample && <GuideExampleView kind={v.step.example!} />}
+      {v.showing
+        ? <p className="mt-3 flex items-center gap-2 text-sm font-medium text-muted-foreground"><Hand className="h-4 w-4 text-klick" />{t(`${texts}.showing`)}</p>
+        // „Sie sind dran“ hervorgehoben (Marko 17.11.), seit 23.11. ohne hellblaue Fläche: grauer
+        // Kasten, nur das Symbol ist blau.
+        : v.clickable && <p className="mt-3 flex items-center gap-2 rounded-lg bg-secondary/60 px-3 py-2 text-sm font-medium">
+          <MousePointerClick className="h-4 w-4 shrink-0 text-klick motion-safe:animate-pulse" />{t(`${texts}.yourTurn`)}</p>}
+      {v.lookOnly && <p className="mt-3 flex items-center gap-2 rounded-lg bg-secondary/60 px-3 py-2 text-sm font-medium">
+        <Eye className="h-4 w-4 shrink-0 text-klick" />{t(`${texts}.lookOnly`)}</p>}
       {contentsOpen && onJump && (
         <ol className="mt-4 divide-y divide-border/60 border-y border-border/60 text-sm" aria-label={t('ui.contents')}>
           {chapters.map((name, i) => (
             <li key={name}>
               <button type="button" onClick={() => onJump(i + 1)}
                 className={cn('flex w-full items-center justify-between gap-3 py-2 text-left transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  i + 1 === step.chapter ? 'font-medium text-foreground' : 'text-muted-foreground')}>
+                  i + 1 === v.step.chapter ? 'font-medium text-foreground' : 'text-muted-foreground')}>
                 <span>{i + 1} · {name}</span><ChevronRight className="h-3.5 w-3.5 shrink-0" />
               </button>
             </li>
           ))}
         </ol>
       )}
-      <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
-        {onJump && !first && (
-          <Button variant="ghost" size="sm" className="mr-auto px-2 text-muted-foreground" aria-expanded={contentsOpen} onClick={() => setContentsOpen(open => !open)}>
-            <List className="mr-1.5 h-4 w-4" />{t('ui.contents')}
-          </Button>
+      <div className={cn('mt-5 flex flex-wrap items-center justify-end', narrow ? 'gap-1.5' : 'gap-2')}>
+        {onJump && !v.first && (
+          <button type="button" className="text-xs text-muted-foreground transition-colors hover:text-foreground" aria-expanded={contentsOpen} onClick={() => setContentsOpen(open => !open)}>
+            {t('ui.contents')}
+          </button>
         )}
-        {first ? <>
+        {/* Neben einem Fenster ist die Karte schmal: dort nur „4/27“, sonst bräche die Zeile um. */}
+        {!v.first && <span className="mr-auto whitespace-nowrap text-xs tabular-nums text-muted-foreground">{onJump ? '· ' : ''}{narrow ? `${v.stepNumber}/${stepCount}` : t('ui.step', { current: v.stepNumber, total: stepCount })}</span>}
+        {v.first ? <>
           <Button variant="ghost" size="sm" onClick={onPostpone ?? onClose}>{t(onPostpone ? `${texts}.later` : `${texts}.skip`)}</Button>
-          <Button ref={primaryRef} size="sm" onClick={onNext}>{t(`${texts}.start`)}<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
+          <Button ref={primaryRef} size="sm" disabled={pending} onClick={onNext}>{t(`${texts}.start`)}</Button>
         </> : <>
-          {onBack && !last && <Button variant="ghost" size="sm" onClick={onBack}><ArrowLeft className="mr-1.5 h-4 w-4" />{t('ui.back')}</Button>}
-          {last
+          {onBack && !v.last && <Button variant="secondary" size="sm" disabled={pending} className={cn('rounded-full', narrow ? 'px-3' : 'px-4')} onClick={onBack}>{t('ui.back')}</Button>}
+          {v.last
             ? <>
-              <Button variant="outline" size="sm" onClick={onClose}>{t(`${texts}.finish`)}</Button>
-              <Button ref={primaryRef} size="sm" onClick={onOpenJobs}>{finalLabel ?? t(`${texts}.finalCta`)}<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
+              <Button variant="secondary" size="sm" className="rounded-full px-4" onClick={onClose}>{t(`${texts}.finish`)}</Button>
+              <Button ref={primaryRef} size="sm" onClick={onOpenJobs}>{finalLabel ?? t(`${texts}.finalCta`)}</Button>
             </>
-            : step.click
-              ? <Button ref={primaryRef} size="sm" variant={clickable || showing ? 'outline' : 'default'} onClick={showing && onSkipDemo ? onSkipDemo : onAct}>{step.click.label}<ArrowRight className="ml-1.5 h-4 w-4" /></Button>
-              : <Button ref={primaryRef} size="sm" onClick={onNext}
-                className={cn(lookOnly && 'ring-2 ring-sky-400 ring-offset-2 ring-offset-popover dark:ring-sky-600')}>{t('ui.next')}<ArrowRight className="ml-1.5 h-4 w-4" /></Button>}
+            : v.step.click
+              ? <Button ref={primaryRef} size="sm" disabled={pending} onClick={showing && onSkipDemo ? onSkipDemo : onAct}>{v.step.click.label}</Button>
+              : <Button ref={primaryRef} size="sm" disabled={pending} onClick={onNext}>{t('ui.next')}</Button>}
         </>}
       </div>
     </div>

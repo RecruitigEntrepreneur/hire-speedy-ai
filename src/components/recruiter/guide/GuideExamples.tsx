@@ -7,7 +7,7 @@ import type { GuideExample } from '@/lib/recruiterGuide';
 function Frame({ children }: { children: ReactNode }) {
   const { t } = useTranslation('recruiterGuide');
   return <div className="mt-4 rounded-lg border border-dashed border-border bg-muted/40 p-3">
-    <p className="mb-2 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">{t('ui.example')}</p>
+    <p className="mb-2 text-xs text-muted-foreground">{t('ui.example')}</p>
     {children}
   </div>;
 }

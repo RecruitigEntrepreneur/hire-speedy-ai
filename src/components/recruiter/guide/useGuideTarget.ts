@@ -8,7 +8,11 @@ const TICK_MS = 120;
 /** Kopfzeile (64 px) plus mitlaufende Leiste im Bewerberprofil (52 px): Ziele darunter werden hergeholt. */
 const HEADER = 124;
 /** So lange muss das Ziel still stehen, bevor die Karte erscheint (Laden, Scrollen, Fenster öffnet). */
-const SETTLE_MS = 250;
+const SETTLE_MS = 120;
+/** Ohne Scrollen reichen wenige ruhige Bilder. */
+const SETTLE_STILL_MS = 50;
+/** Solange das Ziel fehlt, wird nicht bei jedem Bild das ganze Dokument durchsucht. */
+const SEARCH_MS = 50;
 /** Spätestens dann erscheint die Karte, auch wenn sich das Ziel noch bewegt. */
 const SETTLE_MAX_MS = 1500;
 
@@ -40,7 +44,6 @@ export function useGuideTarget(selector: string | undefined, stepKey: string): G
   useEffect(() => {
     if (!selector) { setTarget({ el: null, rect: null, waiting: false, settled: true, key: stepKey }); return; }
     let started = performance.now();
-    const smooth = !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     let el: HTMLElement | null = null;
     let scrolled = false;
     let foundAt = 0;
@@ -51,8 +54,12 @@ export function useGuideTarget(selector: string | undefined, stepKey: string): G
     let moved = false;
     setTarget({ el: null, rect: null, waiting: true, settled: false, key: stepKey });
 
+    let searchedAt = 0;
     const tick = () => {
       if (!el || !el.isConnected || !visible(el)) {
+        const t = performance.now();
+        if (!el && searchedAt && t - searchedAt < SEARCH_MS) return;
+        searchedAt = t;
         // Das Ziel war da und ist weg (Seitenwechsel, Fenster schließt): wieder warten, nicht „fehlt“
         // melden. Sonst setzte sich die Karte für einen Augenblick in die Bildmitte.
         if (foundAt) { foundAt = 0; settled = false; last = null; started = performance.now(); }
@@ -71,7 +78,9 @@ export function useGuideTarget(selector: string | undefined, stepKey: string): G
         const r = el.getBoundingClientRect();
         if (r.top < HEADER || r.bottom > window.innerHeight - 16) {
           moved = true;
-          el.scrollIntoView({ block: 'center', behavior: smooth ? 'smooth' : 'auto' });
+          // Ohne weiches Scrollen: Die Seite steht sofort richtig, es gleitet nur die Karte (eine
+          // Bewegung statt zwei, 23.11.2026).
+          el.scrollIntoView({ block: 'center', behavior: 'auto' });
         }
       }
       const r = el.getBoundingClientRect();
@@ -79,16 +88,23 @@ export function useGuideTarget(selector: string | undefined, stepKey: string): G
       const now = performance.now();
       if (!foundAt) foundAt = now;
       if (!same(last, r)) { changedAt = now; last = { top: r.top, left: r.left, width: r.width, height: r.height }; }
-      if (!settled && (now - changedAt >= (moved ? SETTLE_MS : TICK_MS - 10) || now - foundAt >= SETTLE_MAX_MS)) settled = true;
+      if (!settled && (now - changedAt >= (moved ? SETTLE_MS : SETTLE_STILL_MS) || now - foundAt >= SETTLE_MAX_MS)) settled = true;
       const ready = settled;
       setTarget(prev => (prev.el === found && same(prev.rect, r) && prev.settled === ready && prev.key === stepKey ? prev : { el: found, rect: { top: r.top, left: r.left, width: r.width, height: r.height }, waiting: false, settled: ready, key: stepKey }));
     };
 
     tick();
+    // Bei jedem Bild messen: Das Licht klebt am Ziel, auch wenn die Seite nachlädt oder ein Fenster
+    // sich öffnet (vorher alle 120 ms, das Licht hinkte sichtbar hinterher). Der Takt bleibt als
+    // Rückfall, falls der Browser im Hintergrund keine Bilder zeichnet.
+    let frame = 0;
+    const loop = () => { tick(); frame = window.requestAnimationFrame(loop); };
+    frame = window.requestAnimationFrame(loop);
     const interval = window.setInterval(tick, TICK_MS);
     window.addEventListener('resize', tick);
     window.addEventListener('scroll', tick, true);
     return () => {
+      window.cancelAnimationFrame(frame);
       window.clearInterval(interval);
       window.removeEventListener('resize', tick);
       window.removeEventListener('scroll', tick, true);

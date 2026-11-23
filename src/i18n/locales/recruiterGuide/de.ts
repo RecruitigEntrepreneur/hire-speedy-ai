@@ -10,6 +10,7 @@ const de = {
     example: 'Beispiel',
     titleWithName: '{{title}}, {{name}}',
     contents: 'Inhalt',
+    step: 'Schritt {{current}} von {{total}}',
   },
   texts: {
     yourTurn: 'Du bist dran: Klick auf die markierte Stelle.',

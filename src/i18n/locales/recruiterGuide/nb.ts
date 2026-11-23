@@ -11,6 +11,7 @@ const nb: Messages<typeof de> = {
     example: 'Eksempel',
     titleWithName: '{{title}}, {{name}}',
     contents: 'Innhold',
+    step: 'Trinn {{current}} av {{total}}',
   },
   texts: {
     yourTurn: 'Din tur: klikk på det markerte området.',

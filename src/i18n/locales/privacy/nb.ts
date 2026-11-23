@@ -17,6 +17,8 @@ const nb: Messages<typeof de> = {
     back: 'Tilbake',
   },
   consent: {
+    cookies: 'Informasjonskapsler',
+    alwaysOn: 'alltid på',
     loading: 'Laster innstillinger...',
     title: 'Administrer samtykker',
     description: 'Administrer innstillingene dine for informasjonskapsler og databehandling',

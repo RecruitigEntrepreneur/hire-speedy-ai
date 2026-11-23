@@ -17,6 +17,8 @@ const sv: Messages<typeof de> = {
     back: 'Tillbaka',
   },
   consent: {
+    cookies: 'Cookies',
+    alwaysOn: 'alltid på',
     loading: 'Inställningarna laddas...',
     title: 'Hantera samtycken',
     description: 'Hantera dina inställningar för cookies och databehandling',

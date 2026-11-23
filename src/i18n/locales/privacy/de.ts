@@ -17,6 +17,8 @@ const de = {
     back: 'Zurück',
   },
   consent: {
+    cookies: 'Cookies',
+    alwaysOn: 'immer an',
     loading: 'Lade Einstellungen...',
     title: 'Einwilligungen verwalten',
     description: 'Verwalten Sie Ihre Cookie- und Datenverarbeitungseinstellungen',

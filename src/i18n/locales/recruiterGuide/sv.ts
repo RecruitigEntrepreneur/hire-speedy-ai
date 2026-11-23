@@ -11,6 +11,7 @@ const sv: Messages<typeof de> = {
     example: 'Exempel',
     titleWithName: '{{title}}, {{name}}',
     contents: 'Innehåll',
+    step: 'Steg {{current}} av {{total}}',
   },
   texts: {
     yourTurn: 'Din tur: klicka på det markerade området.',

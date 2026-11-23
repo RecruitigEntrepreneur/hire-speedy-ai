@@ -17,7 +17,7 @@ export function TourWelcome() {
   return (
     <div className="mt-4">
       <div className="rounded-lg border border-border bg-card px-3 py-2.5">
-        <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           {data.example && !waitingTitle ? t('welcome.exampleJob') : t('welcome.yourJob')}
         </p>
         <p className="mt-0.5 text-sm font-semibold">{data.title}</p>

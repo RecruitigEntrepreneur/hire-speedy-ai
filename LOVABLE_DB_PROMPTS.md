@@ -1790,6 +1790,23 @@ liegen in Deutsch, Englisch, Schwedisch und Norwegisch vor. Keine neue Tabelle, 
 
 ---
 
+## 61 — Kunden-Rundgang ruhiger und flüssiger, drei kleine Seiten im neuen Look (23.11.2026)
+
+Commit siehe `git log` („Apple-Stil: Rundgang und kleine Seiten“). **Keine Migration, keine Edge Function,
+nur Publish.** Nach Nr. 60. Die Karte des Rundgangs ist ruhiger (keine Versalien, kein hellblauer Hinweis, ein blauer
+Knopf, Schritt-Zahl), und die Übergänge hängen nicht mehr: Die Markierung folgt dem Ziel bei jedem Bild, Text, Licht
+und Karte wechseln gemeinsam. Das gilt auch für den Headhunter-Rundgang, er nutzt denselben Baustein. Dazu im neuen
+Look: Datenschutz-Seite (Einwilligungen, Datenexport, Konto löschen), der Fehlerfall bei „Vertrag unterschreiben“ und
+„Einladung annehmen“. Die Zahlen an Glocke, Sprechblase und Menü sind einheitlich rot. Keine neue Tabelle, keine
+neuen Secrets.
+
+> 1. Aktuellen Stand von `main` übernehmen.
+> 2. Keine Migration ausführen, keine Edge Function deployen, keine Secrets ändern.
+> 3. Publish.
+> 4. Am Code nichts ändern. Am Ende melden, dass Publish durch ist.
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über

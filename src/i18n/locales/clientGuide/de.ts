@@ -31,9 +31,9 @@ const de = {
       bodyExample: 'In etwa 4 Minuten zeigen wir Ihnen an einer Beispielstelle, wie es von der Stelle bis zur Einstellung läuft. Gespeichert wird dabei nichts.',
     },
     'c-jobsNew': {
-      title: 'Weitere Positionen geben Sie hier ab',
-      body: 'Unter „Neue Stelle“ legen Sie eine Position neu an oder kopieren eine bestehende. Klicken Sie auf „Neue Stelle anlegen“, dann sehen Sie das Fenster. Im Rundgang wird nichts gespeichert.',
-      bodyWaiting: 'Sobald Ihr Konto freigeschaltet ist, legen Sie unter „Neue Stelle“ weitere Positionen an oder kopieren eine bestehende. Klicken Sie auf „Neue Stelle anlegen“, dann sehen Sie das Fenster.',
+      title: 'Weitere Stellen geben Sie hier ab',
+      body: 'Unter „Neue Stelle“ legen Sie eine Stelle neu an oder kopieren eine bestehende. Klicken Sie auf „Neue Stelle anlegen“, dann sehen Sie das Fenster. Im Rundgang wird nichts gespeichert.',
+      bodyWaiting: 'Sobald Ihr Konto freigeschaltet ist, legen Sie unter „Neue Stelle“ weitere Stellen an oder kopieren eine bestehende. Klicken Sie auf „Neue Stelle anlegen“, dann sehen Sie das Fenster.',
       action: 'Neue Stelle anlegen',
     },
     'c-intakeKind': {
@@ -173,8 +173,8 @@ const de = {
       body: 'Neuigkeiten kommen über die Glocke, Nachrichten mit Ihren Headhuntern über die Sprechblase. Verbinden Sie noch Ihren Kalender, dann sehen Sie bei jeder Anfrage, wann Sie frei sind.',
     },
     'c-positionEntry': {
-      title: 'Die nächste Position, jederzeit',
-      body: 'Hier nehmen Sie die nächste Position auf, am schnellsten mit Ihrer Anzeige. Angefangene Entwürfe stehen gleich daneben unter „Weitermachen“.',
+      title: 'Die nächste Stelle, jederzeit',
+      body: 'Hier nehmen Sie die nächste Stelle auf, am schnellsten mit Ihrer Anzeige. Angefangene Entwürfe stehen gleich daneben unter „Weitermachen“.',
     },
     'c-done': {
       title: 'Geschafft',
@@ -225,7 +225,7 @@ const de = {
       whyNow: 'Sein Arbeitgeber wird umstrukturiert; er sucht jetzt bewusst den nächsten Schritt. Ist aktiv auf der Suche.',
       whyNowRegion: 'Sein Arbeitgeber legt Standorte zusammen; er will in der Region bleiben. Ist aktiv auf der Suche.',
       fitSummary: 'Arbeitet seit {{n}} Jahren als {{role}} und kennt die Kernaufgaben der Stelle aus der Praxis. Lebenslauf und Gespräch passen zu Ihren Anforderungen; was noch offen ist, klären Sie am besten im Interview.',
-      mustMet: 'Im Lebenslauf belegt: macht das seit Jahren in seiner aktuellen Position.',
+      mustMet: 'Im Lebenslauf belegt: macht das seit Jahren in seiner aktuellen Stelle.',
       mustOpen: 'Im Gespräch erwähnt, im Lebenslauf nicht ausdrücklich belegt. Im Interview nachfragen.',
       bonus1: 'Erfahrung in vergleichbarer Rolle',
       bonus2: 'Arbeitet selbstständig und strukturiert',

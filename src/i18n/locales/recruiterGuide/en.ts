@@ -11,6 +11,7 @@ const en: Messages<typeof de> = {
     example: 'Example',
     titleWithName: '{{title}}, {{name}}',
     contents: 'Contents',
+    step: 'Step {{current}} of {{total}}',
   },
   texts: {
     yourTurn: 'Your turn: click the highlighted area.',

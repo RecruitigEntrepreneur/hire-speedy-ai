@@ -165,7 +165,7 @@ export function clientGuideSteps(ctx: ClientGuideContext): GuideStep[] {
       body: ctx.waiting ? 'bodyWaiting' : 'body' }),
     stage({ id: 'c-intakeKind', chapter: 1, scene: 'aufnahmeArt', target: `[data-kind="${ctx.contracting ? 'freelance' : 'full-time'}"]`,
       click: { labelKey: ctx.contracting ? 'actionContracting' : 'action' }, show: true, side: 'bottom' }),
-    stage({ id: 'c-intakeWays', chapter: 1, scene: 'aufnahmeWege', target: at('intake.ways'), points: ['[data-intake-way="paste"]'] }),
+    stage({ id: 'c-intakeWays', chapter: 1, scene: 'aufnahmeWege', target: at('intake.ways'), points: ['[data-intake-way="paste"] [data-intake-action]'] }),
     ...(real
       ? [
         step({ id: 'c-myJob', chapter: 1, route: '/dashboard/jobs', path: live ? '/dashboard/jobs' : '/dashboard/jobs?tab=review',
