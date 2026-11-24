@@ -127,6 +127,8 @@ const sv: Messages<typeof de> = {
     partnerLine: 'Nr <mono>{{number}}</mono> · sedan {{date}}',
   },
   overview: {
+    open_one: '{{count}} öppen',
+    open_other: '{{count}} öppna',
     title: 'Nästa steg',
     allDone: 'Allt klart. Din profil är komplett.',
     done: 'Klart: {{list}}',

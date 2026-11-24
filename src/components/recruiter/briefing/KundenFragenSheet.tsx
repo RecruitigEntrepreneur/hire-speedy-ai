@@ -80,7 +80,7 @@ export function KundenFragenSheet({ open, onOpenChange, jobId, jobTitle, fehlt, 
         <SheetDescription>{t('ask.description', { title: jobTitle })}</SheetDescription>
       </SheetHeader>
       {gesendet ? <div className="mt-6 space-y-3">
-        <p className="flex items-center gap-2 text-sm font-medium text-emerald-600"><Check className="h-4 w-4" />{gesendet}</p>
+        <p className="flex items-center gap-2 text-sm font-medium text-foreground"><Check className="h-4 w-4" />{gesendet}</p>
         <p className="text-sm text-muted-foreground">{t('ask.afterAnswer')}</p>
         <Button variant="outline" onClick={() => onOpenChange(false)}>{t('expose.close')}</Button>
       </div> : <div className="mt-5 space-y-5">

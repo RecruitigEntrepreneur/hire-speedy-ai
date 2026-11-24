@@ -127,6 +127,8 @@ const nb: Messages<typeof de> = {
     partnerLine: 'Nr. <mono>{{number}}</mono> · siden {{date}}',
   },
   overview: {
+    open_one: '{{count}} åpen',
+    open_other: '{{count}} åpne',
     title: 'Neste steg',
     allDone: 'Alt er gjort. Profilen din er komplett.',
     done: 'Fullført: {{list}}',

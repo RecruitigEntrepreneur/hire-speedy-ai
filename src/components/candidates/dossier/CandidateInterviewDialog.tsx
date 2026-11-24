@@ -168,7 +168,7 @@ function HookHint({ hooks }: { hooks: CareerHook[] }) {
 /** Gelber Hinweis mit Lösung per Klick (Widerspruch zwischen Angaben). */
 function FixHint({ text, actions }: { text: string; actions: { label: string; onClick: () => void }[] }) {
   return (
-    <p className="flex flex-wrap items-center gap-2 rounded-md bg-warning/10 px-2.5 py-1.5 text-xs text-warning">
+    <p className="flex flex-wrap items-center gap-2 rounded-md bg-secondary px-2.5 py-1.5 text-xs font-medium text-foreground">
       <AlertTriangle className="h-3.5 w-3.5 shrink-0" />{text}
       {actions.map((a) => <button key={a.label} type="button" className="underline underline-offset-2 hover:text-foreground" onClick={a.onClick}>{a.label}</button>)}
     </p>
@@ -1249,7 +1249,7 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
           {kundentextFehler.map((i) => {
             const summary = (CLIENT_SUMMARY_KEYS as readonly string[]).includes(i.field) ? (i.field as (typeof CLIENT_SUMMARY_KEYS)[number]) : null;
             return (
-              <p key={`${i.field}:${i.message}`} className={cn('flex flex-wrap items-center gap-2 rounded-md px-2.5 py-1.5 text-xs', i.level === 'danger' ? 'bg-destructive/10 text-destructive' : 'bg-warning/10 text-warning')}>
+              <p key={`${i.field}:${i.message}`} className={cn('flex flex-wrap items-center gap-2 rounded-md px-2.5 py-1.5 text-xs', i.level === 'danger' ? 'bg-destructive/10 text-destructive' : 'bg-secondary font-medium text-foreground')}>
                 <AlertTriangle className="h-3.5 w-3.5 shrink-0" />{t(`clientText.${i.field}`)}: {term(i.message)}
                 {summary ? (
                   <button type="button" className="underline underline-offset-2" onClick={() => neuUebernehmen(summary)}>{t('close.reapply')}</button>
@@ -1386,12 +1386,12 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
     };
     return (
       <div className="flex min-h-full items-center justify-center">
-        <div className={cn('w-full max-w-md space-y-3 rounded-lg border p-6 text-center', nachher.isReady ? 'border-success/50' : 'border-border')}>
-          <p className={cn('text-base font-semibold', nachher.isReady && 'text-success')}>{t('done.title')}</p>
-          <p className={cn('text-sm', !nachher.isReady && 'text-warning')}>
+        <div className={cn('w-full max-w-md space-y-3 rounded-lg border p-6 text-center', nachher.isReady ? 'border-border' : 'border-border')}>
+          <p className={cn('text-base font-semibold', nachher.isReady && 'text-foreground')}>{t('done.title')}</p>
+          <p className={cn('text-sm', !nachher.isReady && 'font-medium text-foreground')}>
             {nachher.isReady ? t('state.ready', { name: firstName }) : t('state.stillOpen', { list: nachher.missing.map((m) => term(m.label)).join(', ') })}
           </p>
-          <p className={cn('text-xs', nachher.isReady ? 'text-success' : 'text-muted-foreground')}>{t('done.readyCount', { done: nachher.done, total: nachher.total })}</p>
+          <p className={cn('text-xs', nachher.isReady ? 'text-foreground' : 'text-muted-foreground')}>{t('done.readyCount', { done: nachher.done, total: nachher.total })}</p>
           <div className="flex flex-wrap justify-center gap-2 pt-1">
             <Button variant="outline" onClick={closeAfterFinish}>{t('done.toProfile')}</Button>
             {nachher.isReady ? (
@@ -1491,16 +1491,16 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
               </div>
             ) : (
               <div className="flex flex-wrap items-center gap-2">
-                <Input id={fieldId('interview_date')} type="date" aria-label={t('head.dateAria')} className={cn('h-8 w-36 text-xs', kopfMarkiert === 'interview_date' && 'border-warning ring-1 ring-warning')} value={draft.interview_date ?? today()} onChange={(e) => set({ interview_date: e.target.value || today() })} />
-                {kopfMarkiert === 'interview_type' && <span className="text-xs font-medium text-warning">{t('head.howTalked')}</span>}
-                <span className={cn('inline-flex rounded-lg p-0.5 transition-shadow', kopfMarkiert === 'interview_type' && 'ring-[1.5px] ring-warning')}>
+                <Input id={fieldId('interview_date')} type="date" aria-label={t('head.dateAria')} className={cn('h-8 w-36 text-xs', kopfMarkiert === 'interview_date' && 'border-foreground/40 ring-1 ring-foreground/40')} value={draft.interview_date ?? today()} onChange={(e) => set({ interview_date: e.target.value || today() })} />
+                {kopfMarkiert === 'interview_type' && <span className="text-xs font-medium text-foreground">{t('head.howTalked')}</span>}
+                <span className={cn('inline-flex rounded-lg p-0.5 transition-shadow', kopfMarkiert === 'interview_type' && 'ring-[1.5px] ring-foreground/40')}>
                   <ChipGroup field="interview_type" options={INTERVIEW_TYPE_OPTIONS} value={draft.interview_type} onChange={(v) => set({ interview_type: v })} />
                 </span>
               </div>
             )}
           </div>
           {newColumnsPending && (
-            <p className="mt-2 rounded-md bg-warning/10 px-3 py-1.5 text-xs text-warning">
+            <p className="mt-2 rounded-md bg-secondary px-3 py-1.5 text-xs font-medium text-foreground">
               {t('warn.columns')}
             </p>
           )}
@@ -1622,7 +1622,7 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
                   <p className="text-xs font-semibold text-muted-foreground">{t('notes.detected')}</p>
                   <div className="flex flex-wrap gap-1.5">
                     {liveItems.map((i) => (
-                      <span key={`${i.key}:${i.display}`} className={cn('inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs', i.status === 'conflict' ? 'border-destructive/50' : i.status === 'sensitive' ? 'border-warning/60' : 'border-primary/50')}>
+                      <span key={`${i.key}:${i.display}`} className={cn('inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs', i.status === 'conflict' ? 'border-destructive/50' : i.status === 'sensitive' ? 'border-foreground/40' : 'border-primary/50')}>
                         <button type="button" onClick={() => applyItem(i)} title={`„${i.quote}“`} className="hover:underline">
                           {term(i.label)}: {i.status === 'conflict' ? `${term(i.currentDisplay)} → ${term(i.display)}` : term(i.display)}
                         </button>
@@ -1641,11 +1641,11 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
               <div className="space-y-1.5 border-t border-border pt-4 text-xs">
                 <p className="text-sm font-semibold">{fromCv ? t('career.titleCv') : t('career.titleFile')}</p>
                 {werdegang.map((w, i) => w.kind === 'gap' ? (
-                  <p key={`gap-${i}`} className="border-l-2 border-warning/60 pl-2 leading-tight text-muted-foreground">
+                  <p key={`gap-${i}`} className="border-l-2 border-foreground/40 pl-2 leading-tight text-muted-foreground">
                     {t('career.gap', { from: monthYear(w.from), to: monthYear(w.to), months: w.months })}
                   </p>
                 ) : (
-                  <p key={w.st.id ?? i} className={cn('border-l-2 pl-2 leading-tight', w.st.current ? 'border-foreground/40' : w.short ? 'border-warning/60' : 'border-border')}>
+                  <p key={w.st.id ?? i} className={cn('border-l-2 pl-2 leading-tight', w.st.current ? 'border-foreground/40' : w.short ? 'border-foreground/40' : 'border-border')}>
                     <span className={w.st.current ? 'font-medium' : ''}>{w.st.title || t('career.station')}</span>
                     <br />
                     <span className="text-muted-foreground">
@@ -1661,10 +1661,10 @@ export function CandidateInterviewDialog({ open, onOpenChange, candidateId, form
         </div>
 
         {hinweisZeile && (
-          <div className="flex flex-wrap items-center gap-1.5 border-t border-border bg-warning/10 px-6 py-2 text-xs text-warning">
+          <div className="flex flex-wrap items-center gap-1.5 border-t border-border bg-secondary px-6 py-2 text-xs font-medium text-foreground">
             <span>{hinweisZeile.titel}</span>
             {hinweisZeile.liste.map((m) => (
-              <button key={m.key} type="button" onClick={() => jump(m.key)} className={cn('rounded border border-warning/50 px-1.5 py-0.5 hover:bg-warning/10', kopfMarkiert === m.key && 'bg-warning/20')}>{openLabel(m)} ›</button>
+              <button key={m.key} type="button" onClick={() => jump(m.key)} className={cn('rounded border border-foreground/40 px-1.5 py-0.5 hover:bg-secondary', kopfMarkiert === m.key && 'bg-secondary')}>{openLabel(m)} ›</button>
             ))}
             {hinweisZeile.frage && <span className="text-muted-foreground">{hinweisZeile.frage}</span>}
           </div>

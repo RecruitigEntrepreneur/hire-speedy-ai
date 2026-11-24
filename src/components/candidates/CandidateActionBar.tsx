@@ -38,7 +38,7 @@ export function CandidateActionBar({
         className
       )}>
         <div className="container max-w-7xl mx-auto px-4 py-3 flex justify-center">
-          <Badge className="bg-green-500/10 text-green-600 border-green-500/20 text-sm py-1.5 px-4">
+          <Badge className="bg-muted text-foreground border-border text-sm py-1.5 px-4">
             <CheckCircle className="h-4 w-4 mr-2" />
             {t('actionBar.placed')}
           </Badge>

@@ -321,7 +321,7 @@ export function CvImportDialog({
               </button>
               {pasteOpen && <Textarea value={text} onChange={(e) => setText(e.target.value)} rows={6} placeholder={t('start.pastePlaceholder')} />}
               {((pasteOpen && !file) || (file && !isCvFileName(file.name))) && (
-                <p className="rounded-md bg-warning/10 px-3 py-2 text-xs text-warning">
+                <p className="rounded-md bg-secondary px-3 py-2 text-xs font-medium text-foreground">
                   {t('start.textNoCv')}
                 </p>
               )}
@@ -373,19 +373,19 @@ export function CvImportDialog({
               </DialogDescription>
             </DialogHeader>
             <div className="flex flex-wrap gap-2 text-xs">
-              {cv && <span className="rounded-md bg-success/15 px-2.5 py-1 text-success">{t('review.taken', { n: counts.taken })}</span>}
-              {counts.check > 0 && <span className="rounded-md bg-warning/15 px-2.5 py-1 text-warning">{t('review.check', { n: counts.check })}</span>}
+              {cv && <span className="rounded-md bg-secondary px-2.5 py-1 text-foreground">{t('review.taken', { n: counts.taken })}</span>}
+              {counts.check > 0 && <span className="rounded-md bg-secondary px-2.5 py-1 font-medium text-foreground">{t('review.check', { n: counts.check })}</span>}
               <span className="rounded-md bg-muted px-2.5 py-1 text-muted-foreground">{t('review.gaps', { n: counts.gaps })}</span>
             </div>
             {cv && cv.removed_sensitive.length > 0 && (
               <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
-                <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
+                <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-foreground" />
                 {t('review.protected', { list: cv.removed_sensitive.map((x) => term(x)).join(', ') })}
               </p>
             )}
             {duplicate && (
-              <p className="flex items-center gap-1.5 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs">
-                <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-warning" />
+              <p className="flex items-center gap-1.5 rounded-md border border-foreground/40 bg-secondary px-3 py-2 text-xs">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0 font-medium text-foreground" />
                 <span className="flex-1">
                   {duplicate.reason === 'name'
                     ? t('review.dupName', { name: duplicate.full_name })
@@ -467,7 +467,7 @@ export function CvImportDialog({
                   <li key={String(c.key)} className="flex items-start gap-3 py-2.5">
                     <Checkbox className="mt-0.5" checked={accepted.has(String(c.key))} onCheckedChange={() => toggleAccepted(String(c.key))} />
                     <span className="min-w-0 flex-1">
-                      <span className={cn('mr-2 rounded px-1.5 py-0.5 text-[11px]', c.kind === 'new' ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning')}>{c.kind === 'new' ? t('update.new') : t('update.different')}</span>
+                      <span className={cn('mr-2 rounded px-1.5 py-0.5 text-[11px]', c.kind === 'new' ? 'bg-secondary text-foreground' : 'bg-secondary font-medium text-foreground')}>{c.kind === 'new' ? t('update.new') : t('update.different')}</span>
                       <span className="font-medium">{fieldLabel(c.key)}:</span> {display(c.key, c.incoming)}
                       {c.kind === 'conflict' && <span className="block text-xs text-muted-foreground">{t('update.before', { value: display(c.key, c.current) })}</span>}
                     </span>
@@ -478,7 +478,7 @@ export function CvImportDialog({
                   return (
                     <li key={key} className="flex items-start gap-3 py-2.5">
                       <Checkbox className="mt-0.5" checked={accepted.has(key)} onCheckedChange={() => toggleAccepted(key)} />
-                      <span><span className="mr-2 rounded bg-success/15 px-1.5 py-0.5 text-[11px] text-success">{t('update.new')}</span><span className="font-medium">{t('update.station')}</span> {s.job_title} · {s.company_name} ({period(s)})</span>
+                      <span><span className="mr-2 rounded bg-secondary px-1.5 py-0.5 text-[11px] text-foreground">{t('update.new')}</span><span className="font-medium">{t('update.station')}</span> {s.job_title} · {s.company_name} ({period(s)})</span>
                     </li>
                   );
                 })}

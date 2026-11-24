@@ -186,7 +186,7 @@ function WebsitePanel({ partner, a }: { partner: PartnerStatusRow; a: PanelActio
       <CopyRow label={t('website.privacy')} value={t('website.privacyValue')} hint={t('website.privacyHint')} onCopy={() => a.copy(PRIVACY_SENTENCE, t('what.sentence'))}/>
     </div>
     <Rule>{t('website.rule')}</Rule>
-    <p className={cn('flex items-center gap-2 border-t border-border pt-4 text-sm', partner.website_domain ? 'text-success' : 'text-muted-foreground')}>
+    <p className={cn('flex items-center gap-2 border-t border-border pt-4 text-sm', partner.website_domain ? 'text-foreground' : 'text-muted-foreground')}>
       {partner.website_domain ? <><Check className="h-4 w-4"/>{partner.website_seen_at ? t('website.runsOnSeen', { domain: partner.website_domain, date: fmtDate(partner.website_seen_at) }) : t('website.runsOn', { domain: partner.website_domain })}</>
         : t('website.notFound')}
     </p>

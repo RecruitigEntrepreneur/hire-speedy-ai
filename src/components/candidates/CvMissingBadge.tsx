@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 export function CvMissingBadge({ className }: { className?: string }) {
   const { t } = useTranslation('candidates');
   return (
-    <span className={cn('inline-flex items-center gap-1 text-xs text-warning', className)} title={t('cvMissing.hint')}>
+    <span className={cn('inline-flex items-center gap-1 text-xs font-medium text-foreground', className)} title={t('cvMissing.hint')}>
       <FileWarning className="h-3 w-3" aria-hidden />
       {t('cvMissing.label')}
     </span>

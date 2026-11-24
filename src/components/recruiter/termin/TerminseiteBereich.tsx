@@ -31,7 +31,7 @@ const VORLAUF = [1, 4, 24, 48] as const;
 
 function Schritt({ nr, fertig, titel, rechts, children }: { nr: number; fertig: boolean; titel: string; rechts?: React.ReactNode; children: React.ReactNode }) {
   return <section className="flex gap-3 border-t border-border py-4 first:border-t-0 first:pt-0">
-    <span className={cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-medium', fertig ? 'bg-emerald-500/15 text-emerald-600' : 'bg-muted')}>
+    <span className={cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-medium', fertig ? 'bg-foreground text-background' : 'bg-muted')}>
       {fertig ? <Check className="h-3.5 w-3.5"/> : nr}
     </span>
     <div className="min-w-0 flex-1 space-y-3">
@@ -159,7 +159,7 @@ export function TerminseiteBereich({ zurueck }: { zurueck?: string | null }) {
             {slugFehler && <p role="alert" className="text-xs text-destructive">{slugFehler}</p>}
             <p className="text-xs text-muted-foreground">{t('seite.addressHint')}</p>
           </div>
-          {!verbunden && <p className="flex items-center gap-1.5 text-xs text-amber-700"><CalendarOff className="h-3.5 w-3.5"/>{t('seite.calendarFirst')}</p>}
+          {!verbunden && <p className="flex items-center gap-1.5 text-xs font-medium text-foreground"><CalendarOff className="h-3.5 w-3.5"/>{t('seite.calendarFirst')}</p>}
           <div className="flex flex-wrap gap-2">
             <Button size="sm" disabled={speichern.isPending || (!geaendert && !!zeile)} onClick={() => void sichern()}>{speichern.isPending && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin"/>}{t('seite.save')}</Button>
             {zurueck && aktiv && <Button size="sm" variant="outline" onClick={() => { window.location.href = zurueck; }}>{t('seite.backToPost')}</Button>}

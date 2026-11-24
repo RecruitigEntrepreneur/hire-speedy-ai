@@ -204,17 +204,18 @@ function DarstellungBereich({ onBack }: { onBack: () => void }) {
     window.addEventListener(ANSICHT_EVENT, sync);
     return () => window.removeEventListener(ANSICHT_EVENT, sync);
   }, []);
-  const knopf = (aktiv: boolean) => cn('px-4 py-1.5 text-sm', aktiv ? 'bg-primary text-primary-foreground' : 'hover:bg-muted');
+  // Auswahl als Pille mit hellem Feld, wie die Reiter der anderen Seiten (25.11.2026)
+  const knopf = (aktiv: boolean) => cn('rounded-full px-4 py-1.5 text-sm transition-colors', aktiv ? 'bg-background font-medium shadow-sm' : 'text-muted-foreground hover:text-foreground');
   return (
     <SettingsSubpage title={t('darstellung.title')} description={t('darstellung.description')} onBack={onBack}>
       <SettingsBlock title={t('darstellung.color')}>
-        <div className="flex w-fit overflow-hidden rounded-lg border border-border">
+        <div className="inline-flex w-fit gap-0.5 rounded-full bg-secondary p-1">
           {(['light', 'dark'] as const).map((m) => <button key={m} type="button" onClick={() => setTheme(m)} className={knopf(theme === m)}>{m === 'light' ? t('darstellung.light') : t('darstellung.dark')}</button>)}
         </div>
         <p className="text-xs text-muted-foreground">{t('darstellung.colorHint')}</p>
       </SettingsBlock>
       <SettingsBlock title={t('darstellung.font')}>
-        <div className="flex w-fit overflow-hidden rounded-lg border border-border">
+        <div className="inline-flex w-fit gap-0.5 rounded-full bg-secondary p-1">
           {([['klein', 'small'], ['normal', 'normal'], ['gross', 'large']] as const).map(([k, l]) => <button key={k} type="button" onClick={() => setSchrift(k)} className={knopf(s === k)}>{t(`darstellung.${l}`)}</button>)}
         </div>
         <p className="text-sm text-muted-foreground">{t('darstellung.fontSample')}</p>

@@ -79,21 +79,21 @@ export function GutschriftenReiter() {
         <p className="py-6 text-sm text-muted-foreground">{t('notes.empty')}</p>
       )}
       {(data.upcoming.length > 0 || data.notes.length > 0) && (
-        <ul className="divide-y divide-border border-y border-border">
+        <ul className="divide-y divide-border rounded-xl border bg-card">
           {data.upcoming.map((run) => (
-            <li key={run.slot.runMonth} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3">
+            <li key={run.slot.runMonth} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-5">
               <div className="min-w-0">
                 <p className="text-sm"><span className="font-medium">{runName(run.slot, i18n.language)}</span><span className="text-muted-foreground">{t('notes.preparing')}</span></p>
                 <p className="truncate text-xs text-muted-foreground">{run.lines.map((l) => l.label).join(' · ')}</p>
               </div>
               <div className="text-right">
-                <p className="text-sm tabular-nums"><Honorar>{eur2(run.netCents, i18n.language)}</Honorar>{run.vatCents > 0 && <span className="text-muted-foreground">{t('notes.plusVat')}</span>}</p>
+                <p className="text-sm font-semibold tabular-nums"><Honorar>{eur2(run.netCents, i18n.language)}</Honorar>{run.vatCents > 0 && <span className="text-muted-foreground">{t('notes.plusVat')}</span>}</p>
                 <p className="text-xs text-muted-foreground">{run.slot.short}</p>
               </div>
             </li>
           ))}
           {data.notes.map((n) => (
-            <li key={n.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3">
+            <li key={n.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-5">
               <div className="min-w-0">
                 <p className="text-sm">
                   <span className="font-medium">{n.number}</span>
@@ -111,10 +111,10 @@ export function GutschriftenReiter() {
                 {n.objection?.status === 'resolved' && n.objection.resolution && <p className="text-xs text-muted-foreground">{t('notes.answer', { text: n.objection.resolution })}</p>}
               </div>
               <div className="text-right">
-                <p className={cn('text-sm tabular-nums', n.status === 'cancelled' && 'line-through text-muted-foreground')}><Honorar>{eur2(n.totalCents, i18n.language)}</Honorar> <span className="text-muted-foreground">{t('notes.gross')}</span></p>
-                <div className="mt-1 flex justify-end gap-1.5">
-                  {n.hasPdf && <Button variant="outline" size="sm" className="h-7 px-2 text-xs" disabled={busy === `pdf-${n.id}`} onClick={() => void openPdf(n)}><FileText className="mr-1 h-3.5 w-3.5" />PDF</Button>}
-                  {n.canObject && <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => setEinwand(n)}>{t('notes.objection')}</Button>}
+                <p className={cn('text-sm font-semibold tabular-nums', n.status === 'cancelled' && 'line-through text-muted-foreground')}><Honorar>{eur2(n.totalCents, i18n.language)}</Honorar> <span className="text-muted-foreground">{t('notes.gross')}</span></p>
+                <div className="mt-0.5 flex justify-end gap-3">
+                  {n.hasPdf && <button type="button" className="text-xs font-medium text-klick hover:underline disabled:opacity-50" disabled={busy === `pdf-${n.id}`} onClick={() => void openPdf(n)}>PDF ›</button>}
+                  {n.canObject && <button type="button" className="text-xs font-medium text-klick hover:underline" onClick={() => setEinwand(n)}>{t('notes.objection')} ›</button>}
                 </div>
               </div>
             </li>

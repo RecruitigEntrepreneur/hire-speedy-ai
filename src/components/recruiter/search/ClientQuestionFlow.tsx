@@ -150,8 +150,8 @@ export function ClientQuestionFlow({
 
       {step === 'done' && (
         <div className="space-y-3">
-          <div className="flex items-start gap-2.5 rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
+          <div className="flex items-start gap-2.5 rounded-lg border border-border bg-muted p-3">
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-foreground" aria-hidden="true" />
             <div>
               <p className="font-medium">{t('q.thanks')}</p>
               <p className="text-xs text-muted-foreground">

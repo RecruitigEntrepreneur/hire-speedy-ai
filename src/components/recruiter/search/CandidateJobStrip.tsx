@@ -53,13 +53,13 @@ export function CandidateJobStrip({ ctx, candidateId }: { ctx: CandidateForJob; 
       </p>
       {(split.met.length > 0 || split.open.length > 0) && (
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          {split.met.slice(0, 4).map((t) => <span key={t} className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400"><Check className="h-3.5 w-3.5" />{t}</span>)}
-          {split.open.slice(0, 4).map((t) => <span key={t} className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400"><CircleHelp className="h-3.5 w-3.5" />{t}</span>)}
+          {split.met.slice(0, 4).map((t) => <span key={t} className="inline-flex items-center gap-1 text-foreground dark:text-muted-foreground"><Check className="h-3.5 w-3.5" />{t}</span>)}
+          {split.open.slice(0, 4).map((t) => <span key={t} className="inline-flex items-center gap-1 font-medium text-foreground dark:text-foreground"><CircleHelp className="h-3.5 w-3.5" />{t}</span>)}
           {split.open.length > 0 && <span className="text-muted-foreground">{t('strip.clarifyWith', { name: firstName })}</span>}
         </p>
       )}
       {split.met.length === 0 && split.open.length === 0 && ctx.item?.gaps?.[0] && (
-        <p className="text-amber-600 dark:text-amber-400">{ctx.item.gaps[0]}</p>
+        <p className="font-medium text-foreground dark:text-foreground">{ctx.item.gaps[0]}</p>
       )}
       {talk && <p className="text-xs text-muted-foreground">{t('strip.talkingPoint', { text: talk })}</p>}
       {ctx.matchDown && <p className="text-xs text-muted-foreground">{t('strip.matchDown')}</p>}

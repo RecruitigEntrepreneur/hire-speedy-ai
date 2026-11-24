@@ -1,6 +1,10 @@
 // Verdienste des Headhunters: Übersicht, Gutschriften, Abrechnungsdaten, Besetzungs-Fenster. Deutsch ist die Quelle.
 const de = {
   page: {
+    summaryCount_one: '{{count}} Besetzung',
+    summaryCount_other: '{{count}} Besetzungen',
+    summaryOpen: '{{amount}} noch offen',
+    summaryReceived: '{{amount}} erhalten in {{year}}',
     title: 'Verdienste',
     subtitle: 'Was du bekommst, wann und wofür.',
     tabOverview: 'Übersicht',
@@ -28,6 +32,11 @@ const de = {
     clientReport: 'Deine Meldung konnte nicht gesendet werden.',
   },
   overview: {
+    items_one: '{{count}} Posten',
+    items_other: '{{count}} Posten',
+    view: 'ansehen',
+    moneyAfter: 'Geld 7 Tage danach',
+    wait: { progress: '{{done}} von {{total}} erledigt', invoice: 'wartet auf die Rechnung an den Kunden', paid: 'wartet auf Zahlung des Kunden', start: 'wartet auf den Antritt', next: 'als Nächstes: {{label}}', complete: 'abgeschlossen' },
     more_one: '{{label}} und {{count}} weiterer Posten',
     more_other: '{{label}} und {{count}} weitere Posten',
     next: 'Nächste Gutschrift',

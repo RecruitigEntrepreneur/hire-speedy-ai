@@ -26,7 +26,7 @@ interface Props { feePercentage: number | null; salaryMin: number | null; salary
  *
  * Kein `dark:` in diesem Bauteil: die Tailwind-Konfiguration hier ist
  * `darkMode: ["class", ".light"]`, `dark:`-Klassen greifen also im HELLEN
- * Thema. Die alte Fassung trug `dark:text-emerald-400` und war damit genau
+ * Thema. Die alte Fassung trug `dark:text-muted-foreground` und war damit genau
  * verkehrt herum.
  */
 export function FeeCalculatorCard({ feePercentage, salaryMin, salaryMax, jobId }: Props) {
@@ -37,17 +37,17 @@ export function FeeCalculatorCard({ feePercentage, salaryMin, salaryMax, jobId }
   if (plan && terms) {
     const ex = earningExplain(plan, terms, i18n.language);
     const spanne = plan.minCents != null && plan.maxCents != null && plan.minCents !== plan.maxCents ? `${eur0(plan.minCents, i18n.language)} – ${eur0(plan.maxCents, i18n.language)}` : null;
-    return <section className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-5" aria-label={t('earning.yours')}>
-      <h3 className="flex items-center gap-2 text-sm font-medium text-emerald-500"><Euro className="h-4 w-4" />{t('earning.yours')}</h3>
+    return <section className="rounded-xl border border-border bg-muted p-5" aria-label={t('earning.yours')}>
+      <h3 className="flex items-center gap-2 text-sm font-medium text-foreground"><Euro className="h-4 w-4" />{t('earning.yours')}</h3>
       <p className="mt-4 text-3xl font-bold tracking-tight tabular-nums"><Honorar>{eur0(plan.totalCents, i18n.language)}</Honorar></p>
       <p className="mt-1.5 text-xs leading-6 text-muted-foreground">{ex.subtitle}</p>
-      <dl className="mt-4 space-y-1.5 border-t border-emerald-500/20 pt-3 text-xs">
+      <dl className="mt-4 space-y-1.5 border-t border-border pt-3 text-xs">
         {spanne && <div className="flex items-center justify-between gap-3"><dt className="text-muted-foreground">{t('earning.range')}</dt><dd className="tabular-nums"><Honorar>{spanne}</Honorar></dd></div>}
         {!plan.research && <div className="flex items-center justify-between gap-3"><dt className="text-muted-foreground">{t('earning.share')}</dt><dd className="tabular-nums"><Honorar>{t('earning.percentOfTarget', { pct: plan.pct.toLocaleString(locale) })}</Honorar></dd></div>}
         <div className="flex items-center justify-between gap-3"><dt className="text-muted-foreground">{t('earning.clientPackage')}</dt><dd>{plan.packageText}</dd></div>
       </dl>
 
-      <div className="mt-4 border-t border-emerald-500/20 pt-3">
+      <div className="mt-4 border-t border-border pt-3">
         <p className="text-xs font-medium">{t('earning.payout')}</p>
         <ol className="mt-1.5 divide-y divide-border/60 text-xs">
           {ex.payout.map((s) => (
@@ -59,7 +59,7 @@ export function FeeCalculatorCard({ feePercentage, salaryMin, salaryMax, jobId }
           ))}
         </ol>
       </div>
-      <div className="mt-3 border-t border-emerald-500/20 pt-3">
+      <div className="mt-3 border-t border-border pt-3">
         <p className="text-xs font-medium">{t('earning.risks')}</p>
         <ul className="mt-1.5 space-y-1 text-xs leading-5 text-muted-foreground">
           {ex.risks.map((r) => <li key={r}>· <Honorar>{r}</Honorar></li>)}
@@ -75,8 +75,8 @@ export function FeeCalculatorCard({ feePercentage, salaryMin, salaryMax, jobId }
   const spanne = range?.min != null && range?.max != null && range.min !== range.max
     ? `${money(range.min)} – ${money(range.max)}` : null;
 
-  return <section className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-5" aria-label={t('earning.exampleAria')}>
-    <h3 className="flex items-center gap-2 text-sm font-medium text-emerald-500"><Euro className="h-4 w-4" />{t('earning.yours')}</h3>
+  return <section className="rounded-xl border border-border bg-muted p-5" aria-label={t('earning.exampleAria')}>
+    <h3 className="flex items-center gap-2 text-sm font-medium text-foreground"><Euro className="h-4 w-4" />{t('earning.yours')}</h3>
 
     {mitte == null ? (
       <p className="mt-4 text-sm text-muted-foreground">{t('earning.notCalculable')}</p>
@@ -84,7 +84,7 @@ export function FeeCalculatorCard({ feePercentage, salaryMin, salaryMax, jobId }
       <>
         <p className="mt-4 text-3xl font-bold tracking-tight tabular-nums"><Honorar>{money(mitte)}</Honorar></p>
         <p className="mt-1.5 text-xs leading-6 text-muted-foreground">{t('earning.onSuccess')}</p>
-        <dl className="mt-4 space-y-1.5 border-t border-emerald-500/20 pt-3 text-xs">
+        <dl className="mt-4 space-y-1.5 border-t border-border pt-3 text-xs">
           {spanne && <div className="flex items-center justify-between gap-3">
             <dt className="text-muted-foreground">{t('earning.range')}</dt><dd className="tabular-nums"><Honorar>{spanne}</Honorar></dd>
           </div>}
@@ -100,7 +100,7 @@ export function FeeCalculatorCard({ feePercentage, salaryMin, salaryMax, jobId }
       </>
     )}
 
-    <details className="group mt-4 border-t border-emerald-500/20 pt-3">
+    <details className="group mt-4 border-t border-border pt-3">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-medium">{t('earning.calcTerms')}<ChevronDown className="h-3.5 w-3.5 group-open:rotate-180" /></summary>
       <div className="mt-3 space-y-2 text-xs leading-6 text-muted-foreground">
         <p>{t('earning.exampleNote')}</p>

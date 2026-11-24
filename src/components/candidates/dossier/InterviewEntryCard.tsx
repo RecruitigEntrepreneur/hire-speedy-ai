@@ -213,7 +213,7 @@ export function InterviewEntryCard({
   } else if (hasInterview || vorbei) {
     schritt = 3;
     const nochNichts = !hasInterview;
-    etikett = { text: nochNichts ? t('card.badgeHappened') : t('card.badgeDraft'), ton: 'bg-warning/10 text-warning' };
+    etikett = { text: nochNichts ? t('card.badgeHappened') : t('card.badgeDraft'), ton: 'bg-secondary font-medium text-foreground' };
     if (nochNichts && vorbei) {
       titel = t('card.happened', { when: vorTagen(vorbei.starts_at) });
       unter = t('card.captureFresh');
@@ -230,7 +230,7 @@ export function InterviewEntryCard({
     neben = <>{einwerfen}{ausKopf}</>;
   } else if (einladung) {
     schritt = 1;
-    etikett = { text: t('card.badgeWaiting', { name: vorname }), ton: 'bg-warning/10 text-warning' };
+    etikett = { text: t('card.badgeWaiting', { name: vorname }), ton: 'bg-secondary font-medium text-foreground' };
     titel = t('card.invited', { name: vorname });
     const art = einladung.arten.length > 1 ? t('card.teamsOrPhone') : einladung.arten[0] === 'teams' ? 'Teams' : t('card.phone');
     unter = t(einladung.perMail ? 'card.invitedByMail' : 'card.invitedByLink', { when: vorTagen(einladung.seit, true), mode: art, opened: einladung.geoeffnet ? t('card.linkOpened') : t('card.linkNotOpened') });

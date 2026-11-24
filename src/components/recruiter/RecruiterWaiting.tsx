@@ -49,7 +49,7 @@ export function RecruiterWaitingBanner() {
   }
   if (justFreed) {
     return <div role="status" className="flex items-start gap-2 rounded-lg border border-border/60 px-4 py-3 text-sm">
-      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-foreground" />
       <p className="flex-1">{t('pending.freed')}</p>
       <button type="button" aria-label={t('pending.close')} onClick={() => setJustFreed(false)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
     </div>;

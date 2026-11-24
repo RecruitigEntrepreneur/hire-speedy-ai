@@ -162,14 +162,14 @@ export function CandidateEditSheet({ open, onOpenChange, candidateName, form, on
             <SheetDescription className="sr-only">{t('edit.description')}</SheetDescription>
             <div className="mt-3 flex items-center gap-3">
               <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-                <div className="h-full rounded-full bg-success transition-all" style={{ width: `${(readiness.done / readiness.total) * 100}%` }} />
+                <div className="h-full rounded-full bg-klick transition-all" style={{ width: `${(readiness.done / readiness.total) * 100}%` }} />
               </div>
               <span className="whitespace-nowrap text-xs text-muted-foreground">
                 {t('edit.ready', { done: readiness.done, total: readiness.total })}
               </span>
             </div>
             {readiness.missing.length > 0 && (
-              <p className="mt-1.5 text-xs text-warning">
+              <p className="mt-1.5 text-xs font-medium text-foreground">
                 {t('edit.stillMissing')}{' '}
                 {readiness.missing.map((m, i) => (
                   <span key={m.key}>
@@ -194,11 +194,11 @@ export function CandidateEditSheet({ open, onOpenChange, candidateName, form, on
                   className={cn(
                     'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition-colors',
                     active === s ? 'border-primary bg-primary/10 text-primary'
-                      : missingSections.has(s) ? 'border-warning/50 text-warning hover:bg-warning/10'
+                      : missingSections.has(s) ? 'border-foreground/40 font-medium text-foreground hover:bg-secondary'
                       : 'border-border text-muted-foreground hover:text-foreground',
                   )}
                 >
-                  {missingSections.has(s) && <span className="h-1.5 w-1.5 rounded-full bg-warning" aria-label={t('edit.missingDot')} />}
+                  {missingSections.has(s) && <span className="h-1.5 w-1.5 rounded-full bg-foreground/70" aria-label={t('edit.missingDot')} />}
                   {t(`edit.tab.${s}`)}
                 </button>
               ))}

@@ -44,7 +44,7 @@ export function PerMailWeiterleitenDialog({ open, onOpenChange }: { open: boolea
               {inboundEmail}
             </div>
             <Button size="sm" variant="outline" className="shrink-0 h-9 w-9 p-0" onClick={copy}>
-              {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+              {copied ? <Check className="h-4 w-4 text-foreground" /> : <Copy className="h-4 w-4" />}
             </Button>
           </div>
           <div className="text-xs text-muted-foreground space-y-2 bg-muted/30 rounded-lg p-3">

@@ -146,10 +146,10 @@ export function QuickInterviewSummary({ candidateId, onViewDetails }: QuickInter
 
   if (!notes) {
     return (
-      <Card className="border-dashed border-amber-300/50 bg-amber-50/30 dark:bg-amber-900/10">
+      <Card className="border-dashed border-border bg-muted dark:bg-muted">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
-            <MessageSquare className="h-4 w-4 text-amber-600" />
+            <MessageSquare className="h-4 w-4 font-medium text-foreground" />
             {t('quick.title')}
           </CardTitle>
         </CardHeader>
@@ -198,19 +198,19 @@ export function QuickInterviewSummary({ candidateId, onViewDetails }: QuickInter
               </p>
               <ul className="text-sm space-y-1.5">
                 <li className="flex items-center gap-2 text-muted-foreground">
-                  <XCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                  <XCircle className="h-3.5 w-3.5 font-medium text-foreground shrink-0" />
                   {t('quick.missSalary')}
                 </li>
                 <li className="flex items-center gap-2 text-muted-foreground">
-                  <XCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                  <XCircle className="h-3.5 w-3.5 font-medium text-foreground shrink-0" />
                   {t('quick.missMotivation')}
                 </li>
                 <li className="flex items-center gap-2 text-muted-foreground">
-                  <XCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                  <XCircle className="h-3.5 w-3.5 font-medium text-foreground shrink-0" />
                   {t('quick.missAvailability')}
                 </li>
                 <li className="flex items-center gap-2 text-muted-foreground">
-                  <XCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                  <XCircle className="h-3.5 w-3.5 font-medium text-foreground shrink-0" />
                   {t('quick.missAssessment')}
                 </li>
               </ul>
@@ -241,7 +241,7 @@ export function QuickInterviewSummary({ candidateId, onViewDetails }: QuickInter
   const getRecommendationBadge = () => {
     if (notes.would_recommend === true) {
       return (
-        <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+        <Badge className="bg-muted text-foreground dark:bg-muted dark:text-muted-foreground">
           <CheckCircle className="h-3 w-3 mr-1" />
           {t('quick.recommended')}
         </Badge>
@@ -249,7 +249,7 @@ export function QuickInterviewSummary({ candidateId, onViewDetails }: QuickInter
     }
     if (notes.would_recommend === false) {
       return (
-        <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+        <Badge className="bg-destructive/10 text-destructive dark:bg-destructive/10 dark:text-destructive">
           <XCircle className="h-3 w-3 mr-1" />
           {t('quick.notRecommended')}
         </Badge>

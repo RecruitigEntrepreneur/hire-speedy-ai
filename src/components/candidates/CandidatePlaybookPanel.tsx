@@ -81,7 +81,7 @@ export function CandidatePlaybookPanel({
       onClick={() => copyToClipboard(text, field)}
     >
       {copiedField === field ? (
-        <Check className="h-3.5 w-3.5 text-emerald-500" />
+        <Check className="h-3.5 w-3.5 text-foreground" />
       ) : (
         <Copy className="h-3.5 w-3.5" />
       )}
@@ -225,14 +225,14 @@ export function CandidatePlaybookPanel({
           )}
           {playbook.success_indicators && playbook.success_indicators.length > 0 && (
             <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm font-medium text-emerald-600">
+              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
                 <ThumbsUp className="h-4 w-4" />
                 {t('playbook.goodSigns')}
               </div>
               <ul className="space-y-1 text-xs">
                 {playbook.success_indicators.slice(0, 4).map((indicator, i) => (
                   <li key={i} className="flex items-start gap-1.5">
-                    <span className="text-emerald-600 mt-0.5">•</span>
+                    <span className="text-foreground mt-0.5">•</span>
                     <span className="text-muted-foreground">{indicator}</span>
                   </li>
                 ))}

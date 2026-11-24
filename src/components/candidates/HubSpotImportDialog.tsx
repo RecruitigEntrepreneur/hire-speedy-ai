@@ -188,7 +188,7 @@ export function HubSpotImportDialog({ open, onOpenChange, onImportComplete }: Hu
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded bg-orange-100 flex items-center justify-center">
+            <div className="w-8 h-8 rounded bg-muted flex items-center justify-center">
               <span className="text-lg">🟠</span>
             </div>
             {t('hubspot.title')}
@@ -374,22 +374,22 @@ export function HubSpotImportDialog({ open, onOpenChange, onImportComplete }: Hu
 
         {step === 'complete' && (
           <div className="py-8 text-center space-y-4">
-            <CheckCircle className="h-12 w-12 mx-auto text-emerald-500" />
+            <CheckCircle className="h-12 w-12 mx-auto text-foreground" />
             <p className="font-medium">{t('hubspot.done')}</p>
             
             <div className="flex justify-center gap-4">
               {results.imported > 0 && (
-                <Badge variant="secondary" className="bg-emerald-100 text-emerald-700">
+                <Badge variant="secondary" className="bg-muted text-foreground">
                   {t('hubspot.imported', { count: results.imported })}
                 </Badge>
               )}
               {results.skipped > 0 && (
-                <Badge variant="secondary" className="bg-amber-100 text-amber-700">
+                <Badge variant="secondary" className="bg-muted font-medium text-foreground">
                   {t('hubspot.skipped', { count: results.skipped })}
                 </Badge>
               )}
               {results.failed > 0 && (
-                <Badge variant="secondary" className="bg-red-100 text-red-700">
+                <Badge variant="secondary" className="bg-destructive/10 text-destructive">
                   {t('hubspot.failed', { count: results.failed })}
                 </Badge>
               )}

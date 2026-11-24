@@ -162,7 +162,7 @@ export function PartnerStatusSection({ partner, person, onChange }: { partner: P
               <span className="block text-sm font-medium">{t(`tiles.${tile.kind}.title`)}</span>
               <span className="block text-xs text-muted-foreground">{tilePurpose(t, tile.kind, award)}</span>
               <span className={cn('mt-1.5 inline-flex max-w-full items-center gap-1 truncate rounded-full px-2 py-0.5 text-[11px]',
-                s.done ? 'bg-success/15 text-success' : s.muted ? 'bg-muted text-muted-foreground' : 'border border-border text-muted-foreground')}>
+                s.done ? 'bg-secondary text-foreground' : s.muted ? 'bg-muted text-muted-foreground' : 'border border-border text-muted-foreground')}>
                 {s.done && <Check className="h-3 w-3 shrink-0"/>}<span className="truncate">{s.text}</span>
               </span>
             </span>

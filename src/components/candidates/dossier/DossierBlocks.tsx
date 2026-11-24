@@ -149,7 +149,7 @@ export function GehaltBlock({ form, set, family }: BlockProps & { family?: RoleF
         </div>
       )}
       {warnings.map((w) => (
-        <p key={w} className="flex items-start gap-1.5 text-xs text-warning"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />{w}</p>
+        <p key={w} className="flex items-start gap-1.5 text-xs font-medium text-foreground"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />{w}</p>
       ))}
     </div>
   );
@@ -188,7 +188,7 @@ export function VerfuegbarkeitBlock({ form, set, hint }: BlockProps & { hint?: {
         </div>
       </Field>
       {computed && duration !== 'immediate' && (
-        <p className={cn('rounded-md px-2.5 py-1.5 text-xs', zuFrueh ? 'bg-warning/10 text-warning' : 'bg-muted/60 text-muted-foreground')}>
+        <p className={cn('rounded-md px-2.5 py-1.5 text-xs', zuFrueh ? 'bg-secondary font-medium text-foreground' : 'bg-muted/60 text-muted-foreground')}>
           {t('blocks.earliestStart')} <span className={cn('font-medium', !zuFrueh && 'text-foreground')}>{fmt(computed)}</span>
           {abweichend && (
             <>
@@ -511,7 +511,7 @@ export function KundeBlock({ form, set }: BlockProps) {
         <AreaField field="expose_summary" value={form.expose_summary} onChange={(v) => set({ expose_summary: v })} placeholder={t('blocks.shortProfilePlaceholder')} rows={4} />
       </Field>
       {issues.map((i) => (
-        <p key={i.message} className={`flex items-start gap-1.5 text-xs ${i.level === 'danger' ? 'text-destructive' : 'text-warning'}`}>
+        <p key={i.message} className={`flex items-start gap-1.5 text-xs ${i.level === 'danger' ? 'text-destructive' : 'font-medium text-foreground'}`}>
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {term(i.message)}
         </p>
       ))}

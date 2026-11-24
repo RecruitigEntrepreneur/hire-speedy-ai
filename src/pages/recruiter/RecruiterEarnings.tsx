@@ -9,6 +9,9 @@ import { GutschriftenReiter } from '@/components/recruiter/verdienste/Gutschrift
 import { AbrechnungsdatenReiter } from '@/components/recruiter/verdienste/AbrechnungsdatenReiter';
 import { BesetzungFenster } from '@/components/recruiter/verdienste/BesetzungFenster';
 import { KonditionenHinweis } from '@/components/recruiter/verdienste/KonditionenHinweis';
+import { Honorar } from '@/components/recruiter/Honorar';
+import i18n from '@/i18n';
+import { eur0 } from '../../../supabase/functions/_shared/abrechnung-view';
 
 type Reiter = 'uebersicht' | 'gutschriften' | 'abrechnungsdaten';
 const REITER: Reiter[] = ['uebersicht', 'gutschriften', 'abrechnungsdaten'];
@@ -34,22 +37,27 @@ export default function RecruiterEarnings() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-4xl space-y-5">
+      {/* Apple-Stil (25.11.2026): volle Breite und großer Kopf wie auf den anderen Seiten, Summen in der Unterzeile */}
+      <div className="space-y-5">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t('page.title')}</h1>
-          <p className="text-sm text-muted-foreground">{t('page.subtitle')}</p>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t('page.title')}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {q.data && q.data.rows.length > 0
+              ? <>{t('page.summaryCount', { count: q.data.rows.length })} · <Honorar>{t('page.summaryOpen', { amount: eur0(q.data.totals.waitingStartCents + q.data.totals.waitingGuaranteeCents, i18n.language) })}</Honorar> · <Honorar>{t('page.summaryReceived', { amount: eur0(q.data.totals.receivedYearCents, i18n.language), year: q.data.year })}</Honorar></>
+              : t('page.subtitle')}
+          </p>
         </div>
         <KonditionenHinweis />
         <Tabs value={reiter} onValueChange={(v) => setParam('reiter', v === 'uebersicht' ? null : v)}>
           <TabsList>
             <TabsTrigger value="uebersicht">{t('page.tabOverview')}</TabsTrigger>
-            <TabsTrigger value="gutschriften">{count > 0 ? t('page.tabCreditNotesCount', { count }) : t('page.tabCreditNotes')}</TabsTrigger>
+            <TabsTrigger value="gutschriften">{t('page.tabCreditNotes')}{count > 0 && <span className="ml-1.5 tabular-nums text-muted-foreground">{count}</span>}</TabsTrigger>
             <TabsTrigger value="abrechnungsdaten">{t('page.tabBilling')}</TabsTrigger>
           </TabsList>
           <TabsContent value="uebersicht" className="mt-4">
             {q.isLoading ? <div className="flex h-40 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
               : q.isError ? <p className="py-6 text-sm text-muted-foreground">{q.error instanceof Error ? q.error.message : t('api.overview')}</p>
-                : q.data ? <VerdiensteUebersicht data={q.data} onOpen={(id) => setParam('besetzung', id)} onAbrechnungsdaten={() => setParam('reiter', 'abrechnungsdaten')} /> : null}
+                : q.data ? <VerdiensteUebersicht data={q.data} onOpen={(id) => setParam('besetzung', id)} onAbrechnungsdaten={() => setParam('reiter', 'abrechnungsdaten')} onGutschriften={() => setParam('reiter', 'gutschriften')} /> : null}
           </TabsContent>
           <TabsContent value="gutschriften" className="mt-4"><GutschriftenReiter /></TabsContent>
           <TabsContent value="abrechnungsdaten" className="mt-4"><AbrechnungsdatenReiter openAccount={params.get('konto') === '1'} /></TabsContent>

@@ -620,9 +620,9 @@ export function CandidateInterviewTab({ candidate, onNotesUpdated }: CandidateIn
       </Card>
 
       {/* Zusammenfassung für Kunden */}
-      <Card className="border-green-500/30 bg-green-500/5">
+      <Card className="border-border bg-muted">
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg text-green-700">
+          <CardTitle className="flex items-center gap-2 text-lg text-foreground">
             {t('legacy.zusammenfassung_fuer_kunden')}
           </CardTitle>
         </CardHeader>

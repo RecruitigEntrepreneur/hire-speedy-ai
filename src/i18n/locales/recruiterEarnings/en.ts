@@ -3,6 +3,10 @@ import type { Messages } from '../../types';
 
 const en: Messages<typeof de> = {
   page: {
+    summaryCount_one: '{{count}} placement',
+    summaryCount_other: '{{count}} placements',
+    summaryOpen: '{{amount}} still open',
+    summaryReceived: '{{amount}} received in {{year}}',
     title: 'Earnings',
     subtitle: 'What you get, when and for what.',
     tabOverview: 'Overview',
@@ -30,6 +34,11 @@ const en: Messages<typeof de> = {
     clientReport: 'Your report could not be sent.',
   },
   overview: {
+    items_one: '{{count}} item',
+    items_other: '{{count}} items',
+    view: 'view',
+    moneyAfter: 'money 7 days later',
+    wait: { progress: '{{done}} of {{total}} done', invoice: 'waiting for the invoice to the client', paid: 'waiting for the client to pay', start: 'waiting for the start date', next: 'next: {{label}}', complete: 'completed' },
     more_one: '{{label}} and {{count}} more item',
     more_other: '{{label}} and {{count}} more items',
     next: 'Next credit note',

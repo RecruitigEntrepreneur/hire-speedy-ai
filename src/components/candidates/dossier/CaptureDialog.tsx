@@ -73,7 +73,7 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 const dots = (n: 1 | 2 | 3, label: string) => (
   <span className="inline-flex gap-0.5" aria-label={label}>
     {[1, 2, 3].map((i) => (
-      <span key={i} className={cn('h-1.5 w-1.5 rounded-full', i <= n ? 'bg-success' : 'bg-muted-foreground/30')} />
+      <span key={i} className={cn('h-1.5 w-1.5 rounded-full', i <= n ? 'bg-foreground/70' : 'bg-muted-foreground/30')} />
     ))}
   </span>
 );
@@ -358,7 +358,7 @@ export function CaptureDialog({ open, onOpenChange, mode, candidateId, form, onS
                 </ul>
               )}
               {hasTranscript && (
-                <label className="flex items-start gap-2.5 rounded-md bg-warning/10 px-3 py-2 text-sm text-warning">
+                <label className="flex items-start gap-2.5 rounded-md bg-secondary px-3 py-2 text-sm font-medium text-foreground">
                   <Checkbox className="mt-0.5" checked={consent} onCheckedChange={(v) => setConsent(v === true)} />
                   <span>{t('input.recording', { name: firstName })} <span className="block text-xs opacity-90">{t('input.recordingLaw')}</span></span>
                 </label>
@@ -377,7 +377,7 @@ export function CaptureDialog({ open, onOpenChange, mode, candidateId, form, onS
             <div className="space-y-4">
               {aiNote && <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">{aiNote}</p>}
               <p className="text-sm">
-                {t('review.found', { n: counts.total - counts.same })} · <span className="text-success">{t('review.safe', { n: counts.safe })}</span> · <span className="text-warning">{t('review.check', { n: counts.uncertain })}</span> · <span className="text-destructive">{t('review.conflict', { n: counts.conflict })}</span> · {t('review.sensitive', { n: counts.sensitive })}
+                {t('review.found', { n: counts.total - counts.same })} · <span className="text-foreground">{t('review.safe', { n: counts.safe })}</span> · <span className="font-medium text-foreground">{t('review.check', { n: counts.uncertain })}</span> · <span className="text-destructive">{t('review.conflict', { n: counts.conflict })}</span> · {t('review.sensitive', { n: counts.sensitive })}
                 {counts.same > 0 && <span className="text-muted-foreground"> · {t('review.same', { n: counts.same })}</span>}
               </p>
               {counts.total - counts.same === 0 && <p className="text-sm text-muted-foreground">{t('review.nothing')}</p>}
@@ -391,7 +391,7 @@ export function CaptureDialog({ open, onOpenChange, mode, candidateId, form, onS
                   <div key={p.key} className="rounded-md border border-border">
                     <button type="button" className="flex w-full items-center justify-between px-3 py-2 text-left text-sm" onClick={() => setOpenPhases((s) => { const n = new Set(s); if (n.has(p.key)) n.delete(p.key); else n.add(p.key); return n; })}>
                       <span>{t('review.phaseApplied', { phase: term(p.label), accepted: acceptedHere, total: safe.length })}</span>
-                      <span className="flex items-center gap-1 text-success"><Check className="h-4 w-4" />{isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}</span>
+                      <span className="flex items-center gap-1 text-foreground"><Check className="h-4 w-4" />{isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}</span>
                     </button>
                     {isOpen && (
                       <ul className="divide-y divide-border border-t border-border">
@@ -401,7 +401,7 @@ export function CaptureDialog({ open, onOpenChange, mode, candidateId, form, onS
                               <span className="text-muted-foreground">{term(i.label)}: </span>{term(i.display)}
                               <span className="block text-xs italic text-muted-foreground">„{i.quote}“{i.sourceLabel ? ` · ${term(i.sourceLabel)}` : ''}</span>
                             </span>
-                            <button type="button" className={cn('shrink-0 text-xs', decisions[i.id] === 'accept' ? 'text-success' : 'text-muted-foreground')} onClick={() => setDecisions((d) => ({ ...d, [i.id]: d[i.id] === 'accept' ? 'reject' : 'accept' }))}>
+                            <button type="button" className={cn('shrink-0 text-xs', decisions[i.id] === 'accept' ? 'text-foreground' : 'text-muted-foreground')} onClick={() => setDecisions((d) => ({ ...d, [i.id]: d[i.id] === 'accept' ? 'reject' : 'accept' }))}>
                               {decisions[i.id] === 'accept' ? t('review.applied') : t('review.rejected')}
                             </button>
                           </li>
@@ -420,8 +420,8 @@ export function CaptureDialog({ open, onOpenChange, mode, candidateId, form, onS
                       <span className="font-medium">{term(c.label)}</span>
                       <span className="flex items-center gap-2 text-xs">
                         {c.status === 'conflict' && <span className="text-destructive">{t('review.conflictWithFile')}</span>}
-                        {c.status === 'sensitive' && <span className="text-warning">{t('review.sensitiveConfirm')}</span>}
-                        {c.status === 'uncertain' && <span className="text-warning">{t('review.uncertain')}</span>}
+                        {c.status === 'sensitive' && <span className="font-medium text-foreground">{t('review.sensitiveConfirm')}</span>}
+                        {c.status === 'uncertain' && <span className="font-medium text-foreground">{t('review.uncertain')}</span>}
                         {dots(c.confidence, t('confidence', { n: c.confidence }))}
                       </span>
                     </div>
@@ -507,7 +507,7 @@ export function CaptureDialog({ open, onOpenChange, mode, candidateId, form, onS
           {step === 'gaps' && (
             <div className="space-y-5">
               {readiness.isReady ? (
-                <div className="rounded-md bg-success/10 px-4 py-3 text-sm text-success">
+                <div className="rounded-md bg-secondary px-4 py-3 text-sm text-foreground">
                   <Check className="mr-1.5 inline h-4 w-4" />{t('gaps.allComplete', { total: readiness.total, name: firstName })}
                 </div>
               ) : (

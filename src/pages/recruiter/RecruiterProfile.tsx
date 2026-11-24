@@ -87,26 +87,27 @@ function ProfileTabs({ items, active, status }: { items: typeof MENU; active: Se
   const { t } = useTranslation('recruiterProfile');
   const activeRef = useRef<HTMLAnchorElement>(null);
   useEffect(() => { activeRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }, [active]);
-  return <nav aria-label={t('tabsAria')} className="overflow-x-auto border-b border-border [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-    <div className="flex min-w-max gap-1">
+  return <nav aria-label={t('tabsAria')} className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    {/* Apple-Stil (25.11.2026, Fassung A): Pillen wie auf den anderen Seiten; Reihenfolge und Adressen unverändert */}
+    <div className="inline-flex min-w-max gap-0.5 rounded-full bg-secondary p-1">
       {items.map(m => {
         const s = status[m.id];
         return <NavLink key={m.id} to={pathOf(m.id)} end ref={m.id === active ? activeRef : undefined}
-          className={({ isActive }) => cn('relative flex items-center gap-1.5 whitespace-nowrap px-3 pb-3 pt-1 text-sm transition-colors',
-            isActive ? 'font-medium text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-foreground' : 'text-muted-foreground hover:text-foreground')}>
+          className={({ isActive }) => cn('flex items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm transition-colors',
+            isActive ? 'bg-background font-medium text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>
           {t(`menu.${m.id}`)}
-          {m.id !== 'uebersicht' && s.kind === 'open' && <span className="rounded-full bg-warning/15 px-1.5 text-[11px] font-medium leading-5 text-warning" aria-label={t('openCount', { count: s.count })}>{s.count}</span>}
+          {m.id !== 'uebersicht' && s.kind === 'open' && <span className="min-w-5 rounded-full bg-destructive px-1.5 text-center text-[11px] font-medium leading-5 text-destructive-foreground" aria-label={t('openCount', { count: s.count })}>{s.count}</span>}
         </NavLink>;
       })}
     </div>
   </nav>;
 }
 
-function Panel({ title, icon: Icon, action, children }: { title: string; icon: LucideIcon; action?: ReactNode; children: ReactNode }) {
+function Panel({ title, action, children }: { title: ReactNode; icon?: LucideIcon; action?: ReactNode; children: ReactNode }) {
   return <Card>
     <CardContent className="space-y-4 p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="flex items-center gap-2 text-lg font-semibold"><Icon className="h-5 w-5"/>{title}</h2>
+        <h2 className="text-[15px] font-semibold tracking-tight">{title}</h2>
         {action}
       </div>
       {children}
@@ -119,7 +120,7 @@ function Fact({ label, value, locked, missing, required }: { label: string; valu
   const { t } = useTranslation('recruiterProfile');
   return <Fragment>
     <dt className="flex items-center gap-1 text-sm text-muted-foreground">{locked && <Lock className="h-3 w-3" aria-label={t('fromContractAria')}/>}{label}</dt>
-    <dd className="text-sm">{value || <span className={required ? 'text-warning' : 'text-muted-foreground'}>{missing ?? '—'}</span>}</dd>
+    <dd className="text-sm">{value || <span className={required ? 'font-medium text-foreground' : 'text-muted-foreground'}>{missing ?? '—'}</span>}</dd>
   </Fragment>;
 }
 
@@ -129,13 +130,13 @@ function Field({ id, label, children, hint }: { id: string; label: string; child
 
 function Chips({ options, value, onToggle, label }: { options: string[]; value: string[]; onToggle: (value: string) => void; label: (value: string) => string }) {
   return <div className="flex flex-wrap gap-1.5">{options.map(option => <button key={option} type="button" aria-pressed={value.includes(option)} onClick={() => onToggle(option)}
-    className={cn('rounded-full border px-2.5 py-1 text-xs', value.includes(option) ? 'border-primary bg-primary text-primary-foreground' : 'border-border hover:bg-muted')}>{label(option)}</button>)}</div>;
+    className={cn('rounded-full border px-2.5 py-1 text-xs', value.includes(option) ? 'border-foreground bg-foreground text-background' : 'border-border hover:bg-muted')}>{label(option)}</button>)}</div>;
 }
 
 function Avatar({ url, name, size = 'h-12 w-12' }: { url: string | null; name: string; size?: string }) {
   return url
     ? <img src={url} alt="" className={cn(size, 'shrink-0 rounded-full object-cover')}/>
-    : <div className={cn(size, 'flex shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary')}>{initials(name)}</div>;
+    : <div className={cn(size, 'flex shrink-0 items-center justify-center rounded-full bg-secondary text-sm font-semibold text-foreground')}>{initials(name)}</div>;
 }
 
 export default function RecruiterProfile() {
@@ -386,7 +387,7 @@ export default function RecruiterProfile() {
     finally { setBusy(''); }
   };
 
-  if (loading) return <DashboardLayout><div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary"/></div></DashboardLayout>;
+  if (loading) return <DashboardLayout><div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground"/></div></DashboardLayout>;
 
   const join = (values: string[]) => values.map(opt).join(', ');
   const expertiseRows = currentExpertise ? ([
@@ -442,22 +443,22 @@ export default function RecruiterProfile() {
     <Button onClick={save} disabled={busy === key}>{busy === key ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Save className="mr-2 h-4 w-4"/>}{t('save')}</Button>
     <Button variant="ghost" onClick={() => { setEditing(''); setFormError(''); }}>{t('cancel')}</Button>
   </div>;
-  const editButton = (key: typeof editing, start: () => void) => editing !== key && <Button variant="outline" size="sm" onClick={start}><Pencil className="mr-2 h-3.5 w-3.5"/>{t('edit')}</Button>;
+  const editButton = (key: typeof editing, start: () => void) => editing !== key && <button type="button" className="text-sm font-medium text-klick hover:underline" onClick={start}>{t('edit')} ›</button>;
 
-  const header = <Card className="border-primary/30">
+  const header = <Card>
       <CardContent className="space-y-3 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-[240px] flex-1 items-center gap-3">
-            <Avatar url={avatarUrl} name={saved.about.full_name}/>
+            <Avatar url={avatarUrl} name={saved.about.full_name} size="h-14 w-14"/>
             <div className="min-w-0">
-              <h1 className="text-xl font-semibold">{saved.about.full_name || t('header.title')}</h1>
+              <h1 className="text-2xl font-bold tracking-tight">{saved.about.full_name || t('header.title')}</h1>
               <p className="text-sm text-muted-foreground">{[saved.about.role_title, saved.billing.company_name, onboarding ? (onboarding.kind === 'agency' ? t('header.agency') : t('header.individual')) : ''].filter(Boolean).join(' · ')}</p>
             </div>
           </div>
-          <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2.5 py-1 text-xs text-success"><CheckCircle2 className="h-3.5 w-3.5"/>{statusChip}</span>
+          <span className="inline-flex items-center gap-1 text-sm text-muted-foreground"><Check className="h-3.5 w-3.5"/>{statusChip}</span>
         </div>
         {(linkedin || experience) && <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
-          {linkedin && <a className="inline-flex items-center gap-1.5 text-primary underline-offset-2 hover:underline" href={linkOf(linkedin)} target="_blank" rel="noreferrer"><Linkedin className="h-4 w-4"/>{linkedin.replace(/^https?:\/\/(www\.)?/, '')}</a>}
+          {linkedin && <a className="inline-flex items-center gap-1.5 font-medium text-klick underline-offset-2 hover:underline" href={linkOf(linkedin)} target="_blank" rel="noreferrer"><Linkedin className="h-4 w-4"/>{linkedin.replace(/^https?:\/\/(www\.)?/, '')}</a>}
           {experience && <span className="inline-flex items-center gap-1.5 text-muted-foreground"><Briefcase className="h-4 w-4"/>{experience}</span>}
         </div>}
         {searchProfile && <p className="text-sm">{searchProfile}</p>}
@@ -466,20 +467,22 @@ export default function RecruiterProfile() {
             <PartnerCard tier={partner.tier} size="sm"/>
             <span className="text-sm text-muted-foreground"><Trans t={t} i18nKey="header.partnerLine" values={{ number: partner.partner_number, date: new Date(partner.granted_at).toLocaleDateString(intlLocale(i18n.language), { month: '2-digit', year: 'numeric', timeZone: 'Europe/Berlin' }) }} components={{ mono: <span className="font-mono"/> }}/></span>
           </div>
-          {active !== 'partnerstatus' && <Button variant="outline" size="sm" onClick={() => navigate(pathOf('partnerstatus'))}>{t('menu.partnerstatus')}<ArrowRight className="ml-1.5 h-3.5 w-3.5"/></Button>}
+          {active !== 'partnerstatus' && <button type="button" className="text-sm font-medium text-klick hover:underline" onClick={() => navigate(pathOf('partnerstatus'))}>{t('menu.partnerstatus')} ›</button>}
         </div>}
       </CardContent>
     </Card>;
 
-  const overview = <Panel title={t('overview.title')} icon={CheckCircle2}>
-      {tasks.length ? <ul className="divide-y divide-border">{tasks.map(task => <li key={task.id} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0">
+  const overview = <Panel title={<>{t('overview.title')}{tasks.length > 0 && <span className="font-normal text-muted-foreground"> · {t('overview.open', { count: tasks.length })}</span>}</>}>
+      {tasks.length ? <ul className="divide-y divide-border">{tasks.map((task, i) => <li key={task.id} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0">
         <div>
-          <p className="text-sm font-medium">{task.title} <span className="ml-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-normal text-primary">{task.tag}</span></p>
+          <p className="text-sm font-medium">{task.title}</p>
           <p className="text-xs text-muted-foreground">{task.why}</p>
         </div>
-        <Button size="sm" onClick={() => navigate(task.to)}>{task.action}</Button>
+        {i === 0
+          ? <Button size="sm" onClick={() => navigate(task.to)}>{task.action}</Button>
+          : <button type="button" className="text-sm font-medium text-klick hover:underline" onClick={() => navigate(task.to)}>{task.action} ›</button>}
       </li>)}</ul> : <p className="text-sm text-muted-foreground">{t('overview.allDone')}</p>}
-      {done.length > 0 && <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><CheckCircle2 className="h-3.5 w-3.5 text-success"/>{t('overview.done', { list: done.join(', ') })}</p>}
+      {done.length > 0 && <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><CheckCircle2 className="h-3.5 w-3.5"/>{t('overview.done', { list: done.join(', ') })}</p>}
     </Panel>;
 
   const linkedinFromContract = !saved.about.linkedin_url && !!linkedin;
@@ -511,7 +514,7 @@ export default function RecruiterProfile() {
       <Fact label={t('about.phone')} value={saved.about.phone} missing={t('about.notGiven')}/>
       <Fact label={t('about.position')} value={saved.about.role_title}/>
       <Fact label={t('about.experience')} value={years || (currentExpertise?.experience && <>{opt(currentExpertise.experience)} <span className="text-muted-foreground">{t('about.perExpertise')}</span></>)}/>
-      <Fact label="LinkedIn" value={linkedin && <><a className="text-primary underline-offset-2 hover:underline" href={linkOf(linkedin)} target="_blank" rel="noreferrer">{linkedin.replace(/^https?:\/\/(www\.)?/, '')}</a>{linkedinFromContract && <span className="text-muted-foreground"> {t('about.fromContract')}</span>}</>}/>
+      <Fact label="LinkedIn" value={linkedin && <><a className="font-medium text-klick underline-offset-2 hover:underline" href={linkOf(linkedin)} target="_blank" rel="noreferrer">{linkedin.replace(/^https?:\/\/(www\.)?/, '')}</a>{linkedinFromContract && <span className="text-muted-foreground"> {t('about.fromContract')}</span>}</>}/>
     </dl>}
     <LinkedinVerbindung aktuell={linkedinAktuell} onUebernommen={() => setNeuLaden(n => n + 1)}/>
   </Panel>;
@@ -546,7 +549,7 @@ export default function RecruiterProfile() {
   </Panel>;
 
   const missingWith = (textValue: string, field: Parameters<typeof focusBilling>[0]) => <span className="inline-flex flex-wrap items-center gap-2">
-    <span className="text-warning">{textValue}</span>
+    <span className="font-medium">{textValue}</span>
     <Button variant="outline" size="sm" className="h-7" onClick={() => navigate(field === 'bank_iban' ? ABRECHNUNG_KONTO : ABRECHNUNG)}>{t('billing.enterNow')}</Button>
   </span>;
   // Abrechnung (Umbau 11.11.2026, H13): ändern nur noch unter Verdienste › Abrechnungsdaten,
@@ -571,7 +574,7 @@ export default function RecruiterProfile() {
       : contract ? <>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="font-medium">{t('contract.title', { version: contract.package_version })}</p>
-          {contractDone && <span className="rounded-full bg-success/15 px-2.5 py-0.5 text-xs text-success">{t('contract.complete')}</span>}
+          {contractDone && <span className="rounded-full bg-secondary px-2.5 py-0.5 text-xs text-foreground">{t('contract.complete')}</span>}
         </div>
         <p className="text-sm text-muted-foreground">{[contract.recruiter_signed_at && t('contract.youSigned', { date: day(contract.recruiter_signed_at) }), contract.countersigned_at && t('contract.countersigned', { date: day(contract.countersigned_at) })].filter(Boolean).join(' · ') || stateLabel(contract.state)}</p>
         {contractDone && <div className="flex flex-wrap gap-2">
@@ -602,7 +605,7 @@ export default function RecruiterProfile() {
             <p className="text-xs text-muted-foreground">{declared ? t('proofs.declaredOn', { option: t(`income.${declared}`), date: day(last!.uploaded_at) }) : contractIncome ? <span className="inline-flex items-center gap-1"><Lock className="h-3 w-3"/>{t('proofs.fromContract', { value: contractIncome })}</span> : t(`evidence.${kind}.hint`)}</p>
           </div>
           <div className="flex items-center gap-3 sm:justify-end">
-            {declared || contractIncome ? <span className="text-xs text-success">{t('proofs.confirmed')}</span> : <span className="text-xs text-warning">{t('proofs.missing')}</span>}
+            {declared || contractIncome ? <span className="text-xs text-muted-foreground">{t('proofs.confirmed')}</span> : <span className="text-xs font-semibold">{t('proofs.missing')}</span>}
             {income === null && <Button variant="outline" size="sm" onClick={() => { setIncome(declared ?? 'below'); setFormError(''); }}>{declared || contractIncome ? t('proofs.change') : t('proofs.submit')}</Button>}
           </div>
         </div>
@@ -618,11 +621,11 @@ export default function RecruiterProfile() {
     }
     const state = evidenceState(last);
     const statusText: Record<string, ReactNode> = {
-      missing: required ? <span className="text-xs text-warning">{t('proofs.missing')}</span> : <span className="text-xs text-muted-foreground">{t('proofs.voluntary')}</span>,
-      pending: <span className="inline-flex items-center gap-1 text-xs text-warning"><Clock className="h-3 w-3"/>{t('proofs.pending')}</span>,
-      approved: <span className="inline-flex items-center gap-1 text-xs text-success"><Check className="h-3 w-3"/>{last?.reviewed_at ? t('proofs.approvedOn', { date: day(last.reviewed_at) }) : t('proofs.approved')}</span>,
+      missing: required ? <span className="text-xs font-semibold">{t('proofs.missing')}</span> : <span className="text-xs text-muted-foreground">{t('proofs.voluntary')}</span>,
+      pending: <span className="inline-flex items-center gap-1 text-xs text-foreground"><Clock className="h-3 w-3"/>{t('proofs.pending')}</span>,
+      approved: <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Check className="h-3 w-3"/>{last?.reviewed_at ? t('proofs.approvedOn', { date: day(last.reviewed_at) }) : t('proofs.approved')}</span>,
       rejected: <span className="text-xs text-destructive">{t('proofs.rejected')}</span>,
-      expiring: <span className="text-xs text-warning">{t('proofs.expiresOn', { date: last?.valid_until ? day(last.valid_until) : '' })}</span>,
+      expiring: <span className="text-xs font-semibold">{t('proofs.expiresOn', { date: last?.valid_until ? day(last.valid_until) : '' })}</span>,
       expired: <span className="text-xs text-destructive">{t('proofs.expired')}</span>,
     };
     const again = ['rejected', 'expiring', 'expired'].includes(state) || (state === 'approved' && meta.expires);
@@ -660,7 +663,7 @@ export default function RecruiterProfile() {
         {plan.map(item => proofRow(item.kind, item.required, item.applies))}
         {p?.contractDetails?.permitsDeclaration && <li className={ROW}>
           <div><p className="text-sm">{t('proofs.permits')}</p><p className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Lock className="h-3 w-3"/>{t('proofs.fromContract', { value: p.contractDetails.permitsDeclaration })}</p></div>
-          <Check className="h-4 w-4 text-success" aria-label={t('proofs.statedAria')}/>
+          <Check className="h-4 w-4" aria-label={t('proofs.statedAria')}/>
         </li>}
       </ul>}
   </Panel>;
@@ -671,7 +674,7 @@ export default function RecruiterProfile() {
   const content: Record<SectionId, ReactNode> = { uebersicht: overview, 'ueber-dich': <>{aboutPanel}{languagePanel}</>, terminseite: <TerminseiteBereich zurueck={zurueck}/>, schwerpunkte: expertisePanel, partnerstatus: partnerPanel, abrechnung: billingPanel, vertrag: contractPanel, nachweise: proofPanel };
 
   return <DashboardLayout>
-    <div className="mx-auto max-w-5xl space-y-5">
+    <div className="space-y-5">
       {header}
       <ProfileTabs items={menu} active={active} status={status}/>
       <div className="min-w-0 space-y-5">{content[active]}</div>

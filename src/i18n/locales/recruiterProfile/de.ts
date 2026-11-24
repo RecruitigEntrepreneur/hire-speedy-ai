@@ -125,6 +125,8 @@ const de = {
     partnerLine: 'Nr. <mono>{{number}}</mono> · seit {{date}}',
   },
   overview: {
+    open_one: '{{count}} offen',
+    open_other: '{{count}} offen',
     title: 'Als Nächstes',
     allDone: 'Alles erledigt. Dein Profil ist vollständig.',
     done: 'Erledigt: {{list}}',

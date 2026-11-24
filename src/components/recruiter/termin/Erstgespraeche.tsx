@@ -68,14 +68,14 @@ export function ErstgespraechZeile({ g, ohneStelle, ohneAkte }: { g: Erstgesprae
   const { zeit: ZEIT, tag: TAG } = zeitFormate(i18n.language);
   const jetzt = Date.now();
   const laeuft = Date.parse(g.starts_at) - 10 * 60000 <= jetzt && Date.parse(g.ends_at) >= jetzt;
-  return <div className={cn('flex flex-wrap items-center gap-3 rounded-lg border p-3', laeuft ? 'border-emerald-500/40 bg-emerald-500/[0.05]' : 'border-border bg-card')}>
+  return <div className={cn('flex flex-wrap items-center gap-3 rounded-lg border p-3', laeuft ? 'border-foreground/40 bg-card' : 'border-border bg-card')}>
     <div className="w-16 shrink-0 text-center">
       <div className="text-sm font-semibold tabular-nums">{ZEIT.format(new Date(g.starts_at))}</div>
       <div className="text-[10px] text-muted-foreground">{TAG.format(new Date(g.starts_at)).replace(',', '')}</div>
     </div>
     {g.mode === 'teams' ? <Video className="h-4 w-4 shrink-0 text-muted-foreground" aria-label={t('erst.teams')}/> : <Phone className="h-4 w-4 shrink-0 text-muted-foreground" aria-label={t('erst.phone')}/>}
     <div className="min-w-0 flex-1">
-      <p className="truncate text-sm font-medium">{g.first_name} {g.last_name} <span className="ml-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">{t('erst.badge')}</span></p>
+      <p className="truncate text-sm font-medium">{g.first_name} {g.last_name} <span className="ml-1 rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">{t('erst.badge')}</span></p>
       <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
         {[
           !ohneStelle && g.job_title ? <span key="s" className="truncate">{g.job_title}</span> : null,
@@ -96,7 +96,7 @@ export function ErstgespraecheAbschnitt({ liste, titel, ohneStelle, ohneAkte }: 
   const { t } = useTranslation('recruiterTermin');
   if (!liste.length) return null;
   return <div className="space-y-2">
-    <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-primary"><CalendarCheck className="h-3.5 w-3.5"/>{titel ?? t('erst.title')} ({liste.length})</p>
+    <p className="flex items-center gap-1.5 text-sm font-semibold"><CalendarCheck className="h-3.5 w-3.5"/>{titel ?? t('erst.title')} ({liste.length})</p>
     <div className="space-y-2">{liste.map(g => <ErstgespraechZeile key={g.id} g={g} ohneStelle={ohneStelle} ohneAkte={ohneAkte}/>)}</div>
   </div>;
 }

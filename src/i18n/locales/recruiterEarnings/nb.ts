@@ -3,6 +3,10 @@ import type { Messages } from '../../types';
 
 const nb: Messages<typeof de> = {
   page: {
+    summaryCount_one: '{{count}} ansettelse',
+    summaryCount_other: '{{count}} ansettelser',
+    summaryOpen: '{{amount}} fortsatt åpent',
+    summaryReceived: '{{amount}} mottatt i {{year}}',
     title: 'Inntekter',
     subtitle: 'Hva du får, når og for hva.',
     tabOverview: 'Oversikt',
@@ -30,6 +34,11 @@ const nb: Messages<typeof de> = {
     clientReport: 'Meldingen din kunne ikke sendes.',
   },
   overview: {
+    items_one: '{{count}} post',
+    items_other: '{{count}} poster',
+    view: 'vis',
+    moneyAfter: 'penger 7 dager senere',
+    wait: { progress: '{{done}} av {{total}} ferdig', invoice: 'venter på fakturaen til kunden', paid: 'venter på kundens betaling', start: 'venter på tiltredelsen', next: 'neste: {{label}}', complete: 'avsluttet' },
     more_one: '{{label}} og {{count}} post til',
     more_other: '{{label}} og {{count}} poster til',
     next: 'Neste kreditnota',

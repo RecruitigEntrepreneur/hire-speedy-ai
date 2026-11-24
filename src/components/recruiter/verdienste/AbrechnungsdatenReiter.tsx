@@ -73,20 +73,20 @@ export function AbrechnungsdatenReiter({ openAccount = false }: { openAccount?: 
   return (
     <Card>
       <CardContent className="space-y-4 p-5">
-        <Abschnitt titel={t('billing.goesTo')} aktion={<Button variant="outline" size="sm" onClick={() => setEdit(true)}>{t('change')}</Button>}>
-          {b.recipient.legalName ? <p>{b.recipient.legalName}{b.recipient.legalForm ? ` · ${b.recipient.legalForm}` : ''}</p> : <p className="text-warning">{t('billing.nameMissing')}</p>}
-          {address ? <p>{address}</p> : <p className="text-warning">{t('billing.addressMissing')}</p>}
+        <Abschnitt titel={t('billing.goesTo')} aktion={<button type="button" className="text-sm font-medium text-klick hover:underline" onClick={() => setEdit(true)}>{t('change')} ›</button>}>
+          {b.recipient.legalName ? <p>{b.recipient.legalName}{b.recipient.legalForm ? ` · ${b.recipient.legalForm}` : ''}</p> : <p className="font-medium text-foreground">{t('billing.nameMissing')}</p>}
+          {address ? <p>{address}</p> : <p className="font-medium text-foreground">{t('billing.addressMissing')}</p>}
         </Abschnitt>
 
-        <Abschnitt titel={t('billing.tax')} aktion={<Button variant="outline" size="sm" onClick={() => setEdit(true)}>{t('change')}</Button>}>
+        <Abschnitt titel={t('billing.tax')} aktion={<button type="button" className="text-sm font-medium text-klick hover:underline" onClick={() => setEdit(true)}>{t('change')} ›</button>}>
           <p>{taxModeText(b.tax.mode, i18n.language)}</p>
-          {taxIds ? <p>{taxIds}</p> : <p className="text-warning">{t('billing.taxIdMissing')}</p>}
+          {taxIds ? <p>{taxIds}</p> : <p className="font-medium text-foreground">{t('billing.taxIdMissing')}</p>}
         </Abschnitt>
 
         <Abschnitt titel={t('billing.account')} aktion={!b.pending?.confirmedAt && <Button variant="outline" size="sm" onClick={() => setKonto(true)}>{b.account ? t('billing.accountChange') : t('billing.accountSetUp')}</Button>}>
           {b.account
             ? <p>{[b.account.holder, b.account.ibanMasked, b.account.bic].filter(Boolean).join(' · ')}{b.account.confirmedAt ? t('billing.confirmedOn', { date: dmy(b.account.confirmedAt.slice(0, 10), i18n.language) }) : b.account.fromProfile ? t('billing.fromProfile') : ''}</p>
-            : <p className="text-warning">{t('billing.noAccount')}</p>}
+            : <p className="font-medium text-foreground">{t('billing.noAccount')}</p>}
           {b.account && !b.account.confirmedAt && !b.pending && (
             <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/30 p-3 text-foreground">
               <span>{t('billing.notConfirmed')}</span>

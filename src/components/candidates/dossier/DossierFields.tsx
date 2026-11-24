@@ -37,11 +37,11 @@ export const FieldMissingHintContext = createContext<string | null>(null);
  * Fehlende Angabe (12.11.2026, Marko wählte Variante A): die ganze Frage in einer weichen gelben
  * Fläche, oben ein Etikett. Statt dünnem Strich und kleinem „fehlt“, das unterging.
  */
-export const fehltRahmen = 'rounded-xl border border-warning/50 bg-warning/[0.07] p-3 transition-colors';
+export const fehltRahmen = 'rounded-xl border border-foreground/40 bg-secondary p-3 transition-colors';
 export function FehltEtikett() {
   const { t } = useTranslation('candidateDossier');
   const text = useContext(FieldMissingHintContext) ?? t('fields.stillMissing');
-  return <p className="w-fit rounded-full bg-warning/15 px-2.5 py-0.5 text-[11px] font-medium text-warning">{text}</p>;
+  return <p className="w-fit rounded-full bg-secondary px-2.5 py-0.5 text-[11px] font-medium text-foreground">{text}</p>;
 }
 
 /**
@@ -106,7 +106,7 @@ function OriginLine({ field }: { field?: string }) {
   const o = field && origins ? origins[field as keyof OriginMap] : undefined;
   // Nur noch Vorschläge als Zeile: da muss man etwas tun. Herkunft zeigt das Symbol am Feldnamen.
   if (!o || mode === 'tag' || o.source !== 'suggestion') return null;
-  return <p className="text-xs text-warning">{t('fields.suggestionCheck')}</p>;
+  return <p className="text-xs font-medium text-foreground">{t('fields.suggestionCheck')}</p>;
 }
 
 // Gemeinsame Feld-Bausteine für Bearbeiten-Panel und Interview. Jedes Feld

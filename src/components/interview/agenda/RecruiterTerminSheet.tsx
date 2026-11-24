@@ -33,8 +33,8 @@ export type RecruiterTerminVariant =
   | 'past';
 
 const PILL_CLASSES: Record<string, string> = {
-  ok: 'bg-success/10 text-success',
-  warn: 'bg-warning/10 text-warning',
+  ok: 'bg-secondary text-foreground',
+  warn: 'bg-secondary font-medium text-foreground',
   crit: 'bg-destructive/10 text-destructive',
   neutral: 'bg-muted text-muted-foreground',
 };
@@ -272,8 +272,8 @@ export function RecruiterTerminSheet({
           )}
 
           {variant === 'counter' && iv.counterSlots.length > 0 && (
-            <div className="rounded-lg border border-warning/40 p-3">
-              <p className="mb-1.5 text-xs font-semibold text-warning">
+            <div className="rounded-lg border border-foreground/40 p-3">
+              <p className="mb-1.5 text-xs font-semibold font-medium text-foreground">
                 {t('recruiterTermin.counter_title')}
               </p>
               {iv.counterSlots.map((s) => (

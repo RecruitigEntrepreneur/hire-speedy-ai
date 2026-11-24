@@ -679,7 +679,7 @@ function VorstellenAblauf({ job, firma, kandidat, schritt, setSchritt, schritte,
         <p className="mb-4 mt-1 text-sm text-muted-foreground">{t('send.subtitle')}</p>
         <div className="space-y-2 rounded-xl border border-border p-3.5 text-sm">
           {abweichungen.length > 0
-            ? <Hinweis icon={<AlertCircle className="h-4 w-4 text-warning" />}>{t('send.deviations', { count: abweichungen.length, list: abweichungen.map((z) => z.key.startsWith('muss') ? t('send.mustCriterion') : z.label).join(', ') })} · <button type="button" className="underline underline-offset-2" onClick={() => setSchritt('passung')}>{t('view')}</button></Hinweis>
+            ? <Hinweis icon={<AlertCircle className="h-4 w-4 font-medium text-foreground" />}>{t('send.deviations', { count: abweichungen.length, list: abweichungen.map((z) => z.key.startsWith('muss') ? t('send.mustCriterion') : z.label).join(', ') })} · <button type="button" className="underline underline-offset-2" onClick={() => setSchritt('passung')}>{t('view')}</button></Hinweis>
             : <Hinweis icon={<Check className="h-4 w-4" />}>{t('send.allMatch')}</Hinweis>}
           <Hinweis icon={<UserCheck className="h-4 w-4" />}>{t('send.anonProfile')} · <button type="button" className="underline underline-offset-2" onClick={() => setSchritt('kunde')}>{t('view')}</button></Hinweis>
           <CvZeile cv={v.akte.cv} onNeu={() => setCvOpen(true)} />
@@ -730,7 +730,7 @@ function PassungsTabelle({ zeilen, name, confirmed, onConfirm }: { zeilen: Retur
               <td className="px-3 py-2 text-xs text-muted-foreground">{z.label}</td>
               <td className="px-3 py-2 break-words">{z.kandidat}</td>
               <td className="px-3 py-2 break-words text-muted-foreground">{z.stelle || '—'}</td>
-              <td className={cn('px-3 py-2 text-xs', z.status === 'weicht' ? 'text-warning' : 'text-muted-foreground')}>
+              <td className={cn('px-3 py-2 text-xs', z.status === 'weicht' ? 'font-medium text-foreground' : 'text-muted-foreground')}>
                 {z.urteil}
                 {z.bestaetigen && (
                   <label className="mt-1 flex cursor-pointer items-start gap-1.5 text-foreground">
@@ -801,7 +801,7 @@ function Kundenansicht({ v, kandidatId, name, firma }: { v: Vorstellung; kandida
           </dl>
         )}
         {f.presentation_consent === false ? (
-          <p className="text-sm text-warning">{t('client.noConsent', { name })}</p>
+          <p className="text-sm font-medium text-foreground">{t('client.noConsent', { name })}</p>
         ) : (
           <InterviewInsightsCard interview={insights} recruiterNotes={null} />
         )}
@@ -824,7 +824,7 @@ function Kundenansicht({ v, kandidatId, name, firma }: { v: Vorstellung; kandida
         <Hinweis icon={<EyeOff className="h-4 w-4" />}>{t('client.hidden')}</Hinweis>
         {fehler.length === 0
           ? <Hinweis icon={<Check className="h-4 w-4" />}>{t('client.textChecked')}</Hinweis>
-          : fehler.map((i) => <Hinweis key={i.field + i.message} icon={<AlertCircle className="h-4 w-4 text-warning" />}>{i.message}</Hinweis>)}
+          : fehler.map((i) => <Hinweis key={i.field + i.message} icon={<AlertCircle className="h-4 w-4 font-medium text-foreground" />}>{i.message}</Hinweis>)}
       </div>
     </>
   );

@@ -38,9 +38,9 @@ export function GespraechsleitfadenSheet({ open, onOpenChange, jobTitle, anruf, 
       </SheetHeader>
       <div className="mt-6 space-y-6 text-sm leading-6">
         {anruf.einstieg && <Teil titel={t('guide.opening')} hinweis={t('guide.aiSuggestion')}><p>„{anruf.einstieg}“</p></Teil>}
-        {anruf.vorwissen.length > 0 && <Teil titel={t('guide.knowBefore')}><ul className="space-y-1 text-amber-700">{anruf.vorwissen.map(v => <li key={v}>{v}</li>)}</ul></Teil>}
+        {anruf.vorwissen.length > 0 && <Teil titel={t('guide.knowBefore')}><ul className="space-y-1 font-medium text-foreground">{anruf.vorwissen.map(v => <li key={v}>{v}</li>)}</ul></Teil>}
         <Teil titel={t('guide.clarifyFirst')}>
-          <ul className="space-y-1">{anruf.knockout.map(k => <li key={k.text} className={`flex gap-2 ${k.fehlt ? 'text-amber-700' : ''}`}><Square className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />{k.text}</li>)}</ul>
+          <ul className="space-y-1">{anruf.knockout.map(k => <li key={k.text} className={`flex gap-2 ${k.fehlt ? 'font-medium text-foreground' : ''}`}><Square className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />{k.text}</li>)}</ul>
         </Teil>
         {nachfragen.length > 0 && <Teil titel={t('guide.askMust')}>
           <p className="text-muted-foreground">{t('guide.askMustText')}</p>

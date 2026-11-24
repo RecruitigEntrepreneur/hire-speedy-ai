@@ -24,37 +24,37 @@ const recommendationConfig = {
   strong_yes: {
     labelKey: 'strong_yes',
     icon: CheckCircle,
-    color: 'text-emerald-600',
-    bgColor: 'bg-emerald-50 dark:bg-emerald-950/30',
-    borderColor: 'border-emerald-200 dark:border-emerald-800',
+    color: 'text-foreground',
+    bgColor: 'bg-muted dark:bg-muted',
+    borderColor: 'border-border dark:border-border',
   },
   yes: {
     labelKey: 'yes',
     icon: CheckCircle,
-    color: 'text-green-600',
-    bgColor: 'bg-green-50 dark:bg-green-950/30',
-    borderColor: 'border-green-200 dark:border-green-800',
+    color: 'text-foreground',
+    bgColor: 'bg-muted dark:bg-muted',
+    borderColor: 'border-border dark:border-border',
   },
   maybe: {
     labelKey: 'maybe',
     icon: MinusCircle,
-    color: 'text-amber-600',
-    bgColor: 'bg-amber-50 dark:bg-amber-950/30',
-    borderColor: 'border-amber-200 dark:border-amber-800',
+    color: 'font-medium text-foreground',
+    bgColor: 'bg-muted dark:bg-muted',
+    borderColor: 'border-border dark:border-border',
   },
   no: {
     labelKey: 'no',
     icon: XCircle,
-    color: 'text-orange-600',
-    bgColor: 'bg-orange-50 dark:bg-orange-950/30',
-    borderColor: 'border-orange-200 dark:border-orange-800',
+    color: 'font-medium text-foreground',
+    bgColor: 'bg-muted dark:bg-muted',
+    borderColor: 'border-border dark:border-border',
   },
   strong_no: {
     labelKey: 'strong_no',
     icon: XCircle,
-    color: 'text-red-600',
-    bgColor: 'bg-red-50 dark:bg-red-950/30',
-    borderColor: 'border-red-200 dark:border-red-800',
+    color: 'text-destructive',
+    bgColor: 'bg-destructive/10 dark:bg-destructive/10',
+    borderColor: 'border-destructive/40 dark:border-destructive/40',
   },
 };
 
@@ -67,9 +67,9 @@ export function AIAssessmentCard({
   const { t } = useTranslation('aiAssessment');
   const getScoreColor = (score?: number) => {
     if (score === undefined) return 'bg-muted';
-    if (score >= 70) return 'bg-emerald-500';
-    if (score >= 50) return 'bg-amber-500';
-    return 'bg-red-500';
+    if (score >= 70) return 'bg-foreground/70';
+    if (score >= 50) return 'bg-foreground/70';
+    return 'bg-destructive';
   };
 
   const getScoreLabel = (score?: number) => {
@@ -156,18 +156,18 @@ export function AIAssessmentCard({
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
-              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              <AlertTriangle className="h-5 w-5 font-medium text-foreground" />
               {t('risk')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {riskAssessment.risks && riskAssessment.risks.length > 0 && (
               <div>
-                <p className="text-sm font-medium text-red-600 mb-2">{t('risks')}</p>
+                <p className="text-sm font-medium text-destructive mb-2">{t('risks')}</p>
                 <ul className="space-y-1">
                   {riskAssessment.risks.map((risk, index) => (
                     <li key={index} className="flex items-start gap-2 text-sm">
-                      <span className="text-red-500">•</span>
+                      <span className="text-destructive">•</span>
                       <span>{risk}</span>
                     </li>
                   ))}
@@ -177,11 +177,11 @@ export function AIAssessmentCard({
 
             {riskAssessment.mitigations && riskAssessment.mitigations.length > 0 && (
               <div>
-                <p className="text-sm font-medium text-emerald-600 mb-2">{t('mitigations')}</p>
+                <p className="text-sm font-medium text-foreground mb-2">{t('mitigations')}</p>
                 <ul className="space-y-1">
                   {riskAssessment.mitigations.map((mitigation, index) => (
                     <li key={index} className="flex items-start gap-2 text-sm">
-                      <span className="text-emerald-500">✓</span>
+                      <span className="text-foreground">✓</span>
                       <span>{mitigation}</span>
                     </li>
                   ))}

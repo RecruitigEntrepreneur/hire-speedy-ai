@@ -88,8 +88,8 @@ export function KandidatKurzDialog({ open, onOpenChange }: { open: boolean; onOp
             <div className="space-y-1"><Label htmlFor="k-linkedin">{t('quick.linkedin')} <span className="font-normal text-muted-foreground">{t('quick.optional')}</span></Label><Input id="k-linkedin" autoComplete="off" placeholder="linkedin.com/in/…" value={linkedin} onChange={(e) => setLinkedin(e.target.value)} /></div>
           </div>
           {dublette && (
-            <p className="flex items-center gap-1.5 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs">
-              <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-warning" />
+            <p className="flex items-center gap-1.5 rounded-md border border-foreground/40 bg-secondary px-3 py-2 text-xs">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0 font-medium text-foreground" />
               <span className="flex-1">
                 {dublette.reason === 'name' ? t('quick.duplicateName', { name: dublette.full_name }) : t('quick.duplicateEmail', { name: dublette.full_name })}
               </span>

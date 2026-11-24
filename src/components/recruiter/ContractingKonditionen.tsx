@@ -52,7 +52,7 @@ export function ContractingKonditionen({ job }: { job: object }) {
       {jeTag && (
         <div className="space-y-1 rounded-lg bg-muted/40 p-3">
           <p className="text-xs text-muted-foreground">{t('contracting.onlyYou')}</p>
-          <p className="text-lg font-semibold text-emerald-600"><Honorar>{t('contracting.approx', { amount: jeTag })}</Honorar></p>
+          <p className="text-lg font-semibold text-foreground"><Honorar>{t('contracting.approx', { amount: jeTag })}</Honorar></p>
           <p className="text-xs leading-5 text-muted-foreground">
             {t('contracting.perDay')}{imMonat ? <> · <Trans t={t} i18nKey="contracting.perWeek" values={{ days: tage }} components={{ fee: <Honorar>{imMonat}</Honorar> }} /></> : ''}
             {laufzeit ? <> · <Trans t={t} i18nKey="contracting.perDuration" values={{ months: monate }} components={{ fee: <Honorar>{laufzeit}</Honorar> }} /></> : ''} · {auszahlungRecruiter()}

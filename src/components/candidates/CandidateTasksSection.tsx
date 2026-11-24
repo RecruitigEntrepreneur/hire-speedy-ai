@@ -111,14 +111,14 @@ const priorityConfig = {
     icon: AlertTriangle,
     labelKey: 'tasks.prio_high',
     color: 'text-muted-foreground',
-    bgColor: 'bg-amber-500/10',
+    bgColor: 'bg-muted',
     borderColor: '',
   },
   medium: {
     icon: Clock,
     labelKey: 'tasks.prio_medium',
     color: 'text-muted-foreground',
-    bgColor: 'bg-blue-500/10',
+    bgColor: 'bg-muted',
     borderColor: '',
   },
   low: {

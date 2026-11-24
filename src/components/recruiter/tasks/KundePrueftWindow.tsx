@@ -227,7 +227,7 @@ export function KundePrueftWindow({ bundle, sameClient, startSent, onClose, onDo
               <p className="mb-1.5 text-xs font-medium text-muted-foreground">{t('window.reason')}</p>
               <ul className="space-y-1.5 text-sm">
                 {items.map(i => (
-                  <li key={i.itemId} className="flex gap-2"><span className="text-muted-foreground">•</span><span>{t(feedback ? 'kp.reasonInterview' : 'kp.reasonSubmitted', { who: `${i.candidateName}${multi && i.jobTitle ? ` (${i.jobTitle})` : ''}`, date: dateShort(feedback ? i.interviewAt ?? i.createdAt : i.createdAt) })}{!feedback && <span className={i.clientViewCount ? 'text-emerald-600' : 'text-amber-600'}> · {viewLabel(i.clientViewCount, i.clientLastViewedAt)}</span>}</span></li>
+                  <li key={i.itemId} className="flex gap-2"><span className="text-muted-foreground">•</span><span>{t(feedback ? 'kp.reasonInterview' : 'kp.reasonSubmitted', { who: `${i.candidateName}${multi && i.jobTitle ? ` (${i.jobTitle})` : ''}`, date: dateShort(feedback ? i.interviewAt ?? i.createdAt : i.createdAt) })}{!feedback && <span className={i.clientViewCount ? 'text-foreground' : 'font-medium text-foreground'}> · {viewLabel(i.clientViewCount, i.clientLastViewedAt)}</span>}</span></li>
                 ))}
                 <li className="flex gap-2"><span className="text-muted-foreground">•</span><span>{feedback ? t('kp.sinceNoFeedback') : t('kp.sinceNoReaction')}</span></li>
                 <li className="flex gap-2 text-muted-foreground"><span>→</span><span>{feedback ? t('kp.consequenceFeedback') : t('kp.consequenceReview')}</span></li>

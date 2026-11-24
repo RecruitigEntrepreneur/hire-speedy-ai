@@ -3,6 +3,10 @@ import type { Messages } from '../../types';
 
 const sv: Messages<typeof de> = {
   page: {
+    summaryCount_one: '{{count}} tillsättning',
+    summaryCount_other: '{{count}} tillsättningar',
+    summaryOpen: '{{amount}} ännu öppet',
+    summaryReceived: '{{amount}} mottaget {{year}}',
     title: 'Intäkter',
     subtitle: 'Vad du får, när och för vad.',
     tabOverview: 'Översikt',
@@ -30,6 +34,11 @@ const sv: Messages<typeof de> = {
     clientReport: 'Din anmälan kunde inte skickas.',
   },
   overview: {
+    items_one: '{{count}} post',
+    items_other: '{{count}} poster',
+    view: 'visa',
+    moneyAfter: 'pengar 7 dagar senare',
+    wait: { progress: '{{done}} av {{total}} klara', invoice: 'väntar på fakturan till kunden', paid: 'väntar på kundens betalning', start: 'väntar på tillträdet', next: 'härnäst: {{label}}', complete: 'avslutad' },
     more_one: '{{label}} och {{count}} post till',
     more_other: '{{label}} och {{count}} poster till',
     next: 'Nästa självfaktura',

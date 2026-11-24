@@ -231,7 +231,7 @@ export function CommutePreferencesCard({
                 {t('commute.homeAddress')}
               </Label>
               {data.address_lat && data.address_lng && (
-                <span className="text-xs text-green-600 flex items-center gap-1">
+                <span className="text-xs text-foreground flex items-center gap-1">
                   <Check className="h-3 w-3" />
                   {t('commute.hasCoordinates')}
                 </span>
@@ -281,7 +281,7 @@ export function CommutePreferencesCard({
                   </>
                 ) : geocoded ? (
                   <>
-                    <Check className="h-4 w-4 mr-2 text-green-600" />
+                    <Check className="h-4 w-4 mr-2 text-foreground" />
                     {t('commute.geocoded')}
                   </>
                 ) : (

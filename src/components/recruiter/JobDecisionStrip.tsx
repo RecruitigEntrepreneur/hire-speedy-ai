@@ -110,7 +110,7 @@ export function JobDecisionStrip({ job }: { job: WorkspaceJob }) {
       {muss.length > 0 && (
         <Spalte titel={t('strip.must')}>
           {muss.map((m) => (
-            <li key={m} className="flex gap-2"><Check className="mt-1 h-3.5 w-3.5 shrink-0 text-emerald-500" aria-hidden="true" /><span className="min-w-0">{m}</span></li>
+            <li key={m} className="flex gap-2"><Check className="mt-1 h-3.5 w-3.5 shrink-0 text-foreground" aria-hidden="true" /><span className="min-w-0">{m}</span></li>
           ))}
           {mehr > 0 && <li className="text-xs text-muted-foreground">{t('strip.more', { count: mehr })}</li>}
           {vorteil.length > 0 && <li className="pt-1 text-xs leading-5 text-muted-foreground">{t('strip.niceToHave', { list: vorteil.join(' · ') })}</li>}

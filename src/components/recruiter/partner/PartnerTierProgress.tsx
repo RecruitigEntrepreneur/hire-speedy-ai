@@ -9,7 +9,7 @@ const ORDER: PartnerTier[] = ['partner', 'silver', 'gold'];
 function Row({ ok, children }: { ok: boolean; children: React.ReactNode }) {
   return (
     <li className="flex items-center gap-2 text-xs">
-      {ok ? <Check className="h-3.5 w-3.5 text-success" aria-hidden="true" /> : <Circle className="h-3.5 w-3.5 text-muted-foreground/60" aria-hidden="true" />}
+      {ok ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : <Circle className="h-3.5 w-3.5 text-muted-foreground/60" aria-hidden="true" />}
       <span className={ok ? '' : 'text-muted-foreground'}>{children}</span>
     </li>
   );
@@ -42,7 +42,7 @@ export function PartnerTierProgress() {
         <p className="text-xs text-muted-foreground">
           {p.tier_valid_until ? t('progress.sinceUntil', { date: fmtDay(p.tier_since), until: fmtDay(p.tier_valid_until) }) : t('progress.since', { date: fmtDay(p.tier_since) })}
         </p>
-        {hint && <p className="mt-1 text-xs text-primary">{hint}</p>}
+        {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
       </div>
 
       {p.tier !== 'gold' && (
@@ -71,7 +71,7 @@ export function PartnerTierProgress() {
         {ORDER.map((tier, i) => (
           <li key={tier} className="flex items-start justify-between gap-3 py-2 first:pt-0">
             <span className={cn('flex items-center gap-2', i > rank && 'text-muted-foreground')}>
-              {i <= rank ? <Check className="h-4 w-4 text-success" /> : <Circle className="h-4 w-4 text-muted-foreground/50" />}
+              {i <= rank ? <Check className="h-4 w-4" /> : <Circle className="h-4 w-4 text-muted-foreground/50" />}
               {t(`progress.short.${tier}`)}
             </span>
             <span className="max-w-[60%] text-right text-xs text-muted-foreground">{i === rank ? t('progress.active') : t(`progress.rule.${tier}`)}</span>

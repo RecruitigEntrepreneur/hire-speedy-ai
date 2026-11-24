@@ -89,8 +89,8 @@ interface TaskDetailDialogProps {
 
 const PRIORITY_CONFIG = {
   critical: { icon: AlertCircle, color: 'text-destructive', bgColor: 'bg-destructive/10', borderColor: 'border-destructive' },
-  high: { icon: AlertTriangle, color: 'text-amber-600', bgColor: 'bg-amber-500/10', borderColor: 'border-amber-500' },
-  medium: { icon: Clock, color: 'text-blue-600', bgColor: 'bg-blue-500/10', borderColor: 'border-blue-500' },
+  high: { icon: AlertTriangle, color: 'font-medium text-foreground', bgColor: 'bg-muted', borderColor: 'border-border' },
+  medium: { icon: Clock, color: 'text-foreground', bgColor: 'bg-muted', borderColor: 'border-border' },
   low: { icon: Clock, color: 'text-muted-foreground', bgColor: 'bg-muted', borderColor: 'border-muted-foreground' },
 };
 
@@ -100,23 +100,23 @@ const CATEGORY_CONFIG: Record<string, { color: string }> = {
   'opt_in_pending_24h': { color: 'bg-destructive/10 text-destructive' },
   'opt_in_pending_48h': { color: 'bg-destructive/10 text-destructive' },
   'interview_prep_missing': { color: 'bg-primary/10 text-primary' },
-  'interview_reminder': { color: 'bg-blue-500/10 text-blue-600' },
-  'salary_mismatch': { color: 'bg-amber-500/10 text-amber-600' },
-  'salary_negotiation': { color: 'bg-amber-500/10 text-amber-600' },
+  'interview_reminder': { color: 'bg-muted text-foreground' },
+  'salary_mismatch': { color: 'bg-muted font-medium text-foreground' },
+  'salary_negotiation': { color: 'bg-muted font-medium text-foreground' },
   'ghosting_risk': { color: 'bg-destructive/10 text-destructive' },
   'engagement_drop': { color: 'bg-primary/10 text-primary' },
-  'closing_opportunity': { color: 'bg-emerald-500/10 text-emerald-600' },
-  'follow_up_needed': { color: 'bg-blue-500/10 text-blue-600' },
+  'closing_opportunity': { color: 'bg-muted text-foreground' },
+  'follow_up_needed': { color: 'bg-muted text-foreground' },
   'no_activity': { color: 'bg-muted text-muted-foreground' },
   'sla_warning': { color: 'bg-destructive/10 text-destructive' },
-  'document_missing': { color: 'bg-amber-500/10 text-amber-600' },
-  'culture_concern': { color: 'bg-amber-500/10 text-amber-600' },
-  'client_feedback_positive': { color: 'bg-emerald-500/10 text-emerald-600' },
+  'document_missing': { color: 'bg-muted font-medium text-foreground' },
+  'culture_concern': { color: 'bg-muted font-medium text-foreground' },
+  'client_feedback_positive': { color: 'bg-muted text-foreground' },
   'client_feedback_negative': { color: 'bg-destructive/10 text-destructive' },
-  'expose': { color: 'bg-blue-500/10 text-blue-600' },
-  'call': { color: 'bg-violet-500/10 text-violet-600' },
-  'email': { color: 'bg-violet-500/10 text-violet-600' },
-  'meeting': { color: 'bg-violet-500/10 text-violet-600' },
+  'expose': { color: 'bg-muted text-foreground' },
+  'call': { color: 'bg-muted text-foreground' },
+  'email': { color: 'bg-muted text-foreground' },
+  'meeting': { color: 'bg-muted text-foreground' },
   'other': { color: 'bg-muted text-muted-foreground' },
 };
 
@@ -186,7 +186,7 @@ function OptInActionForm({
         <label className="flex items-center gap-2.5 cursor-pointer">
           <Checkbox checked={checks.cvPresent} disabled />
           <span className={cn('text-sm', checks.cvPresent ? 'text-foreground' : 'text-muted-foreground')}>
-            {t('optIn.cv')} {checks.cvPresent && <Check className="inline h-3 w-3 text-emerald-600 ml-1" />}
+            {t('optIn.cv')} {checks.cvPresent && <Check className="inline h-3 w-3 text-foreground ml-1" />}
           </span>
         </label>
         <div className="space-y-1.5">
@@ -245,7 +245,7 @@ function SalaryActionForm({
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-        <DollarSign className="h-3.5 w-3.5 text-amber-500" />
+        <DollarSign className="h-3.5 w-3.5 font-medium text-foreground" />
         {t('salary.heading')}
       </div>
       <div className="rounded-lg border bg-card p-3 space-y-3">
@@ -294,7 +294,7 @@ function FollowUpActionForm({
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-        <Calendar className="h-3.5 w-3.5 text-blue-500" />
+        <Calendar className="h-3.5 w-3.5 text-foreground" />
         {t('followUp.heading')}
       </div>
       <div className="rounded-lg border bg-card p-3 space-y-3">
@@ -401,7 +401,7 @@ function DocumentActionForm({
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-        <Upload className="h-3.5 w-3.5 text-amber-500" />
+        <Upload className="h-3.5 w-3.5 font-medium text-foreground" />
         {t('document.heading')}
       </div>
       <div className="rounded-lg border border-dashed bg-card p-4 text-center space-y-2">
@@ -446,7 +446,7 @@ function InterviewPrepActionForm({
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-        <ClipboardList className="h-3.5 w-3.5 text-blue-500" />
+        <ClipboardList className="h-3.5 w-3.5 text-foreground" />
         {t('prep.heading')}
       </div>
       <div className="rounded-lg border bg-card p-3 space-y-2.5">
@@ -519,7 +519,7 @@ function ClosingActionForm({
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-        <ClipboardList className="h-3.5 w-3.5 text-emerald-500" />
+        <ClipboardList className="h-3.5 w-3.5 text-foreground" />
         {t('closing.heading')}
       </div>
       <div className="rounded-lg border bg-card p-3 space-y-2.5">
@@ -549,7 +549,7 @@ function ClosingActionForm({
         {allDone && (
           <Button
             size="sm"
-            className="text-xs bg-emerald-600 hover:bg-emerald-700"
+            className="text-xs bg-foreground/70 hover:bg-foreground/70"
             disabled={saving}
             onClick={() => {
               const parts = [
@@ -647,7 +647,7 @@ function CultureConcernActionForm({
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-        <FileText className="h-3.5 w-3.5 text-amber-500" />
+        <FileText className="h-3.5 w-3.5 font-medium text-foreground" />
         {t('culture.heading')}
       </div>
       <div className="rounded-lg border bg-card p-3 space-y-2.5">
@@ -656,7 +656,7 @@ function CultureConcernActionForm({
           <Button
             variant={verdict === 'positive' ? 'default' : 'outline'}
             size="sm"
-            className={cn('text-xs flex-1', verdict === 'positive' && 'bg-emerald-600 hover:bg-emerald-700')}
+            className={cn('text-xs flex-1', verdict === 'positive' && 'bg-foreground/70 hover:bg-foreground/70')}
             onClick={() => setVerdict('positive')}
           >
             {t('culture.fits')}
@@ -947,10 +947,10 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
               {item.recommendedAction && (
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    <Lightbulb className="h-3.5 w-3.5 text-amber-500" />
+                    <Lightbulb className="h-3.5 w-3.5 font-medium text-foreground" />
                     {t('main.recommended')}
                   </div>
-                  <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-3 text-sm">
+                  <div className="bg-muted border border-border rounded-lg p-3 text-sm">
                     {item.recommendedAction}
                   </div>
                 </div>
@@ -1211,7 +1211,7 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
               )}
               <Button
                 size="sm"
-                className="text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700"
+                className="text-xs gap-1.5 bg-foreground/70 hover:bg-foreground/70"
                 onClick={handleDone}
               >
                 <Check className="h-3.5 w-3.5" />
@@ -1360,8 +1360,8 @@ export function TaskDetailDialog({ open, onOpenChange, item, onMarkDone, onSnooz
                         <div
                           className={cn(
                             'h-full rounded-full transition-all',
-                            item.impactScore >= 70 ? 'bg-emerald-500' :
-                            item.impactScore >= 40 ? 'bg-amber-500' :
+                            item.impactScore >= 70 ? 'bg-foreground/70' :
+                            item.impactScore >= 40 ? 'bg-foreground/70' :
                             'bg-muted-foreground'
                           )}
                           style={{ width: `${item.impactScore}%` }}

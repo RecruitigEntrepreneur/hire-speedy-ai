@@ -1868,6 +1868,24 @@ Danach: `drizzle/migrations/meta/_journal.json` prüfen (zwei neue Einträge `�
 
 ---
 
+## 64 — Headhunter: Verdienste, Profil und Fenster im neuen Look (25.11.2026)
+
+Commit siehe `git log` („Apple-Stil: Verdienste, Profil, Fenster“). **Keine Migration, keine Edge Function,
+nur Publish.** Nach Nr. 63. Verdienste: volle Breite, Kopf mit Summen, vier Kacheln, je Besetzung ein blauer Balken
+mit dem Satz, worauf sie wartet; Gutschriften und Abrechnungsdaten angeglichen. Profil: volle Breite, großer Name,
+die acht Reiter als Pillen (gleiche Reihenfolge, gleiche Adressen), Kästen ohne Symbol, „Bearbeiten“ als Link.
+Einstellungen: Auswahl Hell/Dunkel und Schriftgröße als Pillen. Fenster hinter den Knöpfen (Bearbeiten, Lebenslauf
+hochladen, Interview, Notiz, Aufgaben-Detail, Vorstellen, Honorar-Rechner, Terminseite u. a.): Ampelfarben durch
+ruhige Töne ersetzt, Aufbau unverändert. Neue Texte in Deutsch, Englisch, Schwedisch und Norwegisch. Keine neue
+Tabelle, keine neuen Secrets.
+
+> 1. Aktuellen Stand von `main` übernehmen.
+> 2. Keine Migration ausführen, keine Edge Function deployen, keine Secrets ändern.
+> 3. Publish.
+> 4. Am Code nichts ändern. Am Ende melden, dass Publish durch ist.
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über

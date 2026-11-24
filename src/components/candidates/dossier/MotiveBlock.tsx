@@ -126,13 +126,13 @@ function AmbiguousPrompt({ choices, onResolve }: { choices: AmbiguousChoice[]; o
   return (
     <>
       {choices.map((a) => (
-        <div key={a.label} className="space-y-1 rounded-md bg-warning/10 px-2.5 py-1.5 text-xs text-warning">
+        <div key={a.label} className="space-y-1 rounded-md bg-secondary px-2.5 py-1.5 text-xs font-medium text-foreground">
           <p>{t('mot.unclear', { label: term(a.label) })}</p>
           <div className="flex flex-wrap gap-1.5">
             {a.options.map((o) => (
-              <button key={o} type="button" onClick={() => onResolve(a.label, [o])} className="rounded-md border border-warning/50 bg-background px-2 py-0.5 text-foreground hover:bg-muted">{term(o)}</button>
+              <button key={o} type="button" onClick={() => onResolve(a.label, [o])} className="rounded-md border border-foreground/40 bg-background px-2 py-0.5 text-foreground hover:bg-muted">{term(o)}</button>
             ))}
-            <button type="button" onClick={() => onResolve(a.label, a.options)} className="rounded-md border border-warning/50 bg-background px-2 py-0.5 text-foreground hover:bg-muted">{t('mot.both')}</button>
+            <button type="button" onClick={() => onResolve(a.label, a.options)} className="rounded-md border border-foreground/40 bg-background px-2 py-0.5 text-foreground hover:bg-muted">{t('mot.both')}</button>
           </div>
           <p>{t('mot.unclearNote')}</p>
         </div>
@@ -443,15 +443,15 @@ export function ClientMotivationField({ form, set, motivation, onRegenerate, chi
       )}
       <div className="space-y-0.5 text-xs text-muted-foreground">
         {weg.length > 0 && <p>{t('mot.leftOut', { list: weg.join(', ') })}</p>}
-        {motivation.ungenau.length > 0 && <p className="text-warning">{t('mot.leftUnclear', { list: motivation.ungenau.map((l) => `„${term(l)}“`).join(', ') })}</p>}
+        {motivation.ungenau.length > 0 && <p className="font-medium text-foreground">{t('mot.leftUnclear', { list: motivation.ungenau.map((l) => `„${term(l)}“`).join(', ') })}</p>}
         {text && !issues.length && <p>{addition ? t('mot.checkedAddition') : t('mot.checked')}</p>}
-        {issues.map((i) => <p key={i.message} className={i.level === 'danger' ? 'text-destructive' : 'text-warning'}>{term(i.message)}</p>)}
+        {issues.map((i) => <p key={i.message} className={i.level === 'danger' ? 'text-destructive' : 'font-medium text-foreground'}>{term(i.message)}</p>)}
         {!frei && gen && (
           <button type="button" className="underline underline-offset-2 hover:text-foreground" onClick={() => setSelfWrite(true)}>{t('mot.writeSelf')}</button>
         )}
       </div>
       {motivation.fehltGrund && !addition && (!text || !frei) && (
-        <p className="rounded-md bg-warning/10 px-2.5 py-1.5 text-xs text-warning">
+        <p className="rounded-md bg-secondary px-2.5 py-1.5 text-xs font-medium text-foreground">
           {motivation.ohneGrund && weg.length
             ? t('mot.noReasonLeftOut', { count: weg.length, list: weg.join(', ') })
             : t('mot.noReason')}
@@ -665,9 +665,9 @@ export function CareerGoalBlock({ form, set, suggestions, legacy = [], candidate
             {allHits.map((h) => (
               <button key={h.label} type="button" onClick={() => pick(h)} className="inline-flex items-center gap-1 rounded-md border border-dashed border-primary px-2 py-0.5 text-left text-primary hover:bg-primary/10">
                 „{h.quote}“ → {h.isNew ? t('mot.takeAsGoal', { label: h.label }) : term(h.label)}
-                {h.isNew && <span className="rounded bg-success/15 px-1 text-[10px] text-success">{t('mot.newButton')}</span>}
+                {h.isNew && <span className="rounded bg-secondary px-1 text-[10px] text-foreground">{t('mot.newButton')}</span>}
                 {h.source !== 'wort' && <span className="rounded bg-primary/10 px-1 text-[10px]">{h.source === 'ki' ? t('mot.ai') : t('mot.learned')}</span>}
-                {ALL_GOALS[h.label]?.client === null && <span className="rounded bg-warning/15 px-1 text-[10px] text-warning">{t('mot.neverClient')}</span>}
+                {ALL_GOALS[h.label]?.client === null && <span className="rounded bg-secondary px-1 text-[10px] font-medium text-foreground">{t('mot.neverClient')}</span>}
               </button>
             ))}
           </div>
