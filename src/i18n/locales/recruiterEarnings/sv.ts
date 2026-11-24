@@ -45,6 +45,7 @@ const sv: Messages<typeof de> = {
     noPlacements: 'Inga tillsättningar än. Så snart ett anställningsavtal är bindande ser du här vad du får och när.',
   },
   tile: {
+    next: 'Nästa kreditnota',
     nextLine: 'nästa självfaktura {{amount}} · {{slot}}',
   },
   steps: {

@@ -45,6 +45,7 @@ const nb: Messages<typeof de> = {
     noPlacements: 'Ingen plasseringer ennå. Så snart en arbeidsavtale er bindende, ser du her hva du får og når.',
   },
   tile: {
+    next: 'Neste kreditnota',
     nextLine: 'neste kreditnota {{amount}} · {{slot}}',
   },
   steps: {

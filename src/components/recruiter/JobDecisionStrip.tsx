@@ -28,7 +28,7 @@ export function HeroEarning({ job, onDetails }: { job: WorkspaceJob; onDetails?:
     return (
       <div>
         <p className="text-xs text-muted-foreground">{t('earning.yours')}</p>
-        <p className="mt-1 text-2xl font-semibold leading-none tracking-tight tabular-nums text-emerald-500"><Honorar>{eur0(plan.totalCents, i18n.language)}</Honorar></p>
+        <p className="mt-1 text-2xl font-semibold leading-none tracking-tight tabular-nums"><Honorar>{eur0(plan.totalCents, i18n.language)}</Honorar></p>
         {onDetails
           ? <button type="button" onClick={onDetails} className="mt-1 text-left text-xs text-muted-foreground underline decoration-dotted underline-offset-4 hover:text-foreground"><Honorar>{plan.detail}</Honorar></button>
           : <p className="mt-1 text-xs text-muted-foreground"><Honorar>{plan.detail}</Honorar></p>}
@@ -44,7 +44,7 @@ export function HeroEarning({ job, onDetails }: { job: WorkspaceJob; onDetails?:
   return (
     <div>
       <p className="text-xs text-muted-foreground">{jeTag ? t('earning.yoursPerDay') : t('earning.yours')}</p>
-      <p className="mt-1 text-2xl font-semibold leading-none tracking-tight tabular-nums text-emerald-500"><Honorar>{jeTag ?? euro(mitte!, i18n.language)}</Honorar></p>
+      <p className="mt-1 text-2xl font-semibold leading-none tracking-tight tabular-nums"><Honorar>{jeTag ?? euro(mitte!, i18n.language)}</Honorar></p>
     </div>
   );
 }

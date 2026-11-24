@@ -18,4 +18,4 @@ export function useJobEarning(jobId: string | null | undefined, salaryMin: numbe
 }
 
 /** „€24.750“ wie bisher auf Karten und in der Vorschau. */
-export const euroKurz = (cents: number) => `€${Math.round(cents / 100).toLocaleString(intlLocale(i18n.language))}`;
+export const euroKurz = (cents: number) => `${Math.round(cents / 100).toLocaleString(intlLocale(i18n.language))} €`;

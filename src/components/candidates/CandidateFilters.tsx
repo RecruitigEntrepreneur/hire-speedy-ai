@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -35,21 +36,32 @@ export interface FilterState {
   selectedTags: string[];
   sortBy: string;
   sortOrder: 'asc' | 'desc';
+  /** Stelle: vorgestellt dort oder passt laut Abgleich (24.11.2026); 'all' = alle. */
+  jobId: string;
+  /** Nur Kandidaten ohne Lebenslauf (war bis 25.11.2026 ein eigener Reiter) */
+  nurOhneCv?: boolean;
 }
+
+/** Obergrenze des Gehalts-Schiebers; gleich dem Standardwert der Seite. */
+export const FILTER_GEHALT_MAX = 500000;
 
 interface CandidateFiltersProps {
   filters: FilterState;
   onFilterChange: (filters: FilterState) => void;
   tags: CandidateTag[];
   allSkills: string[];
+  /** Auswahl für den Filter „Stelle“ */
+  stellen?: { id: string; title: string }[];
 }
 
 export function CandidateFilters({
   filters,
   onFilterChange,
   tags,
+  stellen = [],
 }: CandidateFiltersProps) {
-  const { t } = useTranslation('candidates');
+  const { t, i18n } = useTranslation('candidates');
+  const geld = (n: number) => Math.round(n).toLocaleString(i18n.language === 'en' ? 'en-GB' : i18n.language || 'de');
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   const updateFilter = <K extends keyof FilterState>(key: K, value: FilterState[K]) => {
@@ -58,26 +70,28 @@ export function CandidateFilters({
 
   const clearFilters = () => {
     onFilterChange({
-      search: '',
+      ...filters,
       experienceMin: 0,
       experienceMax: 30,
       salaryMin: 0,
-      salaryMax: 200000,
+      salaryMax: FILTER_GEHALT_MAX,
       availability: 'all',
       selectedTags: [],
-      sortBy: 'created_at',
-      sortOrder: 'desc',
+      jobId: 'all',
+      nurOhneCv: false,
     });
   };
 
-  const hasActiveFilters =
-    filters.search ||
-    filters.experienceMin > 0 ||
-    filters.experienceMax < 30 ||
-    filters.salaryMin > 0 ||
-    filters.salaryMax < 200000 ||
-    filters.availability !== 'all' ||
-    filters.selectedTags.length > 0;
+  // Zahl am Knopf statt „!“ (24.11.2026); die Suche zählt nicht, die steht sichtbar im Feld
+  const aktiveFilter =
+    (filters.experienceMin > 0 || filters.experienceMax < 30 ? 1 : 0) +
+    (filters.salaryMin > 0 || filters.salaryMax < FILTER_GEHALT_MAX ? 1 : 0) +
+    (filters.availability !== 'all' ? 1 : 0) +
+    (filters.jobId !== 'all' ? 1 : 0) +
+    (filters.nurOhneCv ? 1 : 0) +
+    filters.selectedTags.length;
+  const hasActiveFilters = aktiveFilter > 0;
+  const stelleTitel = stellen.find((x) => x.id === filters.jobId)?.title;
 
   const toggleTag = (tagId: string) => {
     const newTags = filters.selectedTags.includes(tagId)
@@ -90,13 +104,13 @@ export function CandidateFilters({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         {/* Search */}
-        <div className="relative flex-1 min-w-[200px] max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <div className="relative min-w-[220px] max-w-sm flex-1">
+          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder={t('filters.searchPlaceholder')}
             value={filters.search}
             onChange={(e) => updateFilter('search', e.target.value)}
-            className="pl-9"
+            className="rounded-full pl-10"
           />
         </div>
 
@@ -104,13 +118,13 @@ export function CandidateFilters({
         <Select
           value={`${filters.sortBy}-${filters.sortOrder}`}
           onValueChange={(v) => {
+            // Beide Werte auf einmal setzen; zweimal updateFilter überschrieb vorher die Sortierung (24.11.2026)
             const [sortBy, sortOrder] = v.split('-');
-            updateFilter('sortBy', sortBy);
-            updateFilter('sortOrder', sortOrder as 'asc' | 'desc');
+            onFilterChange({ ...filters, sortBy, sortOrder: sortOrder as 'asc' | 'desc' });
           }}
         >
-          <SelectTrigger className="w-[180px]">
-            <ArrowUpDown className="h-4 w-4 mr-2" />
+          <SelectTrigger className="w-auto min-w-[9rem] gap-2 rounded-full">
+            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
             <SelectValue placeholder={t('filters.sort')} />
           </SelectTrigger>
           <SelectContent>
@@ -132,15 +146,29 @@ export function CandidateFilters({
               <SlidersHorizontal className="h-4 w-4" />
               {t('filters.filter')}
               {hasActiveFilters && (
-                <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 text-xs flex items-center justify-center">
-                  !
-                </Badge>
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-foreground px-1.5 text-xs font-medium tabular-nums text-background">
+                  {aktiveFilter}
+                </span>
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-80" align="end">
+          <PopoverContent className="w-80 rounded-xl" align="end">
             <div className="space-y-4">
-              <h4 className="font-medium">{t('filters.advanced')}</h4>
+              <h4 className="text-[15px] font-semibold tracking-tight">{t('filters.advanced')}</h4>
+
+              {/* Stelle: vorgestellt dort oder passt laut Abgleich */}
+              {stellen.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">{t('filters.job')}</label>
+                  <Select value={filters.jobId} onValueChange={(v) => updateFilter('jobId', v)}>
+                    <SelectTrigger className="rounded-lg"><SelectValue placeholder={t('filters.allJobs')} /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t('filters.allJobs')}</SelectItem>
+                      {stellen.map((x) => <SelectItem key={x.id} value={x.id}>{x.title}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               {/* Experience Range */}
               <div className="space-y-2">
@@ -149,10 +177,7 @@ export function CandidateFilters({
                 </label>
                 <Slider
                   value={[filters.experienceMin, filters.experienceMax]}
-                  onValueChange={([min, max]) => {
-                    updateFilter('experienceMin', min);
-                    updateFilter('experienceMax', max);
-                  }}
+                  onValueChange={([min, max]) => onFilterChange({ ...filters, experienceMin: min, experienceMax: max })}
                   min={0}
                   max={30}
                   step={1}
@@ -162,16 +187,13 @@ export function CandidateFilters({
               {/* Salary Range */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">
-                  {t('filters.salaryRange', { min: (filters.salaryMin / 1000).toFixed(0), max: (filters.salaryMax / 1000).toFixed(0) })}
+                  {t('filters.salaryRange', { min: geld(filters.salaryMin), max: geld(filters.salaryMax) })}
                 </label>
                 <Slider
                   value={[filters.salaryMin, filters.salaryMax]}
-                  onValueChange={([min, max]) => {
-                    updateFilter('salaryMin', min);
-                    updateFilter('salaryMax', max);
-                  }}
+                  onValueChange={([min, max]) => onFilterChange({ ...filters, salaryMin: min, salaryMax: max })}
                   min={0}
-                  max={200000}
+                  max={FILTER_GEHALT_MAX}
                   step={5000}
                 />
               </div>
@@ -183,7 +205,7 @@ export function CandidateFilters({
                   value={filters.availability}
                   onValueChange={(v) => updateFilter('availability', v)}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="rounded-lg">
                     <SelectValue placeholder={t('filters.all')} />
                   </SelectTrigger>
                   <SelectContent>
@@ -196,13 +218,15 @@ export function CandidateFilters({
                 </Select>
               </div>
 
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <Checkbox checked={!!filters.nurOhneCv} onCheckedChange={(v) => updateFilter('nurOhneCv', v === true)} />
+                {t('filters.onlyNoCv')}
+              </label>
+
               {/* Tags */}
               {tags.length > 0 && (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium flex items-center gap-2">
-                    <Tag className="h-4 w-4" />
-                    Tags
-                  </label>
+                  <label className="text-sm font-medium">{t('actions.tags')}</label>
                   <div className="flex flex-wrap gap-1">
                     {tags.map((tag) => (
                       <Badge
@@ -223,10 +247,9 @@ export function CandidateFilters({
               )}
 
               {hasActiveFilters && (
-                <Button variant="ghost" size="sm" onClick={clearFilters} className="w-full">
-                  <X className="h-4 w-4 mr-2" />
-                  {t('filters.reset')}
-                </Button>
+                <button type="button" onClick={clearFilters} className="text-sm font-medium text-klick hover:underline">
+                  {t('filters.reset')} ›
+                </button>
               )}
             </div>
           </PopoverContent>
@@ -237,38 +260,32 @@ export function CandidateFilters({
       {hasActiveFilters && (
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm text-muted-foreground">{t('filters.active')}</span>
-          {filters.search && (
-            <Badge variant="secondary" className="gap-1">
-              {t('filters.searchBadge', { term: filters.search })}
-              <X className="h-3 w-3 cursor-pointer" onClick={() => updateFilter('search', '')} />
+          {filters.jobId !== 'all' && (
+            <Badge variant="secondary" className="gap-1 rounded-full font-normal">
+              {stelleTitel ?? t('filters.job')}
+              <X className="h-3 w-3 cursor-pointer" onClick={() => updateFilter('jobId', 'all')} />
             </Badge>
           )}
           {(filters.experienceMin > 0 || filters.experienceMax < 30) && (
-            <Badge variant="secondary" className="gap-1">
+            <Badge variant="secondary" className="gap-1 rounded-full font-normal">
               {t('filters.yearsBadge', { min: filters.experienceMin, max: filters.experienceMax })}
               <X
                 className="h-3 w-3 cursor-pointer"
-                onClick={() => {
-                  updateFilter('experienceMin', 0);
-                  updateFilter('experienceMax', 30);
-                }}
+                onClick={() => onFilterChange({ ...filters, experienceMin: 0, experienceMax: 30 })}
               />
             </Badge>
           )}
-          {(filters.salaryMin > 0 || filters.salaryMax < 200000) && (
-            <Badge variant="secondary" className="gap-1">
-              {(filters.salaryMin / 1000).toFixed(0)}k-{(filters.salaryMax / 1000).toFixed(0)}k €
+          {(filters.salaryMin > 0 || filters.salaryMax < FILTER_GEHALT_MAX) && (
+            <Badge variant="secondary" className="gap-1 rounded-full font-normal">
+              {geld(filters.salaryMin)}–{geld(filters.salaryMax)} €
               <X
                 className="h-3 w-3 cursor-pointer"
-                onClick={() => {
-                  updateFilter('salaryMin', 0);
-                  updateFilter('salaryMax', 200000);
-                }}
+                onClick={() => onFilterChange({ ...filters, salaryMin: 0, salaryMax: FILTER_GEHALT_MAX })}
               />
             </Badge>
           )}
           {filters.availability !== 'all' && (
-            <Badge variant="secondary" className="gap-1">
+            <Badge variant="secondary" className="gap-1 rounded-full font-normal">
               {filters.availability === 'immediate'
                 ? t('filters.immediate')
                 : filters.availability === '30days'

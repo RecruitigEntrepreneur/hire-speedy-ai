@@ -35,6 +35,7 @@ import JobDetail from "./pages/recruiter/JobDetail";
 import RecruiterCandidates from "./pages/recruiter/RecruiterCandidates";
 import RecruiterSubmissions from "./pages/recruiter/RecruiterSubmissions";
 import RecruiterEarnings from "./pages/recruiter/RecruiterEarnings";
+import RecruiterAnalytics from "./pages/recruiter/RecruiterAnalytics";
 import RecruiterNotifications from "./pages/recruiter/RecruiterNotifications";
 import RecruiterMessages from "./pages/recruiter/RecruiterMessages";
 import RecruiterProfile from "./pages/recruiter/RecruiterProfile";
@@ -368,6 +369,11 @@ function AppRoutes() {
       <Route path="/recruiter/submissions" element={
         <ProtectedRoute allowedRoles={['recruiter']}>
           <RecruiterSubmissions />
+        </ProtectedRoute>
+      } />
+      <Route path="/recruiter/analytics" element={
+        <ProtectedRoute allowedRoles={['recruiter']}>
+          <RecruiterAnalytics />
         </ProtectedRoute>
       } />
       <Route path="/recruiter/earnings" element={

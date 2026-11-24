@@ -151,7 +151,7 @@ export function ContractWindow({ submissionId, onClose, onDone, onLater }: Props
   ].filter(Boolean).join(' · ') : '';
   const step = (done: boolean, label: string, when?: string | null) => (
     <li className="flex items-center gap-2">
-      {done ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Circle className="h-3.5 w-3.5 text-muted-foreground" />}
+      {done ? <Check className="h-3.5 w-3.5 text-foreground" /> : <Circle className="h-3.5 w-3.5 text-muted-foreground" />}
       <span className={cn(!done && 'text-muted-foreground')}>{label}</span>
       {when && <span className="text-xs text-muted-foreground">{when}</span>}
     </li>
@@ -198,11 +198,11 @@ export function ContractWindow({ submissionId, onClose, onDone, onLater }: Props
                 {['signed', 'final'].includes(status) && c?.candidateCheck === 'ok' && step(true, t('window.confirmedByCandidate', { first }), dateDe(c.candidateCheckedAt))}
                 {['signed', 'final'].includes(status) && c?.candidateCheck === 'differs' && step(true, c.candidateCheckNote ? t('window.candidateDiffersNote', { first, note: c.candidateCheckNote }) : t('window.candidateDiffers', { first }))}
               </ul>
-              {quietUntil && <p className="mt-2 text-xs text-emerald-600">{t('window.quietUntil', { date: dateDe(quietUntil) })}</p>}
+              {quietUntil && <p className="mt-2 text-xs text-muted-foreground">{t('window.quietUntil', { date: dateDe(quietUntil) })}</p>}
               {c?.candidateStatus === 'missing' && ['preparing', 'sent_self'].includes(status) && (
-                <p className="mt-2 text-amber-700 dark:text-amber-400">{t('window.missing', { first, company: firma })}</p>
+                <p className="mt-2 font-medium">{t('window.missing', { first, company: firma })}</p>
               )}
-              {status === 'declined' && <p className="mt-2 text-amber-700 dark:text-amber-400">{c?.declineReason ? t('window.declinedReason', { reason: c.declineReason }) : t('window.declined')}</p>}
+              {status === 'declined' && <p className="mt-2 font-medium">{c?.declineReason ? t('window.declinedReason', { reason: c.declineReason }) : t('window.declined')}</p>}
               {status === 'dropped' && <p className="mt-2 text-muted-foreground">{c?.dropReason ? t('window.droppedReason', { first, reason: c.dropReason }) : t('window.dropped', { first })}</p>}
               {['sent_digital', 'company_signed'].includes(status) && (
                 <p className="mt-2 text-xs text-muted-foreground">
@@ -216,7 +216,7 @@ export function ContractWindow({ submissionId, onClose, onDone, onLater }: Props
             </div>
 
             {checkOpen && (
-              <div className="rounded-lg border border-amber-500/30 bg-amber-500/[0.06] p-3 text-sm">
+              <div className="rounded-lg border bg-secondary/60 p-3 text-sm">
                 <p className="font-medium">{t('window.checkTitle', { company: firma, first, date: dateDe(c!.signedOn) })}</p>
                 <p className="mt-0.5 text-muted-foreground">{t('window.checkText', { values, first })}</p>
                 {differs !== null ? (
@@ -236,9 +236,9 @@ export function ContractWindow({ submissionId, onClose, onDone, onLater }: Props
 
             {followOpen && (
               <div className="space-y-3 rounded-lg border border-border/60 bg-muted/30 p-3 text-sm">
-                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t('window.followUp')}</p>
+                <p className="text-xs font-medium text-muted-foreground">{t('window.followUp')}</p>
                 <div className="flex gap-2.5">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-medium text-primary-foreground">1</span>
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-klick text-[11px] font-medium text-klick-foreground">1</span>
                   <div className="min-w-0 flex-1 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{t('window.atCandidate', { first })}</span>

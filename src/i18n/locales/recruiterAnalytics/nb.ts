@@ -1,0 +1,47 @@
+// Auswertung des Headhunters.
+const nb = {
+  title: 'Analyse',
+  subtitle: 'Hva som skjer med presentasjonene dine.',
+  periodAria: 'Periode',
+  period: { '30': '30 dager', '90': 'Kvartal', '365': '12 måneder' },
+  error: 'Analysen kunne ikke lastes.',
+  days_one: '{{count}} dag',
+  days_other: '{{count}} dager',
+  empty: { title: 'Ingen presentasjon i perioden ennå', text: 'Når du presenterer kandidater, ser du her hva som skjer med dem.', link: 'Vis ledige oppdrag' },
+  kpi: { submitted: 'Presentert', invited: 'Til intervju', hired: 'Ansatt', fee: 'Honorar fra ansettelser' },
+  stage: { submitted: 'Presentert', interview: 'Intervju', offer: 'Tilbud', hired: 'Ansatt' },
+  arrive: { question: 'Treffer kandidatene mine?', answer: '{{percent}} % av presentasjonene dine blir invitert.', few: 'For få presentasjoner for en kvote ennå.' },
+  speed: {
+    question: 'Hvor raskt går det?',
+    answer_one: 'Invitasjonen kommer etter {{count}} dag.',
+    answer_other: 'Invitasjonen kommer etter {{count}} dager.',
+    none: 'Ingen invitasjon i perioden ennå.',
+    toInvite: 'Presentasjon til invitasjon',
+    toHire: 'Presentasjon til ansettelse',
+    waiting: 'Venter på kunden',
+    waitingValue_one: '{{count}} presentasjon, lengst {{days}} dager',
+    waitingValue_other: '{{count}} presentasjoner, lengst {{days}} dager',
+  },
+  fail: {
+    question: 'Hvor stopper det?',
+    none: 'Ingen avslag i perioden.',
+    answer_one: '{{count}} avslag fra kunden.',
+    answer_other: '{{count}} avslag fra kunden.',
+    rejected: 'Avslått av kunden',
+    withdrawn: 'Trukket tilbake',
+    reasons: 'Kundenes grunner',
+  },
+  money: {
+    question: 'Hva gir det meg?',
+    none: 'Ingen ansettelse i perioden ennå.',
+    answer_one: '{{amount}} fra {{count}} ansettelse.',
+    answer_other: '{{amount}} fra {{count}} ansettelser.',
+    perHire: 'Per ansettelse',
+    perSubmission: 'Per presentasjon',
+    link: 'Inntekter',
+  },
+  jobs: { title: 'Per oppdrag', job: 'Oppdrag', toInvite: 'Til invitasjon', unknown: 'Oppdrag', total: 'Totalt' },
+  note: 'Vi teller periodens presentasjoner og hva som har skjedd med dem til i dag. Tider er medianen.',
+};
+
+export default nb;

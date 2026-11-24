@@ -57,11 +57,12 @@ interface JobPreviewPanelProps {
 
 type T = (key: string, options?: Record<string, unknown>) => string;
 
-const formatSalaryShort = (min: number | null, max: number | null, t: T) => {
-  const k = (n: number) => Math.round(n / 1000);
-  if (min && max) return `€${k(min)}–${k(max)}k`;
-  if (min) return t('card.salaryFrom', { amount: `€${k(min)}k` });
-  if (max) return t('card.salaryUpTo', { amount: `€${k(max)}k` });
+// Ausgeschrieben statt „€50–60k“ (24.11.2026)
+const formatSalaryShort = (min: number | null, max: number | null, t: T, locale: string) => {
+  const eur = (n: number) => `${Math.round(n).toLocaleString(locale)} €`;
+  if (min && max) return t('card.salaryRange', { min: Math.round(min).toLocaleString(locale), max: eur(max) });
+  if (min) return t('card.salaryFrom', { amount: eur(min) });
+  if (max) return t('card.salaryUpTo', { amount: eur(max) });
   return t('preview.notSpecified');
 };
 
@@ -92,7 +93,7 @@ function Fakt({ label, children }: { label: string; children: React.ReactNode })
 function Abschnitt({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="border-t border-border pt-4">
-      <h3 className="mb-2 text-xs font-medium text-muted-foreground">{title}</h3>
+      <h3 className="mb-2 text-[15px] font-semibold tracking-tight">{title}</h3>
       {children}
     </section>
   );
@@ -136,18 +137,19 @@ export function JobPreviewPanel({
       {/* ── Kopf: Logo, Titel, Firma · Stand ── */}
       <div className="border-b border-border p-4">
         <div className="flex items-start gap-3">
-          <FirmenLogo url={job.company_logo_url} name={revealedCompanyName} size={40} locked={!isRevealed} />
+          {/* Bild nur mit echtem Logo einer offengelegten Firma, kein Platzhalter */}
+          {isRevealed && job.company_logo_url && <FirmenLogo url={job.company_logo_url} name={revealedCompanyName} size={40} />}
 
           <div className="min-w-0 flex-1">
-            <Link to={`/recruiter/jobs/${job.id}`} className="text-base font-semibold leading-snug transition-colors hover:text-primary">
+            <Link to={`/recruiter/jobs/${job.id}`} className="text-[17px] font-semibold leading-snug tracking-tight hover:underline">
               {plan?.research && <span className="mr-1.5 inline-block rounded border border-border px-1.5 align-middle text-[11px] font-normal text-muted-foreground">{t('card.research')}</span>}
               {job.title}
             </Link>
             <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground">
               <span>{isRevealed ? revealedCompanyName : formatAnonymousCompanyShort({ industry: job.industry, companySize: job.company_size_band })}</span>
               {urgent && <><span aria-hidden="true">·</span><span className="font-medium text-destructive">{t('card.urgent')}</span></>}
-              {isActive && <><span aria-hidden="true">·</span><span className="inline-flex items-center gap-1 font-medium text-emerald-500"><Check className="h-3.5 w-3.5" />{t('card.searching')}</span></>}
-              {!isActive && pauseText && <><span aria-hidden="true">·</span><span className="text-amber-600">{pauseText}</span></>}
+              {isActive && <><span aria-hidden="true">·</span><span className="inline-flex items-center gap-1 font-medium text-klick"><Check className="h-3.5 w-3.5" />{t('card.searching')}</span></>}
+              {!isActive && pauseText && <><span aria-hidden="true">·</span><span>{pauseText}</span></>}
             </p>
           </div>
 
@@ -164,30 +166,20 @@ export function JobPreviewPanel({
         </div>
 
         {/* Zwei Knöpfe, einer davon der nächste Schritt. */}
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          {/* Direkt aus der Liste an Anzeige und Ansprachetexte (29.09.2026), seit 19.10. im Briefing. */}
-          {pending ? <PendingButton variant="outline" size="sm" className="h-8 text-xs" label={pendingText('adCopy')} /> : <Button variant="outline" size="sm" className="h-8 text-xs" asChild>
-            <Link to={`/recruiter/jobs/${job.id}?teilen=1`}>
-              <FileText className="mr-1 h-3.5 w-3.5" />
-              {t('preview.adAndOutreach')}
-            </Link>
-          </Button>}
-          {pending ? <PendingButton size="sm" className="h-8 text-xs" label={pendingText('search')} /> : isActive ? (
-            <Button size="sm" className="h-8 text-xs" asChild>
-              <Link to={`/recruiter/jobs/${job.id}`}>
-                <Rocket className="mr-1 h-3.5 w-3.5" />
-                {t('preview.proposeCandidate')}
-              </Link>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {pending ? <PendingButton size="sm" className="rounded-full px-4" label={pendingText('search')} /> : isActive ? (
+            <Button size="sm" className="rounded-full px-4" asChild>
+              <Link to={`/recruiter/jobs/${job.id}`}>{t('preview.proposeCandidate')}</Link>
             </Button>
           ) : pauseText ? (
-            <Button size="sm" className="h-8 text-xs" disabled>
-              <Lock className="mr-1 h-3.5 w-3.5" />
-              {pauseText}
-            </Button>
+            <Button size="sm" className="rounded-full px-4" disabled>{pauseText}</Button>
           ) : (
-            <Button size="sm" className="h-8 text-xs" onClick={onToggleActive}>
-              <Search className="mr-1 h-3.5 w-3.5" />
-              {t('card.iSearch')}
+            <Button size="sm" className="rounded-full px-4" onClick={onToggleActive}>{t('card.iSearch')}</Button>
+          )}
+          {/* Direkt aus der Liste an Anzeige und Ansprachetexte (29.09.2026), seit 19.10. im Briefing. */}
+          {pending ? <PendingButton variant="secondary" size="sm" className="rounded-full px-4" label={pendingText('adCopy')} /> : (
+            <Button variant="secondary" size="sm" className="rounded-full px-4" asChild>
+              <Link to={`/recruiter/jobs/${job.id}?teilen=1`}>{t('preview.adAndOutreach')}</Link>
             </Button>
           )}
         </div>
@@ -198,7 +190,7 @@ export function JobPreviewPanel({
         <div>
           {tagVerdienst ? (
             <>
-              <Fakt label={t('preview.yourEarning')}><span className="text-emerald-500"><Honorar>{t('preview.earningPerDay', { amount: tagVerdienst })}</Honorar></span></Fakt>
+              <Fakt label={t('preview.yourEarning')}><span><Honorar>{t('preview.earningPerDay', { amount: tagVerdienst })}</Honorar></span></Fakt>
               <Fakt label={t('preview.candidateDayRate')}>{spezialistenGrenze(job) ?? t('preview.notSpecified')}</Fakt>
             </>
           ) : (
@@ -206,17 +198,17 @@ export function JobPreviewPanel({
               <Fakt label={t('preview.yourEarning')}>
                 {plan ? (
                   <>
-                    <span className="text-emerald-500"><Honorar>{plan.research ? euroKurz(plan.totalCents) : `${euroKurz(plan.totalCents)} (${plan.pct.toLocaleString(locale)} %)`}</Honorar></span>
-                    <span className="block text-xs font-normal"><Honorar>{plan.line}</Honorar></span>
+                    <span><Honorar>{plan.research ? euroKurz(plan.totalCents) : `${euroKurz(plan.totalCents)} · ${plan.pct.toLocaleString(locale)} %`}</Honorar></span>
+                    <span className="block text-xs font-normal text-muted-foreground"><Honorar>{plan.line}</Honorar></span>
                   </>
                 ) : (
-                  <span className="text-emerald-500">
-                    <Honorar>{earning ? `€${earning.toLocaleString(locale)} (${job.recruiter_fee_percentage} %)` : t('preview.percentOfSalary', { pct: job.recruiter_fee_percentage })}</Honorar>
+                  <span>
+                    <Honorar>{earning ? `${earning.toLocaleString(locale)} € · ${job.recruiter_fee_percentage} %` : t('preview.percentOfSalary', { pct: job.recruiter_fee_percentage })}</Honorar>
                   </span>
                 )}
               </Fakt>
               {plan?.research && <p className="border-b border-border py-2.5 text-xs text-muted-foreground">{plan.research.note} {t('preview.researchSince', { since: runningSince(plan.research.since, new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' }), i18n.language) })}{plan.research.own ? ` ${t('preview.ownPlacement')}` : ''}</p>}
-              <Fakt label={t('preview.salary')}>{formatSalaryShort(job.salary_min, job.salary_max, t)}</Fakt>
+              <Fakt label={t('preview.salary')}>{formatSalaryShort(job.salary_min, job.salary_max, t, locale)}</Fakt>
             </>
           )}
           {level && <Fakt label={t('preview.level')}>{level}</Fakt>}
@@ -241,7 +233,7 @@ export function JobPreviewPanel({
             <p className={cn('whitespace-pre-line text-sm leading-6 text-muted-foreground', !descExpanded && 'line-clamp-[8]')}>
               {job.description}
             </p>
-            <button onClick={() => setDescExpanded(!descExpanded)} className="mt-1.5 text-xs text-primary hover:underline">
+            <button onClick={() => setDescExpanded(!descExpanded)} className="mt-1.5 text-xs text-klick hover:underline">
               {descExpanded ? t('preview.showLess') : t('preview.showMore')}
             </button>
           </Abschnitt>
@@ -255,12 +247,7 @@ export function JobPreviewPanel({
           </Abschnitt>
         )}
 
-        <Button variant="outline" size="sm" className="h-8 w-full text-xs text-muted-foreground" asChild>
-          <Link to={`/recruiter/jobs/${job.id}`}>
-            {t('preview.openBriefing')}
-            <ExternalLink className="ml-1.5 h-3 w-3" />
-          </Link>
-        </Button>
+        <Link to={`/recruiter/jobs/${job.id}`} className="block border-t pt-4 text-sm text-klick hover:underline">{t('preview.openBriefing')} ›</Link>
       </div>
     </div>
   );

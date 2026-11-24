@@ -63,16 +63,17 @@ function StagePipeline({ steps }: { steps: ReturnType<typeof processSteps> }) {
         <div key={step.label} className="flex flex-col items-center flex-1 min-w-0">
           <div
             className={cn(
-              'h-2 w-full rounded-full transition-all',
-              step.state === 'current' && 'bg-primary',
-              step.state === 'done' && 'bg-green-500',
+              'h-1.5 w-full rounded-full transition-all',
+              // Apple-Stil (25.11.2026): Fortschritt blau, kein Grün
+              step.state === 'current' && 'bg-klick',
+              step.state === 'done' && 'bg-klick',
               step.state === 'todo' && 'bg-muted-foreground/15',
             )}
           />
           <span className={cn(
             'text-[9px] mt-1 leading-none truncate max-w-full',
-            step.state === 'current' && 'text-primary font-semibold',
-            step.state === 'done' && 'text-green-600',
+            step.state === 'current' && 'text-foreground font-semibold',
+            step.state === 'done' && 'text-muted-foreground',
             step.state === 'todo' && 'text-muted-foreground/50',
           )}>
             {step.label}
@@ -97,29 +98,21 @@ function DetailRow({ label, children }: { label: string; children: React.ReactNo
   );
 }
 
-function SectionTitle({ icon: Icon, children, right }: { icon: React.ElementType; children: React.ReactNode; right?: React.ReactNode }) {
+function SectionTitle({ children, right }: { children: React.ReactNode; right?: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">
-      <Icon className="h-3.5 w-3.5" />
+    <div className="flex items-center gap-1.5 text-[15px] font-semibold tracking-tight">
       {children}
-      {right && <span className="ml-auto normal-case tracking-normal">{right}</span>}
+      {right && <span className="ml-auto text-xs font-normal">{right}</span>}
     </div>
   );
 }
 
 const TONE: Record<Tone, string> = {
-  wait: 'bg-amber-500/10 border-amber-500/20 text-amber-700 dark:text-amber-400',
-  client: 'bg-muted/50 border-border text-foreground',
-  ok: 'bg-green-500/10 border-green-500/20 text-green-700 dark:text-green-400',
+  // Ruhige Oberfläche (25.11.2026): keine Ampelfarben, die Wartezeit steht fett im Text
+  wait: 'bg-card border-border text-foreground',
+  client: 'bg-card border-border text-foreground',
+  ok: 'bg-card border-border text-foreground',
   closed: 'bg-muted/40 border-border text-muted-foreground',
-};
-
-// Beschriftung: processWindow:dialog.priority.<Stufe>
-const PRIORITY: Record<UnifiedTaskItem['priority'], { text: string; border: string }> = {
-  critical: { text: 'text-destructive border-destructive/40', border: 'border-l-destructive' },
-  high: { text: 'text-amber-600 border-amber-500/40', border: 'border-l-amber-500' },
-  medium: { text: 'text-blue-600 border-blue-500/40', border: 'border-l-blue-500' },
-  low: { text: 'text-muted-foreground border-border', border: 'border-l-muted-foreground' },
 };
 
 /**
@@ -134,21 +127,15 @@ function OpenTaskCard({ submissionId, onOpen }: { submissionId: string; onOpen: 
   const open = allItems.filter((i) => i.submissionId === submissionId);
   if (!open.length) return null;
   const item = open[0];
-  const prio = PRIORITY[item.priority];
   return (
-    <div className={cn('mt-2.5 flex items-center justify-between gap-3 rounded-md border border-l-[3px] bg-background px-3 py-2', prio.border)}>
+    <div className="mt-2.5 flex items-center justify-between gap-3 border-t pt-2.5">
       <div className="min-w-0">
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           {open.length > 1 ? t('dialog.openTaskMore', { count: open.length - 1 }) : t('dialog.openTask')}
         </p>
-        <p className="text-sm text-foreground flex items-center gap-1.5 min-w-0">
-          <Badge variant="outline" className={cn('text-[9px] px-1.5 py-0 leading-4 shrink-0', prio.text)}>{t(`dialog.priority.${item.priority}`)}</Badge>
-          <span className="truncate font-medium">{item.title}</span>
-        </p>
+        <p className="truncate text-sm font-medium text-foreground">{item.title}</p>
       </div>
-      <Button size="sm" className="h-7 text-xs gap-0.5 shrink-0" onClick={() => onOpen(item)}>
-        {t('dialog.toTask')}<ChevronRight className="h-3 w-3" />
-      </Button>
+      <Button size="sm" className="shrink-0" onClick={() => onOpen(item)}>{t('dialog.toTask')}</Button>
     </div>
   );
 }
@@ -328,7 +315,7 @@ export function SubmissionDetailDialog({ open, onOpenChange, submissionId }: Sub
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[900px] max-h-[85vh] p-0 gap-0 overflow-hidden">
+      <DialogContent className="sm:max-w-[900px] max-h-[85vh] p-0 gap-0 overflow-hidden sm:rounded-2xl">
         {isLoading || !submission || !state ? (
           <div className="flex items-center justify-center h-64">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -339,37 +326,23 @@ export function SubmissionDetailDialog({ open, onOpenChange, submissionId }: Sub
             <div className="flex-1 flex flex-col min-w-0 md:border-r">
               {/* Header */}
               <div className="p-5 pb-4 border-b space-y-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    {companyVisible ? (
-                      <Unlock className="h-4 w-4 text-green-600 shrink-0" />
-                    ) : (
-                      <Shield className="h-4 w-4 text-muted-foreground shrink-0" />
-                    )}
-                    <h2 className="font-semibold text-base leading-tight truncate">{companyDisplay}</h2>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-0.5">{job?.title || t('dialog.unknownJob')}</p>
-                  <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <User className="h-3 w-3" />
-                      {candidate?.full_name}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {t('dialog.inProcess', { count: daysBetween(submission.submitted_at, now) })}
-                    </span>
-                  </div>
+                {/* Kopf: Kandidat und Stufe, darunter Stelle, Firma und Dauer */}
+                <div className="min-w-0 pr-6">
+                  <h2 className="truncate text-lg font-semibold leading-tight tracking-tight">
+                    {candidate?.full_name || t('dialog.unknown')}
+                    <span className="font-normal text-muted-foreground"> · {state.phase}</span>
+                  </h2>
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    {[job?.title || t('dialog.unknownJob'), companyDisplay, t('dialog.inProcess', { count: daysBetween(submission.submitted_at, now) })].filter(Boolean).join(' · ')}
+                  </p>
                 </div>
 
                 <StagePipeline steps={steps} />
 
                 {/* Wer ist am Zug */}
-                <div className={cn('p-3 rounded-lg border', TONE[state.tone])}>
-                  <p className="text-sm font-medium flex items-center gap-1.5">
-                    <Clock className="h-4 w-4 shrink-0" />
-                    {state.headline}
-                  </p>
-                  {state.detail && <p className="text-xs mt-0.5 opacity-90">{state.detail}</p>}
+                <div className={cn('rounded-xl border px-3.5 py-3', TONE[state.tone])}>
+                  <p className="text-sm font-semibold">{state.headline}</p>
+                  {state.detail && <p className="mt-0.5 text-xs text-muted-foreground">{state.detail}</p>}
                   <OpenTaskCard submissionId={submissionId} onOpen={openTask} />
                 </div>
               </div>
@@ -378,13 +351,13 @@ export function SubmissionDetailDialog({ open, onOpenChange, submissionId }: Sub
               <div className="flex-1 overflow-y-auto p-5 space-y-4">
                 {/* Details */}
                 <div className="space-y-1.5">
-                  <SectionTitle icon={FileText}>{t('dialog.details')}</SectionTitle>
+                  <SectionTitle>{t('dialog.details')}</SectionTitle>
                   <div className="rounded-lg border bg-card px-3 py-1.5 divide-y">
                     <DetailRow label={t('dialog.phase')}>{state.phase}</DetailRow>
                     {state.turn && <DetailRow label={t('dialog.turn')}>{state.turn}</DetailRow>}
                     {state.deadline && Date.parse(state.deadline) > now && (
                       <DetailRow label={state.stage === 'interview_scheduled' ? t('dialog.appointment') : t('dialog.deadline')}>
-                        <span className={cn(state.tone === 'wait' && 'text-amber-600 font-medium')}>{slotLabel(state.deadline)}</span>
+                        <span className={cn(state.tone === 'wait' && 'font-semibold')}>{slotLabel(state.deadline)}</span>
                       </DetailRow>
                     )}
                     <DetailRow label={t('dialog.submitted')}>{dateLabel(submission.submitted_at)}</DetailRow>
@@ -412,16 +385,7 @@ export function SubmissionDetailDialog({ open, onOpenChange, submissionId }: Sub
                 {iv && (
                   <div className="space-y-1.5">
                     <SectionTitle
-                      icon={Calendar}
-                      right={
-                        <Badge variant="outline" className={cn(
-                          'text-[10px]',
-                          iv.status === 'pending_response' && 'text-amber-600 border-amber-500/30',
-                          iv.status === 'scheduled' && 'text-green-600 border-green-500/30',
-                        )}>
-                          {iv.status === 'pending_response' ? t('dialog.waitingFor', { first }) : interviewBadge(iv.status)}
-                        </Badge>
-                      }
+                      right={<span className="text-muted-foreground">{iv.status === 'pending_response' ? t('dialog.waitingFor', { first }) : interviewBadge(iv.status)}</span>}
                     >
                       {t('dialog.interview')}
                     </SectionTitle>
@@ -499,7 +463,7 @@ export function SubmissionDetailDialog({ open, onOpenChange, submissionId }: Sub
                 {/* Nachgespräch mit dem Kandidaten, nur für den Headhunter */}
                 {data?.nachgespraech && (
                   <div className="space-y-1.5">
-                    <SectionTitle icon={NotebookPen}>{t('dialog.nachTitle')}</SectionTitle>
+                    <SectionTitle>{t('dialog.nachTitle')}</SectionTitle>
                     <div className="rounded-lg border bg-card px-3 py-2 text-sm">
                       <p>
                         <span className="text-muted-foreground tabular-nums">{fmtDayMonth(data.nachgespraech.updated_at ?? data.nachgespraech.created_at)}</span>
@@ -512,7 +476,7 @@ export function SubmissionDetailDialog({ open, onOpenChange, submissionId }: Sub
 
                 {/* Notizen nur für den Headhunter */}
                 <div className="space-y-1.5">
-                  <SectionTitle icon={NotebookPen}>{t('dialog.notesTitle')}</SectionTitle>
+                  <SectionTitle>{t('dialog.notesTitle')}</SectionTitle>
                   {notes.length > 0 && (
                     <div className="space-y-1 max-h-28 overflow-y-auto">
                       {notes.map((n) => (
@@ -557,38 +521,15 @@ export function SubmissionDetailDialog({ open, onOpenChange, submissionId }: Sub
                     </a>
                   </Button>
                 )}
-                <div className="flex-1" />
-                {candidate?.id && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-xs gap-1.5"
-                    onClick={() => { onOpenChange(false); navigate(`/recruiter/candidates/${candidate.id}`); }}
-                  >
-                    <User className="h-3.5 w-3.5" />
-                    {t('dialog.profile')}
-                  </Button>
-                )}
-                {job?.id && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-xs gap-1.5"
-                    onClick={() => { onOpenChange(false); navigate(`/recruiter/jobs/${job.id}`); }}
-                  >
-                    <Briefcase className="h-3.5 w-3.5" />
-                    {t('dialog.job')}
-                  </Button>
-                )}
               </div>
             </div>
 
             {/* RIGHT: Kandidat, Job, Verlauf */}
-            <div className="w-full md:w-[300px] shrink-0 overflow-y-auto bg-muted/20">
+            <div className="w-full md:w-[300px] shrink-0 overflow-y-auto bg-card">
               <div className="p-4 space-y-4">
                 {/* Kandidat */}
                 <div className="space-y-2">
-                  <SectionTitle icon={User}>{t('dialog.candidate')}</SectionTitle>
+                  <SectionTitle>{t('dialog.candidate')}</SectionTitle>
                   <div className="space-y-0.5">
                     <p className="font-medium text-sm">{candidate?.full_name || t('dialog.unknown')}</p>
                     {candidate?.job_title && <p className="text-xs text-muted-foreground">{candidate.job_title}</p>}
@@ -597,13 +538,18 @@ export function SubmissionDetailDialog({ open, onOpenChange, submissionId }: Sub
                     )}
                     {candidate?.phone && <p className="text-xs text-muted-foreground">{candidate.phone}</p>}
                     {candidate?.email && <p className="text-xs text-muted-foreground truncate">{candidate.email}</p>}
+                    {candidate?.id && (
+                      <button type="button" className="pt-0.5 text-xs font-medium text-klick hover:underline" onClick={() => { onOpenChange(false); navigate(`/recruiter/candidates/${candidate.id}`); }}>
+                        {t('dialog.openProfile')} ›
+                      </button>
+                    )}
                   </div>
                   <div className="rounded-lg border bg-card px-2.5 py-1 divide-y">
                     <DetailRow label={t('dialog.notice')}>{noticeText ?? '—'}</DetailRow>
                     <DetailRow label={t('dialog.earliestStart')}>{startIso ? dateLabel(startIso) : '—'}</DetailRow>
                     <DetailRow label={t('dialog.salaryWish')}>
                       {salary ? (
-                        <span className={cn(overBudget && 'text-amber-600')}>
+                        <span className={cn(overBudget && 'font-semibold')}>
                           {euro(salary)}
                           {overBudget && <span className="block text-[10px]">{t('dialog.overBudget', { max: euro(budgetMax!) })}</span>}
                         </span>
@@ -616,7 +562,7 @@ export function SubmissionDetailDialog({ open, onOpenChange, submissionId }: Sub
                       {data?.otherOpen ? (
                         <button
                           type="button"
-                          className="text-primary hover:underline"
+                          className="font-medium text-klick hover:underline"
                           onClick={() => { onOpenChange(false); navigate(`/recruiter/candidates/${candidate.id}`); }}
                         >
                           {t('dialog.running', { count: data.otherOpen })}
@@ -630,15 +576,17 @@ export function SubmissionDetailDialog({ open, onOpenChange, submissionId }: Sub
 
                 {/* Job */}
                 <div className="space-y-2">
-                  <SectionTitle icon={Briefcase}>{t('dialog.job')}</SectionTitle>
+                  <SectionTitle>{t('dialog.job')}</SectionTitle>
                   <div className="space-y-0.5">
                     <p className="text-sm font-medium">{job?.title || t('dialog.unknown')}</p>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      {companyVisible ? <Unlock className="h-3 w-3 text-green-500" /> : <Shield className="h-3 w-3" />}
-                      {companyDisplay}
-                    </div>
+                    <p className="text-xs text-muted-foreground">{companyDisplay}</p>
                     {(job?.location || job?.remote_type) && (
                       <p className="text-xs text-muted-foreground">{[job?.location, remoteLabel(job?.remote_type)].filter(Boolean).join(' · ')}</p>
+                    )}
+                    {job?.id && (
+                      <button type="button" className="pt-0.5 text-xs font-medium text-klick hover:underline" onClick={() => { onOpenChange(false); navigate(`/recruiter/jobs/${job.id}`); }}>
+                        {t('dialog.openJob')} ›
+                      </button>
                     )}
                   </div>
                 </div>
@@ -647,7 +595,7 @@ export function SubmissionDetailDialog({ open, onOpenChange, submissionId }: Sub
 
                 {/* Verlauf */}
                 <div className="space-y-2">
-                  <SectionTitle icon={Clock}>{t('dialog.history')}</SectionTitle>
+                  <SectionTitle>{t('dialog.history')}</SectionTitle>
                   {events.length > 0 ? (
                     <div className="grid grid-cols-[44px_minmax(0,1fr)] gap-x-2 gap-y-1.5 text-xs">
                       {events.slice(0, 10).map((e, i) => (

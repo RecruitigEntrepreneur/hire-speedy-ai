@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Lock, Loader2, Flame, ArrowRight, UserPlus, Search, Eye, ShieldCheck, Clock, Building2 } from 'lucide-react';
+import { Lock, Loader2, Flame, UserPlus, Search, Eye, ShieldCheck, Clock, Building2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { mySearches, type StartSearchResult } from '@/lib/jobSearch';
@@ -200,32 +200,33 @@ export function ActivationConfirmDialog({
               <AlertDialogDescription asChild>
                 <div className="space-y-4">
                   {/* Stelle mit Verdienst rechts, wie auf der Stellenkarte */}
-                  <div className="flex items-start justify-between gap-3 p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <div className="flex items-start justify-between gap-3 rounded-xl border bg-card p-3.5">
                     <div className="min-w-0">
                       <p className="flex items-center gap-1.5 font-medium text-foreground text-sm">
                         {isUrgent && <Flame className="h-3.5 w-3.5 shrink-0 text-destructive" aria-label={t('card.urgent')} />}
                         {jobTitle}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{anonymousLabel}</p>
+                      {/* „[Logistik | 250-500 | Hybrid Hamburg]“ als ruhige Zeile mit Punkten (24.11.2026) */}
+                      <p className="text-xs text-muted-foreground mt-0.5">{anonymousLabel.replace(/^\[(.*)\]$/, '$1').split(' | ').join(' · ')}</p>
                     </div>
                     {!earningPerDay && plan ? (
                       <div className="shrink-0 text-right">
-                        <p className="text-sm font-bold tabular-nums text-emerald-500">
+                        <p className="text-[15px] font-semibold tabular-nums tracking-tight text-foreground">
                           <Honorar>{`${plan.research ? '' : '≈ '}${euroKurz(plan.totalCents)}`}</Honorar>
                         </p>
-                        <p className="text-[10px] text-foreground"><Honorar>{plan.line}</Honorar></p>
+                        <p className="text-[11px] text-muted-foreground"><Honorar>{plan.line}</Honorar></p>
                       </div>
                     ) : (earningPerDay || earning !== null) && (
                       <div className="shrink-0 text-right">
-                        <p className="text-sm font-bold tabular-nums text-emerald-500">
-                          <Honorar>{earningPerDay ?? `≈ €${earning!.toLocaleString(locale)}`}</Honorar>
+                        <p className="text-[15px] font-semibold tabular-nums tracking-tight text-foreground">
+                          <Honorar>{earningPerDay ?? `≈ ${earning!.toLocaleString(locale)} €`}</Honorar>
                         </p>
-                        <p className="text-[10px] text-muted-foreground">{earningPerDay ? t('card.perDay') : t('activation.yourEarning')}</p>
+                        <p className="text-[11px] text-muted-foreground">{earningPerDay ? t('card.perDay') : t('activation.yourEarning')}</p>
                       </div>
                     )}
                   </div>
 
-                  <div className="space-y-2 rounded-lg border border-border/40 bg-muted/20 p-3 text-xs text-foreground">
+                  <div className="space-y-2.5 px-1 text-xs leading-5 text-foreground">
                     <p className="flex items-start gap-2">
                       <Eye className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                       <span><Trans t={t} i18nKey="activation.noteSeen" components={{ b: <b className="font-medium" /> }} /></span>
@@ -296,16 +297,14 @@ export function ActivationConfirmDialog({
         {step === 'success' && (
           <>
             <AlertDialogHeader className="min-w-0">
-              <AlertDialogTitle className="flex items-center gap-2 text-green-600 dark:text-green-500">
+              <AlertDialogTitle className="flex items-center gap-2">
                 <Search className="h-5 w-5" />
                 {t('activation.searchingNow')}
               </AlertDialogTitle>
               <AlertDialogDescription asChild>
                 <div className="space-y-4">
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border/30">
-                    <div className="h-10 w-10 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-                      <Building2 className="h-5 w-5 text-foreground" />
-                    </div>
+                  {/* Ohne Platzhalter-Kästchen (24.11.2026): Firma und Stelle als Karte */}
+                  <div className="rounded-xl border bg-card p-3.5">
                     <div className="min-w-0">
                       <p className="font-medium text-foreground text-sm truncate">{company || jobTitle}</p>
                       <p className="text-xs text-muted-foreground line-clamp-2 break-words">
@@ -316,18 +315,18 @@ export function ActivationConfirmDialog({
                   {clientInfo && <p className="-mt-2 text-xs text-muted-foreground">{clientInfo}</p>}
 
                   <div className="space-y-1.5">
-                    <p className="text-xs font-medium text-muted-foreground">{t('activation.fromPool')}</p>
+                    <p className="text-xs font-medium text-foreground">{t('activation.fromPool')}</p>
                     {fitting.length > 0 ? (
                       <div className="space-y-1.5">
                         {fitting.map((c) => {
                           const f = pool.fit.get(c.id);
                           return (
-                            <div key={c.id} className="flex items-center gap-2 p-2 rounded-lg border border-border/30">
+                            <div key={c.id} className="flex items-center gap-2 rounded-xl border px-3 py-2">
                               <div className="min-w-0 flex-1">
                                 <p className="text-sm text-foreground truncate">{c.full_name}</p>
                                 {c.job_title && <p className="text-[11px] text-muted-foreground truncate">{c.job_title}</p>}
                               </div>
-                              {isFitting(f) && <Badge variant="outline" className="shrink-0 text-[10px]">{FIT_LABEL[f]}</Badge>}
+                              {isFitting(f) && <Badge variant="outline" className="shrink-0 rounded-full border-transparent bg-secondary text-[10px] font-normal text-muted-foreground">{FIT_LABEL[f]}</Badge>}
                               <Button size="sm" variant="outline" className="h-7 text-xs shrink-0" onClick={() => onSubmitCandidate(c.id)}>
                                 {t('activation.submit')}
                               </Button>
@@ -340,7 +339,7 @@ export function ActivationConfirmDialog({
                         <Loader2 className="h-4 w-4 animate-spin" /> {t('activation.searchingPool')}
                       </div>
                     ) : (
-                      <div className="p-3 rounded-lg border border-dashed border-border/50 text-center">
+                      <div className="rounded-xl border bg-card p-3 text-center">
                         <p className="text-xs text-muted-foreground">{candidates.length ? t('activation.noFit') : t('activation.noCandidates')}</p>
                         <Button size="sm" variant="outline" className="mt-2 h-7 text-xs gap-1" onClick={() => onSubmitCandidate()}>
                           <UserPlus className="h-3 w-3" />
@@ -357,9 +356,8 @@ export function ActivationConfirmDialog({
               <Button variant="ghost" onClick={() => handleOpenChange(false)}>
                 {t('activation.later')}
               </Button>
-              <Button onClick={onGoToJob} className="gap-1.5">
+              <Button onClick={onGoToJob}>
                 {t('activation.toJob')}
-                <ArrowRight className="h-4 w-4" />
               </Button>
             </AlertDialogFooter>
           </>

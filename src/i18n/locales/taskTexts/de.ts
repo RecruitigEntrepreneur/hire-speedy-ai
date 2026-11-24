@@ -164,8 +164,12 @@ const de = {
     desc_one: 'Seit {{count}} Tagen unsicher, der Kandidat wartet.',
     desc_other: 'Seit {{count}} Tagen unsicher, der Kandidat wartet.',
   },
+  pool: {
+    title: 'Bei {{name}} melden',
+    action: 'Kurz melden und festhalten, was sich getan hat.',
+  },
   optIn: {
-    title: 'Opt-In einholen — Kunde wartet',
+    title: 'Zusage einholen, der Kunde wartet',
     descHours: '{{name}} hat die Interview-Einladung seit {{hours}} Std. nicht beantwortet.',
     descDays_one: '{{name}} hat die Interview-Einladung seit {{count}} Tagen nicht beantwortet.',
     descDays_other: '{{name}} hat die Interview-Einladung seit {{count}} Tagen nicht beantwortet.',

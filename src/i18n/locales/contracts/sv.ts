@@ -220,6 +220,7 @@ const sv: Messages<typeof de> = {
       changeSigner: 'Ändra undertecknare',
       refreshed: 'Status uppdaterad.',
       refresh: 'Uppdatera status',
+      more: 'Mer',
       voidSelf: 'Tillbakadraget. Skicka avtalet själv.',
       sendSelfAfterAll: 'Skicka själv ändå',
       demo: 'Testläge: underskrifterna är ännu inte juridiskt bindande.',

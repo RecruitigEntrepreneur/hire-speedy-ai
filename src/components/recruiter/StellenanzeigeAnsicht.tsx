@@ -49,7 +49,7 @@ function Abschnitt({ titel, children }: { titel: string; children: React.ReactNo
 
 function Punkte({ werte, icon: Icon }: { werte: string[]; icon?: LucideIcon }) {
   return <ul className="space-y-1.5">{werte.map(w => <li key={w} className="flex gap-3">
-    {Icon ? <Icon className="mt-1.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" /> : <span aria-hidden className="mt-[0.7rem] h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/70" />}
+    {Icon ? <Icon className="mt-1.5 h-4 w-4 shrink-0 text-foreground" aria-hidden="true" /> : <span aria-hidden className="mt-[0.7rem] h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/70" />}
     <span>{w}</span>
   </li>)}</ul>;
 }
@@ -59,9 +59,8 @@ function Block({ b }: { b: PostingBlock }) {
   if (b.id === 'angebot') {
     return <Abschnitt titel={b.title}>
       {b.lead && <p>{b.lead}</p>}
-      <div className="grid gap-2 sm:grid-cols-2">
-        {punkte.map(p => { const Icon = symbol(p); return <div key={p} className="flex items-start gap-3 rounded-lg bg-muted/50 px-3.5 py-3"><Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" /><span className="text-sm leading-6">{p}</span></div>; })}
-      </div>
+      {/* Ruhige Liste statt grauer Kacheln mit Symbolen (24.11.2026) */}
+      <ul className="grid gap-x-6 gap-y-1.5 sm:grid-cols-2">{punkte.map(p => <li key={p} className="flex gap-3"><span aria-hidden className="mt-[0.7rem] h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/70" /><span>{p}</span></li>)}</ul>
       {absaetze.map(a => <p key={a}>{a}</p>)}
       {b.nachsatz && <blockquote className="border-l-2 border-border pl-4 text-sm italic leading-6 text-muted-foreground">{b.nachsatz.replace(vorsatz('posting.exampleLabel'), '')}</blockquote>}
     </Abschnitt>;
@@ -78,7 +77,7 @@ function Block({ b }: { b: PostingBlock }) {
           const ziel = i === schritte.length - 1 && /angebot|vertrag|offer|contract|erbjudande|avtal|tilbud/i.test(s);
           return <li key={s} className="relative flex items-start gap-3 pb-4 last:pb-0">
             {i < schritte.length - 1 && <span aria-hidden className="absolute left-3 top-7 h-[calc(100%-1.75rem)] w-px bg-border" />}
-            <span className={cn('relative flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs', ziel ? 'bg-emerald-500/15 text-emerald-600' : 'bg-primary/10 text-primary')}>{ziel ? <Check className="h-3.5 w-3.5" /> : i + 1}</span>
+            <span className={cn('relative flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs', ziel ? 'bg-foreground text-background' : 'border border-border text-muted-foreground')}>{ziel ? <Check className="h-3.5 w-3.5" /> : i + 1}</span>
             <span className="text-[15px] leading-6">{s}</span>
           </li>;
         })}

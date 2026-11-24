@@ -43,6 +43,7 @@ const de = {
     noPlacements: 'Noch keine Besetzungen. Sobald ein Arbeitsvertrag verbindlich ist, siehst du hier, was du wann bekommst.',
   },
   tile: {
+    next: 'Nächste Gutschrift',
     nextLine: 'nächste Gutschrift {{amount}} · {{slot}}',
   },
   steps: {

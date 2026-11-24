@@ -243,7 +243,7 @@ export function CompanyBlock({ werte, ausAnzeige, onChange, onEnrich, onHeadcoun
 
     return (
       <div className="min-w-0">
-        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           {beschriftung}
           {f.pflicht && <span className="ml-0.5 text-muted-foreground/60">*</span>}
         </p>
@@ -276,7 +276,7 @@ export function CompanyBlock({ werte, ausAnzeige, onChange, onEnrich, onHeadcoun
             onClick={() => setOffen(k)}
             className={cn(
               'group flex w-full items-center gap-1.5 rounded text-left text-xs hover:text-foreground',
-              !zusammen && (f.pflicht ? 'text-amber-600' : 'text-muted-foreground'),
+              !zusammen && (f.pflicht ? 'font-medium text-foreground' : 'text-muted-foreground'),
             )}
           >
             <span className="truncate">{zusammen || (f.pflicht ? t('company.missing') : t('company.addValue'))}</span>
@@ -290,7 +290,7 @@ export function CompanyBlock({ werte, ausAnzeige, onChange, onEnrich, onHeadcoun
   return (
     <div className="rounded-xl border bg-card">
       <div className="flex items-center justify-between gap-2 border-b px-4 py-2">
-        <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <p className="flex items-center gap-1.5 text-sm font-medium">
           <Building2 className="h-3.5 w-3.5" /> {t('company.title')}
           <span className="hidden font-normal normal-case tracking-normal opacity-70 sm:inline">
             {t('company.titleNote')}
@@ -326,19 +326,19 @@ export function CompanyBlock({ werte, ausAnzeige, onChange, onEnrich, onHeadcoun
         ))}
 
         {fehlendePflicht.length > 0 && (
-          <p className="pt-1 text-[11px] text-amber-600">
+          <p className="pt-1 text-xs font-medium">
             {t('company.withoutFields', {
               fields: new Intl.ListFormat(intlLocale(i18n.language), { style: 'long', type: 'conjunction' })
                 .format(fehlendePflicht.map((f) => label(f.key).label)),
             })}
           </p>
         )}
-        {note && <p className="pt-1 text-[11px] text-amber-600">{note}</p>}
+        {note && <p className="pt-1 text-xs font-medium">{note}</p>}
 
         {vorschlag && (
-          <div className="mt-1 rounded-lg border border-primary/30 bg-primary/[0.03] p-3">
+          <div className="mt-1 rounded-lg bg-secondary/60 p-3">
             <Badge variant="outline" className="mb-2 gap-1 text-[10px]">
-              <Sparkles className="h-2.5 w-2.5 text-primary" /> {t('company.suggestion.badge')}
+              <Sparkles className="h-2.5 w-2.5 text-muted-foreground" /> {t('company.suggestion.badge')}
             </Badge>
             <ul className="mb-2.5 space-y-0.5 text-xs">
               {vorschlag.legal_name && <li><span className="text-muted-foreground">{t('company.suggestion.legalName')}: </span>{vorschlag.legal_name}</li>}

@@ -9,6 +9,7 @@ const sv: Messages<typeof de> = {
     jobs: 'Lediga uppdrag',
     candidates: 'Mina kandidater',
     pipeline: 'Pipeline',
+    analytics: 'Analys',
     talentPool: 'Talangpool',
     liga: 'Matchunt-ligan',
     earnings: 'Intäkter',

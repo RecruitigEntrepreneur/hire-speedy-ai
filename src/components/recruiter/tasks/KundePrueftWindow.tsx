@@ -204,7 +204,7 @@ export function KundePrueftWindow({ bundle, sameClient, startSent, onClose, onDo
           <DialogTitle className="flex flex-wrap items-center gap-x-2 text-base">
             <span>{multi ? t('kp.titleMulti', { company: bundle.companyName ?? t('fallback.client'), count: included.length }) : bundle.jobTitle ?? t('fallback.job')}</span>
             <Badge variant="secondary" className="h-4 px-1.5 text-[10px] font-medium">{sent ? t('kp.pillWaiting') : feedback ? t('guide.feedbackDue.pill') : t('guide.reviewStalled.pill')}</Badge>
-            {fee && <span className="text-sm font-medium text-emerald-500 tabular-nums"><Honorar>{fee}</Honorar></span>}
+            {fee && <span className="text-sm tabular-nums text-muted-foreground"><Honorar>{fee}</Honorar></span>}
           </DialogTitle>
           <DialogDescription className="flex items-center gap-1 text-xs">
             {multi ? included.map(b => b.jobTitle ?? t('fallback.job')).join(' · ') : bundle.companyName ?? t('kp.companyAnonymous')}{!multi && !bundle.companyName && <Lock className="h-3 w-3" />} · {t('kp.candidates', { count: n })}
@@ -224,7 +224,7 @@ export function KundePrueftWindow({ bundle, sameClient, startSent, onClose, onDo
         <div className="grid gap-3 p-5 md:grid-cols-[1fr_1.25fr]">
           <div className="space-y-3">
             <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
-              <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t('window.reason')}</p>
+              <p className="mb-1.5 text-xs font-medium text-muted-foreground">{t('window.reason')}</p>
               <ul className="space-y-1.5 text-sm">
                 {items.map(i => (
                   <li key={i.itemId} className="flex gap-2"><span className="text-muted-foreground">•</span><span>{t(feedback ? 'kp.reasonInterview' : 'kp.reasonSubmitted', { who: `${i.candidateName}${multi && i.jobTitle ? ` (${i.jobTitle})` : ''}`, date: dateShort(feedback ? i.interviewAt ?? i.createdAt : i.createdAt) })}{!feedback && <span className={i.clientViewCount ? 'text-emerald-600' : 'text-amber-600'}> · {viewLabel(i.clientViewCount, i.clientLastViewedAt)}</span>}</span></li>
@@ -234,7 +234,7 @@ export function KundePrueftWindow({ bundle, sameClient, startSent, onClose, onDo
               </ul>
             </div>
             <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
-              <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t('window.history')}</p>
+              <p className="mb-1.5 text-xs font-medium text-muted-foreground">{t('window.history')}</p>
               {(() => {
                 const rows = bundle.items.flatMap(i => [
                   i.lastNudgeAt ? { at: i.lastNudgeAt, text: t(feedback ? 'kp.log.asked' : 'kp.log.reminded', { name: i.candidateName }) } : null,
@@ -249,11 +249,11 @@ export function KundePrueftWindow({ bundle, sameClient, startSent, onClose, onDo
           </div>
 
           <div className="space-y-3 rounded-lg border border-border/60 bg-muted/30 p-3">
-            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t('window.yourTask')}</p>
+            <p className="text-xs font-medium text-muted-foreground">{t('window.yourTask')}</p>
 
             {/* Schritt 1 */}
             <div className="flex gap-2.5">
-              <span className={cn('flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-medium', sent ? 'bg-emerald-500 text-white' : 'bg-primary text-primary-foreground')}>{sent ? <Check className="h-3 w-3" /> : 1}</span>
+              <span className={cn('flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-medium', sent ? 'bg-foreground text-background' : 'bg-klick text-klick-foreground')}>{sent ? <Check className="h-3 w-3" /> : 1}</span>
               <div className="min-w-0 flex-1 space-y-2">
                 <p className="text-sm font-medium">{sent ? t(feedback ? 'kp.step1.asked' : 'kp.step1.reminded', { when: wannKurz(sent.at.toISOString()) }) : t(`kp.step1.${zweite ? 'second' : feedback ? 'ask' : 'remind'}${items.length > 1 ? 'Many' : ''}`, { count: items.length })}</p>
                 {!sent && (
@@ -263,7 +263,7 @@ export function KundePrueftWindow({ bundle, sameClient, startSent, onClose, onDo
                         <Button key={c.key} size="sm" variant={intent === c.key ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => { setIntent(c.key); setClientEdit(null); }}>{c.label}</Button>
                       ))}
                     </div>
-                    <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t('window.addHint')}</p>
+                    <p className="text-xs font-medium text-muted-foreground">{t('window.addHint')}</p>
                     <div className="flex flex-wrap gap-1.5">
                       {set.clientHints.map(c => (
                         <Button key={c.key} size="sm" variant={hints.includes(c.key) ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => { setHints(h => toggle(h, c.key)); setClientEdit(null); }}>{c.label}</Button>
@@ -289,7 +289,7 @@ export function KundePrueftWindow({ bundle, sameClient, startSent, onClose, onDo
 
             {/* Schritt 2 */}
             <div className="flex gap-2.5">
-              <span className={cn('flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-medium', schritt2Erledigt ? 'bg-emerald-500 text-white' : sent ? 'bg-primary text-primary-foreground' : 'border border-border text-muted-foreground')}>{schritt2Erledigt ? <Check className="h-3 w-3" /> : 2}</span>
+              <span className={cn('flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-medium', schritt2Erledigt ? 'bg-foreground text-background' : sent ? 'bg-klick text-klick-foreground' : 'border border-border text-muted-foreground')}>{schritt2Erledigt ? <Check className="h-3 w-3" /> : 2}</span>
               <div className="min-w-0 flex-1 space-y-2">
                 {schritt2Erledigt ? (
                   <>
@@ -363,7 +363,7 @@ export function KundePrueftWindow({ bundle, sameClient, startSent, onClose, onDo
 
             {/* Schritt 3 */}
             <div className="flex gap-2.5">
-              <span className={cn('flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px]', schritt2Erledigt ? 'bg-primary font-medium text-primary-foreground' : 'border border-border text-muted-foreground')}>3</span>
+              <span className={cn('flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px]', schritt2Erledigt ? 'bg-klick font-medium text-klick-foreground' : 'border border-border text-muted-foreground')}>3</span>
               <p className={cn('leading-5', schritt2Erledigt ? 'text-sm' : 'text-xs text-muted-foreground')}>
                 {t(`kp.step3.${zweite ? 'second' : feedback ? 'firstAsk' : 'firstRemind'}${fristDate ? 'Until' : 'In3'}`, { date: fristDate })}
               </p>
@@ -372,7 +372,7 @@ export function KundePrueftWindow({ bundle, sameClient, startSent, onClose, onDo
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2 border-t p-4 text-xs">
-          <span className="text-muted-foreground"><Trans ns="recruiterTasks" i18nKey="window.goal" values={{ goal: feedback ? t('kp.goalFeedback') : t('kp.goalReview') }} components={{ g: <span className="font-medium text-emerald-500" /> }} /></span>
+          <span className="text-muted-foreground"><Trans ns="recruiterTasks" i18nKey="window.goal" values={{ goal: feedback ? t('kp.goalFeedback') : t('kp.goalReview') }} components={{ g: <span className="font-medium text-foreground" /> }} /></span>
           <div className="flex flex-wrap items-center gap-1.5">
             {!sent ? (
               <>

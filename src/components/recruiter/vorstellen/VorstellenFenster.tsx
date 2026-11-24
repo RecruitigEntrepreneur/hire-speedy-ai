@@ -106,7 +106,7 @@ function Rahmen({ schritte, aktuell, rail, children, fuss }: { schritte: Exclude
         </ol>
       </div>
       <div className="grid min-h-0 flex-1 md:grid-cols-[13rem_minmax(0,1fr)]">
-        <aside className="hidden min-h-0 overflow-y-auto border-r border-border bg-muted/20 p-4 md:block">{rail}</aside>
+        <aside className="hidden min-h-0 overflow-y-auto border-r border-border bg-card p-4 md:block">{rail}</aside>
         <div className="min-h-0 min-w-0 overflow-y-auto p-5">{children}</div>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-5 py-3">{fuss}</div>
@@ -117,7 +117,7 @@ function Rahmen({ schritte, aktuell, rail, children, fuss }: { schritte: Exclude
 function RailBlock({ titel, children }: { titel: string; children: ReactNode }) {
   return (
     <div className="mb-5 last:mb-0">
-      <p className="mb-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{titel}</p>
+      <p className="mb-1 text-xs font-medium text-muted-foreground">{titel}</p>
       {children}
     </div>
   );
@@ -516,7 +516,7 @@ function KandidatWahl({ job, firma, schritte, onWahl, onClose }: {
         )}
         {laedt && jetzt.length > 0 && <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> {t('candidatePick.checkingMore')}</p>}
         <LebenslaufAblage onFiles={(fs) => ablageMelden(ablageAnfragen(fs))}>
-          <div className="flex items-center gap-2.5 rounded-lg border border-dashed border-border px-3 py-2.5 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2.5 rounded-xl border border-dashed border-border px-3 py-2.5 text-xs text-muted-foreground">
             <FileUp className="h-4 w-4 shrink-0" />
             {t('candidatePick.dropHint')}
           </div>
@@ -617,7 +617,7 @@ function VorstellenAblauf({ job, firma, kandidat, schritt, setSchritt, schritte,
                 <p className="mb-4 mt-1 text-sm text-muted-foreground">
                   {v.duplicate ? t('fit.duplicate', { name }) : v.excluded ? t('fit.excludedShort') : t('fit.todoText', { name })}
                 </p>
-                <div className="divide-y divide-border rounded-lg border border-border">
+                <div className="divide-y divide-border rounded-xl border border-border">
                   {v.excluded && (
                     <ToDo icon={<ShieldCheck className="h-4 w-4" />} text={v.sperrgrund ? t('fit.blocklist', { nameGen: genitiv(name) }) : v.match?.exclusion?.text ? t('fit.excludedReason', { name, reason: v.match.exclusion.text }) : t('fit.excluded', { name })} />
                   )}
@@ -641,7 +641,7 @@ function VorstellenAblauf({ job, firma, kandidat, schritt, setSchritt, schritte,
                 <PassungsTabelle zeilen={zeilen} name={name} confirmed={v.confirmed} onConfirm={v.toggleConfirmed} />
                 {v.matchLoad === 'loading' && <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> {t('fit.mustChecking')}</p>}
                 {v.matchLoad === 'failed' && <p className="mt-2 text-xs text-muted-foreground">{t('fit.mustFailed')}</p>}
-                <p className="mb-2 mt-5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{t('fit.also')}</p>
+                <p className="mb-2 mt-5 text-xs font-medium text-muted-foreground">{t('fit.also')}</p>
                 <div className="space-y-1.5 text-sm">
                   {v.matchLoad === 'ready' && <Hinweis icon={<Check className="h-4 w-4" />}>{t('fit.notBlocked', { company: firma ?? t('fit.theCompany'), nameGen: genitiv(name) })}</Hinweis>}
                   {v.absagen.map((a) => <Hinweis key={a} icon={<MessageSquareX className="h-4 w-4" />}>{t('fit.priorRejection', { reason: a })}</Hinweis>)}
@@ -677,14 +677,14 @@ function VorstellenAblauf({ job, firma, kandidat, schritt, setSchritt, schritte,
           <Button onClick={() => void abschicken()} disabled={!darf}>{busy ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Send className="mr-1.5 h-4 w-4" />}{t('send.button', { name })}</Button></>}>
         <h3 className="text-lg font-semibold">{firma ? t('send.titleCompany', { name, company: firma }) : t('send.titleJob', { name, job: job.title })}</h3>
         <p className="mb-4 mt-1 text-sm text-muted-foreground">{t('send.subtitle')}</p>
-        <div className="space-y-2 rounded-lg border border-border p-3.5 text-sm">
+        <div className="space-y-2 rounded-xl border border-border p-3.5 text-sm">
           {abweichungen.length > 0
             ? <Hinweis icon={<AlertCircle className="h-4 w-4 text-warning" />}>{t('send.deviations', { count: abweichungen.length, list: abweichungen.map((z) => z.key.startsWith('muss') ? t('send.mustCriterion') : z.label).join(', ') })} · <button type="button" className="underline underline-offset-2" onClick={() => setSchritt('passung')}>{t('view')}</button></Hinweis>
             : <Hinweis icon={<Check className="h-4 w-4" />}>{t('send.allMatch')}</Hinweis>}
           <Hinweis icon={<UserCheck className="h-4 w-4" />}>{t('send.anonProfile')} · <button type="button" className="underline underline-offset-2" onClick={() => setSchritt('kunde')}>{t('view')}</button></Hinweis>
           <CvZeile cv={v.akte.cv} onNeu={() => setCvOpen(true)} />
         </div>
-        <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-lg border border-border px-3.5 py-3 text-sm">
+        <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-border px-3.5 py-3 text-sm">
           <Checkbox className="mt-0.5" checked={consent} onCheckedChange={(c) => setConsent(c === true)} />
           <span>
             {firma ? t('send.consentCompany', { name, company: firma }) : t('send.consentGeneric', { name })}
@@ -713,7 +713,7 @@ function VorstellenAblauf({ job, firma, kandidat, schritt, setSchritt, schritte,
 function PassungsTabelle({ zeilen, name, confirmed, onConfirm }: { zeilen: ReturnType<typeof passungsZeilen>; name: string; confirmed: Set<string>; onConfirm: (rule: string, on: boolean) => void }) {
   const { t } = useTranslation(NS);
   return (
-    <div className="overflow-hidden rounded-lg border border-border">
+    <div className="overflow-hidden rounded-xl border border-border">
       <table className="w-full table-fixed text-sm">
         <colgroup><col className="w-[18%]" /><col className="w-[31%]" /><col className="w-[31%]" /><col className="w-[20%]" /></colgroup>
         <thead>
@@ -788,7 +788,7 @@ function Kundenansicht({ v, kandidatId, name, firma }: { v: Vorstellung; kandida
     <>
       <h3 className="text-lg font-semibold">{firma ? t('client.titleCompany', { company: firma }) : t('client.titleGeneric')}</h3>
       <p className="mb-4 mt-1 text-sm text-muted-foreground">{t('client.subtitle')}</p>
-      <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-4">
+      <div className="space-y-3 rounded-xl border border-border bg-muted/20 p-4">
         <div>
           <p className="text-xs text-muted-foreground">{t('client.anonCode', { code: candidateAnonCode(kandidatId) })}</p>
           <p className="font-medium">{f.job_title || t('client.candidateFallback')}</p>
@@ -896,7 +896,7 @@ function Fertig({ name, firma, jobTitle, ort, email, submissionId, stelleFest }:
         <Schrittpunkt titel={t('done.in5Days')}>{t('done.in5DaysText')}</Schrittpunkt>
         <Schrittpunkt titel={t('done.afterYes')}>{t('done.afterYesText')}</Schrittpunkt>
       </ol>
-      <div className="mt-6 rounded-lg border border-border p-3.5">
+      <div className="mt-6 rounded-xl border border-border p-3.5">
         {gesendet ? (
           <Hinweis icon={<Check className="h-4 w-4" />}>{t('done.messageSent', { name })}</Hinweis>
         ) : offen ? (
@@ -906,7 +906,7 @@ function Fertig({ name, firma, jobTitle, ort, email, submissionId, stelleFest }:
               {t('done.mailNote')}
             </p>
             {/* Die ganze Mail, wie sie ankommt: Grau setzt der Versand, nur der Rahmen ist änderbar. */}
-            <div className="rounded-md border border-input bg-background px-3 py-2.5 text-sm leading-relaxed">
+            <div className="rounded-lg border border-input bg-background px-3 py-2.5 text-sm leading-relaxed">
               <p className="text-muted-foreground">{t('mail.hello', { name })}</p>
               <Textarea value={text} onChange={(e) => setText(e.target.value)} rows={7}
                 className="my-2 border-dashed px-2.5 py-2 text-sm leading-relaxed" aria-label={t('done.messageAria', { name })} />
@@ -961,8 +961,8 @@ function ToDo({ icon, text, aktion }: { icon: ReactNode; text: string; aktion?: 
 function Gruppe({ titel, children }: { titel: string; children: ReactNode }) {
   return (
     <section>
-      <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{titel}</p>
-      <div className="divide-y divide-border overflow-hidden rounded-lg border border-border">{children}</div>
+      <p className="mb-1.5 text-xs font-medium text-muted-foreground">{titel}</p>
+      <div className="divide-y divide-border overflow-hidden rounded-xl border border-border">{children}</div>
     </section>
   );
 }
@@ -987,7 +987,7 @@ function Zeile({ titel, unter, rechts, onClick, gedimmt = false, avatar }: { tit
 }
 
 function Pill({ children }: { children: ReactNode }) {
-  return <span className="whitespace-nowrap rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground">{children}</span>;
+  return <span className="whitespace-nowrap rounded-full bg-secondary px-2 py-0.5 text-[11px] text-muted-foreground">{children}</span>;
 }
 
 function Leer({ children }: { children: ReactNode }) {

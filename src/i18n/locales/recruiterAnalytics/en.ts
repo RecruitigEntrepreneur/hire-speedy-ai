@@ -1,0 +1,47 @@
+// Auswertung des Headhunters.
+const en = {
+  title: 'Analytics',
+  subtitle: 'What becomes of your submissions.',
+  periodAria: 'Period',
+  period: { '30': '30 days', '90': 'Quarter', '365': '12 months' },
+  error: 'The analytics could not be loaded.',
+  days_one: '{{count}} day',
+  days_other: '{{count}} days',
+  empty: { title: 'No submission in this period yet', text: 'Once you submit candidates, you will see here what becomes of them.', link: 'View open jobs' },
+  kpi: { submitted: 'Submitted', invited: 'Invited to interview', hired: 'Hired', fee: 'Fees from hires' },
+  stage: { submitted: 'Submitted', interview: 'Interview', offer: 'Offer', hired: 'Hired' },
+  arrive: { question: 'Do my candidates land?', answer: '{{percent}} % of your submissions are invited.', few: 'Too few submissions for a rate yet.' },
+  speed: {
+    question: 'How fast is it?',
+    answer_one: 'The invitation comes after {{count}} day.',
+    answer_other: 'The invitation comes after {{count}} days.',
+    none: 'No invitation in this period yet.',
+    toInvite: 'Submission to invitation',
+    toHire: 'Submission to hire',
+    waiting: 'Waiting for the client',
+    waitingValue_one: '{{count}} submission, longest {{days}} days',
+    waitingValue_other: '{{count}} submissions, longest {{days}} days',
+  },
+  fail: {
+    question: 'Where does it fail?',
+    none: 'No rejection in this period.',
+    answer_one: '{{count}} rejection by the client.',
+    answer_other: '{{count}} rejections by the client.',
+    rejected: 'Rejected by the client',
+    withdrawn: 'Withdrawn',
+    reasons: 'Client reasons',
+  },
+  money: {
+    question: 'What do I get out of it?',
+    none: 'No hire in this period yet.',
+    answer_one: '{{amount}} from {{count}} hire.',
+    answer_other: '{{amount}} from {{count}} hires.',
+    perHire: 'Per hire',
+    perSubmission: 'Per submission',
+    link: 'Earnings',
+  },
+  jobs: { title: 'By job', job: 'Job', toInvite: 'To invitation', unknown: 'Job', total: 'Total' },
+  note: 'We count the submissions of the selected period and what has become of them until today. Times are the median.',
+};
+
+export default en;

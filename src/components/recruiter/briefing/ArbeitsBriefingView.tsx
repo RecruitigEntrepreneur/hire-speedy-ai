@@ -1,3 +1,5 @@
+import { Button } from '@/components/ui/button';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   Banknote, Bike, Calculator, Check, CircleDashed, Clock, GraduationCap, HeartPulse, Home, IdCard, Laptop, Linkedin, Lock,
@@ -23,7 +25,7 @@ export interface SchrittWerkzeug { label: string; icon: LucideIcon; onClick: () 
 
 function Vertraulich() {
   const { t } = useTranslation('recruiterJobDetail');
-  return <span title={t('brief.confidentialTitle')} className="ml-2 inline-flex items-center gap-1 rounded bg-amber-500/15 px-1.5 align-[1px] text-[10px] font-medium text-amber-700"><Lock className="h-2.5 w-2.5" aria-hidden="true" />{t('brief.confidential')}</span>;
+  return <span title={t('brief.confidentialTitle')} className="ml-2 inline-flex items-center rounded-full border px-2 align-[1px] text-[10px] font-medium text-muted-foreground">{t('brief.confidential')}</span>;
 }
 
 function Abschnitt({ s, nr, werkzeug, children }: { s: Schritt; nr: number; werkzeug?: SchrittWerkzeug; children: ReactNode }) {
@@ -31,13 +33,25 @@ function Abschnitt({ s, nr, werkzeug, children }: { s: Schritt; nr: number; werk
   return <section id={`briefing-${s.id}`} className="scroll-mt-24 space-y-4 border-t border-border pt-7 first:border-t-0 first:pt-0">
     <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
       <h2 className="flex items-center gap-2.5 text-lg font-semibold tracking-tight">
-        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-sm text-primary">{nr}</span>{s.frage}
+        <span className="flex h-7 w-7 items-center justify-center rounded-full border text-sm text-muted-foreground">{nr}</span>{s.frage}
       </h2>
-      {werkzeug && <button type="button" onClick={werkzeug.onClick} className="inline-flex items-center gap-1.5 text-sm text-primary underline-offset-4 hover:underline"><werkzeug.icon className="h-4 w-4" aria-hidden="true" />{werkzeug.label}</button>}
+      {werkzeug && <button type="button" onClick={werkzeug.onClick} className="text-sm font-medium text-klick hover:underline">{werkzeug.label} ›</button>}
     </div>
     {children}
-    {s.offen.length > 0 && <p className="flex items-start gap-2 text-sm text-amber-700"><CircleDashed className="mt-1 h-3.5 w-3.5 shrink-0" aria-hidden="true" /><span>{t('brief.open', { list: s.offen.map(f => f.label).join(' · ') })}</span></p>}
+    {s.offen.length > 0 && <OffenZeile labels={s.offen.map(f => f.label)} />}
   </section>;
+}
+
+/** Was der Kunde noch nicht beantwortet hat: grau, gekürzt, aufklappbar (24.11.2026). */
+function OffenZeile({ labels }: { labels: string[] }) {
+  const { t } = useTranslation('recruiterJobDetail');
+  const [alle, setAlle] = useState(false);
+  return <p className="text-sm text-muted-foreground">
+    {alle
+      ? t('brief.open', { list: labels.join(' · ') })
+      : t('brief.openShort', { count: labels.length, first: labels[0] })}
+    {labels.length > 1 && <> <button type="button" className="font-medium text-klick hover:underline" onClick={() => setAlle(a => !a)}>{alle ? t('brief.showLess') : `${t('brief.showAll')} ›`}</button></>}
+  </p>;
 }
 
 /** Kurze Kriterien als Pillen, lange als Häkchen-Zeilen darunter. */
@@ -45,8 +59,8 @@ function Chips({ werte }: { werte: string[] }) {
   const kurz = werte.filter(c => c.length <= 40);
   const lang = werte.filter(c => c.length > 40);
   return <div className="space-y-2">
-    {kurz.length > 0 && <ul className="flex flex-wrap gap-1.5">{kurz.map(c => <li key={c} className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-0.5 text-sm"><Check className="h-3.5 w-3.5 text-emerald-600" aria-hidden="true" />{c}</li>)}</ul>}
-    {lang.length > 0 && <ul className="space-y-1">{lang.map(c => <li key={c} className="flex gap-2.5"><Check className="mt-1.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />{c}</li>)}</ul>}
+    {kurz.length > 0 && <ul className="flex flex-wrap gap-1.5">{kurz.map(c => <li key={c} className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-0.5 text-sm"><Check className="h-3.5 w-3.5 text-foreground" aria-hidden="true" />{c}</li>)}</ul>}
+    {lang.length > 0 && <ul className="space-y-1">{lang.map(c => <li key={c} className="flex gap-2.5"><Check className="mt-1.5 h-4 w-4 shrink-0 text-foreground" aria-hidden="true" />{c}</li>)}</ul>}
   </div>;
 }
 
@@ -89,12 +103,10 @@ export function ArbeitsBriefingLeiste({ offen, onKundenFragen, revealed }: { off
         <span className="w-4 text-xs tabular-nums">{i + 1}</span>{s.kurz}
       </a>)}
     </div>
-    {offen > 0 && <div className="space-y-1">
-      <button type="button" onClick={onKundenFragen} disabled={!revealed}
-        className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-sm font-medium text-amber-700 hover:bg-amber-500/10 disabled:cursor-default disabled:opacity-60">
-        <CircleDashed className="h-4 w-4" aria-hidden="true" />{t('brief.askClientOpen', { count: offen })}
-      </button>
-      <p className="px-2 text-xs text-muted-foreground">{revealed ? t('brief.askClientMail') : t('brief.askClientLater')}</p>
+    {offen > 0 && <div className="space-y-1.5 rounded-xl border bg-background p-3">
+      <p className="text-sm font-medium">{t('brief.openCount', { count: offen })}</p>
+      <p className="text-xs text-muted-foreground">{revealed ? t('brief.askClientMail') : t('brief.askClientLater')}</p>
+      {revealed && <Button size="sm" className="mt-1 rounded-full px-4" onClick={onKundenFragen}>{t('brief.askClient')}</Button>}
     </div>}
     <p className="px-2 text-xs leading-5 text-muted-foreground"><Vertraulich /><span className="mt-1 block">{t('brief.neverInAd')}</span></p>
   </nav>;

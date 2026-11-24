@@ -14,7 +14,7 @@ export type JetztRow =
   | { kind: 'bundle'; key: string; prio: number; fee: number; critical: boolean; bundle: StalledBundle; more: StalledBundle[] };
 
 /** Wie Julia die Aufgabe erledigt: Blöcke auf der Seite „Aufgaben“ (Variante A, 28.10.2026). */
-export type Handgriff = 'anruf' | 'kunde' | 'vorbereiten' | 'kurz';
+export type Handgriff = 'anruf' | 'kunde' | 'vorbereiten' | 'kontakt' | 'kurz';
 
 const DAY_MS = 86_400_000;
 const CALLS = new Set([
@@ -112,6 +112,7 @@ export function handgriffOf(r: JetztRow): Handgriff {
   if (r.kind === 'bundle') return 'kunde';
   const it = r.group.primary;
   if (it.prep) return 'vorbereiten';
+  if (it.pool) return 'kontakt';
   if (CLIENT_MAILS.has(it.taskCategory)) return 'kunde';
   if (CALLS.has(it.taskCategory)) return 'anruf';
   return 'kurz';

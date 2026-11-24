@@ -164,6 +164,10 @@ const sv: Messages<typeof de> = {
     desc_one: 'Osäker sedan {{count}} dag, kandidaten väntar.',
     desc_other: 'Osäker sedan {{count}} dagar, kandidaten väntar.',
   },
+  pool: {
+    title: 'Hör av dig till {{name}}',
+    action: 'Hör av dig kort och anteckna vad som har hänt.',
+  },
   optIn: {
     title: 'Hämta in opt-in — kunden väntar',
     descHours: '{{name}} har inte svarat på intervjuinbjudan på {{hours}} tim.',

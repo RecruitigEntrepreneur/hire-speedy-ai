@@ -5,7 +5,6 @@ import i18n from '@/i18n';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CreateTaskDialog } from '@/components/influence/CreateTaskDialog';
 import { useMinutenTakt, useUnifiedTaskInbox, type UnifiedTaskItem } from '@/hooks/useUnifiedTaskInbox';
 import { useRecruiterInterviewAgenda, type RecruiterInterview } from '@/hooks/useRecruiterInterviewAgenda';
@@ -14,15 +13,16 @@ import { dayMonth, dayMonthBare, dfLocale } from '@/components/recruiter/tasks/s
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
-import { DAY_MS, buildGuide, dateShort, daysSince, euro, firstName, groupByPerson, useTaskHost, viewLabel, type Guide, type PersonGroup } from '@/components/recruiter/tasks/taskWindow';
+import { DAY_MS, buildGuide, dateShort, daysSince, euro, firstName, groupByPerson, useTaskHost, viewLabel } from '@/components/recruiter/tasks/taskWindow';
 import { KundePrueftWindow } from '@/components/recruiter/tasks/KundePrueftWindow';
 import { bundleByJob, type StalledBundle } from '@/lib/kundePrueft';
-import { handgriffOf, rowItem, rowItems, splitJetzt, type Handgriff, type JetztRow } from '@/components/recruiter/tasks/jetztRows';
+import { handgriffOf, rowItem, splitJetzt, type Handgriff, type JetztRow } from '@/components/recruiter/tasks/jetztRows';
 import { format, isToday, isTomorrow } from 'date-fns';
-import { Bell, Check, CheckSquare, ChevronDown, ChevronRight, Lock, Mail, NotebookPen, Phone, Plus, Video } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Bell, Check, ChevronDown, ChevronLeft, ChevronRight, Phone, Plus, Video } from 'lucide-react';
 import { Honorar } from '@/components/recruiter/Honorar';
 import { useVerdecke } from '@/lib/honorarVerdeckt';
-import { istGleichDran, VORBEREITEN_TON } from '@/lib/kandidatVorbereiten';
+import { istGleichDran } from '@/lib/kandidatVorbereiten';
 
 // ---------------------------------------------------------------------------
 // „Heute“: eine Seite, eine Spalte. Jede Zeile ist ein Deal, der einen Handgriff
@@ -47,6 +47,11 @@ export default function RecruiterHeute() {
   const pipeline = useRecruiterPipeline();
   const [stageFilter, setStageFilter] = useState<PipelineStageKey | null>(null);
 
+  // Wie beim Kunden (23.11.2026): oben eine Aufgabe zum Blättern, darunter Reiter nach Handgriff
+  const [tab, setTab] = useState<'all' | Handgriff>('all');
+  const [nextIdx, setNextIdx] = useState(0);
+  const [termineOpen, setTermineOpen] = useState(true);
+  const [waitOpen, setWaitOpen] = useState(false);
   const [staleOpen, setStaleOpen] = useState(false);
   const [doneOpen, setDoneOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
@@ -70,7 +75,7 @@ export default function RecruiterHeute() {
   // Der Takt läuft, solange heute ein Termin ansteht: 30 Minuten vorher rückt er nach oben
   const takt = useMinutenTakt(allItems.some(i => i.prep?.art === 'termin'));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const { jetzt, groups, bundles, rows } = useMemo(() => splitJetzt(allItems), [allItems, takt]);
+  const { groups, bundles, rows } = useMemo(() => splitJetzt(allItems), [allItems, takt]);
   // Vor der Einreichung, gerade erst angelegt: noch kein Handgriff, aber diese Woche dran
   const soonGroups = useMemo(() => groupByPerson(soonItems), [soonItems]);
   const stale = useMemo(() => allItems.filter(i => i.isStale), [allItems]);
@@ -97,13 +102,6 @@ export default function RecruiterHeute() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, pipeline]);
   const filteredRows = useMemo(() => (stageFilter ? rows.filter(r => stageOfItem(rowItem(r)) === stageFilter) : rows), [rows, stageFilter, pipeline]);
-  const STAGE_ORDER: PipelineStageKey[] = ['submitted', 'in_review', 'interview_1', 'interview_2', 'offer', 'placed'];
-  /** Weiteste Phase einer Zeile (bei Stellen-Zeilen über alle Kandidaten) */
-  const furthestStage = (r: JetztRow): PipelineStageKey | null => rowItems(r).map(stageOfItem)
-    .filter((x): x is PipelineStageKey => !!x)
-    .sort((a, b) => STAGE_ORDER.indexOf(b) - STAGE_ORDER.indexOf(a))[0] ?? null;
-  const totalTasks = rows.reduce((n, r) => n + rowItems(r).length, 0);
-  const restTasks = filteredRows.slice(1).reduce((n, r) => n + rowItems(r).length, 0);
   const doneToday = useMemo(
     () => completedItems.filter(i => i.completedAt && isToday(new Date(i.completedAt))),
     [completedItems],
@@ -112,11 +110,7 @@ export default function RecruiterHeute() {
     () => (agenda?.all ?? []).filter(iv => iv.scheduledAt && iv.endsAt && iv.endsAt > now && iv.status !== 'cancelled').sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime()),
     [agenda, now],
   );
-  const todayInterviews = upcoming.filter(iv => isToday(new Date(iv.scheduledAt!)));
   const weekInterviews = upcoming.filter(iv => new Date(iv.scheduledAt!).getTime() < now + 7 * DAY_MS);
-  const moneyInPlay = jetzt.reduce((n, i) => n + (i.feeValue ?? 0), 0);
-  const calls = groups.filter(g => buildGuide(g.primary).primary.kind === 'call' || buildGuide(g.primary).primary.kind === 'followup').length;
-  const totalToday = rows.length + doneToday.length;
 
   // Deeplink vom Dashboard: ?item=<id> klappt die Zeile auf
   const deepLink = searchParams.get('item');
@@ -133,296 +127,286 @@ export default function RecruiterHeute() {
   // ─── Render ────────────────────────────────────────────────────────────
 
   const verdecke = useVerdecke();
-  const dealCount = pipeline ? pipeline.stages.reduce((n, st) => n + st.count, 0) : 0;
+  const runningCount = pipeline ? pipeline.stages.reduce((n, st) => n + st.count, 0) : 0;
   const headline = loading
     ? tr('heute.oneMoment')
     : rows.length === 0
       ? tr('heute.headlineIdle', { running: upcoming.length + waitingItems.length + parkedItems.length, stale: stale.length })
-      : `${pipeline && pipeline.totalFee > 0 ? tr('heute.dealsFee', { count: dealCount, fee: euro(pipeline.totalFee) }) : tr('heute.deals', { count: dealCount })} ${tr('heute.headlineNext', { tasks: tr('heute.tasksCount', { count: totalTasks }), moves: tr('heute.movesIn', { count: rows.length }), name: rowName(rows[0]) })}`;
+      : [
+          tr('heute.summary', { count: rows.length }),
+          runningCount > 0 ? tr('heute.running', { count: runningCount }) : null,
+          pipeline && pipeline.totalFee > 0 ? tr('heute.possible', { fee: euro(pipeline.totalFee) }) : null,
+        ].filter(Boolean).join(' · ');
+
+  // Oben steht genau eine Aufgabe; „Später“ und die Pfeile blättern nur, sie verschieben nichts.
+  const idx = filteredRows.length ? Math.min(nextIdx, filteredRows.length - 1) : 0;
+  const nextRow = filteredRows[idx] ?? null;
+  const restRows = filteredRows.filter((_, i) => i !== idx);
+  const reiter = BLOCKS.map(b => ({ key: b, count: restRows.filter(r => handgriffOf(r) === b).length })).filter(x => x.count > 0);
+  const aktiv = tab !== 'all' && reiter.some(x => x.key === tab) ? tab : 'all';
+  const sichtbar = aktiv === 'all' ? restRows : restRows.filter(r => handgriffOf(r) === aktiv);
+  const stages = pipeline?.stages ?? (Object.keys(PIPELINE_LABELS) as PipelineStageKey[]).map(key => ({ key, label: PIPELINE_LABELS[key], count: 0, fee: 0, deadline: null as string | null }));
+  const waitCount = waitingBundles.length + parkedItems.length;
+
+  const rowCard = (r: JetztRow, quiet = false) => {
+    const item = rowItem(r);
+    const guide = buildGuide(item);
+    if (r.kind === 'bundle') {
+      const feedback = r.bundle.kind === 'feedback';
+      const all = [r.bundle, ...r.more];
+      const fee = euro(all.reduce((x, b) => x + b.feeTotal, 0));
+      const days = Math.max(...all.map(b => b.days));
+      return (
+        <TaskCard
+          key={r.key}
+          title={r.more.length && r.bundle.companyName ? r.bundle.companyName : r.bundle.jobTitle ?? tr('fallback.job')}
+          sub={[feedback ? tr('guide.feedbackDue.pill') : tr('guide.reviewStalled.pill'), r.more.length ? tr('heute.jobs', { count: all.length }) : r.bundle.companyName].filter(Boolean).join(' · ')}
+          text={<>{bundleLine(r.bundle, r.more)}{!feedback && !r.more.length && <> <ViewState bundle={r.bundle} />.</>}</>}
+          left={<>{tr('heute.sinceDays', { count: days })}{fee && <> · <Honorar>{fee}</Honorar></>}</>}
+          action={feedback ? tr('guide.askClient') : tr('guide.remindClient')}
+          onOpen={() => openRow(r)}
+          onAction={() => openRow(r)}
+        />
+      );
+    }
+    const fee = euro(item.feeValue);
+    const offen = quiet ? () => task.openPrep(item) : () => openRow(r);
+    return (
+      <TaskCard
+        key={r.key}
+        title={r.group.name}
+        sub={[guide.pill, item.jobTitle, item.candidateRole, item.companyName].filter(Boolean).join(' · ')}
+        text={guide.advice}
+        left={<>{sinceText(item.createdAt)}{fee && <> · <Honorar>{fee}</Honorar></>}{r.group.others.length > 0 && <> · +{tr('heute.tasksCount', { count: r.group.others.length })}</>}</>}
+        action={quiet || DIRECT_KINDS.has(guide.primary.kind) ? tr('heute.openTask') : guide.primary.label}
+        onOpen={offen}
+        onAction={quiet ? offen : DIRECT_KINDS.has(guide.primary.kind) ? offen : () => task.act(item, guide)}
+      />
+    );
+  };
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <div className="max-w-5xl space-y-5">
         {/* Kopf */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-              <CheckSquare className="h-6 w-6 text-primary" />
-              {tr('heute.title')}
-            </h1>
-            <p className="mt-0.5 text-sm text-muted-foreground">{verdecke(headline)}</p>
+            <h1 className="text-2xl font-semibold tracking-tight">{tr('heute.title')}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">{verdecke(headline)}</p>
           </div>
-          <Button variant="outline" size="sm" className="gap-1" onClick={() => setCreateOpen(true)}>
-            <Plus className="h-3.5 w-3.5" /> {tr('heute.ownReminder')}
+          <Button variant="secondary" size="sm" className="gap-1.5 rounded-full px-4" onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4" /> {tr('heute.ownReminder')}
           </Button>
         </div>
 
-        {/* Pipeline */}
-        <div>
-          <div className="grid grid-cols-3 gap-2 md:grid-cols-6">
-            {(pipeline?.stages ?? (Object.keys(PIPELINE_LABELS) as PipelineStageKey[]).map(key => ({ key, label: PIPELINE_LABELS[key], count: 0, fee: 0, deadline: null }))).map(st => {
-              const needs = needsByStage[st.key] ?? 0;
-              const active = stageFilter === st.key;
-              const deadlineSoon = st.deadline ? new Date(st.deadline).getTime() - Date.now() < 7 * DAY_MS : false;
-              return (
-                <button
-                  key={st.key}
-                  type="button"
-                  onClick={() => setStageFilter(active ? null : st.key)}
-                  className={cn(
-                    'relative rounded-lg border bg-card p-3 text-left shadow-sm transition-colors hover:bg-accent/40',
-                    active ? 'border-foreground' : 'border-border/30',
-                  )}
-                >
-                  {(needs > 0 || deadlineSoon) && (
-                    <span className={cn('absolute right-2 top-2 rounded-full px-1.5 text-[10px] font-semibold', deadlineSoon && needs === 0 ? 'bg-amber-500 text-black' : 'bg-foreground text-background')}>
-                      {needs > 0 ? needs : format(new Date(st.deadline!), 'EEE', { locale: dfLocale() })}
-                    </span>
-                  )}
-                  <div className="text-[11px] text-muted-foreground max-md:truncate max-md:pr-4">{tr(`heute.stages.${st.key}`)}</div>
-                  <div className="text-xl font-semibold tabular-nums">{st.count}</div>
-                  <div className="text-[11px] text-muted-foreground tabular-nums">
-                    {st.key === 'placed' && st.deadline ? tr('heute.guaranteeUntil', { date: dateShort(st.deadline) }) : st.fee > 0 ? <Honorar>{euro(st.fee)}</Honorar> : '—'}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-          {pipeline && pipeline.totalFee > 0 && (
-            <div className="mt-2 flex h-1.5 gap-0.5 overflow-hidden rounded-full">
-              {pipeline.stages.map((st, i) => st.fee > 0 && (
-                <div key={st.key} className={['bg-blue-500', 'bg-amber-500', 'bg-purple-500', 'bg-violet-400', 'bg-emerald-500', 'bg-muted-foreground'][i]} style={{ width: `${(st.fee / pipeline.totalFee) * 100}%` }} />
-              ))}
-            </div>
-          )}
-          {pipeline && (
-            <div className="mt-2 flex flex-wrap gap-4 text-[11px] text-muted-foreground">
-              <span>{tr('heute.stats.rejected', { count: pipeline.rejectedThisMonth })}</span>
-              <span>{tr('heute.stats.withdrawn', { count: pipeline.withdrawnThisMonth })}</span>
-              <span>{tr('heute.stats.stale', { count: stale.length })}</span>
-              <span>{tr('heute.stats.doneToday', { count: doneToday.length })}</span>
-              {prepCount > 0 && <span className="font-medium text-foreground">{tr('heute.stats.prep', { count: prepCount })}</span>}
-            </div>
-          )}
-        </div>
-
         {since.length > 0 && (
-          <div className="flex items-start gap-2 rounded-lg border border-border/60 bg-card px-3 py-2 text-xs text-muted-foreground">
+          <div className="flex items-start gap-2 rounded-xl border bg-card px-4 py-2.5 text-xs text-muted-foreground">
             <Bell className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <span><span className="font-medium text-foreground">{tr('heute.sinceYesterday')}</span> {since.map(s => s.title).join(' · ')}</span>
           </div>
         )}
 
-        {/* Jetzt (Variante A, 28.10.2026): oben genau eine Sache, darunter nach Handgriff */}
-        {loading ? (
-          <Card className="border-border/30 shadow-sm"><CardContent className="px-4 py-6 text-sm text-muted-foreground">{tr('nach.loading')}</CardContent></Card>
-        ) : filteredRows.length === 0 ? (
-          <Card className="border-border/30 shadow-sm" data-tour="tasks.list">
-            <CardContent className="px-4 py-6 text-sm text-muted-foreground">
-              {stageFilter ? tr('heute.emptyStage') : tr('heute.empty')}
-              {stageFilter && <button type="button" className="ml-2 text-xs text-muted-foreground underline hover:text-foreground" onClick={() => setStageFilter(null)}>{tr('heute.showAll')}</button>}
-            </CardContent>
-          </Card>
-        ) : (
-          <>
+        {/* Als Nächstes (links) und Deine Pipeline (rechts) */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+          {loading ? (
+            <div className="rounded-xl border bg-card p-5 text-sm text-muted-foreground">{tr('nach.loading')}</div>
+          ) : !nextRow ? (
+            <div className="flex flex-col justify-center rounded-xl border bg-card p-5 text-sm text-muted-foreground" data-tour="tasks.list">
+              <p>{stageFilter ? tr('heute.emptyStage') : tr('heute.empty')}</p>
+              {stageFilter && <button type="button" className="mt-2 self-start text-sm text-klick hover:underline" onClick={() => setStageFilter(null)}>{tr('heute.showAll')} ›</button>}
+            </div>
+          ) : (
+            <NextCard
+              row={nextRow}
+              position={idx + 1}
+              total={filteredRows.length}
+              onOpen={() => openRow(nextRow)}
+              onOpenItem={(id) => task.openItem(id)}
+              onStep={(d) => setNextIdx((idx + d + filteredRows.length) % filteredRows.length)}
+            />
+          )}
+
+          <div className="rounded-xl border bg-card p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-[15px] font-semibold tracking-tight">{tr('heute.pipelineTitle')}</h2>
+              <Link to="/recruiter/submissions" className="text-sm text-klick hover:underline">{tr('heute.pipelineDetails')} ›</Link>
+            </div>
+            <div className="grid grid-cols-3 gap-x-2 gap-y-3">
+              {stages.map(st => {
+                const needs = needsByStage[st.key] ?? 0;
+                const active = stageFilter === st.key;
+                return (
+                  <button
+                    key={st.key}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => { setStageFilter(active ? null : st.key); setNextIdx(0); }}
+                    className={cn('-m-1.5 min-w-0 rounded-lg p-1.5 text-left transition-colors hover:bg-accent/50', active && 'ring-1 ring-foreground')}
+                  >
+                    <p className={cn('text-xl font-semibold tracking-tight tabular-nums', st.count === 0 && 'text-muted-foreground/50')}>{st.count}</p>
+                    <p className="truncate text-xs text-muted-foreground">{tr(`heute.stages.${st.key}`)}</p>
+                    <p className="truncate text-[11px] text-muted-foreground">
+                      {needs > 0 ? tr('heute.tasksCount', { count: needs })
+                        : st.key === 'placed' && st.deadline ? tr('heute.guaranteeUntil', { date: dateShort(st.deadline) })
+                        : st.fee > 0 ? <Honorar>{euro(st.fee)}</Honorar> : ' '}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+            {pipeline && (
+              <p className="mt-3 border-t pt-3 text-xs text-muted-foreground">
+                {[
+                  tr('heute.stats.rejected', { count: pipeline.rejectedThisMonth }),
+                  tr('heute.stats.withdrawn', { count: pipeline.withdrawnThisMonth }),
+                  tr('heute.stats.doneToday', { count: doneToday.length }),
+                  prepCount > 0 ? tr('heute.stats.prep', { count: prepCount }) : null,
+                ].filter(Boolean).join(' · ')}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {/* Reiter nach Handgriff und die übrigen Aufgaben als Karten */}
+        {!loading && nextRow && (
+          <div>
             {stageFilter && (
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
                 <span className="font-medium text-foreground">{tr('heute.filterCount', { stage: tr(`heute.stages.${stageFilter}`), count: filteredRows.length })}</span>
-                <button type="button" className="hover:text-foreground" onClick={() => setStageFilter(null)}>{tr('heute.filterReset')}</button>
+                <button type="button" className="text-klick hover:underline" onClick={() => setStageFilter(null)}>{tr('heute.filterReset')} ›</button>
               </div>
             )}
-            {filteredRows[0] && (
-              <NextCard row={filteredRows[0]} stage={furthestStage(filteredRows[0])}
-                onOpen={() => openRow(filteredRows[0])} onOpenItem={(id) => task.openItem(id)} />
+            {restRows.length > 0 && (
+              <>
+                <div role="tablist" className="mb-3 flex gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {[{ key: 'all' as const, label: tr('heute.tabAll'), count: restRows.length }, ...reiter.map(x => ({ key: x.key, label: tr(`heute.blocks.${x.key}.label`), count: x.count }))].map(x => (
+                    <button
+                      key={x.key}
+                      type="button"
+                      role="tab"
+                      aria-selected={aktiv === x.key}
+                      onClick={() => setTab(x.key)}
+                      className={cn('h-8 shrink-0 whitespace-nowrap rounded-full px-3.5 text-xs font-medium transition-colors', aktiv === x.key ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground')}
+                    >
+                      {x.label} {x.count}
+                    </button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">{sichtbar.map(r => rowCard(r))}</div>
+              </>
             )}
-            {filteredRows.length > 1 && (
-              <Card className="border-border/30 shadow-sm" data-tour="tasks.list">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-border/40 px-4 py-3">
-                  <CardTitle className="text-sm">{tr('heute.afterwards')}</CardTitle>
-                  <span className="text-xs text-muted-foreground">
-                    {tr('heute.tasksCount', { count: restTasks })} · {tr('heute.movesCount', { count: filteredRows.length - 1 })}
-                  </span>
-                </CardHeader>
-                <CardContent className="p-0">
-                  {BLOCKS.map(b => {
-                    const list = filteredRows.slice(1).filter(r => handgriffOf(r) === b);
-                    if (!list.length) return null;
-                    const oneClient = b === 'kunde' && list.length === 1 && list[0].kind === 'bundle' && list[0].bundle.companyName;
-                    return (
-                      <div key={b}>
-                        <div className="flex items-center justify-between border-b border-border/40 bg-muted/40 px-4 py-1.5 text-[11px] font-medium text-muted-foreground">
-                          <span>{oneClient && list[0].kind === 'bundle' ? tr('heute.oneMailTo', { company: list[0].bundle.companyName }) : `${tr(`heute.blocks.${b}.label`)} · ${list.length}`}</span>
-                          <span className="font-normal">{b === 'kurz' ? '' : tr(`heute.blocks.${b}.hint`)}</span>
-                        </div>
-                        <div className="divide-y divide-border/40">
-                          {list.map(r => r.kind === 'person' ? (
-                            <PersonRow key={r.key} row={r} group={r.group} stage={stageOfItem(r.group.primary)} onOpen={() => openRow(r)} onAct={task.act} />
-                          ) : (
-                            <BundleRow key={r.key} row={r} bundle={r.bundle} more={r.more} stage={furthestStage(r)} sameClientCount={r.more.length ? 0 : sameClient(r.bundle).length} onOpen={() => openRow(r)} />
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </CardContent>
-              </Card>
-            )}
-          </>
+          </div>
         )}
 
         {/* Diese Woche (01.11.2026): gerade angelegt, noch kein Gespräch */}
         {!loading && !stageFilter && soonGroups.length > 0 && (
-          <Card className="border-border/30 shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-border/40 px-4 py-3">
-              <CardTitle className="text-sm">{tr('heute.thisWeek', { count: soonGroups.length })}</CardTitle>
+          <div>
+            <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-[15px] font-semibold tracking-tight">{tr('heute.thisWeek', { count: soonGroups.length })}</h2>
               <span className="text-xs text-muted-foreground">{tr('heute.thisWeekHint')}</span>
-            </CardHeader>
-            <CardContent className="divide-y divide-border/40 p-0">
-              {soonGroups.map(g => (
-                <PersonRow
-                  key={g.key}
-                  row={{ kind: 'person', key: g.key, prio: g.primary.sortPriority, fee: 0, critical: false, group: g }}
-                  group={g}
-                  stage={null}
-                  quiet
-                  onOpen={() => task.openPrep(g.primary)}
-                  onAct={item => task.openPrep(item)}
-                />
+            </div>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              {soonGroups.map(g => rowCard({ kind: 'person', key: g.key, prio: g.primary.sortPriority, fee: 0, critical: false, group: g }, true))}
+            </div>
+          </div>
+        )}
+
+        {/* Klappzeilen wie beim Kunden */}
+        <div className="space-y-2">
+          <FoldCard label={tr('heute.appointments')} count={weekInterviews.length} open={termineOpen} onToggle={() => setTermineOpen(o => !o)}>
+            {weekInterviews.length === 0 ? (
+              <p className="px-4 py-3 text-sm text-muted-foreground">{tr('heute.noAppointments')}</p>
+            ) : weekInterviews.slice(0, 5).map(iv => (
+              <div key={iv.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+                <Video className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span className="shrink-0 text-muted-foreground tabular-nums">{relativeTime(iv.scheduledAt!)}</span>
+                <span className="min-w-0 flex-1 truncate">{iv.candidateName} · {iv.jobTitle}</span>
+                {iv.joinUrl ? (
+                  <a href={iv.joinUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 text-xs font-medium text-klick hover:underline">{tr('pw.join')} ›</a>
+                ) : (
+                  <button type="button" className="shrink-0 text-xs font-medium text-klick hover:underline" onClick={() => navigate(`/recruiter/interviews?interview=${iv.id}`)}>{tr('guide.open')} ›</button>
+                )}
+              </div>
+            ))}
+            <Link to="/recruiter/interviews" className="block px-4 py-2.5 text-xs text-klick hover:underline">{tr('heute.toInterviews')} ›</Link>
+          </FoldCard>
+
+          <FoldCard label={tr('heute.waiting')} count={waitCount} open={waitOpen} onToggle={() => setWaitOpen(o => !o)}>
+            {waitCount === 0 && <p className="px-4 py-3 text-sm text-muted-foreground">{tr('heute.waitingEmpty')}</p>}
+            {waitingBundles.map(b => {
+              const matchunt = b.items.every(i => i.waitState === 'matchunt');
+              const last = b.items.map(i => i.lastNudgeAt ?? '').sort().pop() || null;
+              const next = b.items.map(i => i.nextNudgeAt ?? '').filter(Boolean).sort()[0] || null;
+              const zweite = b.items.some(i => (i.nudgeCount ?? 0) >= 2);
+              return (
+                <div key={`w-${b.key}`} className="px-4 py-2.5 text-sm">
+                  <div className="flex items-center gap-3">
+                    <Badge variant="secondary" className="h-4 shrink-0 px-1.5 text-[10px]">{matchunt ? 'Matchunt' : b.kind === 'feedback' ? tr('guide.feedbackDue.pill') : tr('fallback.client')}</Badge>
+                    <span className="min-w-0 flex-1 truncate">{b.items.map(i => i.candidateName).join(', ')} · {b.jobTitle}</span>
+                  </div>
+                  <div className="mt-0.5 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                    <span>
+                      {matchunt
+                        ? tr('heute.wait.matchunt', { date: next ? dayMonthBare(next) : '' })
+                        : tr(`heute.wait.${b.kind === 'feedback' ? 'asked' : 'reminded'}Then${zweite ? 'Matchunt' : 'Second'}`, { last: dateShort(last), next: dateShort(next) })}
+                    </span>
+                    {!matchunt && last && (
+                      <button type="button" className="font-medium text-klick hover:underline" onClick={() => setOpenState({ bundle: b, sameClient: [], startSent: { at: last } })}>
+                        {tr('heute.tellCandidates')} ›
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            {/* Vertrag bis Tag 10, pausierte Stelle: nichts zu tun, mit Datum (28.10.2026) */}
+            {parkedItems.map(i => (
+              <div key={i.itemId} className="px-4 py-2.5 text-sm">
+                <div className="flex items-center gap-3">
+                  <Badge variant="secondary" className="h-4 shrink-0 px-1.5 text-[10px]">{i.parkKind === 'contract' ? tr('guide.contract.pill') : i.parkKind === 'counter' ? tr('guide.counter.pill') : tr('heute.paused')}</Badge>
+                  <span className="min-w-0 flex-1 truncate">{i.candidateName}{i.jobTitle ? ` · ${i.jobTitle}` : ''}</span>
+                </div>
+                <div className="mt-0.5 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <span>{i.parkNote}</span>
+                  <button
+                    type="button"
+                    className="font-medium text-klick hover:underline"
+                    onClick={() => {
+                      if (i.parkKind === 'contract' && i.submissionId) task.openContract(i.submissionId);
+                      else if (i.candidateId) navigate(`/recruiter/candidates/${i.candidateId}`);
+                    }}
+                  >
+                    {tr('guide.open')} ›
+                  </button>
+                </div>
+              </div>
+            ))}
+          </FoldCard>
+
+          {stale.length > 0 && (
+            <FoldCard label={tr('heute.staleTitle')} count={stale.length} open={staleOpen} onToggle={() => setStaleOpen(o => !o)}>
+              {stale.map(i => (
+                <div key={i.itemId} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5 text-sm text-muted-foreground">
+                  <span className="min-w-0 flex-1 truncate"><span className="text-foreground">{i.candidateName || i.title}</span> · {i.jobTitle ?? i.candidateRole} · {tr('heute.days', { count: daysSince(i.createdAt) })}</span>
+                  <button type="button" className="shrink-0 text-xs font-medium text-klick hover:underline" onClick={() => { if (i.prep) task.openPrep(i); else task.openDetail(i); }}>{tr('guide.open')} ›</button>
+                  <button type="button" className="shrink-0 text-xs text-muted-foreground hover:text-foreground hover:underline" onClick={() => task.later(i, new Date(Date.now() + 14 * DAY_MS))}>{tr('heute.rest14')}</button>
+                </div>
               ))}
-            </CardContent>
-          </Card>
-        )}
+            </FoldCard>
+          )}
 
-        {/* Termine + Wartet. grid-cols-1: sonst macht eine lange Zeile die Spalte am Handy 700 px breit */}
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Card className="border-border/30 shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-border/40 px-4 py-3">
-              <CardTitle className="text-sm">{tr('heute.appointments')}</CardTitle>
-              <button type="button" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => navigate('/recruiter/interviews')}>{tr('heute.toInterviews')}</button>
-            </CardHeader>
-            <CardContent className="p-0">
-              {weekInterviews.length === 0 ? (
-                <p className="px-4 py-4 text-sm text-muted-foreground">{tr('heute.noAppointments')}</p>
-              ) : (
-                <div className="divide-y divide-border/40">
-                  {weekInterviews.slice(0, 5).map(iv => (
-                    <div key={iv.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-                      <Video className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      <span className="shrink-0 text-muted-foreground tabular-nums">{relativeTime(iv.scheduledAt!)}</span>
-                      <span className="min-w-0 flex-1 truncate">{iv.candidateName} · {iv.jobTitle}</span>
-                      {iv.joinUrl ? (
-                        <Button size="sm" variant="outline" className="h-7 text-xs" asChild>
-                          <a href={iv.joinUrl} target="_blank" rel="noopener noreferrer">{tr('pw.join')}</a>
-                        </Button>
-                      ) : (
-                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => navigate(`/recruiter/interviews?interview=${iv.id}`)}>{tr('guide.open')}</Button>
-                      )}
-                    </div>
-                  ))}
+          {completedItems.length > 0 && (
+            <FoldCard label={tr('heute.doneTitle')} count={completedItems.length} open={doneOpen} onToggle={() => setDoneOpen(o => !o)}>
+              {completedItems.map(i => (
+                <div key={`${i.itemType}-${i.itemId}`} className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground">
+                  <Check className="h-3.5 w-3.5 shrink-0" />
+                  <span className="w-24 shrink-0 tabular-nums">{i.completedAt ? `${dayMonth(i.completedAt)} ${format(new Date(i.completedAt), 'HH:mm')}` : ''}</span>
+                  <span className="truncate"><span className="text-foreground">{i.title}</span>{i.candidateName ? ` · ${i.candidateName}` : ''}{i.jobTitle ? ` · ${i.jobTitle}` : ''}</span>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/30 shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b border-border/40 px-4 py-3">
-              <CardTitle className="text-sm">{tr('heute.waiting')}</CardTitle>
-              <span className="text-xs text-muted-foreground">{tr('heute.waitingHint')}</span>
-            </CardHeader>
-            <CardContent className="p-0">
-              {upcoming.length + waitingBundles.length + parkedItems.length === 0 ? (
-                <p className="px-4 py-4 text-sm text-muted-foreground">{tr('heute.waitingEmpty')}</p>
-              ) : (
-                <div className="divide-y divide-border/40">
-                  {waitingBundles.map(b => {
-                    const matchunt = b.items.every(i => i.waitState === 'matchunt');
-                    const last = b.items.map(i => i.lastNudgeAt ?? '').sort().pop() || null;
-                    const next = b.items.map(i => i.nextNudgeAt ?? '').filter(Boolean).sort()[0] || null;
-                    const zweite = b.items.some(i => (i.nudgeCount ?? 0) >= 2);
-                    return (
-                      <div key={`w-${b.key}`} className="px-4 py-2.5 text-sm">
-                        <div className="flex items-center gap-3">
-                          <Badge variant="secondary" className="h-4 shrink-0 px-1.5 text-[10px]">{matchunt ? 'Matchunt' : b.kind === 'feedback' ? tr('guide.feedbackDue.pill') : tr('fallback.client')}</Badge>
-                          <span className="min-w-0 flex-1 truncate">{b.items.map(i => i.candidateName).join(', ')} · {b.jobTitle}</span>
-                        </div>
-                        <div className="mt-0.5 flex flex-wrap items-center justify-between gap-2 pl-[3.25rem] text-xs text-muted-foreground">
-                          <span>
-                            {matchunt
-                              ? tr('heute.wait.matchunt', { date: next ? dayMonthBare(next) : '' })
-                              : tr(`heute.wait.${b.kind === 'feedback' ? 'asked' : 'reminded'}Then${zweite ? 'Matchunt' : 'Second'}`, { last: dateShort(last), next: dateShort(next) })}
-                          </span>
-                          {!matchunt && last && (
-                            <button type="button" className="text-primary hover:underline" onClick={() => setOpenState({ bundle: b, sameClient: [], startSent: { at: last } })}>
-                              {tr('heute.tellCandidates')}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {/* Vertrag bis Tag 10, pausierte Stelle: nichts zu tun, mit Datum (28.10.2026) */}
-                  {parkedItems.map(i => (
-                    <div key={i.itemId} className="px-4 py-2.5 text-sm">
-                      <div className="flex items-center gap-3">
-                        <Badge variant="secondary" className="h-4 shrink-0 px-1.5 text-[10px]">{i.parkKind === 'contract' ? tr('guide.contract.pill') : i.parkKind === 'counter' ? tr('guide.counter.pill') : tr('heute.paused')}</Badge>
-                        <span className="min-w-0 flex-1 truncate">{i.candidateName}{i.jobTitle ? ` · ${i.jobTitle}` : ''}</span>
-                      </div>
-                      <div className="mt-0.5 flex flex-wrap items-center justify-between gap-2 pl-[3.25rem] text-xs text-muted-foreground">
-                        <span>{i.parkNote}</span>
-                        <button
-                          type="button"
-                          className="text-primary hover:underline"
-                          onClick={() => {
-                            if (i.parkKind === 'contract' && i.submissionId) task.openContract(i.submissionId);
-                            else if (i.candidateId) navigate(`/recruiter/candidates/${i.candidateId}`);
-                          }}
-                        >
-                          {tr('guide.open')}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  {upcoming.slice(0, 5).map(iv => (
-                    <div key={iv.id} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-                      <Badge variant="secondary" className="h-4 shrink-0 px-1.5 text-[10px]">{tr('prep.termin.pill')}</Badge>
-                      <span className="min-w-0 flex-1 truncate">{iv.candidateName} · {iv.jobTitle}</span>
-                      <span className="shrink-0 text-xs text-muted-foreground">{relativeTime(iv.scheduledAt!)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+              ))}
+            </FoldCard>
+          )}
         </div>
-
-        {/* Ohne Bewegung */}
-        {stale.length > 0 && (
-          <FoldCard label={tr('heute.staleTitle')} count={stale.length} open={staleOpen} onToggle={() => setStaleOpen(o => !o)}>
-            {stale.map(i => (
-              <div key={i.itemId} className="flex items-center gap-3 px-4 py-2.5 text-sm text-muted-foreground">
-                <span className="min-w-0 flex-1 truncate"><span className="text-foreground">{i.candidateName || i.title}</span> · {i.jobTitle ?? i.candidateRole} · {tr('heute.days', { count: daysSince(i.createdAt) })}</span>
-                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { if (i.prep) task.openPrep(i); else task.openDetail(i); }}>{tr('guide.open')}</Button>
-                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => task.later(i, new Date(Date.now() + 14 * DAY_MS))}>{tr('heute.rest14')}</Button>
-              </div>
-            ))}
-            <p className="px-4 py-2 text-xs text-muted-foreground">{tr('heute.withdrawLater')}</p>
-          </FoldCard>
-        )}
-
-        {/* Erledigt */}
-        {completedItems.length > 0 && (
-          <FoldCard label={tr('heute.doneTitle')} count={completedItems.length} open={doneOpen} onToggle={() => setDoneOpen(o => !o)}>
-            {completedItems.map(i => (
-              <div key={`${i.itemType}-${i.itemId}`} className="flex items-center gap-2 px-4 py-2 text-sm text-muted-foreground">
-                <Check className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
-                <span className="w-24 shrink-0 tabular-nums">{i.completedAt ? `${dayMonth(i.completedAt)} ${format(new Date(i.completedAt), 'HH:mm')}` : ''}</span>
-                <span className="truncate"><span className="text-foreground">{i.title}</span>{i.candidateName ? ` · ${i.candidateName}` : ''}{i.jobTitle ? ` · ${i.jobTitle}` : ''}</span>
-              </div>
-            ))}
-          </FoldCard>
-        )}
-
-        <p className="text-xs text-muted-foreground">{tr('heute.nothingElse')}</p>
       </div>
 
       <CreateTaskDialog open={createOpen} onOpenChange={o => { setCreateOpen(o); if (!o) refetch(); }} />
@@ -443,72 +427,76 @@ function relativeTime(iso: string) {
   return `${format(d, 'EEE', { locale: dfLocale() })} ${dayMonth(d)} ${format(d, 'HH:mm')}`;
 }
 
+const sinceText = (iso: string) => {
+  const n = daysSince(iso);
+  return n <= 0 ? tr('heute.sinceToday') : tr('heute.sinceDays', { count: n });
+};
+
+/** Klappzeile wie auf der Aufgaben-Seite des Kunden. */
 function FoldCard({ label, count, open, onToggle, children }: { label: string; count: number; open: boolean; onToggle: () => void; children: React.ReactNode }) {
   return (
-    <Card className="border-border/30 shadow-sm">
-      <button type="button" className="flex w-full items-center justify-between px-4 py-3 text-left text-sm hover:bg-accent/40" onClick={onToggle}>
-        <span className="text-muted-foreground">{label} · {count}</span>
+    <div className="overflow-hidden rounded-xl border bg-card">
+      <button type="button" aria-expanded={open} className="flex w-full items-center justify-between px-4 py-3 text-left text-sm hover:bg-accent/40" onClick={onToggle}>
+        <span>{label} <span className="text-muted-foreground">· {count}</span></span>
         <ChevronDown className={cn('h-4 w-4 text-muted-foreground transition-transform', open && 'rotate-180')} />
       </button>
-      {open && <div className="divide-y divide-border/40 border-t border-border/40">{children}</div>}
-    </Card>
+      {open && <div className="divide-y border-t">{children}</div>}
+    </div>
   );
 }
 
-/** Eine Zeile „Kunde prüft“ für eine Stelle: alle wartenden Kandidaten, ein Knopf. */
 /** Diese Knöpfe würden sofort wählen bzw. abhaken – in der Liste öffnen sie stattdessen das Fenster. */
 const DIRECT_KINDS = new Set(['call', 'followup', 'done']);
 
-// Überschrift und Hinweis: heute.blocks.<key>.label / .hint („kurz“ hat keinen Hinweis)
-const BLOCKS: Handgriff[] = ['anruf', 'kunde', 'vorbereiten', 'kurz'];
+// Reiter: heute.blocks.<key>.label
+const BLOCKS: Handgriff[] = ['anruf', 'kunde', 'vorbereiten', 'kontakt', 'kurz'];
 
 const rowName = (r: JetztRow) => (r.kind === 'person'
   ? r.group.primary.prep && istGleichDran(r.group.primary.prep) ? tr('heute.talkWith', { first: firstName(r.group.primary.candidateName) })
     : (r.group.primary.candidateName ? firstName(r.group.primary.candidateName) : r.group.primary.title)
   : (r.more.length && r.bundle.companyName ? r.bundle.companyName : r.bundle.jobTitle ?? tr('fallback.job')));
 
-/** Linke Spalte (Vorschlag 6, 28.10.2026): Phase der Einreichung als vier Striche, darunter das Wort. */
-const PHASES = ['submitted', 'interview', 'offer', 'contract'] as const;
-const phaseIndex = (stage: PipelineStageKey | null) =>
-  stage === 'placed' ? 3 : stage === 'offer' ? 2 : stage === 'interview_1' || stage === 'interview_2' ? 1 : stage ? 0 : null;
-/** Mindest-Phase aus der Aufgabe selbst (die Pipeline-Stufe hinkt manchmal hinterher) */
-const impliedPhase = (cat: string) =>
-  cat.startsWith('contract_') ? 3 : cat.startsWith('offer_') ? 2
-    : ['interview_debrief_due', 'client_feedback_due', 'recommendation_due', 'client_unsure', 'client_undecided', 'opt_in_pending', 'opt_in_pending_24h', 'opt_in_pending_48h'].includes(cat) ? 1 : 0;
-/** „In Prüfung“ (29.10.2026): hat das Kundenteam die Profile geöffnet? */
+/** „In Prüfung“ (29.10.2026): hat das Kundenteam die Profile geöffnet? Ruhig, ohne Ampelfarben. */
 function ViewState({ bundle }: { bundle: StalledBundle }) {
   const items = bundle.items;
-  if (items.length === 1) {
-    const it = items[0];
-    return <span className={it.clientViewCount ? 'text-emerald-600' : 'text-amber-600'}>{viewLabel(it.clientViewCount, it.clientLastViewedAt)}</span>;
-  }
+  if (items.length === 1) return <span>{viewLabel(items[0].clientViewCount, items[0].clientLastViewedAt)}</span>;
   const seen = items.filter(i => (i.clientViewCount ?? 0) > 0).length;
-  return <span className={seen ? 'text-emerald-600' : 'text-amber-600'}>{seen === 0 ? tr('heute.noneOpened') : tr('heute.seenOf', { seen, total: items.length })}</span>;
+  return <span>{seen === 0 ? tr('heute.noneOpened') : tr('heute.seenOf', { seen, total: items.length })}</span>;
 }
 
-function PhaseCell({ stage, items }: { stage: PipelineStageKey | null; items: UnifiedTaskItem[] }) {
-  const fromStage = phaseIndex(stage);
-  const vorher = items.length > 0 && items.every(i => i.prep);
-  const idx = vorher ? -1 : Math.max(fromStage ?? -1, ...items.map(i => impliedPhase(i.taskCategory)));
-  const label = vorher ? tr('heute.phases.before') : idx < 0 ? '–' : stage === 'placed' && idx === 3 ? tr('heute.stages.placed') : stage === 'in_review' && idx === 0 ? tr('heute.stages.in_review') : tr(`heute.phases.${PHASES[idx]}`);
+/** Eine Aufgabe als Karte: oben wer oder was, unten seit wann und die eine Handlung in Blau. */
+function TaskCard({ title, sub, text, left, action, onOpen, onAction }: {
+  title: string;
+  sub?: string;
+  text?: React.ReactNode;
+  left: React.ReactNode;
+  action: string;
+  onOpen: () => void;
+  onAction: () => void;
+}) {
   return (
-    <div className="flex shrink-0 flex-row items-center gap-1.5 sm:w-[5.5rem] sm:flex-col sm:gap-1" title={idx < 0 ? undefined : tr('heute.phaseTitle', { label })}>
-      <div className="flex gap-0.5" aria-hidden="true">
-        {PHASES.map((_, i) => (
-          <span key={i} className={cn('h-3.5 w-1.5 rounded-sm', i <= idx ? 'bg-emerald-500' : 'bg-muted-foreground/25')} />
-        ))}
+    <div className="flex flex-col rounded-xl border bg-card p-4 transition-colors hover:bg-accent/30">
+      <button type="button" className="min-w-0 flex-1 text-left" onClick={onOpen}>
+        <p className="truncate text-sm font-medium">{title}</p>
+        {sub && <p className="truncate text-xs text-muted-foreground">{sub}</p>}
+        {text && <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">{text}</p>}
+      </button>
+      <div className="mt-3 flex items-center justify-between gap-3 text-xs">
+        <span className="min-w-0 truncate text-muted-foreground tabular-nums">{left}</span>
+        <button type="button" className="shrink-0 whitespace-nowrap font-medium text-klick hover:underline" onClick={onAction}>{action} ›</button>
       </div>
-      <span className="text-[10px] text-muted-foreground">{label}</span>
     </div>
   );
 }
 
 /** Ganz oben: genau eine Sache, mit Grund und allen Aufgaben dieser Person bzw. dieses Kunden. */
-function NextCard({ row, stage, onOpen, onOpenItem }: {
+function NextCard({ row, position, total, onOpen, onOpenItem, onStep }: {
   row: JetztRow;
-  stage: PipelineStageKey | null;
+  position: number;
+  total: number;
   onOpen: () => void;
   onOpenItem: (itemId: string) => boolean;
+  onStep: (delta: 1 | -1) => void;
 }) {
   const navigate = useNavigate();
   const item = rowItem(row);
@@ -517,49 +505,65 @@ function NextCard({ row, stage, onOpen, onOpenItem }: {
   const all = row.kind === 'person' ? [row.group.primary, ...row.group.others] : [];
   const title = row.kind === 'person' ? row.group.name : rowName(row);
   const termin = item.prep?.art === 'termin' ? item.prep.termin : null;
+  const meta = [row.kind === 'person' ? item.jobTitle : null, item.candidateRole, item.companyName].filter(Boolean).join(' · ');
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-destructive/30 bg-destructive/[0.04] px-4 py-3 sm:flex-nowrap">
-      <PhaseCell stage={stage} items={rowItems(row)} />
-      <button type="button" className="order-first min-w-0 flex-1 basis-full text-left sm:order-none sm:basis-auto" onClick={onOpen}>
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-destructive">{tr('heute.next')}</p>
-        <div className="flex flex-wrap items-center gap-x-2">
-          <span className="text-base font-semibold">{title}</span>
-          {item.jobTitle && row.kind === 'person' && <span className="text-sm text-muted-foreground">· {item.jobTitle}</span>}
-          {item.candidateRole && <span className="text-sm text-muted-foreground">· {item.candidateRole}</span>}
-          {item.companyName && <span className="text-sm text-muted-foreground">· {item.companyName}</span>}
-          {fee && <span className="text-sm font-medium text-emerald-500 tabular-nums"><Honorar>{fee}</Honorar></span>}
-        </div>
-        <p className="text-sm text-muted-foreground">
+    <div className="flex flex-col rounded-xl border bg-card p-5" data-tour="tasks.list">
+      <div className="flex items-center justify-between">
+        <h2 className="text-[15px] font-semibold tracking-tight">{tr('heute.next')}</h2>
+        {total > 1 && <span className="text-xs text-muted-foreground tabular-nums">{tr('heute.ofCount', { n: position, total })}</span>}
+      </div>
+      <button type="button" className="mt-3 min-w-0 text-left" onClick={onOpen}>
+        <p className="text-[17px] font-semibold leading-snug tracking-tight">{title}</p>
+        {(meta || fee) && (
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {meta}{meta && fee ? ' · ' : ''}{fee && <Honorar>{fee}</Honorar>}
+          </p>
+        )}
+        <p className="mt-2 text-sm text-muted-foreground">
           {row.kind === 'bundle' ? bundleLine(row.bundle, row.more) : [guide.advice, ...all.slice(1).map(o => buildGuide(o).advice)].join(' ')}
         </p>
       </button>
-      <div className="ml-auto flex shrink-0 flex-col items-end gap-1.5 sm:ml-0">
+      <div className="mt-4 flex flex-wrap items-center gap-2">
         {termin ? (
-          <div className="flex items-center gap-1.5">
+          <>
             {termin.joinUrl ? (
-              <Button size="sm" className="h-8 gap-1 text-xs" asChild><a href={termin.joinUrl} target="_blank" rel="noreferrer"><Video className="h-3.5 w-3.5" />{tr('pw.join')}</a></Button>
+              <Button size="sm" className="gap-1.5 rounded-full px-4" asChild><a href={termin.joinUrl} target="_blank" rel="noreferrer"><Video className="h-4 w-4" />{tr('pw.join')}</a></Button>
             ) : item.candidatePhone ? (
-              <Button size="sm" className="h-8 gap-1 text-xs" asChild><a href={`tel:${item.candidatePhone.replace(/[^\d+]/g, '')}`}><Phone className="h-3.5 w-3.5" />{tr('guide.call')}</a></Button>
+              <Button size="sm" className="gap-1.5 rounded-full px-4" asChild><a href={`tel:${item.candidatePhone.replace(/[^\d+]/g, '')}`}><Phone className="h-4 w-4" />{tr('guide.call')}</a></Button>
             ) : null}
-            <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => navigate(`/recruiter/candidates/${item.candidateId}?interview=live`)}>{tr('pw.openInterview')}</Button>
-          </div>
+            <Button size="sm" variant="secondary" className="rounded-full px-4" onClick={() => navigate(`/recruiter/candidates/${item.candidateId}?interview=live`)}>{tr('pw.openInterview')}</Button>
+          </>
         ) : (
-          <Button size="sm" className="h-8 text-xs" onClick={onOpen}>{tr('heute.openTask')}</Button>
+          <Button size="sm" className="rounded-full px-4" onClick={onOpen}>{tr('heute.openTask')}</Button>
         )}
-        {all.length > 1 && (
-          <div className="flex flex-wrap justify-end gap-1 text-[11px] text-muted-foreground">
-            <span>{tr('heute.tasksColon', { count: all.length })}</span>
-            {all.map((o, k) => (
-              <span key={o.itemId} className="inline-flex gap-1">
-                {k > 0 && <span aria-hidden="true">·</span>}
-                <button type="button" className="text-primary underline-offset-2 hover:underline" onClick={() => { if (!onOpenItem(o.itemId)) onOpen(); }}>
-                  {buildGuide(o).pill}
-                </button>
-              </span>
+        {total > 1 && <Button size="sm" variant="secondary" className="rounded-full px-4" onClick={() => onStep(1)}>{tr('heute.later')}</Button>}
+      </div>
+      {all.length > 1 && (
+        <div className="mt-3 flex flex-wrap gap-x-1 gap-y-0.5 text-xs text-muted-foreground">
+          <span>{tr('heute.tasksColon', { count: all.length })}</span>
+          {all.map((o, k) => (
+            <span key={o.itemId} className="inline-flex gap-1">
+              {k > 0 && <span aria-hidden="true">·</span>}
+              <button type="button" className="text-klick hover:underline" onClick={() => { if (!onOpenItem(o.itemId)) onOpen(); }}>
+                {buildGuide(o).pill}
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      {total > 1 && (
+        <div className="mt-auto flex items-center justify-between pt-4">
+          <div className="flex gap-1" aria-hidden="true">
+            {Array.from({ length: Math.min(total, 7) }).map((_, i) => (
+              <span key={i} className={cn('h-1 rounded-full', i === Math.min(position - 1, 6) ? 'w-4 bg-foreground' : 'w-1 bg-muted-foreground/30')} />
             ))}
           </div>
-        )}
-      </div>
+          <div className="flex gap-1">
+            <Button size="sm" variant="secondary" className="h-8 w-8 rounded-full p-0" aria-label={tr('heute.prevTask')} onClick={() => onStep(-1)}><ChevronLeft className="h-4 w-4" /></Button>
+            <Button size="sm" variant="secondary" className="h-8 w-8 rounded-full p-0" aria-label={tr('heute.nextTask')} onClick={() => onStep(1)}><ChevronRight className="h-4 w-4" /></Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -569,134 +573,4 @@ function bundleLine(bundle: StalledBundle, more: StalledBundle[]): string {
   const feedback = bundle.kind === 'feedback';
   const parts = [bundle, ...more].flatMap(b => b.items.map(i => `${i.candidateName}${more.length ? ` (${b.jobTitle})` : ''}`));
   return tr(feedback ? 'heute.bundleLineFeedback' : 'heute.bundleLineReview', { names: parts.join(', '), days: Math.max(bundle.days, ...more.map(b => b.days)) });
-}
-
-function BundleRow({ row, bundle, more, stage, sameClientCount, onOpen }: {
-  row: JetztRow;
-  bundle: StalledBundle;
-  more: StalledBundle[];
-  stage: PipelineStageKey | null;
-  sameClientCount: number;
-  onOpen: () => void;
-}) {
-  const fee = euro(bundle.feeTotal);
-  const n = bundle.items.length;
-  const names = bundle.items.map(i => (n > 1 ? firstName(i.candidateName) : i.candidateName)).join(', ');
-  const feedback = bundle.kind === 'feedback';
-  const lastNudge = bundle.items.map(i => i.lastNudgeAt ?? '').sort().pop() || null;
-  // „1. Erinnerung“ las sich wie „schon erinnert“ (Durchklick 27.10.2026)
-  const stand = bundle.erinnerung === 2
-    ? tr(`heute.stand.${feedback ? 'secondAsk' : 'secondReminder'}${lastNudge ? 'After' : ''}`, { date: dateShort(lastNudge) })
-    : feedback ? tr('heute.stand.notAsked') : tr('heute.stand.notReminded');
-  const interviewAt = bundle.items[0]?.interviewAt ?? null;
-  // Mehrere Stellen desselben Kunden: eine Zeile, eine Mail (28.10.2026)
-  if (more.length > 0) {
-    const all = [bundle, ...more];
-    const total = euro(all.reduce((x, b) => x + b.feeTotal, 0));
-    return (
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:flex-nowrap">
-        <PhaseCell stage={stage} items={rowItems(row)} />
-        <button type="button" className="order-first min-w-0 flex-1 basis-full text-left sm:order-none sm:basis-auto" onClick={onOpen}>
-          <div className="flex flex-wrap items-center gap-x-2 text-sm">
-            <Badge variant="secondary" className="h-4 px-1.5 text-[10px] font-medium">{feedback ? tr('guide.feedbackDue.pill') : tr('guide.reviewStalled.pill')}</Badge>
-            <span className="font-medium">{bundle.companyName}</span>
-            <span className="text-muted-foreground">· {tr('heute.jobs', { count: all.length })}</span>
-            {total && <span className="font-medium text-emerald-500 tabular-nums"><Honorar>{total}</Honorar></span>}
-          </div>
-          {all.map(b => (
-            <div key={b.key} className="text-sm text-muted-foreground">
-              {b.items.map(i => i.candidateName).join(', ')} · {b.jobTitle} · {feedback ? tr('heute.noImpressionSince', { days: b.days }) : tr('heute.withClientSince', { days: b.days })}
-              {!feedback && <> · <ViewState bundle={b} /></>}
-            </div>
-          ))}
-          <div className="text-sm text-muted-foreground">{stand}</div>
-        </button>
-        <Button size="sm" className="ml-auto h-8 shrink-0 gap-1 text-xs sm:ml-0 sm:h-7" onClick={onOpen}>
-          <Mail className="h-3 w-3" />{feedback ? tr('guide.askClient') : tr('guide.remindClient')}
-        </Button>
-        <button type="button" className="shrink-0 text-muted-foreground hover:text-foreground" onClick={onOpen} aria-label={tr('heute.openTask')}>
-          <ChevronRight className="h-4 w-4" />
-        </button>
-      </div>
-    );
-  }
-  return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:flex-nowrap">
-      <PhaseCell stage={stage} items={rowItems(row)} />
-      <button type="button" className="order-first min-w-0 flex-1 basis-full text-left sm:order-none sm:basis-auto" onClick={onOpen}>
-        <div className="flex flex-wrap items-center gap-x-2 text-sm">
-          <Badge variant="secondary" className="h-4 px-1.5 text-[10px] font-medium">{feedback ? tr('guide.feedbackDue.pill') : tr('guide.reviewStalled.pill')}</Badge>
-          <span className="font-medium">{bundle.jobTitle}</span>
-          {bundle.companyName && <span className="text-muted-foreground">· {bundle.companyName}</span>}
-          {!bundle.items[0]?.companyRevealed && <Lock className="h-3 w-3 text-muted-foreground" />}
-          {fee && <span className="font-medium text-emerald-500 tabular-nums"><Honorar>{fee}</Honorar></span>}
-        </div>
-        <div className="text-sm text-muted-foreground">
-          {n === 1 ? names : tr('heute.candidatesNames', { count: n, names })}
-          {feedback
-            ? <> · {n === 1 && interviewAt ? `${tr('heute.interviewOn', { date: dateShort(interviewAt) })} · ` : ''}{tr('heute.clientNoImpressionSince', { days: bundle.days })} · {stand}</>
-            : <> · {tr('heute.withClientSince', { days: bundle.days })} · <ViewState bundle={bundle} /> · {stand}</>}
-          {sameClientCount > 0 && <span> · {tr('heute.goesWith', { count: sameClientCount })}</span>}
-        </div>
-      </button>
-      <Button size="sm" className="ml-auto h-8 shrink-0 gap-1 text-xs sm:ml-0 sm:h-7" onClick={onOpen}>
-        <Mail className="h-3 w-3" />{feedback ? tr('guide.askClient') : tr('guide.remindClient')}
-      </Button>
-      <button type="button" className="shrink-0 text-muted-foreground hover:text-foreground" onClick={onOpen} aria-label={tr('heute.openTask')}>
-        <ChevronRight className="h-4 w-4" />
-      </button>
-    </div>
-  );
-}
-
-function PersonRow({ row, group, stage, quiet, onOpen, onAct }: {
-  row: JetztRow;
-  group: PersonGroup;
-  stage: PipelineStageKey | null;
-  /** Noch kein Handgriff (Diese Woche): Knopf zurückhaltend */
-  quiet?: boolean;
-  onOpen: () => void;
-  onAct: (item: UnifiedTaskItem, guide: Guide) => void;
-}) {
-  const navigate = useNavigate();
-  const item = group.primary;
-  const guide = buildGuide(item);
-  const fee = euro(item.feeValue);
-
-  return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 sm:flex-nowrap">
-      <PhaseCell stage={stage} items={rowItems(row)} />
-      <button type="button" className="order-first min-w-0 flex-1 basis-full text-left sm:order-none sm:basis-auto" onClick={onOpen}>
-        <div className="flex flex-wrap items-center gap-x-2 text-sm">
-          <Badge variant="secondary" className={cn('h-4 px-1.5 text-[10px] font-medium', item.prep && VORBEREITEN_TON[item.prep.art])}>{guide.pill}</Badge>
-          <span
-            className="font-medium hover:underline"
-            onClick={e => { if (item.candidateId) { e.stopPropagation(); navigate(`/recruiter/candidates/${item.candidateId}`); } }}
-          >
-            {group.name}
-          </span>
-          {item.jobTitle && <span className="text-muted-foreground">· {item.jobTitle}</span>}
-          {item.candidateRole && <span className="text-muted-foreground">· {item.candidateRole}</span>}
-          {item.companyName && <span className="text-muted-foreground">· {item.companyName}</span>}
-          {!item.companyName && item.jobTitle && <Lock className="h-3 w-3 text-muted-foreground" />}
-          {fee && <span className="font-medium text-emerald-500 tabular-nums"><Honorar>{fee}</Honorar></span>}
-          {group.others.length > 0 && <span className="text-xs text-muted-foreground">+{tr('heute.tasksCount', { count: group.others.length })}</span>}
-        </div>
-        <div className="text-sm text-muted-foreground">{guide.advice}</div>
-      </button>
-      {/* Erst die Aufgabe öffnen, angerufen oder gesendet wird im Fenster (28.10.2026) */}
-      {DIRECT_KINDS.has(guide.primary.kind) ? (
-        <Button size="sm" className="ml-auto h-8 shrink-0 text-xs sm:ml-0 sm:h-7" onClick={onOpen}>{tr('heute.openTask')}</Button>
-      ) : (
-        <Button size="sm" variant={quiet ? 'outline' : 'default'} className="ml-auto h-8 shrink-0 gap-1 text-xs sm:ml-0 sm:h-7" onClick={() => onAct(item, guide)}>
-          {guide.primary.kind === 'debrief' && <NotebookPen className="h-3 w-3" />}
-          {(guide.primary.kind === 'client' || guide.primary.kind === 'candidate') && <Mail className="h-3 w-3" />}
-          {guide.primary.label}
-        </Button>
-      )}
-      <button type="button" className="shrink-0 text-muted-foreground hover:text-foreground" onClick={onOpen} aria-label={tr('heute.openTask')}>
-        <ChevronRight className="h-4 w-4" />
-      </button>
-    </div>
-  );
 }

@@ -22,10 +22,11 @@ export type VorbereitenArt = 'termin' | 'war' | 'entwurf' | 'eingeladen' | 'bere
 /** Reihenfolge unter allem, was schon Honorar im Spiel hat (Stufen dort ab 1). */
 export const VORBEREITEN_RANG: Record<VorbereitenArt, number> = { termin: 0.6, war: 0.5, entwurf: 0.4, eingeladen: 0.3, bereit: 0.2, neu: 0.1 };
 export const VORBEREITEN_TON: Partial<Record<VorbereitenArt, string>> = {
-  termin: 'bg-primary/10 text-primary',
-  war: 'bg-warning/10 text-warning',
-  entwurf: 'bg-warning/10 text-warning',
-  bereit: 'bg-success/10 text-success',
+  // Ruhig (23.11.2026): keine Ampelfarben, alle Etiketten grau; der Text sagt den Stand
+  termin: 'bg-secondary text-foreground',
+  war: 'bg-secondary text-foreground',
+  entwurf: 'bg-secondary text-foreground',
+  bereit: 'bg-secondary text-foreground',
 };
 
 export interface VKandidat {

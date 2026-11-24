@@ -42,11 +42,10 @@ export function CandidateSkillsCard({ skills, certifications }: CandidateSkillsC
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm flex items-center gap-2">
-          <Wrench className="h-4 w-4 text-primary" />
+        <CardTitle className="flex items-center gap-2 text-[15px] font-semibold tracking-tight">
           {t('skills.title')}
           {hasSkills && (
-            <Badge variant="secondary" className="text-xs ml-auto">
+            <Badge variant="secondary" className="ml-auto rounded-full text-xs font-normal text-muted-foreground">
               {skills.length} Skills
             </Badge>
           )}
@@ -61,8 +60,8 @@ export function CandidateSkillsCard({ skills, certifications }: CandidateSkillsC
               {displaySkills?.map((skill, i) => (
                 <Badge 
                   key={i} 
-                  variant="outline" 
-                  className="text-xs font-normal"
+                  variant="secondary" 
+                  className="rounded-full text-xs font-normal"
                 >
                   {skill}
                 </Badge>
@@ -72,20 +71,10 @@ export function CandidateSkillsCard({ skills, certifications }: CandidateSkillsC
               <Button
                 variant="ghost"
                 size="sm"
-                className="px-0 h-auto text-xs"
+                className="h-auto px-0 text-xs font-medium text-klick hover:bg-transparent hover:text-klick hover:underline"
                 onClick={() => setExpanded(!expanded)}
               >
-                {expanded ? (
-                  <>
-                    <ChevronUp className="h-3 w-3 mr-1" />
-                    {t('common.showLess')}
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown className="h-3 w-3 mr-1" />
-                    {t('skills.more', { count: (skills?.length ?? 0) - displayLimit })}
-                  </>
-                )}
+                {expanded ? t('common.showLess') : `${t('skills.more', { count: (skills?.length ?? 0) - displayLimit })} ›`}
               </Button>
             )}
           </div>
@@ -94,16 +83,15 @@ export function CandidateSkillsCard({ skills, certifications }: CandidateSkillsC
         {/* Certifications */}
         {hasCertifications && (
           <div className="space-y-2 pt-3 border-t">
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <Award className="h-3 w-3" />
+            <p className="text-xs text-muted-foreground">
               Zertifizierungen
             </p>
             <div className="flex flex-wrap gap-1.5">
               {certifications.map((cert, i) => (
                 <Badge 
                   key={i} 
-                  variant="outline" 
-                  className="text-xs border-amber-500/50 text-amber-600 dark:text-amber-400"
+                  variant="secondary" 
+                  className="rounded-full text-xs font-normal"
                 >
                   {cert}
                 </Badge>

@@ -89,21 +89,17 @@ export function CandidateDocumentsManager({ candidateId }: CandidateDocumentsMan
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="flex items-center justify-between text-sm">
-          <span className="flex items-center gap-2">
-            <FileText className="h-4 w-4 text-primary" />
-            {t('documents.title')}
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
+        <CardTitle className="flex items-center justify-between text-[15px] font-semibold tracking-tight">
+          {t('documents.title')}
+          {/* Apple-Stil (24.11.2026): „Hochladen ›“ als blauer Link */}
+          <button
+            type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="h-7 text-xs"
+            className="text-sm font-medium text-klick hover:underline disabled:opacity-50"
           >
-            <Upload className="h-3 w-3 mr-1" />
-            {uploading ? t('common.loading') : t('documents.upload')}
-          </Button>
+            {uploading ? t('common.loading') : `${t('documents.upload')} ›`}
+          </button>
         </CardTitle>
         <Input
           ref={fileInputRef}
@@ -134,7 +130,7 @@ export function CandidateDocumentsManager({ candidateId }: CandidateDocumentsMan
                     <div className="flex items-center gap-3">
                       <Icon className="h-4 w-4 text-muted-foreground" />
                       <span className="font-medium">{t(`documents.types.${type}`)}</span>
-                      <Badge variant="secondary" className="text-xs">
+                      <Badge variant="secondary" className="rounded-full text-xs font-normal text-muted-foreground">
                         {t('documents.versions', { count: typeDocs.length })}
                       </Badge>
                     </div>
@@ -147,7 +143,7 @@ export function CandidateDocumentsManager({ candidateId }: CandidateDocumentsMan
                       <div
                         key={doc.id}
                         className={`flex flex-wrap items-center justify-between gap-2 p-3 rounded-lg border sm:flex-nowrap ${
-                          doc.is_current ? 'border-primary/30 bg-primary/5' : 'border-border'
+                          doc.is_current ? 'border-border bg-background' : 'border-border'
                         }`}
                       >
                         {/* Am Handy (16.11.2026): langer Dateiname bricht um, Knöpfe rutschen notfalls darunter.
@@ -158,9 +154,9 @@ export function CandidateDocumentsManager({ candidateId }: CandidateDocumentsMan
                             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 sm:flex-nowrap">
                               <span className="break-all text-sm font-medium">{doc.file_name}</span>
                               {doc.is_current && (
-                                <Badge variant="default" className="text-xs">{t('common.current')}</Badge>
+                                <Badge variant="secondary" className="rounded-full text-xs font-normal text-muted-foreground">{t('common.current')}</Badge>
                               )}
-                              <Badge variant="outline" className="text-xs">v{doc.version}</Badge>
+                              <Badge variant="outline" className="rounded-full border-transparent text-xs font-normal text-muted-foreground">v{doc.version}</Badge>
                             </div>
                             <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
                               <span>{formatFileSize(doc.file_size)}</span>

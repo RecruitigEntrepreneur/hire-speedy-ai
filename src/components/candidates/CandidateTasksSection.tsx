@@ -103,30 +103,30 @@ const priorityConfig = {
   critical: {
     icon: AlertCircle,
     labelKey: 'tasks.prio_critical',
-    color: 'text-destructive',
+    color: 'text-muted-foreground',
     bgColor: 'bg-destructive/10',
-    borderColor: 'border-l-destructive',
+    borderColor: '',
   },
   high: {
     icon: AlertTriangle,
     labelKey: 'tasks.prio_high',
-    color: 'text-amber-600',
+    color: 'text-muted-foreground',
     bgColor: 'bg-amber-500/10',
-    borderColor: 'border-l-amber-500',
+    borderColor: '',
   },
   medium: {
     icon: Clock,
     labelKey: 'tasks.prio_medium',
-    color: 'text-blue-600',
+    color: 'text-muted-foreground',
     bgColor: 'bg-blue-500/10',
-    borderColor: 'border-l-blue-500',
+    borderColor: '',
   },
   low: {
     icon: Clock,
     labelKey: 'tasks.prio_low',
     color: 'text-muted-foreground',
     bgColor: 'bg-muted',
-    borderColor: 'border-l-muted-foreground',
+    borderColor: '',
   },
 };
 
@@ -552,11 +552,8 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
   if (loading || inboxLoading) {
     return (
       <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <ListTodo className="h-3.5 w-3.5 text-muted-foreground animate-pulse" />
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            {t('tasks.aufgaben')}
-          </span>
+        <div className="flex h-6 items-center">
+          <span className="text-sm font-medium">{t('tasks.aufgaben')}</span>
         </div>
         <div className="flex gap-2">
           <div className="h-[110px] w-[200px] bg-muted/30 rounded-lg animate-pulse shrink-0" />
@@ -575,17 +572,15 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <ListTodo className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            {t('tasks.aufgaben')}{totalPending > 0 ? ` (${totalPending})` : ''}{waitingTasks.length > 0 ? ` · ${t('tasks.wartet')} (${waitingTasks.length})` : ''}
+          {/* Apple-Stil (24.11.2026): normale Schreibweise, ohne Symbol */}
+          {/* „Aufgaben 3 · 1 dringend · 1 wartet auf andere“ statt „(3)“ und einer roten Zahl ohne Erklärung (25.11.2026) */}
+          <span className="text-sm">
+            <span className="font-medium">{t('tasks.aufgaben')}{totalPending > 0 ? ` ${totalPending}` : ''}</span>
+            {criticalCount > 0 && <><span className="text-muted-foreground"> · </span><span className="font-medium text-destructive">{t('tasks.urgentCount', { count: criticalCount })}</span></>}
+            {waitingTasks.length > 0 && <span className="text-muted-foreground"> · {t('tasks.waitingCount', { count: waitingTasks.length })}</span>}
           </span>
-          {criticalCount > 0 && (
-            <Badge variant="destructive" className="text-[9px] h-4 px-1.5">
-              {criticalCount} kritisch
-            </Badge>
-          )}
           {completedTasks.length > 0 && totalShown === 0 && (
-            <Badge variant="outline" className="text-[9px] h-4 px-1.5 text-emerald-600 border-emerald-500/50">
+            <Badge variant="outline" className="h-4 rounded-full border-transparent bg-secondary px-1.5 text-[9px] font-normal text-muted-foreground">
               <Check className="h-2.5 w-2.5 mr-0.5" />
               {t('tasks.alles_erledigt')}
             </Badge>
@@ -630,18 +625,18 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                   key={item.itemId}
                   onClick={() => openDerivedDetail(item)}
                   className={cn(
-                    'shrink-0 snap-start flex h-[110px] w-[200px] flex-col rounded-lg border border-l-[3px] p-2.5 transition-all hover:shadow-sm cursor-pointer group',
+                    'shrink-0 snap-start flex h-[110px] w-[200px] flex-col rounded-xl border bg-background p-2.5 shadow-sm transition-all hover:shadow-md cursor-pointer group',
                     config.borderColor
                   )}
                 >
                   {/* Row 1: Badge + Fee */}
                   <div className="flex items-center gap-1.5 mb-1">
-                    <Badge variant="outline" className={cn('shrink-0 text-[9px] px-1.5 py-0 leading-4', item.prep ? cn('border-transparent', VORBEREITEN_TON[item.prep.art] ?? 'bg-muted text-muted-foreground') : config.color)}>
+                    <Badge variant="outline" className={cn('shrink-0 rounded-full border-transparent px-2 py-0 text-[9px] font-normal leading-4', item.prep ? (VORBEREITEN_TON[item.prep.art] ?? 'bg-secondary text-muted-foreground') : 'bg-secondary text-muted-foreground')}>
                       {item.prep ? prepTexts(item.prep).pill : derivedLabel(item.taskCategory)}
                     </Badge>
                     {item.feeValue != null && item.feeValue > 0 && (
-                      <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400 tabular-nums">
-                        <Honorar>{`~€${Math.round(item.feeValue / 1000)}k`}</Honorar>
+                      <span className="text-[10px] text-muted-foreground tabular-nums">
+                        <Honorar>{`≈ ${Math.round(item.feeValue).toLocaleString(intlLocale(lang.language))} €`}</Honorar>
                       </span>
                     )}
                   </div>
@@ -666,6 +661,8 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                       </>
                     )}
                     <div className="ml-auto flex shrink-0 items-center gap-0.5">
+                    {/* Wie beim Kunden im Profilkopf: blaue Handlung rechts (24.11.2026); beim Überfahren die Knöpfe */}
+                    <span className={cn('text-[10px] font-medium text-klick', contact.phone && 'group-hover:hidden')}>{t('tasks.openCard')}</span>
                     {contact.phone && (
                       <Button
                         variant="ghost"
@@ -682,7 +679,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-5 w-5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
+                      className="h-5 w-5 text-muted-foreground hover:text-foreground"
                       onClick={(e) => handleCompleteDerivedTask(item, e)}
                     >
                       <Check className="h-2.5 w-2.5" />
@@ -700,10 +697,10 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
               <div
                 key={`p-${item.itemId}`}
                 onClick={() => { if (item.parkKind === 'contract') { const next = new URLSearchParams(searchParams); next.set('aufgabe', item.itemId); setSearchParams(next, { replace: true }); } }}
-                className={cn('shrink-0 snap-start flex h-[110px] w-[200px] flex-col rounded-lg border border-l-[3px] border-l-muted-foreground/30 p-2.5 opacity-80', item.parkKind === 'contract' && 'cursor-pointer hover:opacity-100')}
+                className={cn('shrink-0 snap-start flex h-[110px] w-[200px] flex-col rounded-xl border bg-background p-2.5 shadow-sm', item.parkKind === 'contract' && 'cursor-pointer hover:shadow-md')}
               >
                 <div className="flex items-center gap-1.5 mb-1">
-                  <Badge variant="outline" className="shrink-0 text-[9px] px-1.5 py-0 leading-4 text-muted-foreground">{t('tasks.wartet')}</Badge>
+                  <Badge variant="outline" className="shrink-0 rounded-full border-transparent bg-secondary px-2 py-0 text-[9px] font-normal leading-4 text-muted-foreground">{t('tasks.wartet')}</Badge>
                 </div>
                 <p className="text-xs font-medium line-clamp-2 leading-tight min-h-[2rem] text-muted-foreground">
                   {item.parkKind === 'contract' ? t('tasks.park_contract') : item.parkKind === 'counter' ? t('tasks.park_counter') : t('tasks.park_paused')} · {item.jobTitle ?? t('tasks.role')}
@@ -714,14 +711,14 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
               <div
                 key={`w-${item.itemId}`}
                 onClick={() => { if (item.waitState !== 'matchunt') { const next = new URLSearchParams(searchParams); next.set('aufgabe', item.itemId); setSearchParams(next, { replace: true }); } }}
-                className={cn('shrink-0 snap-start flex h-[110px] w-[200px] flex-col rounded-lg border border-l-[3px] border-l-muted-foreground/30 p-2.5 opacity-80', item.waitState !== 'matchunt' && 'cursor-pointer hover:opacity-100')}
+                className={cn('shrink-0 snap-start flex h-[110px] w-[200px] flex-col rounded-xl border bg-background p-2.5 shadow-sm', item.waitState !== 'matchunt' && 'cursor-pointer hover:shadow-md')}
               >
                 <div className="flex items-center gap-1.5 mb-1">
-                  <Badge variant="outline" className="shrink-0 text-[9px] px-1.5 py-0 leading-4 text-muted-foreground">
+                  <Badge variant="outline" className="shrink-0 rounded-full border-transparent bg-secondary px-2 py-0 text-[9px] font-normal leading-4 text-muted-foreground">
                     {item.waitState === 'matchunt' ? 'Matchunt' : t('tasks.wartet')}
                   </Badge>
                   {item.feeValue != null && item.feeValue > 0 && (
-                    <span className="text-[10px] font-medium text-muted-foreground tabular-nums"><Honorar>{`~€${Math.round(item.feeValue / 1000)}k`}</Honorar></span>
+                    <span className="text-[10px] text-muted-foreground tabular-nums"><Honorar>{`≈ ${Math.round(item.feeValue).toLocaleString(intlLocale(lang.language))} €`}</Honorar></span>
                   )}
                 </div>
                 <p className="text-xs font-medium line-clamp-2 leading-tight min-h-[2rem] text-muted-foreground">
@@ -735,7 +732,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                     hasEmail: !!item.candidateEmail, lastContactAt: item.lastCandidateContactAt ?? null, lastUpdateAt: item.lastCandidateUpdateAt ?? null, submittedAt: item.createdAt, nudgeAt: item.lastNudgeAt ?? null,
                   }, new Date()).erledigt
                     ? <span className="block">{t('tasks.bescheid_gegeben')}</span>
-                    : <span className="block text-primary">{t('tasks.kandidat_bescheid_geben')}</span>)}
+                    : <span className="block font-medium text-klick">{t('tasks.kandidat_bescheid_geben')}</span>)}
                 </p>
               </div>
             ))}
@@ -750,14 +747,14 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                   key={task.id}
                   onClick={() => openTaskDetail(task)}
                   className={cn(
-                    'shrink-0 snap-start flex h-[110px] w-[200px] flex-col rounded-lg border border-l-[3px] p-2.5 transition-all hover:shadow-sm cursor-pointer group',
+                    'shrink-0 snap-start flex h-[110px] w-[200px] flex-col rounded-xl border bg-background p-2.5 shadow-sm transition-all hover:shadow-md cursor-pointer group',
                     config.borderColor,
-                    task.id === activeTaskId && 'ring-2 ring-primary bg-primary/5'
+                    task.id === activeTaskId && 'ring-2 ring-foreground/40'
                   )}
                 >
                   {/* Row 1: Badge + Time */}
                   <div className="flex items-center gap-1.5 mb-1">
-                    <Badge variant="outline" className={cn('shrink-0 text-[9px] px-1.5 py-0 leading-4', config.color)}>
+                    <Badge variant="outline" className="shrink-0 rounded-full border-transparent bg-secondary px-2 py-0 text-[9px] font-normal leading-4 text-muted-foreground">
                       {t(config.labelKey)}
                     </Badge>
                     <span className="text-[10px] text-muted-foreground">{timeAgo}</span>
@@ -777,6 +774,8 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                       </>
                     )}
                     <div className="ml-auto flex shrink-0 items-center gap-0.5">
+                    {/* Wie beim Kunden im Profilkopf: blaue Handlung rechts (24.11.2026); beim Überfahren die Knöpfe */}
+                    <span className={cn('text-[10px] font-medium text-klick', contact.phone && 'group-hover:hidden')}>{t('tasks.openCard')}</span>
                     {contact.phone && (
                       <Button
                         variant="ghost"
@@ -790,7 +789,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-5 w-5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
+                      className="h-5 w-5 text-muted-foreground hover:text-foreground"
                       onClick={(e) => handleMarkDone(task.id, e)}
                     >
                       <Check className="h-2.5 w-2.5" />
@@ -806,11 +805,11 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
               <div
                 key={task.id}
                 onClick={() => openExposeDetail(task)}
-                className="shrink-0 snap-start flex h-[110px] w-[200px] flex-col rounded-lg border border-l-[3px] border-l-blue-500 p-2.5 transition-all hover:shadow-sm cursor-pointer group"
+                className="shrink-0 snap-start flex h-[110px] w-[200px] flex-col rounded-xl border bg-background p-2.5 shadow-sm transition-all hover:shadow-md cursor-pointer group"
               >
                 {/* Row 1: Badge + label */}
                 <div className="flex items-center gap-1.5 mb-1">
-                  <Badge variant="outline" className="shrink-0 text-[9px] px-1.5 py-0 leading-4 text-blue-600 border-blue-500/50">
+                  <Badge variant="outline" className="shrink-0 rounded-full border-transparent bg-secondary px-2 py-0 text-[9px] font-normal leading-4 text-muted-foreground">
                     {t('tasks.expos')}
                   </Badge>
                   <span className="text-[10px] text-muted-foreground">{t('tasks.expos_pflicht')}</span>
@@ -832,7 +831,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                       className="h-5 w-5"
                       onClick={(e) => { e.stopPropagation(); onCvUpload(); }}
                     >
-                      <Upload className="h-2.5 w-2.5 text-blue-600" />
+                      <Upload className="h-2.5 w-2.5 text-klick" />
                     </Button>
                   )}
                   {task.actions.includes('interview') && onStartInterview && (
@@ -842,7 +841,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                       className="h-5 w-5"
                       onClick={(e) => { e.stopPropagation(); onStartInterview(); }}
                     >
-                      <MessageSquare className="h-2.5 w-2.5 text-blue-600" />
+                      <MessageSquare className="h-2.5 w-2.5 text-klick" />
                     </Button>
                   )}
                   {task.actions.includes('edit') && onEdit && (
@@ -867,11 +866,11 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                 <div
                   key={task.id}
                   onClick={() => openManualTaskDetail(task)}
-                  className="shrink-0 snap-start flex h-[110px] w-[200px] flex-col rounded-lg border border-l-[3px] border-l-violet-500 p-2.5 transition-all hover:shadow-sm cursor-pointer group"
+                  className="shrink-0 snap-start flex h-[110px] w-[200px] flex-col rounded-xl border bg-background p-2.5 shadow-sm transition-all hover:shadow-md cursor-pointer group"
                 >
                   {/* Row 1: Badge + Time */}
                   <div className="flex items-center gap-1.5 mb-1">
-                    <Badge variant="outline" className="shrink-0 text-[9px] px-1.5 py-0 leading-4 text-violet-600 border-violet-500/50">
+                    <Badge variant="outline" className="shrink-0 rounded-full border-transparent bg-secondary px-2 py-0 text-[9px] font-normal leading-4 text-muted-foreground">
                       {t('tasks.manuell')}
                     </Badge>
                     <span className="text-[10px] text-muted-foreground">{timeAgo}</span>
@@ -890,7 +889,7 @@ export function CandidateTasksSection({ candidateId, activeTaskId, candidate, on
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="ml-auto h-5 w-5 shrink-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
+                      className="ml-auto h-5 w-5 shrink-0 text-muted-foreground hover:text-foreground"
                       onClick={(e) => handleCompleteManualTask(task.id, e)}
                     >
                       <Check className="h-2.5 w-2.5" />

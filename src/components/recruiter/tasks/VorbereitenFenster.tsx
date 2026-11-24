@@ -18,7 +18,7 @@ import { tagMonat, uhrzeit, VORBEREITEN_TON, type Vorbereitung } from '@/lib/kan
 import { effectiveTier, TIER_STYLE } from '@/lib/matchV41';
 import { einladungApi } from '@/lib/terminApi';
 import { cn } from '@/lib/utils';
-import { daysAgo, prepTexts } from './taskWindow';
+import { daysAgo, prepTexts, firstName } from './taskWindow';
 import { clockTime, dayMonth } from './sprache';
 
 const NS = 'recruiterTasks';
@@ -58,10 +58,10 @@ function Wahl({ an, onClick, titel, unter }: { an: boolean; onClick: () => void;
 }
 
 /** „Bereit“: gleich hier sehen, wo der Kandidat passt, und einreichen. */
-function PassendeStellenListe({ v, onEinreichen }: { v: Vorbereitung; onEinreichen: (ziel: string) => void }) {
+function PassendeStellenListe({ v, onEinreichen, onVormerken, gesperrt }: { v: Vorbereitung; onEinreichen: (ziel: string) => void; onVormerken: () => void; gesperrt: boolean }) {
   const { t: tx } = useTranslation(NS);
   const m = useMatchV41(v.candidateId);
-  const vorname = v.name.split(/\s+/)[0];
+  const vorname = firstName(v.name);
   const offen = m.rows.filter(r => ['sehr_passend', 'passend', 'pruefen'].includes(effectiveTier(r)) && !r.submittedAt);
   return <div className="space-y-3">
     {m.loading ? <div className="space-y-2">{[0, 1, 2].map(i => <Skeleton key={i} className="h-12 w-full"/>)}</div>
@@ -70,18 +70,25 @@ function PassendeStellenListe({ v, onEinreichen }: { v: Vorbereitung; onEinreich
           : <>
             <p className="text-sm">{tx('pw.jobs.intro', { first: vorname })}</p>
             <ul className="divide-y divide-border/40 rounded-lg border border-border/60">
-              {offen.slice(0, 3).map(r => {
+              {offen.slice(0, 3).map((r, i) => {
                 const t = effectiveTier(r);
                 return <li key={r.job_id} className="flex items-center gap-3 px-3 py-2">
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium">{r.job?.title ?? tx('fallback.job')}</span>
-                    <span className="block truncate text-xs text-muted-foreground">{[jobMeta(r), t === 'ausgeblendet' ? null : TIER_STYLE[t].label].filter(Boolean).join(' · ')}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{[jobMeta(r), t === 'ausgeblendet' ? null : t === 'pruefen' ? tx('pw.jobs.partly') : TIER_STYLE[t].label].filter(Boolean).join(' · ')}</span>
                   </span>
-                  <Button size="sm" variant="outline" className="shrink-0" onClick={() => onEinreichen(r.job_id)}>{tx('pw.jobs.submit')}</Button>
+                  {/* Apple-Stil (25.11.2026): ein blauer Knopf für die erste Stelle, darunter blaue Links */}
+                  {i === 0
+                    ? <Button size="sm" className="shrink-0" onClick={() => onEinreichen(r.job_id)}>{tx('pw.jobs.submit')}</Button>
+                    : <button type="button" className="shrink-0 text-sm font-medium text-klick hover:underline" onClick={() => onEinreichen(r.job_id)}>{tx('pw.jobs.submit')} ›</button>}
                 </li>;
               })}
             </ul>
           </>}
+    <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-sm">
+      {offen.length > 0 ? <button type="button" className="font-medium text-klick hover:underline" onClick={() => onEinreichen('alle')}>{tx('pw.jobs.allCount', { count: offen.length })} ›</button> : <span />}
+      <span className="text-muted-foreground">{tx('pw.jobs.notYet')} <button type="button" disabled={gesperrt} className="font-medium text-klick hover:underline disabled:opacity-50" onClick={onVormerken}>{tx('pw.jobs.vormerken')} ›</button></span>
+    </div>
   </div>;
 }
 
@@ -95,7 +102,7 @@ function Inhalt({ v, onClose, onChanged }: { v: Vorbereitung; onClose: () => voi
   const [fandStatt, setFandStatt] = useState(true);
   const [terminFrage, setTerminFrage] = useState(false);
   const [terminAm, setTerminAm] = useState('');
-  const vorname = v.name.split(/\s+/)[0];
+  const vorname = firstName(v.name);
   const texte = prepTexts(v);
   /** „heute“, „gestern“, „vor 3 Tagen“ als Teil eines festen Textes: <basis>Today, <basis>Yesterday, <basis>Days */
   const seit = (basis: string, iso: string) => { const d = daysAgo(iso); return d <= 0 ? t(`${basis}Today`) : d === 1 ? t(`${basis}Yesterday`) : t(`${basis}Days`, { count: d }); };
@@ -253,13 +260,9 @@ function Inhalt({ v, onClose, onChanged }: { v: Vorbereitung; onClose: () => voi
       break;
     }
     case 'bereit':
-      unter = `${rolle}${t('pw.sub.bereit')}`;
+      unter = `${rolle}✓ ${t('pw.sub.bereit')}`;
       koerper = <div className="space-y-4">
-        <PassendeStellenListe v={v} onEinreichen={id => zumProfil(`?einreichen=${id}`)}/>
-        <div className="flex flex-wrap items-center gap-2 border-t pt-3">
-          <Button variant="outline" onClick={() => zumProfil('?einreichen=alle')}>{t('pw.jobs.all')}</Button>
-          <Button variant="ghost" disabled={!!arbeitet} onClick={() => void ausblenden('vormerken', 'Nur vormerken')}>{t('pw.dismiss.vormerken')}</Button>
-        </div>
+        <PassendeStellenListe v={v} onEinreichen={id => zumProfil(`?einreichen=${id}`)} onVormerken={() => void ausblenden('vormerken', 'Nur vormerken')} gesperrt={!!arbeitet}/>
       </div>;
       break;
     default:
@@ -290,7 +293,7 @@ function Inhalt({ v, onClose, onChanged }: { v: Vorbereitung; onClose: () => voi
         <DialogHeader>
           <DialogTitle className="flex flex-wrap items-center gap-2">
             <button type="button" className="hover:underline" onClick={() => zumProfil()}>{v.name}</button>
-            <Badge variant="secondary" className={cn('px-1.5 text-[11px] font-medium', VORBEREITEN_TON[v.art])}>{texte.pill}</Badge>
+            {v.art !== 'bereit' && <Badge variant="secondary" className={cn('px-1.5 text-[11px] font-medium', VORBEREITEN_TON[v.art])}>{texte.pill}</Badge>}
           </DialogTitle>
           <DialogDescription>{unter}</DialogDescription>
         </DialogHeader>

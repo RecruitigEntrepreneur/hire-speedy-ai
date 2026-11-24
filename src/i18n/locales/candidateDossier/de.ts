@@ -162,6 +162,10 @@ const de = {
   },
   cards: {
     cvOpenFailed: 'Der Lebenslauf konnte nicht geöffnet werden.',
+    missingLabel: 'Fehlt:',
+    missingPoints_one: '{{count}} Punkt',
+    missingPoints_other: '{{count}} Punkte',
+    allPoints: 'Alle Punkte',
     readyTitle: 'Bereit zum Einreichen',
     doneOf: '{{done}} von {{total}}',
     actComplete: 'abschließen',
@@ -182,6 +186,7 @@ const de = {
     missing: 'fehlt',
     maxCommute: 'max. {{n}} Min.',
     factsTitle: 'Wechsel-Eckdaten',
+    editShort: 'Bearbeiten',
     factsEdit: 'Wechsel-Eckdaten bearbeiten',
     commuteMissing: 'Pendelzeit fehlt',
     employment: 'Beschäftigung',

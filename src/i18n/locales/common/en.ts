@@ -36,7 +36,8 @@ const en: Messages<typeof de> = {
   },
   candidateHero: {
     at: ' at {{company}}',
-    years: '{{count}} yrs experience',
+    years_one: '{{count}} yr experience',
+    years_other: '{{count}} yrs experience',
   },
   mobileNav: {
     label: 'Main menu',

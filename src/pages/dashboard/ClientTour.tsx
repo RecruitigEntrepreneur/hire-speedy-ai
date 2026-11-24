@@ -10,11 +10,11 @@ import { useTourData } from '@/components/client/tour/tourData';
 import { DemoScope, type DemoLocation } from '@/components/client/tour/DemoScope';
 import { ANIMATED_FILLS, closeOpenMenus, runAutofill, runMoment, showFill } from '@/components/client/tour/demoAutofill';
 import { guideDemo } from '@/components/recruiter/guide/guideDemo';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { useMyOrganization } from '@/hooks/useOrganization';
 import { CLIENT_TOUR_PAGES, CLIENT_TOUR_SCENES, type ClientTourScene } from '@/lib/clientGuide';
-import { DEMO_IDS, demoRegistry, demoWorld, type DemoJobRow } from '@/lib/clientDemoData';
+import { DEMO_IDS, demoRegistry, demoWorld } from '@/lib/clientDemoData';
+import { STAGE_STALE_MS, loadStageFee, loadStageJob, stageFeeKey, stageJobKey } from '@/components/client/tour/stageQueries';
 import { DEMO } from '@/lib/clientDemo';
 import CandidateDetail from '@/pages/dashboard/CandidateDetail';
 import ClientInterviews from '@/pages/dashboard/ClientInterviews';
@@ -65,34 +65,21 @@ function Idle() {
   );
 }
 
-type FeeRow = { pricing_snapshot?: { clientFeePct?: unknown } | null; organization_id?: string | null; package_key?: string | null };
-type FeeQuery = { from: (t: string) => { select: (c: string) => { eq: (k: string, v: string) => PromiseLike<{ data: FeeRow[] | null }> } } };
-
 /** Was das Beispiel von der echten Stelle und dem Konto braucht: Stelle, Honorarsatz, Firmenname. */
 function useStageSource(jobId: string | null) {
   const { user } = useAuth();
   const { organization, isLoading: orgLoading } = useMyOrganization();
   const job = useQuery({
-    queryKey: ['client-tour-job-row', jobId],
+    queryKey: stageJobKey(jobId),
     enabled: !!jobId,
-    staleTime: 5 * 60_000,
-    queryFn: async (): Promise<DemoJobRow | null> => {
-      const { data } = await supabase.from('jobs').select('*').eq('id', jobId!).maybeSingle();
-      return (data as DemoJobRow | null) ?? null;
-    },
+    staleTime: STAGE_STALE_MS,
+    queryFn: () => loadStageJob(jobId!),
   });
-  // Honorar laut Rahmenvertrag, wie im echten Angebotsfenster (supabase/functions/_shared/offer-service.ts).
   const fee = useQuery({
-    queryKey: ['client-tour-fee', user?.id],
+    queryKey: stageFeeKey(user?.id),
     enabled: !!user,
-    staleTime: 5 * 60_000,
-    queryFn: async (): Promise<{ pct: number | null; packageKey: string | null }> => {
-      const { data } = await (supabase as unknown as FeeQuery).from('client_framework_agreements').select('pricing_snapshot, organization_id, package_key').eq('status', 'active');
-      const rows = data ?? [];
-      const rv = rows.find((r) => r.organization_id) ?? rows[0];
-      const pct = Number(rv?.pricing_snapshot?.clientFeePct);
-      return { pct: Number.isFinite(pct) && pct > 0 ? pct : null, packageKey: rv?.package_key ?? null };
-    },
+    staleTime: STAGE_STALE_MS,
+    queryFn: loadStageFee,
   });
   const jobFee = Number((job.data as Record<string, unknown> | null | undefined)?.fee_percentage);
   return {

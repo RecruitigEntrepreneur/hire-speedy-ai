@@ -46,7 +46,8 @@ describe('v3.2 mit allen Flags AUS ≡ eingefrorene v3.1-Replika', () => {
     it(`identische Scores/Kills/Policies für alle Paare (${file}, as-deployed)`, () => {
       const ds = load(file);
       expect(allScores(v32NoFixes, ds)).toEqual(allScores(v31CodeDefaults, ds));
-    });
+      // Rechnet alle Paare zweimal durch und braucht allein rund 5 Sekunden; im Gesamtlauf riss das Standard-Limit.
+    }, 30_000);
     it(`identisch auch mit idealen Inputs (${file})`, () => {
       const ds = load(file);
       const v32Ideal = makeV32Variant({ name: 'x', description: 'x', flags: NO_FIXES, reality: 'ideal' });

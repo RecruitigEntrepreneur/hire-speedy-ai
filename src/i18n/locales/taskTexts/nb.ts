@@ -164,6 +164,10 @@ const nb: Messages<typeof de> = {
     desc_one: 'Usikker i {{count}} dag, kandidaten venter.',
     desc_other: 'Usikker i {{count}} dager, kandidaten venter.',
   },
+  pool: {
+    title: 'Ta kontakt med {{name}}',
+    action: 'Ta kort kontakt og noter hva som har skjedd.',
+  },
   optIn: {
     title: 'Innhent opt-in — kunden venter',
     descHours: '{{name}} har ikke svart på intervjuinvitasjonen på {{hours}} t.',

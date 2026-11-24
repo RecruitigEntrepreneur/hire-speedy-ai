@@ -1,0 +1,47 @@
+// Auswertung des Headhunters. Deutsch ist die Quelle.
+const de = {
+  title: 'Auswertung',
+  subtitle: 'Was aus deinen Vorstellungen wird.',
+  periodAria: 'Zeitraum',
+  period: { '30': '30 Tage', '90': 'Quartal', '365': '12 Monate' },
+  error: 'Die Auswertung konnte nicht geladen werden.',
+  days_one: '{{count}} Tag',
+  days_other: '{{count}} Tage',
+  empty: { title: 'Noch keine Vorstellung in diesem Zeitraum', text: 'Sobald du Kandidaten vorstellst, siehst du hier, was daraus wird.', link: 'Offene Stellen ansehen' },
+  kpi: { submitted: 'Vorgestellt', invited: 'Zum Interview', hired: 'Eingestellt', fee: 'Honorar aus Einstellungen' },
+  stage: { submitted: 'Vorgestellt', interview: 'Interview', offer: 'Angebot', hired: 'Eingestellt' },
+  arrive: { question: 'Kommen meine Kandidaten an?', answer: '{{percent}} % deiner Vorstellungen werden eingeladen.', few: 'Für eine Quote sind es noch zu wenige Vorstellungen.' },
+  speed: {
+    question: 'Wie schnell geht es?',
+    answer_one: 'Die Einladung kommt nach {{count}} Tag.',
+    answer_other: 'Die Einladung kommt nach {{count}} Tagen.',
+    none: 'Noch keine Einladung in diesem Zeitraum.',
+    toInvite: 'Vorstellung bis Einladung',
+    toHire: 'Vorstellung bis Einstellung',
+    waiting: 'Warten auf den Kunden',
+    waitingValue_one: '{{count}} Vorstellung, längste {{days}} Tage',
+    waitingValue_other: '{{count}} Vorstellungen, längste {{days}} Tage',
+  },
+  fail: {
+    question: 'Woran scheitert es?',
+    none: 'Keine Absage in diesem Zeitraum.',
+    answer_one: '{{count}} Absage vom Kunden.',
+    answer_other: '{{count}} Absagen vom Kunden.',
+    rejected: 'Vom Kunden abgelehnt',
+    withdrawn: 'Zurückgezogen',
+    reasons: 'Gründe der Kunden',
+  },
+  money: {
+    question: 'Was bringt es mir?',
+    none: 'Noch keine Einstellung in diesem Zeitraum.',
+    answer_one: '{{amount}} aus {{count}} Einstellung.',
+    answer_other: '{{amount}} aus {{count}} Einstellungen.',
+    perHire: 'Je Einstellung',
+    perSubmission: 'Je Vorstellung',
+    link: 'Verdienste',
+  },
+  jobs: { title: 'Je Stelle', job: 'Stelle', toInvite: 'Bis Einladung', unknown: 'Stelle', total: 'Gesamt' },
+  note: 'Gezählt werden die Vorstellungen des gewählten Zeitraums und was bis heute aus ihnen wurde. Zeiten sind der mittlere Wert.',
+};
+
+export default de;

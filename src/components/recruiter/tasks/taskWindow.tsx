@@ -37,6 +37,7 @@ import { clockTime, dayMonth, dayMonthBare, dfLocale, loc } from './sprache';
 import { VorbereitenFenster } from './VorbereitenFenster';
 // Antritt und Halbzeit (H7, Umbau 11.11.2026): Systemaufgaben aus dem täglichen Lauf, eigenes Fenster
 import { StartAufgabeFenster, type StartAufgabe } from '@/components/recruiter/verdienste/StartAufgabeFenster';
+import { PoolKontaktFenster } from '@/components/candidates/pool/PoolFenster';
 import { startTaskKind } from '../../../../supabase/functions/_shared/abrechnung-view';
 
 export const DAY_MS = 86_400_000;
@@ -54,7 +55,7 @@ const tr: TT = (key, options) => i18n.t(`${NS}:${key}`, options);
 i18n.addResourceBundle('de', NS, deTexte, true, false);
 const trDe: TT = (key, options) => i18n.t(`${NS}:${key}`, { ...options, lng: 'de' });
 
-export type Kind = 'call' | 'called' | 'followup' | 'debrief' | 'done' | 'akte' | 'client' | 'candidate' | 'offer' | 'recommend' | 'contract' | 'prep' | 'frage' | 'start';
+export type Kind = 'call' | 'called' | 'followup' | 'debrief' | 'done' | 'akte' | 'client' | 'candidate' | 'offer' | 'recommend' | 'contract' | 'prep' | 'frage' | 'start' | 'pool';
 
 export interface Guide {
   pill: string;
@@ -73,7 +74,12 @@ export interface Guide {
 export const euro = (n: number | null) => (n && n > 0 ? tr('money.thousands', { k: Math.round(n / 1000) }) : null);
 export const daysSince = (iso: string | null) => (iso ? Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / DAY_MS)) : 0);
 export const hoursSince = (iso: string | null) => (iso ? Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 3_600_000)) : 0);
-export const firstName = (name: string | null) => (name ? name.trim().split(/\s+/)[0] : tr('fallback.theCandidate'));
+/** Vorname für die Anrede. Testnamen wie „Test Clara Neumann“: das führende „Test“ wird übersprungen. */
+export const firstName = (name: string | null) => {
+  const teile = (name ?? '').trim().split(/\s+/).filter(Boolean);
+  if (!teile.length) return tr('fallback.theCandidate');
+  return teile.length > 1 && /^test$/i.test(teile[0]) ? teile[1] : teile[0];
+};
 /** Deutsches Kurzdatum für Texte, die an Dritte gehen (Mail an Kandidaten). In der Oberfläche: `dateShort`. */
 export const dateDe = (iso: string | null) => (iso ? format(new Date(iso), 'dd.MM.', { locale: de }) : '');
 /** Tag und Monat in der Sprache der Oberfläche, deutsch „13.10.“. */
@@ -434,6 +440,19 @@ export function buildGuide(item: UnifiedTaskItem): Guide {
       reachedOptions: [opt('reached.informed'), opt('reached.otherJobs'), opt('reached.noInterest')],
     };
   }
+  // Talent Pool: der vereinbarte Kontakt ist fällig (25.11.2026)
+  if (item.pool) {
+    return {
+      pill: g('pool.pill'),
+      advice: g('pool.advice', { first }),
+      facts: [item.description ? `„${item.description}“` : ''].filter(Boolean),
+      consequence: null,
+      steps: [{ text: g('pool.step', { first }) }],
+      ...goalOf('pool.goal'),
+      primary: { label: g('pool.primary'), kind: 'pool' },
+      reachedOptions: [],
+    };
+  }
   // Erster Arbeitstag und Halbzeit der Garantie (H7): Fenster mit den Antworten
   const startKind = startKindOf(item);
   if (startKind) {
@@ -542,6 +561,7 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
   const [contractFor, setContractFor] = useState<string | null>(null);
   const [prepItem, setPrepItem] = useState<UnifiedTaskItem | null>(null);
   const [startTask, setStartTask] = useState<StartAufgabe | null>(null);
+  const [poolItem, setPoolItem] = useState<UnifiedTaskItem | null>(null);
   const openStart = (it: UnifiedTaskItem) => {
     const kind = startKindOf(it);
     if (!kind) return false;
@@ -552,6 +572,7 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
   const openOwnWindow = (it: UnifiedTaskItem) => {
     if (it.prep) { setPrepItem(it); return true; }
     if (openStart(it)) return true;
+    if (it.pool) { setPoolItem(it); return true; }
     if (it.taskCategory === 'interview_debrief_due') { setNach({ target: nachTargetFromItem(it), item: it }); return true; }
     if (it.taskCategory === 'offer_deliver' && it.submissionId) { setOfferFor(it.submissionId); return true; }
     if (it.taskCategory === 'recommendation_due' && it.submissionId) { setRecFor(it.submissionId); return true; }
@@ -595,6 +616,9 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
         return;
       case 'start':
         openStart(item);
+        return;
+      case 'pool':
+        setPoolItem(item);
         return;
       case 'call':
         if (item.candidatePhone) window.location.href = `tel:${item.candidatePhone}`;
@@ -703,7 +727,7 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
 
   /** Öffnet das Fenster der Person, zu der die Aufgabe gehört. */
   const openItem = (itemId: string) => {
-    const it = /^(derived-(debrief|offer|recommend|contract)|prep)-/.test(itemId) ? allItems.find(i => i.itemId === itemId)
+    const it = /^(derived-(debrief|offer|recommend|contract)|prep|pool)-/.test(itemId) ? allItems.find(i => i.itemId === itemId)
       : allItems.find(i => i.itemId === itemId && !!startKindOf(i)) ?? null;
     if (it && openOwnWindow(it)) return true;
     const g = groups.find(x => x.primary.itemId === itemId || x.others.some(o => o.itemId === itemId));
@@ -759,6 +783,12 @@ export function useTaskHost({ allItems, groups, markDone, snooze, refetch }: {
       />
       <VorbereitenFenster item={prepItem} onClose={() => setPrepItem(null)} onChanged={() => { refetch(); notifyTasksChanged(); }} />
       <StartAufgabeFenster task={startTask} onClose={() => setStartTask(null)} onDone={() => { refetch(); notifyTasksChanged(); }} />
+      <PoolKontaktFenster
+        eintrag={poolItem?.pool ?? null}
+        kandidat={poolItem?.candidateId ? { id: poolItem.candidateId, name: poolItem.candidateName ?? '', phone: poolItem.candidatePhone, email: poolItem.candidateEmail } : null}
+        onClose={() => setPoolItem(null)}
+        onDone={refetch}
+      />
     </>
   );
 
@@ -965,7 +995,7 @@ export function TaskWindow({ group, initialTab, onSend, onClose, onAct, onLater,
               <DialogTitle className="flex flex-wrap items-center gap-x-2 text-base">
                 <span>{group.name}</span>
                 <Badge variant="secondary" className="h-4 px-1.5 text-[10px] font-medium">{guide.pill}</Badge>
-                {fee && <span className="text-sm font-medium text-emerald-500 tabular-nums"><Honorar>{fee}</Honorar></span>}
+                {fee && <span className="text-sm tabular-nums text-muted-foreground"><Honorar>{fee}</Honorar></span>}
               </DialogTitle>
               <DialogDescription className="flex items-center gap-1 text-xs">
                 {item.jobTitle}{item.companyName ? ` · ${item.companyName}` : ''}
@@ -979,7 +1009,7 @@ export function TaskWindow({ group, initialTab, onSend, onClose, onAct, onLater,
         <div className="grid gap-3 p-5 md:grid-cols-[1fr_1.25fr]">
           <div className="space-y-3">
             <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
-              <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t('window.reason')}</p>
+              <p className="mb-1.5 text-xs font-medium text-muted-foreground">{t('window.reason')}</p>
               <ul className="space-y-1.5 text-sm">
                 {guide.facts.map((f, i) => <li key={i} className="flex gap-2"><span className="text-muted-foreground">•</span><span>{fee && f === t('guide.feeFact', { fee }) ? <Trans ns={NS} i18nKey="guide.feeFactMarked" values={{ fee }} components={{ h: <Honorar>{fee}</Honorar> }} /> : f}</span></li>)}
                 {guide.consequence && <li className="flex gap-2 text-muted-foreground"><span>→</span><span>{guide.consequence}</span></li>}
@@ -989,7 +1019,7 @@ export function TaskWindow({ group, initialTab, onSend, onClose, onAct, onLater,
               )}
             </div>
             <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
-              <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t('window.history')}</p>
+              <p className="mb-1.5 text-xs font-medium text-muted-foreground">{t('window.history')}</p>
               {history.length === 0 ? (
                 <p className="text-xs text-muted-foreground">{t('window.noContact')}</p>
               ) : (
@@ -1001,13 +1031,13 @@ export function TaskWindow({ group, initialTab, onSend, onClose, onAct, onLater,
           </div>
 
           <div className="space-y-3 rounded-lg border border-border/60 bg-muted/30 p-3">
-            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t('window.yourTask')}</p>
+            <p className="text-xs font-medium text-muted-foreground">{t('window.yourTask')}</p>
             {(declined ? plan.filter(x => x.side === 'call') : plan).map((p, idx) => {
               const done = sent[p.side];
               const open = active === p.side && !done;
               return (
                 <div key={p.side} className="flex gap-2.5">
-                  <span className={cn('flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-medium', done ? 'bg-emerald-500 text-white' : open ? 'bg-primary text-primary-foreground' : 'border border-border text-muted-foreground')}>
+                  <span className={cn('flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-medium', done ? 'bg-foreground text-background' : open ? 'bg-klick text-klick-foreground' : 'border border-border text-muted-foreground')}>
                     {done ? <Check className="h-3 w-3" /> : idx + 1}
                   </span>
                   <div className="min-w-0 flex-1 space-y-2">
@@ -1017,7 +1047,7 @@ export function TaskWindow({ group, initialTab, onSend, onClose, onAct, onLater,
                         {!done && optionalOf(p) && <span className="font-normal text-muted-foreground"> {t('window.optional')}</span>}
                       </p>
                       {!done && !open && can(p.side) && (
-                        <button type="button" className="text-xs text-primary hover:underline" onClick={() => setActive(p.side)}>{optionalOf(p) ? t('window.yesWrite') : t('window.now')}</button>
+                        <button type="button" className="text-xs text-klick hover:underline" onClick={() => setActive(p.side)}>{optionalOf(p) ? t('window.yesWrite') : t('window.now')}</button>
                       )}
                     </div>
                     {open && p.side === 'call' && (
@@ -1025,7 +1055,7 @@ export function TaskWindow({ group, initialTab, onSend, onClose, onAct, onLater,
                         {item.candidatePhone ? (
                           <Button size="sm" variant="outline" className="h-8 gap-1 text-xs" asChild><a href={`tel:${item.candidatePhone}`}><Phone className="h-3 w-3" />{item.candidatePhone}</a></Button>
                         ) : <p className="text-xs text-muted-foreground">{t('window.noPhone')}</p>}
-                        <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t('window.whatCameOut')}</p>
+                        <p className="text-xs font-medium text-muted-foreground">{t('window.whatCameOut')}</p>
                         <div className="flex flex-wrap gap-1.5">
                           {outcomes.map(o => (
                             <Button key={o} size="sm" variant={outcome === o ? 'default' : 'outline'} className="h-7 text-xs" disabled={sending} onClick={() => pickOutcome(o)}>{t(`outcomes.${o}`)}</Button>
@@ -1061,7 +1091,7 @@ export function TaskWindow({ group, initialTab, onSend, onClose, onAct, onLater,
                         </div>
                         {set.clientHints.length > 0 && (
                           <>
-                            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t('window.addHint')}</p>
+                            <p className="text-xs font-medium text-muted-foreground">{t('window.addHint')}</p>
                             <div className="flex flex-wrap gap-1.5">
                               {set.clientHints.map(c => (
                                 <Button key={c.key} size="sm" variant={hints.includes(c.key) ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => { setHints(h => toggle(h, c.key)); setClientEdit(null); }}>{c.label}</Button>
@@ -1117,7 +1147,7 @@ export function TaskWindow({ group, initialTab, onSend, onClose, onAct, onLater,
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2 border-t p-4 text-xs">
-          <span className="text-muted-foreground"><Trans ns={NS} i18nKey="window.goalToday" values={{ goal: guide.goal }} components={{ g: <span className="font-medium text-emerald-500" /> }} /></span>
+          <span className="text-muted-foreground"><Trans ns={NS} i18nKey="window.goalToday" values={{ goal: guide.goal }} components={{ g: <span className="font-medium text-foreground" /> }} /></span>
           <div className="flex flex-wrap items-center gap-1.5">
             <LaterMenu onPick={until => onLater(item, until)} />
             {item.candidatePhone && guide.primary.kind !== 'call' && guide.primary.kind !== 'followup' && (

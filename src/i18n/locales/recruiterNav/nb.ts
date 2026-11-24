@@ -9,6 +9,7 @@ const nb: Messages<typeof de> = {
     jobs: 'Ledige oppdrag',
     candidates: 'Mine kandidater',
     pipeline: 'Pipeline',
+    analytics: 'Analyse',
     talentPool: 'Talentpool',
     liga: 'Matchunt-ligaen',
     earnings: 'Inntekter',

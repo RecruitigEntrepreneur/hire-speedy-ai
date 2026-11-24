@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowRight, Check, CheckCircle2, Circle, Clock } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { CheckCircle2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { useRecruiterGuide } from '@/components/recruiter/guide/RecruiterGuide';
@@ -10,7 +9,7 @@ import { useRecruiterPending } from '@/components/verification/RecruiterAccessGa
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { tourSeen } from '@/lib/recruiterGuide';
-import { START_HIDDEN_KEY, openSummary, startPercent, startSteps, type StartProfile, type StartStepId } from '@/lib/recruiterStart';
+import { START_HIDDEN_KEY, startPercent, startSteps, type StartProfile, type StartStepId } from '@/lib/recruiterStart';
 
 const browserStorage = () => { try { return window.localStorage; } catch { return null; } };
 
@@ -53,29 +52,22 @@ export function RecruiterStartChecklist() {
         if (error) console.warn('[start] Ausblenden nicht gespeichert', error.message);
       });
     };
-    return <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/30 px-4 py-2.5 text-sm">
-      <span className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-success"/>{t('start.complete')}</span>
-      <button type="button" onClick={hide} className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground">{t('start.hide')}</button>
+    return <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border px-4 py-2.5 text-sm">
+      <span className="inline-flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-muted-foreground"/>{t('start.complete')}</span>
+      <button type="button" onClick={hide} className="text-xs text-klick hover:underline">{t('start.hide')}</button>
     </div>;
   }
 
   const done = steps.filter(s => s.done).length;
-  return <Card className="border-border/30 shadow-sm">
-    <CardContent className="space-y-3 p-5">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-base font-semibold">{t('start.title')}</h2>
-        <span className="text-sm text-muted-foreground">{t('start.progress', { done, total: steps.length })}</span>
+  const offen = steps.filter(s => !s.done).map(s => s.label).join(', ');
+  return <Card>
+    <CardContent className="space-y-2.5 p-4 sm:p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h2 className="text-[15px] font-semibold tracking-tight">{t('start.title')}</h2>
+        {next && next.id !== 'contract' && <button type="button" onClick={() => act(next.id)} className="text-sm text-klick hover:underline">{t(`start.actions.${next.id}`)} ›</button>}
       </div>
-      <Progress value={startPercent(steps)} className="h-1.5" aria-label={t('start.percentAria', { percent: startPercent(steps) })}/>
-      <div className="flex flex-wrap gap-2">
-        {steps.map(s => s.waiting
-          ? <span key={s.id} className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground"><Clock className="h-3 w-3"/>{s.label}</span>
-          : s.done
-          ? <span key={s.id} className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2.5 py-1 text-xs text-success"><Check className="h-3 w-3"/>{s.label}</span>
-          : <button key={s.id} type="button" onClick={() => act(s.id)} className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-xs text-foreground hover:bg-muted"><Circle className="h-3 w-3"/>{s.label}</button>)}
-      </div>
-      <p className="text-sm text-muted-foreground">{openSummary(steps)}</p>
-      {next && <Button size="sm" onClick={() => act(next.id)}>{next.id === 'contract' ? '' : t(`start.actions.${next.id}`)}<ArrowRight className="ml-1 h-4 w-4"/></Button>}
+      <Progress value={startPercent(steps)} className="h-1.5 [&>div]:bg-klick" aria-label={t('start.percentAria', { percent: startPercent(steps) })}/>
+      <p className="text-sm text-muted-foreground">{t('start.progress', { done, total: steps.length })}{offen && <> · {t('start.open', { list: offen })}</>}</p>
     </CardContent>
   </Card>;
 }

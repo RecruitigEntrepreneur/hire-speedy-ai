@@ -47,10 +47,9 @@ export function CandidateCvAiSummaryCard({ summary, bullets }: CandidateCvAiSumm
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-primary" />
+        <CardTitle className="flex items-center gap-2 text-[15px] font-semibold tracking-tight">
           {t('cvSummary.title')}
-          <Badge variant="secondary" className="text-xs ml-auto">
+          <Badge variant="secondary" className="ml-auto rounded-full text-xs font-normal text-muted-foreground">
             {t('cvSummary.fromCv')}
           </Badge>
         </CardTitle>
@@ -68,20 +67,10 @@ export function CandidateCvAiSummaryCard({ summary, bullets }: CandidateCvAiSumm
               <Button
                 variant="ghost"
                 size="sm"
-                className="px-0 h-auto text-xs mt-1"
+                className="mt-1 h-auto px-0 text-xs font-medium text-klick hover:bg-transparent hover:text-klick hover:underline"
                 onClick={() => setExpanded(!expanded)}
               >
-                {expanded ? (
-                  <>
-                    <ChevronUp className="h-3 w-3 mr-1" />
-                    {t('common.showLess')}
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown className="h-3 w-3 mr-1" />
-                    {t('common.showMore')}
-                  </>
-                )}
+                {expanded ? t('common.showLess') : `${t('common.showMore')} ›`}
               </Button>
             )}
           </div>
@@ -102,11 +91,10 @@ export function CandidateCvAiSummaryCard({ summary, bullets }: CandidateCvAiSumm
               <Button
                 variant="ghost"
                 size="sm"
-                className="px-0 h-auto text-xs mt-1"
+                className="mt-1 h-auto px-0 text-xs font-medium text-klick hover:bg-transparent hover:text-klick hover:underline"
                 onClick={() => setExpanded(true)}
               >
-                <ChevronDown className="h-3 w-3 mr-1" />
-                {t('cvSummary.more', { count: parsedBullets.length - 3 })}
+                {t('cvSummary.more', { count: parsedBullets.length - 3 })} ›
               </Button>
             )}
           </div>

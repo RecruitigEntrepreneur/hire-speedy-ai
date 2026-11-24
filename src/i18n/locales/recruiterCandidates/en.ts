@@ -3,6 +3,17 @@ import type { Messages } from '../../types';
 
 const en: Messages<typeof de> = {
   list: {
+    pool: { edit: 'Rename or delete', all: 'All', due: 'Contact due', create: 'Create new pool' },
+    summary: '{{total}} candidates · {{process}} in process · {{placed}} hired',
+    tabs: {
+      all: 'All',
+      process: 'In process',
+      free: 'Free',
+      placed: 'Hired',
+      noCv: 'CV missing',
+      pool: 'Talent pool',
+      label: 'By status',
+    },
     title: 'My candidates',
     subtitle: 'Manage your candidate database',
     manageTags: 'Manage tags',

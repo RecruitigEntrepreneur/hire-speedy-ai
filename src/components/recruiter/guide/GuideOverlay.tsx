@@ -340,6 +340,13 @@ export function GuideOverlay({ step, stepNumber, stepCount, firstName, target, c
 
   useEffect(() => { primaryRef.current?.focus({ preventScroll: true }); setContentsOpen(false); }, [step.id]);
 
+  // Solange der Rundgang läuft, öffnen sich Fenster und Menüs ohne Einblenden (index.css, html[data-guide]):
+  // Sonst wartete das Licht, bis die Animation das Ziel zur Ruhe kommen ließ.
+  useEffect(() => {
+    document.documentElement.dataset.guide = '1';
+    return () => { delete document.documentElement.dataset.guide; };
+  }, []);
+
   // Text, Licht und Karte wechseln gemeinsam (Marko 23.11.: „der markierte Bereich hinkt hinterher“).
   // Bisher stand der neue Text sofort in der Karte, während Licht und Karte noch am alten Platz
   // warteten. Jetzt bleibt der alte Schritt stehen, bis das neue Ziel bereit ist; die Knöpfe ruhen

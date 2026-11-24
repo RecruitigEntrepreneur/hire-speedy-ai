@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { useTranslation } from 'react-i18next';
@@ -25,7 +25,7 @@ import { useAuth } from '@/lib/auth';
 import { useCandidateDossier } from '@/hooks/useCandidateDossier';
 import { useJobActivation } from '@/hooks/useJobActivation';
 import type { MatchV41Row } from '@/hooks/useMatchV41';
-import { offeneStellenAbgleichen, stelleMeta, type AbgleichErgebnis, type KandidatAngaben, type StelleAbgleich, type StelleInfo } from '@/lib/offeneStellen';
+import { STELLEN_SPALTEN, offeneStellenAbgleichen, stelleMeta, type AbgleichErgebnis, type KandidatAngaben, type StelleAbgleich, type StelleInfo } from '@/lib/offeneStellen';
 import { genitiv, vorname } from '@/lib/vorstellen';
 import { cn } from '@/lib/utils';
 
@@ -56,7 +56,7 @@ function StelleZeile({ a, rollenFakt, status }: { a: StelleAbgleich; rollenFakt?
   );
 }
 
-const SPALTEN = 'id, title, location, remote_type, onsite_days_required, salary_min, salary_max, required_languages, created_at';
+const SPALTEN = STELLEN_SPALTEN;
 
 function useOffeneStellen(candidateId: string) {
   const { user } = useAuth();
@@ -100,6 +100,8 @@ export function PassendeStellenCard({ candidateId, firstName }: {
   const { stellen, vorgestellt } = useOffeneStellen(candidateId);
   const { isActivated } = useJobActivation();
   const [fenster, setFenster] = useState<null | 'liste' | 'gruende'>(null);
+  // „N Stellen passen ›“ aus der Kandidatenliste öffnet hier direkt die Liste (24.11.2026)
+  const [params, setParams] = useSearchParams();
 
   const f = akte.form;
   const v = vorname(f.full_name || firstName);
@@ -129,6 +131,14 @@ export function PassendeStellenCard({ candidateId, firstName }: {
     return isActivated(jobId) ? t('openJobs.activated') : null;
   };
 
+  useEffect(() => {
+    if (!ergebnis || params.get('stellen') !== '1') return;
+    setFenster('liste');
+    const next = new URLSearchParams(params);
+    next.delete('stellen');
+    setParams(next, { replace: true });
+  }, [ergebnis, params, setParams]);
+
   const zurRolle = ergebnis?.zurRolle ?? [];
   const offen = [...zurRolle, ...(ergebnis?.weitere ?? [])];
   const top = offen.slice(0, 3);
@@ -139,12 +149,10 @@ export function PassendeStellenCard({ candidateId, firstName }: {
     <Card>
       <CardHeader className="space-y-1 pb-1">
         <div className="flex items-center justify-between gap-2">
-          <CardTitle className="flex items-center gap-2 text-sm">
-            <Briefcase className="h-4 w-4" /> {t('openJobs.title')}
-          </CardTitle>
+          <CardTitle className="text-[15px] font-semibold tracking-tight">{t('openJobs.title')}</CardTitle>
           {offen.length > 0 && (
-            <button type="button" className="flex shrink-0 items-center gap-0.5 text-xs hover:underline" onClick={() => setFenster('liste')}>
-              {t('openJobs.viewAll', { n: offen.length })} <ChevronRight className="h-3 w-3" />
+            <button type="button" className="shrink-0 text-sm font-medium text-klick hover:underline" onClick={() => setFenster('liste')}>
+              {t('openJobs.viewAll', { n: offen.length })} ›
             </button>
           )}
         </div>
@@ -192,7 +200,7 @@ type Reiter = 'alle' | 'aktiviert' | 'vorgestellt';
 function GruppenKopf({ titel, rechts, onClick }: { titel: string; rechts?: string; onClick?: () => void }) {
   const inhalt = (
     <>
-      <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{titel}</span>
+      <span className="text-xs font-medium text-muted-foreground">{titel}</span>
       {rechts && <span className="truncate text-xs text-muted-foreground">{rechts}</span>}
     </>
   );

@@ -16,13 +16,13 @@ export function TerminHerkunft({ candidateId, importSource, createdAt, cvParsedA
   if (!ausBeitrag && importSource !== 'terminseite') return null;
   const stelle = termine.find(g => g.job_title)?.job_title;
   const seit = createdAt ? new Date(createdAt).toLocaleDateString(intlLocale(i18n.language), { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' }) : null;
-  return <Card className="border-primary/20">
+  return <Card>
     <CardContent className="space-y-3 p-4">
       <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
         {ausBeitrag ? <span className="inline-flex items-center gap-1.5 text-[#0A66C2]"><Linkedin className="h-4 w-4"/>{t('herkunft.linkedin')}</span> : <span className="text-muted-foreground">{t('herkunft.page')}</span>}
         {stelle && <span className="text-muted-foreground">· {stelle}</span>}
         {seit && <span className="text-muted-foreground">{t('herkunft.bookedOn', { date: seit })}</span>}
-        {cvParsedAt && <span className="inline-flex items-center gap-1 text-xs text-amber-700"><FileCheck2 className="h-3.5 w-3.5"/>{t('herkunft.prefilled')}</span>}
+        {cvParsedAt && <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><FileCheck2 className="h-3.5 w-3.5"/>{t('herkunft.prefilled')}</span>}
       </p>
       {termine.filter(g => g.note).map(g => <p key={`n${g.id}`} className="text-sm"><span className="text-muted-foreground">{t('herkunft.noteFrom', { name: g.first_name })}</span> <i>{t('herkunft.noteQuote', { note: g.note })}</i></p>)}
     </CardContent>

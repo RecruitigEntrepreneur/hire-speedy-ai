@@ -14,6 +14,9 @@ import { genitiv } from './vorstellen';
 // Texte beim Aufruf übersetzt (candidateDetail:openJobs, Arbeitsmodell unter jobs.remote).
 const tj = (key: string, options?: Record<string, unknown>): string => i18n.t(`candidateDetail:openJobs.${key}`, options) as string;
 
+/** Spalten aus recruiter_jobs_view, die der Abgleich braucht (Profil und Kandidatenliste). */
+export const STELLEN_SPALTEN = 'id, title, location, remote_type, onsite_days_required, salary_min, salary_max, required_languages, created_at';
+
 export interface StelleInfo {
   id: string;
   title: string;
@@ -62,14 +65,16 @@ const MODELLE = ['onsite', 'hybrid', 'remote', 'field', 'flexible'];
 /** Anzeige des Arbeitsmodells; Unbekanntes bleibt, wie es ist. */
 const modellText = (m: string): string => (MODELLE.includes(m) ? i18n.t(`candidateDetail:jobs.remote.${m}`) as string : m);
 
-export const tausend = (n: number) => `${Math.round(n / 1000)}k`;
+/** Betrag ausgeschrieben, „85.000 €“ statt „85k“ (Apple-Stil, 24.11.2026). */
+const zahl = (n: number) => Math.round(n).toLocaleString(i18n.language === 'en' ? 'en-GB' : i18n.language || 'de');
+export const tausend = (n: number) => `${zahl(n)} €`;
 
 export function budgetText(s: Pick<StelleInfo, 'salary_min' | 'salary_max'>): string | null {
   if (!s.salary_max) return null;
-  return s.salary_min ? `${Math.round(s.salary_min / 1000)}–${tausend(s.salary_max)}` : i18n.t('candidateDetail:jobs.upTo', { max: Math.round(s.salary_max / 1000) }) as string;
+  return s.salary_min ? `${zahl(s.salary_min)}–${tausend(s.salary_max)}` : i18n.t('candidateDetail:jobs.upTo', { max: zahl(s.salary_max) }) as string;
 }
 
-/** „München · hybrid · 130–160k“ */
+/** „München · hybrid · 130.000–160.000 €“ */
 export function stelleMeta(s: Pick<StelleInfo, 'location' | 'remote_type' | 'salary_min' | 'salary_max'>): string {
   return [s.location, s.remote_type ? modellText(s.remote_type) : null, budgetText(s)].filter(Boolean).join(' · ');
 }

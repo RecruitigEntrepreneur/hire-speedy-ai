@@ -1,9 +1,20 @@
 // Kandidaten des Headhunters: Liste, Akte (Seitenrahmen) und Talent Pool.
 const de = {
   list: {
+    pool: { edit: 'Umbenennen oder löschen', all: 'Alle', due: 'Melden fällig', create: 'Neuen Pool erstellen' },
+    summary: '{{total}} Kandidaten · {{process}} im Prozess · {{placed}} eingestellt',
+    tabs: {
+      all: 'Alle',
+      process: 'Im Prozess',
+      free: 'Frei',
+      placed: 'Eingestellt',
+      noCv: 'Lebenslauf fehlt',
+      pool: 'Talent Pool',
+      label: 'Nach Stand',
+    },
     title: 'Meine Kandidaten',
     subtitle: 'Verwalten Sie Ihre Kandidaten-Datenbank',
-    manageTags: 'Tags verwalten',
+    manageTags: 'Tags',
     updated: 'Kandidat aktualisiert',
     added: 'Kandidat hinzugefügt',
     saveFailed: 'Fehler beim Speichern',

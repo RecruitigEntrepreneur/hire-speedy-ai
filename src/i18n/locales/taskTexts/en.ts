@@ -164,6 +164,10 @@ const en: Messages<typeof de> = {
     desc_one: 'Unsure for {{count}} day, the candidate is waiting.',
     desc_other: 'Unsure for {{count}} days, the candidate is waiting.',
   },
+  pool: {
+    title: 'Get in touch with {{name}}',
+    action: 'Check in briefly and note what has changed.',
+  },
   optIn: {
     title: 'Get the opt-in — client is waiting',
     descHours: '{{name}} hasn’t answered the interview invitation for {{hours}} hrs.',

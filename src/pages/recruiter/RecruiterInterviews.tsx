@@ -1,65 +1,45 @@
 import { useSearchParams } from 'react-router-dom';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { format, formatDistanceToNow } from 'date-fns';
+import { addDays, addMonths, format, formatDistanceToNow, isSameMonth, startOfMonth, startOfWeek } from 'date-fns';
 import { intlLocale } from '@/i18n/languages';
 import { dateFnsLocale } from '@/components/recruiter/termin/datum';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  CalendarClock,
-  CalendarX,
-  Video,
-  Phone,
-  MapPin,
-  ChevronDown,
-  ChevronRight,
-  ExternalLink,
-  AlertTriangle,
-  Hourglass,
-  Lock,
-} from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import {
   useRecruiterInterviewAgenda,
   type RecruiterInterview,
   type RecruiterInterviewAgenda,
 } from '@/hooks/useRecruiterInterviewAgenda';
-import {
-  RecruiterTerminSheet,
-  type RecruiterTerminVariant,
-} from '@/components/interview/agenda/RecruiterTerminSheet';
-import { NachgespraechWindow } from '@/components/recruiter/tasks/NachgespraechWindow';
+import type { RecruiterTerminVariant } from '@/components/interview/agenda/RecruiterTerminSheet';
+import { TerminFenster, firmaOderBranche, type TerminAufgabe } from '@/components/recruiter/termin/TerminFenster';
+import { useRecruiterPipeline } from '@/hooks/useRecruiterPipeline';
+import { useUnifiedTaskInbox } from '@/hooks/useUnifiedTaskInbox';
+import { buildGuide } from '@/components/recruiter/tasks/taskWindow';
+import { meetingTypeLabel } from '@/components/interview/agenda/meetingType';
 import { cn } from '@/lib/utils';
-import { Honorar } from '@/components/recruiter/Honorar';
 import { ErstgespraecheAbschnitt, useErstgespraeche } from '@/components/recruiter/termin/Erstgespraeche';
 
 // Die Seite ruft ihre Texte als t('recruiterInterviews.…') auf. Der Namespace recruiterInterviews
 // führt dieselben Schlüssel in allen vier Sprachen; „translation“ (nur de/en) bleibt als Rückfall.
-const NS = ['recruiterInterviews', 'translation'];
+// „interviews“: Beschriftung der Gesprächsart (meetingTypeLabel).
+const NS = ['recruiterInterviews', 'translation', 'interviews', 'recruiterTasks'];
 
-/** Tagesüberschrift der Agenda in der Sprache der Oberfläche (key = JJJJ-MM-TT, Ortszeit). */
-function dayHeading(key: string, language: string, today: string, tomorrow: string): string {
-  const [y, m, d] = key.split('-').map(Number);
-  const that = new Date(y, m - 1, d);
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  const diff = Math.round((that.getTime() - now.getTime()) / 86_400_000);
-  if (diff === 0) return today;
-  if (diff === 1) return tomorrow;
-  return that.toLocaleDateString(intlLocale(language), { weekday: 'long', day: 'numeric', month: 'long' });
-}
-
-const formatFee = (fee: number | null) => (fee ? `~€${Math.round(fee / 1000)}k` : null);
-
-function MeetingIcon({ type, className }: { type: string | null; className?: string }) {
-  if (type === 'phone') return <Phone className={className} />;
-  if (type === 'onsite' || type === 'in_person') return <MapPin className={className} />;
-  return <Video className={className} />;
-}
+// Anzeige immer in deutscher Zeit, Format in der Sprache der Oberfläche (wie auf der Kunden-Seite)
+const timeShort = (iso: string, language: string) =>
+  new Date(iso).toLocaleTimeString(intlLocale(language), { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' });
+const dateShort = (iso: string, language: string) =>
+  new Date(iso).toLocaleDateString(intlLocale(language), { timeZone: 'Europe/Berlin', weekday: 'short', day: '2-digit', month: '2-digit' });
+const dayLabel = (iso: string, language: string, today: string, tomorrow: string) => {
+  const key = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: 'Europe/Berlin' });
+  const that = new Date(iso);
+  if (key(that) === key(new Date())) return today;
+  if (key(that) === key(new Date(Date.now() + 86_400_000))) return tomorrow;
+  return that.toLocaleDateString(intlLocale(language), { timeZone: 'Europe/Berlin', weekday: 'long', day: 'numeric', month: 'long' });
+};
 
 /** Leitet die Sheet-Variante aus der Gruppierung des Hooks ab — damit Deeplinks
  *  (?interview=…) dieselbe Einordnung bekommen wie ein Klick in der Liste. */
@@ -75,151 +55,112 @@ function variantOf(
   return 'past';
 }
 
-function InterviewRow({
+const tagKey = (d: Date | string) => new Date(d).toLocaleDateString('en-CA', { timeZone: 'Europe/Berlin' });
+
+/** Kleiner Monatskalender oben rechts (24.11.2026, Marko): ein Punkt heißt Termin, ein Klick zeigt die Termine des Tages. */
+function MiniKalender({ termine, gewaehlt, onWaehle }: { termine: Set<string>; gewaehlt: string | null; onWaehle: (key: string | null) => void }) {
+  const { t, i18n } = useTranslation(NS);
+  const locale = dateFnsLocale(i18n.language);
+  const [monat, setMonat] = useState(() => startOfMonth(new Date()));
+  const start = startOfWeek(monat, { weekStartsOn: 1 });
+  const tage = Array.from({ length: 42 }, (_, i) => addDays(start, i));
+  // Sechste Woche nur zeigen, wenn sie noch zum Monat gehört
+  const sichtbar = isSameMonth(tage[35], monat) ? tage : tage.slice(0, 35);
+  const heute = tagKey(new Date());
+  return (
+    <div className="rounded-[20px] border bg-card p-4">
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="text-[15px] font-semibold tracking-tight">{format(monat, 'LLLL yyyy', { locale })}</h2>
+        <div className="flex gap-1">
+          <Button variant="secondary" size="icon" className="h-7 w-7" aria-label={t('recruiterInterviews.calendar.prev')} onClick={() => setMonat((m) => addMonths(m, -1))}><ChevronLeft className="h-4 w-4" /></Button>
+          <Button variant="secondary" size="icon" className="h-7 w-7" aria-label={t('recruiterInterviews.calendar.next')} onClick={() => setMonat((m) => addMonths(m, 1))}><ChevronRight className="h-4 w-4" /></Button>
+        </div>
+      </div>
+      <div className="grid grid-cols-7 text-center">
+        {tage.slice(0, 7).map((d) => (
+          <span key={`k-${d.getDay()}`} className="pb-1 text-[11px] text-muted-foreground">{format(d, 'EEEEEE', { locale })}</span>
+        ))}
+        {sichtbar.map((d) => {
+          const key = format(d, 'yyyy-MM-dd');
+          const hat = termine.has(key);
+          const imMonat = isSameMonth(d, monat);
+          return (
+            <button
+              key={key}
+              type="button"
+              disabled={!hat}
+              aria-pressed={gewaehlt === key}
+              aria-label={`${format(d, 'PPPP', { locale })}${hat ? `, ${t('recruiterInterviews.calendar.has')}` : ''}`}
+              onClick={() => onWaehle(gewaehlt === key ? null : key)}
+              className={cn(
+                'relative mx-auto flex h-8 w-8 items-center justify-center rounded-full text-xs tabular-nums transition-colors',
+                !imMonat && 'text-muted-foreground/40',
+                imMonat && !hat && 'text-muted-foreground',
+                hat && 'font-semibold hover:bg-accent/60',
+                key === heute && 'bg-secondary text-foreground',
+                gewaehlt === key && 'bg-foreground text-background hover:bg-foreground',
+              )}
+            >
+              {format(d, 'd')}
+              {hat && <span className={cn('absolute bottom-0.5 h-1 w-1 rounded-full', gewaehlt === key ? 'bg-background' : 'bg-foreground')} />}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+type Reiter = 'upcoming' | 'awaiting' | 'past' | 'cancelled';
+
+/**
+ * Ein Interview als Karte (24.11.2026, Marko: hier stehen nur Termine): wer, bei wem, wann und wie.
+ * Überall dieselbe Handlung „Ansehen“; was zu tun ist, steht unter „Aufgaben“.
+ */
+function InterviewCard({
   iv,
   variant,
+  aufgaben,
+  ohneTag,
   onOpen,
 }: {
   iv: RecruiterInterview;
   variant: RecruiterTerminVariant;
+  aufgaben: number;
+  /** In „Kommende“ steht der Tag schon als Überschrift */
+  ohneTag?: boolean;
   onOpen: (iv: RecruiterInterview, variant: RecruiterTerminVariant) => void;
 }) {
   const { t, i18n } = useTranslation(NS);
   const locale = dateFnsLocale(i18n.language);
-
+  const wann = iv.scheduledAt
+    ? ohneTag ? timeShort(iv.scheduledAt, i18n.language) : `${dateShort(iv.scheduledAt, i18n.language)}, ${timeShort(iv.scheduledAt, i18n.language)}`
+    : null;
+  const runde = t('recruiterInterviews.window.round', { n: iv.round || 1 });
+  const meta = (variant === 'awaiting' || variant === 'counter'
+    ? [t('recruiterInterviews.card.asked', { time: formatDistanceToNow(new Date(iv.createdAt), { locale, addSuffix: true }) }), variant === 'counter' ? t('recruiterInterviews.row.counter') : null]
+    : variant === 'cancelled'
+      ? [wann, t(iv.status === 'no_show' ? 'recruiterInterviews.row.no_show' : 'recruiterInterviews.row.cancelled')]
+      : [wann, meetingTypeLabel(iv.meetingType), runde,
+          variant === 'agenda' ? (iv.confirmed ? t('recruiterInterviews.window.confirmed') : t('recruiterInterviews.row.unconfirmed')) : null]
+  ).filter(Boolean).join(' · ');
   return (
-    <div
-      role="button"
-      tabIndex={0}
+    <button
+      type="button"
       onClick={() => onOpen(iv, variant)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onOpen(iv, variant);
-        }
-      }}
-      className={cn(
-        'flex items-center gap-3 rounded-lg border p-3 transition-colors cursor-pointer hover:border-primary/30 hover:bg-accent/40',
-        variant === 'debrief' && 'border-amber-500/30 bg-amber-500/[0.04]',
-        variant === 'counter' && 'border-warning/40 bg-warning/[0.04]',
-        variant === 'awaiting' && 'border-border/60 bg-muted/20',
-        variant === 'cancelled' && 'border-border/60',
-        (variant === 'agenda' || variant === 'past') && 'border-border bg-card',
-      )}
+      className="flex flex-col rounded-xl border bg-card p-4 text-left transition-colors hover:bg-accent/30"
     >
-      {/* Zeit-Block */}
-      <div className="w-16 shrink-0 text-center">
-        {iv.scheduledAt ? (
-          <>
-            <div className="text-sm font-semibold tabular-nums">
-              {format(new Date(iv.scheduledAt), 'HH:mm')}
-            </div>
-            <div className="text-[10px] text-muted-foreground">
-              {variant === 'agenda'
-                ? t('recruiterInterviews.row.duration', { min: iv.durationMinutes })
-                : format(new Date(iv.scheduledAt), t('page.fmt.dayMonth'), { locale })}
-            </div>
-          </>
-        ) : (
-          <Hourglass className="h-4 w-4 mx-auto text-muted-foreground" aria-hidden="true" />
-        )}
-      </div>
-
-      <MeetingIcon type={iv.meetingType} className="h-4 w-4 shrink-0 text-muted-foreground" />
-
-      {/* Kandidat + Job @ Firma */}
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="font-medium text-sm truncate">{iv.candidateName}</span>
-          {variant === 'agenda' && !iv.confirmed && (
-            <Badge
-              variant="outline"
-              className="text-[10px] h-4 px-1.5 border-amber-500/50 text-amber-600 dark:text-amber-400 shrink-0"
-            >
-              {t('recruiterInterviews.row.unconfirmed')}
-            </Badge>
-          )}
-          {variant === 'counter' && (
-            <Badge
-              variant="outline"
-              className="text-[10px] h-4 px-1.5 border-warning/50 text-warning shrink-0"
-            >
-              {t('recruiterInterviews.row.counter')}
-            </Badge>
-          )}
-          {variant === 'awaiting' && iv.slotsExpired && (
-            <Badge
-              variant="outline"
-              className="text-[10px] h-4 px-1.5 border-destructive/50 text-destructive shrink-0"
-            >
-              {t('recruiterInterviews.row.slots_expired')}
-            </Badge>
-          )}
-          {variant === 'cancelled' && (
-            <Badge variant="outline" className="text-[10px] h-4 px-1.5 shrink-0">
-              {t(
-                iv.status === 'no_show'
-                  ? 'recruiterInterviews.row.no_show'
-                  : 'recruiterInterviews.row.cancelled',
-              )}
-            </Badge>
-          )}
-        </div>
-        <div className="text-xs text-muted-foreground truncate flex items-center gap-1">
-          <span className="truncate">
-            {iv.jobTitle} · {iv.companyLabel}
-          </span>
-          {!iv.companyRevealed && <Lock className="h-2.5 w-2.5 shrink-0 opacity-60" />}
-        </div>
-        {(variant === 'awaiting' || variant === 'counter') && (
-          <div className="text-[11px] text-muted-foreground mt-0.5">
-            {t('recruiterInterviews.row.waiting_since', {
-              time: formatDistanceToNow(new Date(iv.createdAt), { locale }),
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Fee + Aktionen */}
-      <div className="flex items-center gap-1.5 shrink-0">
-        {formatFee(iv.potentialFee) && (
-          <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 tabular-nums hidden sm:inline">
-            <Honorar>{formatFee(iv.potentialFee)}</Honorar>
-          </span>
-        )}
-        {/* Anrufen gilt in JEDEM Zustand: vor dem Termin ("kommst du?") ist der
-            Griff zum Telefon genauso wichtig wie beim Nachfassen. */}
-        {iv.candidatePhone && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            aria-label={t('recruiterTermin.action.call')}
-            onClick={(e) => {
-              e.stopPropagation();
-              window.location.href = `tel:${iv.candidatePhone}`;
-            }}
-          >
-            <Phone className="h-3.5 w-3.5" />
-          </Button>
-        )}
-        {variant === 'agenda' && iv.joinUrl && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs gap-1"
-            onClick={(e) => {
-              e.stopPropagation();
-              window.open(iv.joinUrl!, '_blank', 'noopener');
-            }}
-          >
-            <ExternalLink className="h-3 w-3" />
-            {t('recruiterInterviews.row.join')}
-          </Button>
-        )}
-        <ChevronRight className="h-4 w-4 text-muted-foreground/50" />
-      </div>
-    </div>
+      <p className="w-full truncate text-sm font-medium">{iv.candidateName}</p>
+      <p className="w-full truncate text-xs text-muted-foreground">{[iv.jobTitle, firmaOderBranche(iv)].filter(Boolean).join(' · ')}</p>
+      <span className="mt-4 flex w-full flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <span className="min-w-0 truncate text-xs text-muted-foreground">
+          {meta}
+          {variant === 'awaiting' && iv.slotsExpired && <span className="text-destructive"> · {t('recruiterInterviews.row.slots_expired')}</span>}
+          {aufgaben > 0 && <span className="text-foreground"> · {t('recruiterInterviews.card.tasks', { count: aufgaben })}</span>}
+        </span>
+        <span className="ml-auto shrink-0 whitespace-nowrap text-xs font-medium text-klick">{t('recruiterInterviews.card.view')} ›</span>
+      </span>
+    </button>
   );
 }
 
@@ -227,69 +168,49 @@ export default function RecruiterInterviews() {
   const { t, i18n } = useTranslation(NS);
   const locale = dateFnsLocale(i18n.language);
   const erstgespraeche = useErstgespraeche({ kommende: true });
-  const { data: agenda, isLoading, refetch } = useRecruiterInterviewAgenda();
-  const [pastOpen, setPastOpen] = useState(false);
-  const [cancelledOpen, setCancelledOpen] = useState(false);
+  const { data: agenda, isLoading } = useRecruiterInterviewAgenda();
+  const pipeline = useRecruiterPipeline();
+  const { allItems } = useUnifiedTaskInbox('all');
   const [searchParams, setSearchParams] = useSearchParams();
-  // Nachgespräch aus der Leiste heraus (20.10.2026)
-  const [nach, setNach] = useState<RecruiterInterview | null>(null);
-  const [sheet, setSheet] = useState<{
-    iv: RecruiterInterview | null;
-    variant: RecruiterTerminVariant;
-  }>({ iv: null, variant: 'agenda' });
+  const [tab, setTab] = useState<Reiter | null>(null);
+  const [query, setQuery] = useState('');
+  // Tag aus dem kleinen Kalender; null = Reiter wie gewohnt
+  const [tag, setTag] = useState<string | null>(null);
+  const [fenster, setFenster] = useState<{ iv: RecruiterInterview | null; variant: RecruiterTerminVariant }>({ iv: null, variant: 'agenda' });
 
-  const openTermin = useCallback(
-    (iv: RecruiterInterview, variant: RecruiterTerminVariant) => {
-      setSheet({ iv, variant });
-    },
-    [],
-  );
-
-  const closeTermin = useCallback(
-    (open: boolean) => {
-      if (open) return;
-      setSheet((s) => ({ ...s, iv: null }));
-      // Deeplink-Parameter entfernen, sonst öffnet sich das Sheet beim
-      // nächsten Render sofort wieder.
-      if (searchParams.has('interview')) {
-        const next = new URLSearchParams(searchParams);
-        next.delete('interview');
-        setSearchParams(next, { replace: true });
-      }
-    },
-    [searchParams, setSearchParams],
-  );
+  const openTermin = useCallback((iv: RecruiterInterview, variant: RecruiterTerminVariant) => setFenster({ iv, variant }), []);
+  const closeTermin = useCallback(() => {
+    setFenster((s) => ({ ...s, iv: null }));
+    // Deeplink-Parameter entfernen, sonst öffnet sich das Fenster beim nächsten Render sofort wieder.
+    if (searchParams.has('interview')) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('interview');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   // Deeplink aus Benachrichtigungen: /recruiter/interviews?interview=<id>
   const deepLinkId = searchParams.get('interview');
   useEffect(() => {
     if (!deepLinkId || !agenda) return;
-    if (sheet.iv?.id === deepLinkId) return;
+    if (fenster.iv?.id === deepLinkId) return;
     const target = agenda.all.find((x) => x.id === deepLinkId);
-    if (target) setSheet({ iv: target, variant: variantOf(target, agenda) });
-  }, [deepLinkId, agenda, sheet.iv?.id]);
+    if (target) setFenster({ iv: target, variant: variantOf(target, agenda) });
+  }, [deepLinkId, agenda, fenster.iv?.id]);
 
-  // Erstgespräche aus der Terminseite zählen in „Heute“ und „Diese Woche“ mit (21.10.2026).
-  const tagKey = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: 'Europe/Berlin' });
-  const erstHeute = (erstgespraeche.data ?? []).filter((g) => tagKey(new Date(g.starts_at)) === tagKey(new Date())).length;
-  const erstWoche = (erstgespraeche.data ?? []).filter((g) => Date.parse(g.starts_at) < Date.now() + 7 * 86400000).length;
-  const stats = [
-    { label: t('recruiterInterviews.stats.today'), value: (agenda?.todayCount ?? 0) + erstHeute },
-    { label: t('recruiterInterviews.stats.week'), value: (agenda?.weekCount ?? 0) + erstWoche },
-    {
-      // Ersetzt den alten "Unbestätigt"-Zähler: der zählte nur bereits
-      // terminierte Termine und stand deshalb auf 0, während offene Anfragen
-      // unbeantwortet lagen.
-      label: t('recruiterInterviews.stats.awaiting'),
-      value: agenda?.awaitingCount ?? 0,
-      warn: (agenda?.awaitingCount ?? 0) > 0,
-    },
-    {
-      label: t('recruiterInterviews.stats.debrief'),
-      value: agenda?.debriefDue.length ?? 0,
-      warn: (agenda?.debriefDue.length ?? 0) > 0,
-    },
-  ];
+  // Offene Aufgaben je Vorstellung: hier nur als Hinweis, abgearbeitet wird unter „Aufgaben“
+  const aufgabenJe = useMemo(() => {
+    const m = new Map<string, TerminAufgabe[]>();
+    for (const i of allItems) {
+      if (!i.submissionId) continue;
+      const liste = m.get(i.submissionId) ?? [];
+      liste.push({ id: i.itemId, label: buildGuide(i).pill });
+      m.set(i.submissionId, liste);
+    }
+    return m;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allItems, i18n.language]);
+  const anzahl = (iv: RecruiterInterview) => aufgabenJe.get(iv.submissionId)?.length ?? 0;
 
   const nextUp = agenda?.nextUp ?? null;
 
@@ -300,247 +221,158 @@ export default function RecruiterInterviews() {
     return Math.round((dead / total) * 100);
   }, [agenda?.all.length, agenda?.cancelled.length]);
 
+  // Reiter: nur Termine. Ein Reiter erscheint nur, wenn es dafür etwas gibt.
+  const listen = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const passt = (iv: RecruiterInterview) => !q || `${iv.candidateName} ${iv.jobTitle} ${iv.companyLabel ?? ''}`.toLowerCase().includes(q);
+    const abgesagt = new Set((agenda?.cancelled ?? []).map((x) => x.id));
+    const war = [...(agenda?.debriefDue ?? []), ...(agenda?.past ?? []).filter((x) => !abgesagt.has(x.id))]
+      .sort((a, b) => (b.scheduledAt ?? '').localeCompare(a.scheduledAt ?? ''));
+    return {
+      upcoming: (agenda?.agendaDays ?? []).flatMap((d) => d.items).filter(passt),
+      awaiting: [...(agenda?.counterProposals ?? []), ...(agenda?.awaitingScheduling ?? [])].filter(passt),
+      past: war.filter(passt).slice(0, 30),
+      cancelled: (agenda?.cancelled ?? []).filter(passt).slice(0, 20),
+    } satisfies Record<Reiter, RecruiterInterview[]>;
+  }, [agenda, query]);
+  const REIHE: Reiter[] = ['upcoming', 'awaiting', 'past', 'cancelled'];
+  const reiterListe = REIHE.filter((k) => listen[k].length > 0);
+  const aktiv: Reiter | null = tab && reiterListe.includes(tab) ? tab : reiterListe[0] ?? null;
+  const kommendeTage = (agenda?.agendaDays ?? [])
+    .map((d) => ({ ...d, items: d.items.filter((iv) => listen.upcoming.includes(iv)) }))
+    .filter((d) => d.items.length > 0);
+
+  // Kalender: alle Termine mit Uhrzeit, außer abgesagten
+  const aktive = useMemo(() => (agenda?.all ?? []).filter((iv) => iv.scheduledAt && iv.status !== 'cancelled'), [agenda]);
+  const termine = useMemo(() => new Set(aktive.map((iv) => tagKey(iv.scheduledAt!))), [aktive]);
+  const amTag = tag ? aktive.filter((iv) => tagKey(iv.scheduledAt!) === tag).sort((a, b) => a.scheduledAt!.localeCompare(b.scheduledAt!)) : [];
+
+  const zahlen = [
+    (agenda?.weekCount ?? 0) > 0 ? t('recruiterInterviews.summary.week', { count: agenda!.weekCount }) : null,
+    (agenda?.awaitingCount ?? 0) > 0 ? t('recruiterInterviews.summary.noDate', { count: agenda!.awaitingCount }) : null,
+  ].filter(Boolean).join(' · ');
+  const hasAny = (agenda?.all.length ?? 0) > 0 || (erstgespraeche.data?.length ?? 0) > 0;
+  const laeuft = nextUp?.scheduledAt ? Date.now() >= new Date(nextUp.scheduledAt).getTime() : false;
+  const karte = (iv: RecruiterInterview, ohneTag = false) => (
+    <InterviewCard key={iv.id} iv={iv} variant={variantOf(iv, agenda!)} aufgaben={anzahl(iv)} ohneTag={ohneTag} onOpen={openTermin} />
+  );
+
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        {/* Header */}
+      <div className="mx-auto max-w-4xl space-y-5">
+        {/* Kopf: ein Satz mit den Zahlen */}
         <div>
-          <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-            <CalendarClock className="h-6 w-6 text-primary" />
-            {t('recruiterInterviews.title')}
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {t('recruiterInterviews.subtitle')}
-          </p>
-        </div>
-
-        {/* Stat-Reihe. Handy (17.11.2026): alle vier in einer kompakten Zeile statt zwei großer Reihen */}
-        <div className="grid grid-cols-4 gap-1.5 md:gap-3" data-tour="interviews.stats">
-          {stats.map((s) => (
-            <Card key={s.label} className="border-border/40">
-              <CardContent className="p-3.5 max-md:px-1.5 max-md:py-2 max-md:text-center">
-                <div
-                  className={cn(
-                    'text-2xl font-bold tabular-nums max-md:text-xl',
-                    s.warn && 'text-amber-600 dark:text-amber-400',
-                  )}
-                >
-                  {isLoading ? <Skeleton className="h-8 w-8" /> : s.value}
-                </div>
-                <div className="text-xs text-muted-foreground max-md:text-[10.5px] max-md:leading-tight">{s.label}</div>
-              </CardContent>
-            </Card>
-          ))}
+          <h1 className="text-2xl font-semibold tracking-tight">{t('recruiterInterviews.title')}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{zahlen || t('recruiterInterviews.subtitle')}</p>
         </div>
 
         {isLoading ? (
           <div className="space-y-3">
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-14 w-full" />
-            <Skeleton className="h-14 w-full" />
+            <Skeleton className="h-28 w-full" />
+            {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-14 w-full" />)}
+          </div>
+        ) : !hasAny ? (
+          <div className="flex flex-col items-center justify-center gap-2 rounded-xl border bg-card px-6 py-16 text-center" data-tour="interviews.stats">
+            <CalendarDays className="h-8 w-8 text-muted-foreground/50" />
+            <p className="max-w-sm text-sm text-muted-foreground">{t('recruiterInterviews.empty')}</p>
           </div>
         ) : (
           <>
-            {/* Next Up */}
-            {nextUp && nextUp.scheduledAt && (
-              <Card className="border-primary/25 bg-primary/[0.03]">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between gap-3 flex-wrap">
-                    <div className="min-w-0">
-                      <p className="text-[11px] font-medium uppercase tracking-wider text-primary mb-1">
-                        {t('recruiterInterviews.next_up', {
-                          time: formatDistanceToNow(new Date(nextUp.scheduledAt), {
-                            locale,
-                            addSuffix: true,
-                          }),
-                        })}
+            {/* Links das nächste Interview beim Kunden, rechts der kleine Kalender */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_17rem]">
+              <div className="flex min-w-0 flex-col rounded-[20px] border bg-card p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-[15px] font-semibold tracking-tight">{t('recruiterInterviews.hero.title')}</h2>
+                  {nextUp?.scheduledAt && (
+                    <span className="text-xs text-muted-foreground">
+                      {laeuft ? t('recruiterInterviews.hero.live') : formatDistanceToNow(new Date(nextUp.scheduledAt), { locale, addSuffix: true })}
+                    </span>
+                  )}
+                </div>
+                {nextUp && nextUp.scheduledAt ? (
+                  <>
+                    <button type="button" onClick={() => openTermin(nextUp, variantOf(nextUp, agenda!))} className="mt-4 block max-w-full text-left">
+                      <p className="text-xl font-semibold leading-snug tracking-tight">
+                        {dayLabel(nextUp.scheduledAt, i18n.language, t('page.day.today'), t('page.day.tomorrow'))}, {timeShort(nextUp.scheduledAt, i18n.language)} · {nextUp.candidateName}
                       </p>
-                      <p className="font-semibold truncate">
-                        {format(new Date(nextUp.scheduledAt), t('page.fmt.nextUp'), {
-                          locale,
-                        })}{' '}
-                        — {nextUp.candidateName}
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        {[firmaOderBranche(nextUp), nextUp.jobTitle, meetingTypeLabel(nextUp.meetingType), t('recruiterInterviews.row.duration', { min: nextUp.durationMinutes }),
+                          t('recruiterInterviews.window.round', { n: nextUp.round || 1 }),
+                          nextUp.confirmed ? t('recruiterInterviews.window.confirmed') : t('recruiterInterviews.row.unconfirmed')].filter(Boolean).join(' · ')}
                       </p>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {nextUp.jobTitle} · {nextUp.companyLabel}
-                      </p>
+                    </button>
+                    <div className="mt-auto pt-5">
+                      <Button className="px-5" onClick={() => openTermin(nextUp, variantOf(nextUp, agenda!))}>{t('recruiterInterviews.hero.view')}</Button>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {nextUp.joinUrl && (
-                        <Button
-                          size="sm"
-                          className="gap-1.5"
-                          onClick={() => window.open(nextUp.joinUrl!, '_blank', 'noopener')}
-                        >
-                          <ExternalLink className="h-3.5 w-3.5" />
-                          {t('recruiterInterviews.row.join')}
-                        </Button>
-                      )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => openTermin(nextUp, variantOf(nextUp, agenda!))}
-                      >
-                        {t('recruiterInterviews.open_submission')}
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                  </>
+                ) : (
+                  <p className="mt-4 text-sm text-muted-foreground">{t('recruiterInterviews.hero.none')}</p>
+                )}
+              </div>
+              <MiniKalender termine={termine} gewaehlt={tag} onWaehle={setTag} />
+            </div>
 
             {/* Erstgespräche aus der Terminseite (21.10.2026): eigene Gruppe, getrennt von Kundeninterviews */}
             <ErstgespraecheAbschnitt liste={erstgespraeche.data ?? []} />
 
-            {/* Gegenvorschlag zuerst: jemand wartet auf eine Reaktion */}
-            {(agenda?.counterProposals.length ?? 0) > 0 && (
-              <div className="space-y-2">
-                <p className="text-xs font-medium uppercase tracking-wider text-warning flex items-center gap-1.5">
-                  <CalendarClock className="h-3.5 w-3.5" />
-                  {t('recruiterInterviews.sections.counter', {
-                    count: agenda!.counterProposals.length,
-                  })}
-                </p>
-                <div className="space-y-2">
-                  {agenda!.counterProposals.map((iv) => (
-                    <InterviewRow key={iv.id} iv={iv} variant="counter" onOpen={openTermin} />
-                  ))}
-                </div>
+            {/* Reiter links, Suche rechts. data-tour: Ziel des Headhunter-Rundgangs (lib/recruiterGuide.ts) */}
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between" data-tour="interviews.stats">
+              <div role="tablist" className="flex min-w-0 gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {reiterListe.map((k) => (
+                  <button key={k} type="button" role="tab" aria-selected={!tag && aktiv === k} onClick={() => { setTab(k); setTag(null); }}
+                    className={cn('h-8 shrink-0 whitespace-nowrap rounded-full px-3.5 text-xs font-medium transition-colors', !tag && aktiv === k ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground')}>
+                    {t(`recruiterInterviews.tabs.${k}`)} <span className="font-normal">{listen[k].length}</span>
+                  </button>
+                ))}
               </div>
-            )}
-
-            {/* Debrief fällig — Handlungsdruck */}
-            {(agenda?.debriefDue.length ?? 0) > 0 && (
-              <div className="space-y-2">
-                <p className="text-xs font-medium uppercase tracking-wider text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-                  <AlertTriangle className="h-3.5 w-3.5" />
-                  {t('recruiterInterviews.sections.debrief', {
-                    count: agenda!.debriefDue.length,
-                  })}
-                </p>
-                <div className="space-y-2">
-                  {agenda!.debriefDue.map((iv) => (
-                    <InterviewRow key={iv.id} iv={iv} variant="debrief" onOpen={openTermin} />
-                  ))}
-                </div>
+              <div className="relative w-full sm:w-56">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t('recruiterInterviews.searchPh')} className="h-9 rounded-full pl-9 text-sm" />
               </div>
-            )}
+            </div>
 
-            {/* Agenda nach Tagen */}
-            {(agenda?.agendaDays.length ?? 0) > 0 ? (
-              <div className="space-y-5">
-                {agenda!.agendaDays.map((day) => (
-                  <div key={day.key} className="space-y-2">
-                    <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      {dayHeading(day.key, i18n.language, t('page.day.today'), t('page.day.tomorrow'))}{' '}
-                      <span className="text-muted-foreground/60">({day.items.length})</span>
-                    </p>
-                    <div className="space-y-2">
-                      {day.items.map((iv) => (
-                        <InterviewRow key={iv.id} iv={iv} variant="agenda" onOpen={openTermin} />
-                      ))}
-                    </div>
+            {tag ? (
+              <>
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <p className="text-sm font-medium">
+                    {new Date(`${tag}T12:00:00`).toLocaleDateString(intlLocale(i18n.language), { weekday: 'long', day: 'numeric', month: 'long' })}
+                    <span className="font-normal text-muted-foreground"> · {t('recruiterInterviews.calendar.count', { count: amTag.length })}</span>
+                  </p>
+                  <button type="button" className="text-sm text-klick hover:underline" onClick={() => setTag(null)}>{t('recruiterInterviews.calendar.showAll')} ›</button>
+                </div>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">{amTag.map((iv) => karte(iv, true))}</div>
+              </>
+            ) : aktiv === 'upcoming' ? (
+              <div className="space-y-4">
+                {kommendeTage.map((d) => (
+                  <div key={d.key}>
+                    <p className="mb-2 text-sm font-medium">{d.label}</p>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">{d.items.map((iv) => karte(iv, true))}</div>
                   </div>
                 ))}
               </div>
+            ) : aktiv ? (
+              <>
+                {aktiv === 'cancelled' && cancelShare !== null && (
+                  <p className="text-xs text-muted-foreground">{t('recruiterInterviews.cancel_hint', { percent: cancelShare })}</p>
+                )}
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">{listen[aktiv].map((iv) => karte(iv))}</div>
+              </>
             ) : (
-              (agenda?.debriefDue.length ?? 0) === 0 &&
-              (agenda?.counterProposals.length ?? 0) === 0 && (
-                <Card>
-                  <CardContent className="p-8 text-center">
-                    <CalendarClock className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">
-                      {t('recruiterInterviews.empty')}
-                    </p>
-                  </CardContent>
-                </Card>
-              )
-            )}
-
-            {/* Warten auf Terminierung */}
-            {(agenda?.awaitingScheduling.length ?? 0) > 0 && (
-              <div className="space-y-2">
-                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <Hourglass className="h-3.5 w-3.5" />
-                  {t('recruiterInterviews.sections.awaiting', {
-                    count: agenda!.awaitingScheduling.length,
-                  })}
-                </p>
-                <div className="space-y-2">
-                  {agenda!.awaitingScheduling.map((iv) => (
-                    <InterviewRow key={iv.id} iv={iv} variant="awaiting" onOpen={openTermin} />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Abgesagt / nicht erschienen — eigene Gruppe mit Quote, damit
-                sichtbar wird, wo die Termine sterben. */}
-            {(agenda?.cancelled.length ?? 0) > 0 && (
-              <Collapsible open={cancelledOpen} onOpenChange={setCancelledOpen}>
-                <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
-                    <ChevronDown
-                      className={cn('h-4 w-4 transition-transform', cancelledOpen && 'rotate-180')}
-                    />
-                    <CalendarX className="h-3.5 w-3.5" />
-                    {t('recruiterInterviews.sections.cancelled', {
-                      count: agenda!.cancelled.length,
-                    })}
-                  </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-2 mt-2">
-                  {cancelShare !== null && (
-                    <p className="text-xs text-muted-foreground">
-                      {t('recruiterInterviews.cancel_hint', { percent: cancelShare })}
-                    </p>
-                  )}
-                  {agenda!.cancelled.slice(0, 20).map((iv) => (
-                    <InterviewRow key={iv.id} iv={iv} variant="cancelled" onOpen={openTermin} />
-                  ))}
-                </CollapsibleContent>
-              </Collapsible>
-            )}
-
-            {/* Vergangene */}
-            {(agenda?.past.length ?? 0) > 0 && (
-              <Collapsible open={pastOpen} onOpenChange={setPastOpen}>
-                <CollapsibleTrigger asChild>
-                  <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground">
-                    <ChevronDown
-                      className={cn('h-4 w-4 transition-transform', pastOpen && 'rotate-180')}
-                    />
-                    {t('recruiterInterviews.sections.past', { count: agenda!.past.length })}
-                  </Button>
-                </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-2 mt-2">
-                  {agenda!.past.slice(0, 20).map((iv) => (
-                    <div key={iv.id} className="opacity-70">
-                      <InterviewRow iv={iv} variant="past" onOpen={openTermin} />
-                    </div>
-                  ))}
-                </CollapsibleContent>
-              </Collapsible>
+              <p className="rounded-xl border bg-card px-6 py-10 text-center text-sm text-muted-foreground">
+                {query.trim() ? t('recruiterInterviews.noMatch') : t('recruiterInterviews.empty')}
+              </p>
             )}
           </>
         )}
       </div>
 
-      <RecruiterTerminSheet
-        interview={sheet.iv}
-        variant={sheet.variant}
-        open={!!sheet.iv}
-        onOpenChange={closeTermin}
-        onNachgespraech={(iv) => { closeTermin(false); setNach(iv); }}
-      />
-      <NachgespraechWindow
-        target={nach ? {
-          interviewId: nach.id, submissionId: nach.submissionId, candidateId: nach.candidateId, candidateName: nach.candidateName,
-          candidatePhone: nach.candidatePhone, jobId: nach.jobId, jobTitle: nach.jobTitle,
-          companyName: nach.companyRevealed ? nach.companyLabel : null, feeValue: nach.potentialFee, scheduledAt: nach.scheduledAt,
-        } : null}
-        onClose={() => setNach(null)}
-        onDone={refetch}
+      <TerminFenster
+        interview={fenster.iv}
+        variant={fenster.variant}
+        stage={fenster.iv && pipeline ? pipeline.stageOf[fenster.iv.submissionId] ?? null : null}
+        aufgaben={fenster.iv ? aufgabenJe.get(fenster.iv.submissionId) ?? [] : []}
+        onClose={closeTermin}
       />
     </DashboardLayout>
   );

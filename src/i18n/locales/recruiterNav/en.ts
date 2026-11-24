@@ -9,6 +9,7 @@ const en: Messages<typeof de> = {
     jobs: 'Open jobs',
     candidates: 'My candidates',
     pipeline: 'Pipeline',
+    analytics: 'Analytics',
     talentPool: 'Talent pool',
     liga: 'Matchunt League',
     earnings: 'Earnings',

@@ -122,7 +122,7 @@ function Frage({ label, fehlt, children }: { label: string; fehlt?: boolean; chi
   const { t } = useTranslation(NS);
   return (
     <div className="space-y-1.5 border-t border-border/50 pt-2.5 first:border-0 first:pt-0">
-      <p className={cn('text-xs font-medium', fehlt && 'text-amber-600')}>{label}{fehlt && <span className="ml-1.5 font-normal">{t('nach.missing')}</span>}</p>
+      <p className={cn('text-xs font-medium', fehlt && 'font-semibold')}>{label}{fehlt && <span className="ml-1.5 font-normal text-muted-foreground">{t('nach.missing')}</span>}</p>
       {children}
     </div>
   );
@@ -325,7 +325,7 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot, onEmpf
               <DialogTitle className="flex flex-wrap items-center gap-x-2 text-base">
                 <span>{name}</span>
                 <Badge variant="secondary" className="h-4 px-1.5 text-[10px] font-medium">{t('guide.debrief.pill')}</Badge>
-                {fee && <span className="text-sm font-medium tabular-nums text-emerald-500"><Honorar>{fee}</Honorar></span>}
+                {fee && <span className="text-sm tabular-nums text-muted-foreground"><Honorar>{fee}</Honorar></span>}
               </DialogTitle>
               <DialogDescription className="flex items-center gap-1 text-xs">
                 {target.jobTitle}{target.companyName ? ` · ${target.companyName}` : ''}
@@ -347,7 +347,7 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot, onEmpf
           {/* Links: Interview, Vergleich, Bisher / Festgehalten */}
           <div className="space-y-3">
             <div className="rounded-lg border border-border/60 bg-muted/30 p-3 text-sm">
-              <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t('nach.interview')}</p>
+              <p className="mb-1.5 text-xs font-medium text-muted-foreground">{t('nach.interview')}</p>
               {ivAt ? (
                 <p>{t('nach.interviewLine', { date: format(new Date(ivAt), t('nach.datePattern'), { locale: dfLocale() }), minutes: umfeld.interview?.duration_minutes ?? 60, type: meetingTypeLabel(umfeld.interview?.meeting_type ?? null) })}</p>
               ) : <p className="text-muted-foreground">{t('nach.noAppointment')}</p>}
@@ -356,7 +356,7 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot, onEmpf
               )}
             </div>
             <div className="rounded-lg border border-border/60 bg-muted/30 p-3 text-sm">
-              <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t('nach.compare')}</p>
+              <p className="mb-1.5 text-xs font-medium text-muted-foreground">{t('nach.compare')}</p>
               <ul className="space-y-0.5 text-xs">
                 <li>{t('nach.wishSalary')} {umfeld.akte.expected_salary ? euroVoll(umfeld.akte.expected_salary) : <span className="text-muted-foreground">{t('nach.notEntered')}</span>}</li>
                 <li>{t('nach.jobSalary')} {umfeld.stelle.salary_min || umfeld.stelle.salary_max
@@ -368,7 +368,7 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot, onEmpf
             </div>
             {saved ? (
               <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
-                <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t('nach.saved', { when: wann(savedAt!) })}</p>
+                <p className="mb-1.5 text-xs font-medium text-muted-foreground">{t('nach.saved', { when: wann(savedAt!) })}</p>
                 <ul className="space-y-0.5 text-xs">
                   {zusammenfassung(form, today, umfeld.akte.notice_period).map((z, i) => <li key={i}>{z}</li>)}
                   {form.bedenken && <li className="text-muted-foreground">{t('nach.concerns', { text: form.bedenken })}</li>}
@@ -376,7 +376,7 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot, onEmpf
               </div>
             ) : (
               <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
-                <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t('window.history')}</p>
+                <p className="mb-1.5 text-xs font-medium text-muted-foreground">{t('window.history')}</p>
                 {umfeld.verlauf.length === 0 ? (
                   <p className="text-xs text-muted-foreground">{loading ? t('nach.loading') : t('window.noContact')}</p>
                 ) : (
@@ -390,7 +390,7 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot, onEmpf
 
           {/* Rechts: Deine Aufgabe */}
           <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
-            <p className="mb-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t('window.yourTask')}</p>
+            <p className="mb-2 text-xs font-medium text-muted-foreground">{t('window.yourTask')}</p>
             {!saved ? (
               <div className="space-y-3">
                 <div className="flex items-center gap-2.5">
@@ -448,11 +448,11 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot, onEmpf
             ) : (
               <div className="space-y-3">
                 <div className="flex items-center gap-2.5">
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white"><Check className="h-3 w-3" /></span>
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-foreground text-background"><Check className="h-3 w-3" /></span>
                   <p className="text-sm font-medium">{t('nach.savedLine', { when: wann(savedAt!) })}</p>
                 </div>
                 {abgleich.map((a, i) => (
-                  <div key={i} className={cn('rounded-md border px-3 py-2 text-xs', a.tone === 'warn' ? 'border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300')}>
+                  <div key={i} className={cn('rounded-md border px-3 py-2 text-xs', 'bg-secondary/60')}>
                     <p className="flex gap-1.5">{a.tone === 'warn' ? <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" /> : <CalendarDays className="mt-0.5 h-3 w-3 shrink-0" />}<span>{a.text}</span></p>
                     {a.akte && !applied.includes(a.akte.field) && target.candidateId && (
                       <div className="mt-1.5 flex flex-wrap items-center gap-2">
@@ -462,9 +462,9 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot, onEmpf
                     )}
                   </div>
                 ))}
-                {applied.length > 0 && <p className="text-xs text-emerald-600">{t('nach.appliedMark')}</p>}
+                {applied.length > 0 && <p className="text-xs text-muted-foreground">{t('nach.appliedMark')}</p>}
                 <div className="flex gap-2.5">
-                  <span className={cn('flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-[11px]', (askedAt || kundenFeedback) && 'border-0 bg-emerald-500 text-white')}>{askedAt || kundenFeedback ? <Check className="h-3 w-3" /> : '3'}</span>
+                  <span className={cn('flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-border text-[11px]', (askedAt || kundenFeedback) && 'border-0 bg-foreground text-background')}>{askedAt || kundenFeedback ? <Check className="h-3 w-3" /> : '3'}</span>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium">{askedAt ? t('nach.askedLine', { when: wann(askedAt) }) : form.will_weiter === 'nein' ? t('nach.tellClient') : kundenFeedback ? t('nach.feedbackGiven') : t('nach.askClientQ')}</p>
                     {!askedAt && (!kundenFeedback || form.will_weiter === 'nein') && (
@@ -487,7 +487,7 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot, onEmpf
           </div>
         )}
         <div className="flex flex-wrap items-center justify-between gap-2 border-t p-4 text-xs">
-          <span className="text-muted-foreground"><Trans ns={NS} i18nKey="window.goal" values={{ goal: saved ? (askedAt || kundenFeedback ? t('guide.done') : t('nach.goalImpression')) : t('guide.debrief.goal') }} components={{ g: <span className="font-medium text-emerald-500" /> }} /></span>
+          <span className="text-muted-foreground"><Trans ns={NS} i18nKey="window.goal" values={{ goal: saved ? (askedAt || kundenFeedback ? t('guide.done') : t('nach.goalImpression')) : t('guide.debrief.goal') }} components={{ g: <span className="font-medium text-foreground" /> }} /></span>
           {!saved ? (
             <div className="flex flex-wrap items-center gap-1.5">
               {laterSlot}

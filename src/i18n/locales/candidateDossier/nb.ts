@@ -164,6 +164,10 @@ const nb: Messages<typeof de> = {
   },
   cards: {
     cvOpenFailed: 'CV-en kunne ikke åpnes.',
+    missingLabel: 'Mangler:',
+    missingPoints_one: '{{count}} punkt',
+    missingPoints_other: '{{count}} punkter',
+    allPoints: 'Alle punkter',
     readyTitle: 'Klar til innsending',
     doneOf: '{{done}} av {{total}}',
     actComplete: 'avslutt',
@@ -184,6 +188,7 @@ const nb: Messages<typeof de> = {
     missing: 'mangler',
     maxCommute: 'maks. {{n}} min',
     factsTitle: 'Nøkkelopplysninger for byttet',
+    editShort: 'Rediger',
     factsEdit: 'Rediger nøkkelopplysninger for byttet',
     commuteMissing: 'Reisevei mangler',
     employment: 'Ansettelse',

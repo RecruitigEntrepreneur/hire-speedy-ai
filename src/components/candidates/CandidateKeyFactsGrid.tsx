@@ -42,19 +42,18 @@ const REMOTE = ['remote', 'hybrid', 'onsite', 'flexible'];
 
 export function CandidateKeyFactsGrid({ candidate }: CandidateKeyFactsGridProps) {
   const { t, i18n } = useTranslation('candidateDetail');
-  const formatSalary = (value: number | null | undefined) => {
-    if (!value) return null;
-    return `${Math.round(value / 1000)}k€`;
-  };
+  // Ausgeschrieben statt „76k€“, ohne Grün (Apple-Stil, 24.11.2026)
+  const zahl = (value: number) => Math.round(value).toLocaleString(i18n.language);
+  const formatSalary = (value: number | null | undefined) => (value ? `${zahl(value)} €` : null);
 
   // Gleiche Quelle wie die Kandidatenakte: aktuell → Wunsch (Wunsch = expected_salary, alt salary_fix)
   const wish = candidate.expected_salary ?? candidate.salary_fix ?? null;
   const salaryRange = wish
     ? candidate.current_salary && candidate.current_salary !== wish
-      ? `${formatSalary(candidate.current_salary)} → ${formatSalary(wish)}`
+      ? `${zahl(candidate.current_salary)} → ${zahl(wish)} €`
       : formatSalary(wish)
     : candidate.salary_expectation_min && candidate.salary_expectation_max
-      ? `${formatSalary(candidate.salary_expectation_min)} – ${formatSalary(candidate.salary_expectation_max)}`
+      ? `${zahl(candidate.salary_expectation_min)} – ${zahl(candidate.salary_expectation_max)} €`
       : null;
 
   const getAvailabilityText = () => {
@@ -85,20 +84,12 @@ export function CandidateKeyFactsGrid({ candidate }: CandidateKeyFactsGridProps)
   return (
     <div className="flex flex-wrap items-center gap-x-1 gap-y-1 text-sm">
       {facts.map((fact, i) => {
-        const Icon = fact.icon;
         const missing = !fact.value;
         return (
           <span key={i} className="flex items-center gap-x-1">
-            {i > 0 && <span className="text-border mx-1.5">·</span>}
-            <Icon className={cn("h-3.5 w-3.5 shrink-0", missing ? "text-muted-foreground/50" : "text-muted-foreground")} />
+            {i > 0 && <span className="mx-1.5 text-muted-foreground" aria-hidden="true">·</span>}
             <span className="text-muted-foreground">{fact.label}:</span>
-            <span className={cn(
-              "font-medium",
-              missing && "text-muted-foreground/50",
-              !missing && fact.highlight === 'green' && "text-green-600 dark:text-green-400",
-              !missing && fact.highlight === 'blue' && "text-blue-600 dark:text-blue-400",
-              !missing && !fact.highlight && "text-foreground",
-            )}>
+            <span className={cn("font-medium", missing ? "text-muted-foreground/50" : "text-foreground")}>
               {fact.value || '–'}
             </span>
           </span>

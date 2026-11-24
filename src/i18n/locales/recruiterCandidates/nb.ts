@@ -3,6 +3,17 @@ import type { Messages } from '../../types';
 
 const nb: Messages<typeof de> = {
   list: {
+    pool: { edit: 'Gi nytt navn eller slett', all: 'Alle', due: 'På tide å ta kontakt', create: 'Opprett ny pool' },
+    summary: '{{total}} kandidater · {{process}} i prosess · {{placed}} ansatt',
+    tabs: {
+      all: 'Alle',
+      process: 'I prosess',
+      free: 'Ledige',
+      placed: 'Ansatt',
+      noCv: 'CV mangler',
+      pool: 'Talentpool',
+      label: 'Etter status',
+    },
     title: 'Mine kandidater',
     subtitle: 'Administrer kandidatdatabasen din',
     manageTags: 'Administrer tagger',

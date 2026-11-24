@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Banknote, Building2, Calculator, CalendarRange, Check, ChevronRight, ClipboardList, Clock, Copy, Eye, Factory, FileText, Flag, IdCard, Linkedin, ListChecks, LockKeyhole, LockKeyholeOpen, Mail, Megaphone, Phone, Plus, Share2, TrendingUp, Users, type LucideIcon } from 'lucide-react';
+import { ArrowLeft, Banknote, Building2, Calculator, CalendarRange, Clock, Factory, FileText, Flag, IdCard, Linkedin, ListChecks, Mail, Phone, Plus, Share2, TrendingUp, Users, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -88,14 +88,13 @@ const KOPF_SYMBOL: Record<KopfSymbol, LucideIcon> = {
   geld: Banknote, ort: Building2, zeit: Clock, level: TrendingUp, vertrag: FileText, leute: Users, branche: Factory, laufzeit: CalendarRange,
 };
 
-/** Eintrag in der rechten Leiste: ruhige Zeile ohne Rahmen, Fläche erst beim Darüberfahren (21.10.2026). */
-function Kachel({ icon: Icon, titel, hinweis, onClick, leise }: { icon: LucideIcon; titel: string; hinweis?: string; onClick?: () => void; leise?: boolean }) {
+/** Eintrag in der rechten Leiste: blauer Link mit „›“ (24.11.2026); „leise“ = noch nicht verfügbar, „grau“ = seltene Handlung. */
+function Kachel({ titel, hinweis, onClick, leise, grau }: { icon?: LucideIcon; titel: string; hinweis?: string; onClick?: () => void; leise?: boolean; grau?: boolean }) {
   return <button type="button" onClick={onClick} disabled={!onClick}
-    className={cn('group flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-      onClick ? 'hover:bg-muted/60' : 'cursor-default', leise && 'opacity-55')}>
-    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted"><Icon className="h-4 w-4" aria-hidden="true" /></span>
-    <span className="min-w-0 flex-1"><span className="block text-sm font-medium leading-5">{titel}</span>{hinweis && <span className="block truncate text-[11px] text-muted-foreground">{hinweis}</span>}</span>
-    {onClick && <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition group-hover:translate-x-0.5 group-hover:opacity-100" aria-hidden="true" />}
+    className={cn('block w-full rounded-md px-2 py-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+      onClick ? 'hover:bg-muted/60' : 'cursor-default')}>
+    <span className={cn('block text-sm leading-5', leise ? 'text-muted-foreground' : grau ? 'text-foreground' : 'font-medium text-klick')}>{titel}{onClick && !grau && ' ›'}</span>
+    {hinweis && <span className="block truncate text-[11px] text-muted-foreground">{hinweis}</span>}
   </button>;
 }
 
@@ -190,14 +189,23 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
   const zeichen = ansprache.linkedin.length;
 
   const werkzeuge = <Gruppe titel={t('ws.tools')}>
-    {tab === 'kandidaten' && hatAnzeige && <Kachel icon={Megaphone} titel={t('ws.adAndOutreach')} onClick={() => setTab('beschreibung')} />}
     {tab !== 'beschreibung' && <Kachel icon={ListChecks} titel={t('ws.guide')} onClick={() => setShowGuide(true)} />}
     <Kachel icon={IdCard} titel={t('ws.expose')} onClick={onExpose} />
     <Kachel icon={Calculator} titel={t('ws.calcEarning')} onClick={() => setShowEarning(true)} />
-    {(kannPosten || submissionCount > 0 || gemeldetAm) && <Kachel icon={Flag} titel={t('ws.reportClient')}
+    {(kannPosten || submissionCount > 0 || gemeldetAm) && <Kachel icon={Flag} grau titel={t('ws.reportClient')}
       hinweis={gemeldetAm ? t('ws.reportedOn', { date: new Date(gemeldetAm).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' }) }) : t('ws.reportHint')}
       onClick={() => setMeldenOffen(true)} />}
   </Gruppe>;
+
+  /** Stand der Suche und LinkedIn-Beitrag; unter 1180 px rechts neben den Reitern, darüber oben in der rechten Leiste. */
+  const suchStand = (inLeiste: boolean) => (heroStatus || beitrag.data) ? <div className={cn('space-y-0.5 text-xs leading-5 text-muted-foreground', !inLeiste && 'sm:text-right')}>
+    {heroStatus && <div>{heroStatus}</div>}
+    {beitrag.data && <div className="text-[#0A66C2]">
+      <Linkedin className="mr-1 inline h-3.5 w-3.5 align-[-2px]" aria-hidden="true" />{t('ws.postedOn', { date: new Date(beitrag.data.posted_at).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' }) })}
+      {' · '}{t('ws.bookings', { count: beitrag.data.bookings })}
+      {beitrag.data.post_urn && <> · <a className="underline underline-offset-2" href={`https://www.linkedin.com/feed/update/${beitrag.data.post_urn}/`} target="_blank" rel="noreferrer">{t('ws.view')}</a></>}
+    </div>}
+  </div> : null;
 
   return <div className="mx-auto max-w-[1440px] space-y-7 pb-24 min-[1180px]:pb-8">
     <Link to="/recruiter/jobs" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-4 w-4" />{t('ws.allJobs')}</Link>
@@ -206,71 +214,67 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
         Dreier-Leiste darunter ist seit 21.10.2026 weg: Anzeige und Briefing zeigen alles selbst. */}
     <Tabs value={tab} onValueChange={setTab} className="space-y-7">
     <header>
-      <div className="flex flex-wrap items-start justify-between gap-x-10 gap-y-5">
+      {/* Kopf als graue Karte wie beim Kunden (Entwurf A, 24.11.2026), Reiter unten bündig in der Karte.
+          Ab 1180 px ein Raster: links Stelle und darunter gleich die Reiter, rechts über beide Zeilen
+          Verdienst und Knöpfe. So entsteht keine Lücke über den Reitern. */}
+      <div className="flex flex-wrap items-start justify-between gap-x-10 gap-y-5 rounded-xl border bg-card px-5 pt-5 sm:px-6 sm:pt-6 min-[1180px]:grid min-[1180px]:grid-cols-[minmax(0,1fr)_auto] min-[1180px]:grid-rows-[auto_1fr] min-[1180px]:gap-y-4">
         {/* Kopf wie eine klassische Stellenanzeige (Variante A, 21.10.2026): Logo, Titel,
             Firma · Branche · Ort, Fakten als ruhige Textzeile; rechts Verdienst und nächster Schritt. */}
-        <div className="min-w-0 flex-1 basis-[26rem]">
+        <div className="min-w-0 flex-1 basis-[26rem] min-[1180px]:col-start-1 min-[1180px]:row-start-1">
           <div className="flex items-start gap-4">
-            {companyRevealed && job.company_name
-              ? <FirmenLogo url={job.company_logo_url} name={job.company_name} size={56} />
-              : <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md bg-muted"><Building2 className="h-6 w-6 text-muted-foreground" /></span>}
+            {/* Bild nur mit echtem Logo einer offengelegten Firma, kein Platzhalter (24.11.2026) */}
+            {companyRevealed && job.company_name && job.company_logo_url && <FirmenLogo url={job.company_logo_url} name={job.company_name} size={56} />}
             <div className="min-w-0 space-y-1.5">
               <h1 className="max-w-4xl text-2xl font-semibold leading-tight tracking-tight sm:text-3xl">{job.title}</h1>
               <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-muted-foreground">
-                {companyRevealed && job.company_name
-                  ? <button type="button" onClick={() => setFirmaOffen(true)} className="font-medium text-foreground underline decoration-muted-foreground/50 decoration-dotted underline-offset-4 hover:decoration-solid focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{job.company_name}</button>
-                  : <span>{t('ws.confidentialCompany')}</span>}
-                {job.industry && <><span aria-hidden="true">·</span><span>{job.industry}</span></>}
-                {job.location && <><span aria-hidden="true">·</span><span>{job.location}</span></>}
+                {/* Ohne Offenlegung nur Branche und Ort, kein „Vertrauliches Unternehmen“ (24.11.2026) */}
+                {[
+                  companyRevealed && job.company_name ? <span key="firma"><button type="button" onClick={() => setFirmaOffen(true)} className="font-medium text-foreground underline decoration-muted-foreground/50 decoration-dotted underline-offset-4 hover:decoration-solid focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">{job.company_name}</button></span> : null,
+                  job.industry ? <span key="branche">{job.industry}</span> : null,
+                  job.location ? <span key="ort">{job.location}</span> : null,
+                ].filter(Boolean).flatMap((el, i) => (i ? [<span key={`p${i}`} aria-hidden="true">·</span>, el] : [el]))}
+                <span aria-hidden="true">·</span>
                 <button type="button" onClick={() => setShowAccess(true)} aria-label={t('ws.accessAria')}
-                  className={cn('ml-2 inline-flex items-center gap-1 rounded text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', companyRevealed || fullAccess ? 'text-emerald-600' : 'text-muted-foreground')}>
-                  {fullAccess ? <><Eye className="h-3.5 w-3.5" />{t('ws.badge.full')}</> : companyRevealed ? <><LockKeyholeOpen className="h-3.5 w-3.5" />{t('ws.badge.revealed')}</> : <><LockKeyhole className="h-3.5 w-3.5" />{t('ws.badge.anonymous')}</>}
+                  className="rounded text-sm text-muted-foreground underline decoration-dotted underline-offset-4 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  {fullAccess ? t('ws.badge.full') : companyRevealed ? t('ws.badge.revealed') : t('ws.badge.anonymous')}
                 </button>
                 {headerBadge}
               </p>
             </div>
           </div>
-          {fakten.length > 0 && <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-1.5 text-sm" aria-label={t('ws.keyFacts')}>
-            {fakten.filter(f => f.symbol !== 'branche').map(f => { const Icon = KOPF_SYMBOL[f.symbol]; return <li key={f.symbol} className={cn('inline-flex items-center gap-1.5', f.symbol === 'geld' && 'font-medium')}><Icon className="h-4 w-4 text-muted-foreground" aria-hidden="true" />{f.text}</li>; })}
+          {fakten.length > 0 && <ul className="mt-4 flex flex-wrap gap-x-1.5 gap-y-1.5 text-sm [&>li+li]:before:mr-1.5 [&>li+li]:before:text-muted-foreground [&>li+li]:before:content-['·']" aria-label={t('ws.keyFacts')}>
+            {fakten.filter(f => f.symbol !== 'branche').map(f => { const Icon = KOPF_SYMBOL[f.symbol]; return <li key={f.symbol} className={cn('inline-flex items-center gap-1.5', f.symbol === 'geld' && 'font-medium', !Icon && 'hidden')}>{f.text}</li>; })}
           </ul>}
         </div>
-        <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:min-w-[15rem]">
+        <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:min-w-[15rem] min-[1180px]:col-start-2 min-[1180px]:row-span-2 min-[1180px]:row-start-1 min-[1180px]:pb-6">
           <HeroEarning job={job} onDetails={() => setShowEarning(true)} />
           {/* Unter 1180 px steht der Knopf in der Leiste unten, nicht doppelt. */}
           <div className="hidden gap-2 min-[1180px]:flex">
-            <div className="min-w-0 flex-1 [&_button]:w-full">{heroAction ?? <Button size="lg" onClick={onSubmit}><Plus />{t('ws.prepare')}</Button>}</div>
+            <div className="min-w-0 flex-1 [&_button]:w-full">{heroAction ?? <Button size="lg" onClick={onSubmit}>{t('ws.prepare')}</Button>}</div>
             {kannPosten && <Button size="lg" aria-label={t('ws.postAnonymousAria')} className="w-auto shrink-0 bg-[#0A66C2] px-3.5 text-white hover:bg-[#004182]" onClick={() => setBeitragOffen(true)}><Linkedin />{t('ws.post')}</Button>}
           </div>
         </div>
-      </div>
-      {/* Reiter als Unterstreichung, rechts der Stand der Suche. */}
-      <div className="mt-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-2 border-b border-border">
+      {/* Reiter mit Unterstrich auf der Unterkante der Karte (wie beim Kunden); unter 1180 px rechts daneben der Stand der Suche. */}
+      <div className="flex w-full flex-wrap items-end justify-between gap-x-6 gap-y-2 min-[1180px]:col-start-1 min-[1180px]:row-start-2 min-[1180px]:w-auto min-[1180px]:self-end">
         <TabsList className="-mb-px h-auto flex-nowrap justify-start gap-5 rounded-none bg-transparent p-0 sm:gap-6">
-          {([['beschreibung', Megaphone, t('ws.tabs.ad'), t('ws.tabs.adShort')], ['briefing', ClipboardList, t('ws.tabs.briefing'), t('ws.tabs.briefing')], ['kandidaten', Users, t('ws.tabs.candidates'), t('ws.tabs.candidatesShort')]] as const).map(([wert, Icon, label, kurz]) =>
-            <TabsTrigger key={wert} value={wert} className="gap-2 rounded-none border-b-2 border-transparent px-0 pb-3 pt-1 text-muted-foreground data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none">
-              <Icon className="h-4 w-4" /><span className="sm:hidden">{kurz}</span><span className="hidden sm:inline">{label}</span>{wert === 'kandidaten' && <span className="rounded bg-muted px-1.5 text-xs tabular-nums">{submissionCount}</span>}
+          {([['beschreibung', t('ws.tabs.ad'), t('ws.tabs.adShort')], ['briefing', t('ws.tabs.briefing'), t('ws.tabs.briefing')], ['kandidaten', t('ws.tabs.candidates'), t('ws.tabs.candidatesShort')]] as const).map(([wert, label, kurz]) =>
+            <TabsTrigger key={wert} value={wert} className="gap-1.5 rounded-none border-b-2 border-transparent px-0 pb-3 pt-1 text-sm text-muted-foreground shadow-none hover:text-foreground data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:font-medium data-[state=active]:text-foreground data-[state=active]:shadow-none">
+              <span className="sm:hidden">{kurz}</span><span className="hidden sm:inline">{label}</span>{wert === 'kandidaten' && <span className="font-normal tabular-nums text-muted-foreground">{submissionCount}</span>}
             </TabsTrigger>)}
         </TabsList>
-        {/* Am Handy über den Reitern, damit die Unterstreichung auf der Linie sitzt. */}
-        {(heroStatus || beitrag.data) && <div className="order-first w-full space-y-0.5 pb-1 text-xs leading-5 text-muted-foreground sm:order-none sm:w-auto sm:pb-3 sm:text-right">
-          {heroStatus && <div>{heroStatus}</div>}
-          {beitrag.data && <div className="text-[#0A66C2]">
-            <Linkedin className="mr-1 inline h-3.5 w-3.5 align-[-2px]" aria-hidden="true" />{t('ws.postedOn', { date: new Date(beitrag.data.posted_at).toLocaleDateString(locale, { day: '2-digit', month: '2-digit', timeZone: 'Europe/Berlin' }) })}
-            {' · '}{t('ws.bookings', { count: beitrag.data.bookings })}
-            {beitrag.data.post_urn && <> · <a className="underline underline-offset-2" href={`https://www.linkedin.com/feed/update/${beitrag.data.post_urn}/`} target="_blank" rel="noreferrer">{t('ws.view')}</a></>}
-          </div>}
-        </div>}
+        {/* Am Handy über den Reitern; ab 1180 px steht er oben in der rechten Leiste. */}
+        {suchStand(false) && <div className="order-first w-full pb-1 sm:order-none sm:w-auto sm:pb-3 min-[1180px]:hidden">{suchStand(false)}</div>}
+      </div>
       </div>
     </header>
 
       <div className="grid items-start gap-8 min-[1180px]:grid-cols-[minmax(0,1fr)_260px]">
         <div className="min-w-0">
-          {/* Die Anzeige allein in der Mitte (21.10.2026); Ansprache und Werkzeuge rechts als Kacheln. */}
-          <TabsContent value="beschreibung" className="m-0">
+          {/* Die Anzeige allein in der Mitte (21.10.2026), seit 23.11.2026 in einer Karte; Ansprache und Werkzeuge rechts. */}
+          <TabsContent value="beschreibung" className="m-0 rounded-[20px] border bg-card p-5 sm:p-7">
             {hatAnzeige ? <div className="space-y-8">
               <StellenanzeigeAnsicht posting={posting} />
-              <p className="flex max-w-[42rem] items-start gap-2 border-t border-border pt-5 text-xs leading-6 text-muted-foreground">
-                <LockKeyhole className="mt-1 h-3.5 w-3.5 shrink-0" />
+              <p className="max-w-[42rem] border-t border-border pt-5 text-xs leading-6 text-muted-foreground">
                 <span>
                   {(job.formatted_content as { anzeige?: unknown } | null)?.anzeige
                     ? t('ws.adNoteAi')
@@ -284,7 +288,7 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
             {job.employment_type === 'freelance' && <div className="mt-8 max-w-[42rem]"><ContractingKonditionen job={job} /></div>}
           </TabsContent>
 
-          <TabsContent value="briefing" className="m-0">
+          <TabsContent value="briefing" className="m-0 rounded-[20px] border bg-card p-5 sm:p-7">
             <ArbeitsBriefingView schritte={schritte} werkzeuge={{
               lohnt: { label: t('ws.calcEarning'), icon: WERKZEUG_SYMBOL.verdienst, onClick: () => setShowEarning(true) },
               suche: { label: t('ws.expose'), icon: WERKZEUG_SYMBOL.expose, onClick: onExpose },
@@ -295,14 +299,16 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
           </TabsContent>
 
           <TabsContent value="kandidaten" className="m-0 space-y-6">
-            <div><h2 className="text-xl font-semibold">{t('ws.candidatesTitle')}</h2><p className="mt-2 text-sm text-muted-foreground">{t('ws.candidatesText')}</p></div>
+            <div><h2 className="text-[17px] font-semibold tracking-tight">{t('ws.candidatesTitle')}</h2><p className="mt-1 text-sm text-muted-foreground">{t('ws.candidatesText')}</p></div>
             {/* Erstgespräche über die Terminseite, bevor eingereicht wird (21.10.2026) */}
             <ErstgespraecheAbschnitt liste={erstgespraeche.data ?? []} ohneStelle />
-            {submissionCount > 0 ? candidates : <div className="rounded-xl border border-dashed border-border bg-card px-6 py-14 text-center"><Users className="mx-auto mb-4 h-8 w-8 text-muted-foreground" /><h3 className="font-medium">{t('ws.firstTitle')}</h3><p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">{t('ws.firstText')}</p><Button className="mt-6" onClick={onSubmit}><Plus />{t('ws.prepare')}</Button></div>}
+            {submissionCount > 0 ? candidates : <div className="rounded-xl border bg-card px-6 py-14 text-center"><h3 className="text-[15px] font-semibold tracking-tight">{t('ws.firstTitle')}</h3><p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">{t('ws.firstText')}</p><Button className="mt-6 rounded-full px-5" onClick={onSubmit}>{t('ws.prepare')}</Button></div>}
           </TabsContent>
         </div>
 
-        <aside aria-label={t('ws.toolsAria')} className="space-y-5 min-[1180px]:sticky min-[1180px]:top-24 min-[1180px]:border-l min-[1180px]:border-border min-[1180px]:pl-6">
+        <aside aria-label={t('ws.toolsAria')} className="space-y-5 rounded-[20px] border bg-card p-3 pb-4 min-[1180px]:sticky min-[1180px]:top-24">
+          {/* Stand der Suche oben in der Leiste, damit er den Kopf nicht verlängert (23.11.2026). */}
+          {suchStand(true) && <div className="hidden px-2 min-[1180px]:block [&_span]:!justify-start">{suchStand(true)}</div>}
           {tab === 'beschreibung' && hatAnzeige && <>
             <Gruppe titel={t('ws.approach')}>
               <Kachel icon={Linkedin} titel="LinkedIn" hinweis={t('ws.charsOf300', { count: zeichen })} onClick={() => ansprechen('linkedin')} />
@@ -310,9 +316,8 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
               <Kachel icon={Phone} titel={t('ws.phone')} hinweis={t('ws.phoneHint')} onClick={() => ansprechen('telefon')} />
             </Gruppe>
             <Gruppe titel={t('ws.share')}>
-              <button type="button" onClick={() => void anzeigeKopieren()} className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted">{kopiert === 'ok' ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}</span>
-                <span className="min-w-0 flex-1"><span className="block text-sm font-medium leading-5">{kopiert === 'ok' ? t('ws.copied') : t('ws.copyAd')}</span><span className="block text-[11px] text-muted-foreground">{t('ws.copyHint')}</span></span>
+              <button type="button" onClick={() => void anzeigeKopieren()} className="block w-full rounded-md px-2 py-1.5 text-left hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                <span className="min-w-0 flex-1"><span className="block text-sm font-medium leading-5 text-klick">{kopiert === 'ok' ? t('ws.copied') : `${t('ws.copyAd')} ›`}</span><span className="block text-[11px] text-muted-foreground">{t('ws.copyHint')}</span></span>
               </button>
               {kopiert === 'fehler' && <p role="alert" className="text-xs text-muted-foreground">{t('ws.copyFailed')}</p>}
               <Kachel icon={FileText} titel="One-Pager" hinweis={t('ws.onePagerHint')} leise />
@@ -321,7 +326,7 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
           {tab === 'briefing' && <ArbeitsBriefingLeiste offen={offeneFragen} revealed={companyRevealed} onKundenFragen={() => setFragenOffen(true)} />}
           {/* Im Briefing hängen die Werkzeuge am jeweiligen Schritt. */}
           {tab !== 'briefing' && werkzeuge}
-          <button className="flex items-start gap-2 text-left text-xs leading-6 text-muted-foreground hover:text-foreground" onClick={() => setShowAccess(true)}><LockKeyhole className="mt-1 h-4 w-4 shrink-0" /><span>{companyRevealed ? t('ws.companyReleased') : t('ws.companyOnSearch')}</span></button>
+          <button className="px-2 text-left text-xs leading-5 text-muted-foreground hover:text-foreground" onClick={() => setShowAccess(true)}><span>{companyRevealed ? t('ws.companyReleased') : t('ws.companyOnSearch')}</span></button>
         </aside>
       </div>
     </Tabs>

@@ -36,7 +36,8 @@ const sv: Messages<typeof de> = {
   },
   candidateHero: {
     at: ' på {{company}}',
-    years: '{{count}} års erfarenhet',
+    years_one: '{{count}} års erfarenhet',
+    years_other: '{{count}} års erfarenhet',
   },
   mobileNav: {
     label: 'Huvudmeny',

@@ -24,10 +24,12 @@ const nb: Messages<typeof de> = {
     openJobs_other: '{{count}} åpne stillinger',
     urgentCount: '{{count}} haster',
     potentialFee: '<fee/> mulig honorar',
-    myActiveJobs: 'Mine aktive oppdrag ({{count}})',
+    myActiveJobs: 'Dette jobber du med',
     stageCurrent: '{{stage}} (nå)',
     openJobPage: 'Åpne stillingssiden',
     notSubmittedYet: 'Ingen presentert ennå',
+    submittedAgo: 'presentert {{when}}',
+    noneRunning: 'ingen kandidat i prosess',
     searchPlaceholder: 'Tittel eller kompetanse',
     filter: {
       remote: 'Fjernarbeid',
@@ -97,6 +99,7 @@ const nb: Messages<typeof de> = {
     },
   },
   card: {
+    salaryRange: '{{min}} til {{max}}',
     salaryFrom: 'fra {{amount}}',
     salaryUpTo: 'opptil {{amount}}',
     contracting: 'Konsulentoppdrag · {{rate}} / dag',

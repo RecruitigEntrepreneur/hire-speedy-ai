@@ -196,8 +196,8 @@ function AnswerForm({ c, onClose, onDone }: { c: RecruiterOfferContext; onClose:
 
       {/* Zuerst, was jetzt zu tun ist */}
       {open && late && (
-        <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/[0.06] p-3 text-sm">
-          <p className="font-medium">{t('answer.expiredTitle', { date: dayDe(o.responseDue) })}</p>
+        <div className="space-y-2 rounded-lg border bg-secondary/60 p-3 text-sm">
+          <p className="font-medium text-destructive">{t('answer.expiredTitle', { date: dayDe(o.responseDue) })}</p>
           <p>{t('answer.expiredText', { name, company: firma })}</p>
           <div className="flex flex-wrap gap-2">
             {callButton}
@@ -208,7 +208,7 @@ function AnswerForm({ c, onClose, onDone }: { c: RecruiterOfferContext; onClose:
         </div>
       )}
       {clockRunning && (
-        <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/[0.06] p-3 text-sm">
+        <div className="space-y-2 rounded-lg border bg-secondary/60 p-3 text-sm">
           <p className="flex items-center gap-1.5 font-medium"><Clock className="h-3.5 w-3.5" />{t('answer.mailIn', { name, left: leftDe(mailDue! - now) })}</p>
           {keep && <p>{keep.note ? t('answer.keepsOfferNote', { company: firma, note: keep.note }) : t('answer.keepsOffer', { company: firma })}</p>}
           <p>{t('answer.callFirst', { when: whenDe(cand!.mailDueAt!, now) })}</p>
@@ -221,7 +221,7 @@ function AnswerForm({ c, onClose, onDone }: { c: RecruiterOfferContext; onClose:
         </div>
       )}
       {notConfirmed && (
-        <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/[0.06] p-3 text-sm">
+        <div className="space-y-2 rounded-lg border bg-secondary/60 p-3 text-sm">
           <p className="font-medium">{t('answer.notConfirmedTitle', { name })}</p>
           <p>{t('answer.notConfirmedText', { name })}</p>
           <div className="flex flex-wrap gap-2">
@@ -233,10 +233,10 @@ function AnswerForm({ c, onClose, onDone }: { c: RecruiterOfferContext; onClose:
         </div>
       )}
       {callbackOpen && (
-        <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/[0.06] p-3 text-sm">
+        <div className="space-y-2 rounded-lg border bg-secondary/60 p-3 text-sm">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <p className="font-medium">{t('answer.wantsToTalk', { name })}</p>
-            {cand?.callbackDueAt && <p className="text-xs font-medium text-amber-600">{t('answer.callbackUntil', { when: shortDe(cand.callbackDueAt, now) })}</p>}
+            {cand?.callbackDueAt && <p className="text-xs font-medium text-muted-foreground">{t('answer.callbackUntil', { when: shortDe(cand.callbackDueAt, now) })}</p>}
           </div>
           <p className="text-muted-foreground">
             {cand?.callbackTopic ? t('answer.viaOfferPageTopic', { when: whenDe(cand!.callbackAt!, now), topic: cand.callbackTopic }) : t('answer.viaOfferPage', { when: whenDe(cand!.callbackAt!, now) })}
@@ -325,7 +325,7 @@ function AnswerForm({ c, onClose, onDone }: { c: RecruiterOfferContext; onClose:
                 <Input value={wishOther} onChange={(e) => setWishOther(e.target.value)} placeholder={t('answer.wishOtherPlaceholder')} className="mt-1 h-8" /></label>
               <label className="block"><span className="text-muted-foreground">{t('answer.reasonOwnWords', { company: firma })}</span>
                 <Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} className="mt-1" placeholder={t('answer.reasonPlaceholder')} /></label>
-              <label className={cn('flex cursor-pointer items-start gap-2 rounded-md border p-2.5', agrees ? 'border-primary bg-primary/5' : 'border-amber-500/30 bg-amber-500/[0.06]')}>
+              <label className={cn('flex cursor-pointer items-start gap-2 rounded-md border p-2.5', agrees ? 'border-foreground ring-1 ring-foreground' : 'bg-secondary/60')}>
                 <Checkbox checked={agrees} onCheckedChange={(v) => setAgrees(v === true)} className="mt-0.5" />
                 <span>{t('answer.agrees', { name })}</span>
               </label>

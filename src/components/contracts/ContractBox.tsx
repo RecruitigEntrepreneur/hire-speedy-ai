@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Check, Circle, FileDown, Loader2 } from 'lucide-react';
+import { Check, ChevronDown, Circle, FileDown, Loader2 } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -294,10 +295,13 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
               {status === 'sent_digital' && sig?.youSign && back?.state !== 'checking' && <Button size="sm" disabled={busy} onClick={signNow}>{back?.state === 'left' ? t('continueSign') : t('signNow')}</Button>}
               {status === 'sent_digital' && !sig?.companyViaApp && <Button size="sm" variant="secondary" className="rounded-full px-4" disabled={busy} onClick={() => run(() => contractApi.resendLink(submissionId), t('linkResentSigner', { name: c!.companySignerName ?? tt('client.theSigner') }))}>{t('resendLink')}</Button>}
               {status === 'company_signed' && <Button size="sm" variant="secondary" className="rounded-full px-4" disabled={busy} onClick={() => run(() => contractApi.resendLink(submissionId), t('linkResentSigner', { name: first }))}>{t('resendLinkTo', { first })}</Button>}
-              {status === 'sent_digital' && <Button size="sm" variant="link" className="h-auto px-0" onClick={() => setSigner({ self: !sig?.youSign, name: '', email: '' })}>{t('changeSigner')}</Button>}
-              <Button size="sm" variant="link" className="h-auto px-0" disabled={busy} onClick={() => run(() => contractApi.refresh(submissionId), t('refreshed'))}>{t('refresh')}</Button>
-              <Button size="sm" variant="link" className="h-auto px-0" disabled={busy} onClick={() => run(() => contractApi.voidDigital(submissionId, true), t('voidSelf'))}>{t('sendSelfAfterAll')}</Button>
-              {dropButton}
+              {/* Seltene Handlungen im Menü „Mehr“ (23.11.2026): vorher vier Links neben dem Knopf. */}
+              <MehrMenue label={t('more')} busy={busy} items={[
+                { label: t('refresh'), run: () => run(() => contractApi.refresh(submissionId), t('refreshed')) },
+                ...(status === 'sent_digital' ? [{ label: t('changeSigner'), run: () => setSigner({ self: !sig?.youSign, name: '', email: '' }) }] : []),
+                { label: t('sendSelfAfterAll'), run: () => run(() => contractApi.voidDigital(submissionId, true), t('voidSelf')) },
+                { label: t('hasDropped', { first }), run: () => setDropReason('') },
+              ]} />
             </div>
           )}
           {ctx.digitalDemo && <p className="mt-2 text-xs text-muted-foreground">{t('demo')}</p>}
@@ -316,10 +320,12 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
           {signerRow ?? dropRow ?? (
             <div className="mt-2 flex flex-wrap gap-2">
               <Button size="sm" variant="secondary" className="rounded-full px-4" disabled={busy} onClick={() => run(() => contractApi.refresh(submissionId), t('refreshed'))}>{t('refresh')}</Button>
-              {status === 'sent_digital' && <Button size="sm" variant="secondary" className="rounded-full px-4" onClick={() => setSigner({ self: true, name: '', email: '' })}>{t('changeSigner')}</Button>}
-              <Button size="sm" variant="link" className="h-auto px-0" disabled={busy} onClick={() => run(() => contractApi.voidDigital(submissionId, false), t('voidResend'))}>{t('withdrawResend')}</Button>
-              <Button size="sm" variant="link" className="h-auto px-0" disabled={busy} onClick={() => run(() => contractApi.voidDigital(submissionId, true), t('voidSelf'))}>{t('sendSelfAfterAll')}</Button>
-              {dropButton}
+              <MehrMenue label={t('more')} busy={busy} items={[
+                ...(status === 'sent_digital' ? [{ label: t('changeSigner'), run: () => setSigner({ self: true, name: '', email: '' }) }] : []),
+                { label: t('withdrawResend'), run: () => run(() => contractApi.voidDigital(submissionId, false), t('voidResend')) },
+                { label: t('sendSelfAfterAll'), run: () => run(() => contractApi.voidDigital(submissionId, true), t('voidSelf')) },
+                { label: t('hasDropped', { first }), run: () => setDropReason('') },
+              ]} />
             </div>
           )}
         </>
@@ -383,5 +389,21 @@ export function ContractBox({ submissionId, openRequest = null, onOpenHandled, r
       <ContractDialog ctx={ctx} open={showSend !== null} onOpenChange={(o) => { if (!o) setShowSend(null); }} initialWay={showSend === 'any' ? null : showSend} />
       <ContractReportDialog ctx={ctx} open={showReport !== null} mode={showReport ?? 'report'} onOpenChange={(o) => { if (!o) setShowReport(null); }} />
     </div>
+  );
+}
+
+/** „Mehr“: seltene Handlungen des digitalen Vertrags als Menü, damit neben dem Hauptknopf Ruhe ist. */
+function MehrMenue({ label, busy, items }: { label: string; busy: boolean; items: { label: string; run: () => void }[] }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="sm" variant="secondary" className="gap-1 rounded-full px-4" disabled={busy}>{label}<ChevronDown className="h-3.5 w-3.5" /></Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        {items.map((item) => (
+          <DropdownMenuItem key={item.label} className="cursor-pointer" onSelect={item.run}>{item.label}</DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

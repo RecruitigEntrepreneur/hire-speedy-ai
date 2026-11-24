@@ -36,6 +36,9 @@ import {
 import { useRecruiterPending } from '@/components/verification/RecruiterAccessGate';
 import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import i18n from '@/i18n';
+import { useRecruiterPipeline, PIPELINE_LABELS, type PipelineStageKey } from '@/hooks/useRecruiterPipeline';
+import { intlLocale } from '@/i18n/languages';
 import { JobActionCard } from '@/components/recruiter/JobActionCard';
 import { JobPreviewPanel } from '@/components/recruiter/JobPreviewPanel';
 import { ActivationConfirmDialog, SlotLimitDialog, type ConfirmResult } from '@/components/recruiter/ActivationConfirmDialog';
@@ -88,7 +91,7 @@ type SortKey = 'newest' | 'fee';
 const TOP_TAB_LIMIT = 10;
 
 /** Filter als ruhige Textknöpfe; gesetzte Filter heben sich ab. */
-const FILTER_TRIGGER = 'h-8 w-auto gap-1 border-0 bg-transparent px-2 text-sm text-muted-foreground shadow-none hover:text-foreground focus:ring-0 focus:ring-offset-0 [&>span]:truncate';
+const FILTER_TRIGGER = 'h-9 w-auto gap-1 rounded-full border bg-card px-3.5 text-sm text-muted-foreground shadow-none hover:text-foreground focus:ring-0 focus:ring-offset-0 [&>span]:truncate';
 const FILTER_ACTIVE = 'font-medium text-foreground';
 
 const LEVEL_FILTER_LABELS: Record<string, string> = { junior: 'Junior', mid: 'Mid', senior: 'Senior', lead: 'Lead', 'c-level': 'C-Level' };
@@ -108,75 +111,21 @@ const calculateEarning = (
   return Math.round(avg * (feePercentage / 100));
 };
 
-const formatEuroShort = (n: number) => {
-  if (n >= 1000) return `€${Math.round(n / 1000)}k`;
-  return `€${n}`;
-};
+// Ausgeschrieben statt „€61k“ (24.11.2026)
+const formatEuroShort = (n: number) => `${Math.round(n).toLocaleString(intlLocale(i18n.language))} €`;
 
-// ─── Stage Pipeline (like CandidateActiveProcesses) ─────────────────────────
+// ─── Stufen der Leiste „Daran arbeitest du“ ─────────────────────────────────
+// Dieselben sechs Stufen wie Pipeline und Termin-Fenster (24.11.2026). Vorher kannte die Leiste
+// Stufen wie „Interview geführt“ nicht und zeigte dann „Neu“ mit nur einem Strich.
+const PIPE_ORDER: PipelineStageKey[] = ['submitted', 'in_review', 'interview_1', 'interview_2', 'offer', 'placed'];
 
-const STAGE_ORDER = ['submitted', 'screening', 'interview', 'offer', 'hired'] as const;
-
-// Texte der Stufen stehen im Namespace recruiterJobs unter stages.<key>.label / .short.
-type StageKey = 'new' | 'submitted' | 'screening' | 'shortlisted' | 'interview_requested' | 'candidate_opted_in' | 'interview' | 'interview_scheduled' | 'offer' | 'hired';
-const STAGE_CONFIG: Record<StageKey, { key: StageKey; dotColor: string; className: string }> = {
-  new:                  { key: 'new',                 dotColor: 'bg-muted-foreground',   className: 'bg-muted text-muted-foreground' },
-  submitted:            { key: 'submitted',           dotColor: 'bg-blue-500',           className: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
-  screening:            { key: 'screening',           dotColor: 'bg-violet-500',         className: 'bg-violet-500/10 text-violet-600 border-violet-500/20' },
-  shortlisted:          { key: 'shortlisted',         dotColor: 'bg-indigo-500',         className: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20' },
-  interview_requested:  { key: 'interview_requested', dotColor: 'bg-amber-500',          className: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
-  candidate_opted_in:   { key: 'candidate_opted_in',  dotColor: 'bg-cyan-500',           className: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20' },
-  interview:            { key: 'interview',           dotColor: 'bg-amber-500',          className: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
-  interview_scheduled:  { key: 'interview_scheduled', dotColor: 'bg-green-500',          className: 'bg-green-500/10 text-green-600 border-green-500/20' },
-  offer:                { key: 'offer',               dotColor: 'bg-emerald-500',        className: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
-  hired:                { key: 'hired',               dotColor: 'bg-green-600',          className: 'bg-green-500/10 text-green-700 border-green-500/30' },
-};
-
-function getStageInfo(stage: string | null) {
-  return STAGE_CONFIG[(stage || 'new') as StageKey] || STAGE_CONFIG.new;
-}
-
-function getStageIndex(stage: string | null): number {
-  const idx = STAGE_ORDER.indexOf((stage || 'submitted') as any);
-  return idx >= 0 ? idx : 0;
-}
-
-function MiniStagePipeline({ currentStage }: { currentStage: string | null }) {
-  const currentIndex = getStageIndex(currentStage);
-  const { t } = useTranslation('recruiterJobs');
-
+function MiniStagePipeline({ currentStage }: { currentStage: PipelineStageKey | null }) {
+  const idx = currentStage ? PIPE_ORDER.indexOf(currentStage) : -1;
   return (
-    <div className="flex items-center gap-0.5">
-      {STAGE_ORDER.map((stage) => {
-        const config = getStageInfo(stage);
-        const stageIdx = getStageIndex(stage);
-        const isActive = stage === currentStage || (
-          (currentStage?.startsWith('interview') || currentStage === 'candidate_opted_in') && stage === 'interview'
-        );
-        const isPassed = stageIdx < currentIndex;
-
-        return (
-          <Tooltip key={stage}>
-            <TooltipTrigger asChild>
-              <div
-                className={cn(
-                  'h-1.5 rounded-full transition-all',
-                  isActive ? 'w-5' : 'w-2.5',
-                  isActive ? config.dotColor :
-                  isPassed ? 'bg-green-400' :
-                  'bg-muted-foreground/20'
-                )}
-              />
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="text-xs">
-              {isActive
-                ? t('list.stageCurrent', { stage: t(`stages.${config.key}.label`) })
-                : t(`stages.${config.key}.label`)}
-              {isPassed && ' ✓'}
-            </TooltipContent>
-          </Tooltip>
-        );
-      })}
+    <div className="flex items-center gap-0.5" aria-hidden="true">
+      {PIPE_ORDER.map((k, i) => (
+        <span key={k} className={cn('h-1.5 w-4 rounded-full', i <= idx ? 'bg-klick' : 'bg-muted-foreground/20')} />
+      ))}
     </div>
   );
 }
@@ -211,6 +160,7 @@ export default function RecruiterJobs() {
   const [sortBy, setSortBy] = useState<SortKey>('newest');
   const [activeTab, setActiveTab] = useState<TabKey>('all');
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const pipeline = useRecruiterPipeline();
   const [activeJobSubmissions, setActiveJobSubmissions] = useState<ActiveJobSubmission[]>([]);
 
   // Activation dialogs
@@ -428,10 +378,10 @@ export default function RecruiterJobs() {
       .map(j => {
         const stats = submissionStats[j.id];
         const mySubs = activeJobSubmissions.filter(s => s.job_id === j.id);
-        // Pick the submission that's furthest in the pipeline
-        const bestSub = mySubs.length > 0
-          ? mySubs.reduce((best, s) => getStageIndex(s.stage) > getStageIndex(best.stage) ? s : best, mySubs[0])
-          : null;
+        // Die Vorstellung, die am weitesten ist; beendete (abgesagt, zurückgezogen) zählen nicht
+        const rang = (id: string) => (pipeline?.stageOf[id] ? PIPE_ORDER.indexOf(pipeline.stageOf[id]) : -1);
+        const laufend = mySubs.filter(x => rang(x.id) >= 0);
+        const bestSub = laufend.length > 0 ? laufend.reduce((best, x) => (rang(x.id) > rang(best.id) ? x : best), laufend[0]) : null;
         return {
           id: j.id,
           title: j.title,
@@ -444,14 +394,15 @@ export default function RecruiterJobs() {
           hiringUrgency: j.hiring_urgency,
           earning: calculateEarning(j.salary_min, j.salary_max, j.recruiter_fee_percentage),
           submittedCount: stats?.submissionCount || 0,
-          stage: bestSub?.stage || null,
+          stage: bestSub ? pipeline!.stageOf[bestSub.id] : null,
+          hatVorstellung: mySubs.length > 0,
           submittedAt: bestSub?.submitted_at || null,
           companyRevealed: bestSub?.company_revealed || revealedJobIds.has(j.id) || !!j.company_revealed,
           // Kommt aus recruiter_jobs_view und ist ohne Reveal bereits null.
           companyName: j.company_name,
         };
       });
-  }, [jobs, activeJobIds, submissionStats, activeJobSubmissions, revealedJobIds]);
+  }, [jobs, activeJobIds, submissionStats, activeJobSubmissions, revealedJobIds, pipeline]);
 
   const selectedJob = useMemo(() => jobs.find(j => j.id === selectedJobId), [jobs, selectedJobId]);
   const isPanelOpen = !!selectedJob;
@@ -495,26 +446,23 @@ export default function RecruiterJobs() {
           {/* Kopf: Titel und eine ruhige Zeile statt drei bunter Pillen (19.10.2026).
               Farbe nur mit Bedeutung: Rot dringend, Grün Geld. */}
           <div>
-            <h1 className="truncate text-xl font-semibold tracking-tight">
+            <h1 className="truncate text-2xl font-semibold tracking-tight">
               {/* Seitentitel wie im Menü statt einer zweiten Begrüßung neben der Übersicht (17.11.2026) */}
               {t('list.pageTitle')}
             </h1>
-            <p className="mt-0.5 text-sm text-muted-foreground">
+            <p className="mt-1 text-sm text-muted-foreground">
               {t('list.openJobs', { count: jobs.length })}
               {urgentCount > 0 && <> · <span className="text-destructive">{t('list.urgentCount', { count: urgentCount })}</span></>}
-              {kpis.totalPotential > 0 && <> · <Trans t={t} i18nKey="list.potentialFee" components={{ fee: <span className="font-medium text-emerald-500"><Honorar>{formatEuroShort(kpis.totalPotential)}</Honorar></span> }} /></>}
+              {kpis.totalPotential > 0 && <> · <Trans t={t} i18nKey="list.potentialFee" components={{ fee: <span><Honorar>{formatEuroShort(kpis.totalPotential)}</Honorar></span> }} /></>}
             </p>
           </div>
 
           {/* Active Jobs — Horizontal Process Cards */}
           {myActiveJobsData.length > 0 && (
             <div className="space-y-1.5">
-              <div className="flex items-center gap-2">
-                <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                  {t('list.myActiveJobs', { count: myActiveJobsData.length })}
-                </span>
-              </div>
+              <h2 className="text-[15px] font-semibold tracking-tight">
+                {t('list.myActiveJobs')} <span className="font-normal text-muted-foreground">{myActiveJobsData.length}</span>
+              </h2>
 
               <div className="relative">
                 {canScrollLeft && (
@@ -530,7 +478,6 @@ export default function RecruiterJobs() {
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >
                   {myActiveJobsData.map((job) => {
-                    const stageInfo = getStageInfo(job.stage);
                     const timeSince = job.submittedAt
                       ? formatDistanceToNow(new Date(job.submittedAt), { locale: dateFnsLocale(i18n.language), addSuffix: true })
                       : null;
@@ -550,56 +497,21 @@ export default function RecruiterJobs() {
                     return (
                       <div
                         key={job.id}
+                        role="button"
+                        tabIndex={0}
                         onClick={() => setSelectedJobId(job.id)}
-                        className={cn(
-                          'shrink-0 w-56 rounded-lg border p-2.5 transition-all hover:shadow-sm group cursor-pointer',
-                          'hover:border-muted-foreground/30'
-                        )}
+                        onKeyDown={(e) => { if (e.key === 'Enter') setSelectedJobId(job.id); }}
+                        className="w-56 shrink-0 cursor-pointer rounded-xl border bg-card p-3 transition-colors hover:bg-accent/30"
                       >
-                        {/* Row 1: Company + link */}
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          {job.companyRevealed
-                            ? <Unlock className="h-3 w-3 text-green-500 shrink-0" />
-                            : <Lock className="h-3 w-3 text-muted-foreground shrink-0" />
-                          }
-                          <span className="text-xs font-medium truncate flex-1">{anonLabel}</span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-5 w-5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                            aria-label={t('list.openJobPage')}
-                            onClick={(e) => { e.stopPropagation(); navigate(`/recruiter/jobs/${job.id}`); }}
-                          >
-                            <ExternalLink className="h-3 w-3" />
-                          </Button>
-                        </div>
-
-                        {/* Row 2: Job title */}
-                        <p className="text-[11px] text-muted-foreground truncate mt-0.5">
-                          {job.title}
+                        {/* Stelle zuerst, darunter die Firma (ohne Schloss; verdeckt steht nur die Umschreibung) */}
+                        <p className="truncate text-sm font-medium">{job.title}</p>
+                        <p className="truncate text-xs text-muted-foreground">{anonLabel}</p>
+                        <div className="mt-2.5"><MiniStagePipeline currentStage={job.stage} /></div>
+                        <p className="mt-1.5 truncate text-xs text-muted-foreground">
+                          {job.stage && timeSince
+                            ? `${PIPELINE_LABELS[job.stage]} · ${t('list.submittedAgo', { when: timeSince })}`
+                            : job.hatVorstellung ? t('list.noneRunning') : t('list.notSubmittedYet')}
                         </p>
-
-                        {/* Row 3: Stage pipeline + badge */}
-                        <div className="flex items-center justify-between gap-2 mt-2">
-                          <MiniStagePipeline currentStage={job.stage} />
-                          <Badge
-                            variant="outline"
-                            className={cn('shrink-0 text-[9px] px-1.5 py-0 leading-4', stageInfo.className)}
-                          >
-                            {t(`stages.${stageInfo.key}.short`)}
-                          </Badge>
-                        </div>
-
-                        {/* Row 4: Context info */}
-                        <div className="flex items-center justify-between mt-1.5">
-                          <span className="text-[10px] text-muted-foreground inline-flex items-center gap-1 truncate">
-                            <Clock className="h-2.5 w-2.5 shrink-0" />
-                            {timeSince || t('list.notSubmittedYet')}
-                          </span>
-                          <span className="text-[10px] font-semibold text-emerald-500 tabular-nums shrink-0">
-                            {job.earning ? <Honorar>{formatEuroShort(job.earning)}</Honorar> : ''}
-                          </span>
-                        </div>
                       </div>
                     );
                   })}
@@ -612,14 +524,14 @@ export default function RecruiterJobs() {
         {/* ── Filter + Reiter ── (19.10.2026: Filter ohne Rahmen, Reiter unterstrichen statt
             schwarzer Knopf mit Symbolen — gleiche Reihenfolge wie vorher) */}
         <div className="shrink-0 space-y-3 pb-0" data-tour="jobs.filters">
-          <div className="flex flex-wrap items-center gap-1">
-            <div className="relative mr-2 min-w-[180px] max-w-xs flex-1">
-              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative min-w-[180px] max-w-xs flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder={t('list.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-8 pl-8 text-sm"
+                className="h-9 rounded-full pl-9 text-sm"
               />
             </div>
             <Select value={remoteFilter} onValueChange={setRemoteFilter}>
@@ -660,7 +572,7 @@ export default function RecruiterJobs() {
               </Select>
             )}
             <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortKey)}>
-              <SelectTrigger className={cn(FILTER_TRIGGER, 'ml-auto')}>
+              <SelectTrigger className={cn(FILTER_TRIGGER, 'ml-auto border-0 bg-transparent px-2')}>
                 <SelectValue placeholder={t('list.sort.placeholder')} />
               </SelectTrigger>
               <SelectContent>
@@ -670,23 +582,21 @@ export default function RecruiterJobs() {
             </Select>
           </div>
 
-          <div className="flex flex-wrap gap-x-5 border-b border-border" role="tablist" aria-label={t('list.tabsAria')}>
-            {tabs.map(tab => (
+          {/* Reiter als Pillen wie beim Kunden (24.11.2026); leere Reiter erscheinen nicht */}
+          <div className="flex gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist" aria-label={t('list.tabsAria')}>
+            {tabs.filter(tab => tab.key === 'all' || tab.count > 0 || activeTab === tab.key).map(tab => (
               <button
                 key={tab.key}
                 type="button"
                 role="tab"
                 aria-selected={activeTab === tab.key}
                 className={cn(
-                  '-mb-px inline-flex items-center gap-1.5 border-b-2 pb-2 pt-1 text-sm transition-colors',
-                  activeTab === tab.key
-                    ? 'border-foreground font-medium text-foreground'
-                    : 'border-transparent text-muted-foreground hover:text-foreground',
+                  'h-8 shrink-0 whitespace-nowrap rounded-full px-3.5 text-xs font-medium transition-colors',
+                  activeTab === tab.key ? 'bg-secondary text-foreground' : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground',
                 )}
                 onClick={() => setActiveTab(tab.key)}
               >
-                {tab.label}
-                <span className="text-xs tabular-nums text-muted-foreground">{tab.count}</span>
+                {tab.label} <span className="font-normal tabular-nums">{tab.count}</span>
               </button>
             ))}
           </div>
@@ -704,10 +614,10 @@ export default function RecruiterJobs() {
             {activeTab === 'mine' ? (
               <MySearchesList onSubmit={(jobId, title) => setSubmitDialogJob({ jobId, title })} />
             ) : filteredJobs.length === 0 ? (
-              <Card className="border-border/30 bg-card">
+              <Card>
                 <CardContent className="py-12 text-center">
                   <Briefcase className="mx-auto h-10 w-10 text-muted-foreground/30" />
-                  <h3 className="mt-3 font-semibold">{t('list.empty.title')}</h3>
+                  <h3 className="mt-3 text-[15px] font-semibold tracking-tight">{t('list.empty.title')}</h3>
                   <p className="text-sm text-muted-foreground">
                     {searchQuery || remoteFilter !== 'all'
                       ? t('list.empty.adjust')
@@ -746,7 +656,7 @@ export default function RecruiterJobs() {
           {/* Panel — scrolls independently, 50% width */}
           {isPanelOpen && selectedJob && (
             <div className="hidden lg:block w-1/2 overflow-hidden" data-tour="jobs.preview">
-              <Card className="h-full border-border shadow-none">
+              <Card className="h-full">
                 <CardContent className="p-0 h-full">
                   <JobPreviewPanel
                     job={selectedJob}

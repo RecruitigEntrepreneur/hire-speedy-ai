@@ -185,6 +185,15 @@
     @apply font-semibold tracking-tight;
   }
 
+  /* Ungerade Schriftgrößen (23.11.2026): mit dem Standard-Zeilenabstand 1,5 landen sie auf halben
+     Pixeln (15 px → 22,5 px) und alles darunter rutscht mit. Auf normalen Bildschirmen wirkt Text
+     dann unscharf. Darum ganze Pixel; eine eigene leading-Klasse gewinnt weiterhin. */
+  .text-\[10px\] { line-height: 14px; }
+  .text-\[11px\] { line-height: 16px; }
+  .text-\[13px\] { line-height: 20px; }
+  .text-\[15px\] { line-height: 22px; }
+  .text-\[17px\] { line-height: 26px; }
+
   /* Scrollbar — dark mode aware */
   * {
     scrollbar-width: thin;
@@ -580,4 +589,13 @@
 .light .border-border\/50,
 .light .border-border\/60 {
   border-color: hsl(var(--border));
+}
+
+/* Rundgang (GuideOverlay): Fenster und Menüs erscheinen sofort, damit die Markierung nicht auf
+   das Ende einer Einblend-Animation warten muss (23.11.2026). */
+html[data-guide] [role="dialog"],
+html[data-guide] [role="menu"],
+html[data-guide] [data-radix-popper-content-wrapper] > *,
+html[data-guide] [data-state="open"][class*="fixed inset-0"] {
+  animation-duration: 1ms !important;
 }

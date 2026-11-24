@@ -48,8 +48,10 @@ const tage = (iso: string) => Math.max(0, Math.floor((Date.now() - Date.parse(is
 
 /** Zeile unter dem Hauptknopf: die anderen Wege, ruhig und klein. */
 function Nebenweg({ Icon, children, onClick, disabled }: { Icon: LucideIcon; children: ReactNode; onClick: () => void; disabled?: boolean }) {
-  return <button type="button" onClick={onClick} disabled={disabled} className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50">
-    <Icon className="h-3.5 w-3.5"/>{children}
+  // Apple-Stil (24.11.2026): Nebenwege als blaue Links mit „›“, ohne Symbol
+  void Icon;
+  return <button type="button" onClick={onClick} disabled={disabled} className="inline-flex items-center whitespace-nowrap text-xs font-medium text-klick hover:underline disabled:opacity-50">
+    {children} ›
   </button>;
 }
 
@@ -192,7 +194,7 @@ export function InterviewEntryCard({
 
   if (completed) {
     schritt = SCHRITTE.length;
-    etikett = { text: t('card.badgeDone'), ton: 'bg-success/10 text-success' };
+    etikett = { text: t('card.badgeDone'), ton: 'bg-secondary text-muted-foreground' };
     titel = t('card.titleDone');
     unter = interviewDate ? t('card.onDate', { date: new Date(interviewDate).toLocaleDateString(locale) }) : t('card.canSubmit');
     haupt = <Button size="sm" variant="outline" onClick={onLive} className="gap-1.5"><NotebookPen className="h-3.5 w-3.5"/>{t('card.open')}</Button>;
@@ -257,7 +259,7 @@ export function InterviewEntryCard({
       )}
       <CardContent className="space-y-4 p-5">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold tracking-tight">{t('card.title')}</h3>
+          <h3 className="text-[15px] font-semibold tracking-tight">{t('card.title')}</h3>
           {!laedt && <span className={cn('whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium', etikett.ton)}>{etikett.text}</span>}
         </div>
 
@@ -267,10 +269,10 @@ export function InterviewEntryCard({
             const aktuell = !laedt && i === schritt;
             const Icon = fertig ? CheckCircle2 : aktuell ? CircleDot : Circle;
             return <div key={s} className={cn('flex items-center gap-1.5', i < SCHRITTE.length - 1 && 'flex-1')}>
-              <span className={cn('inline-flex items-center gap-1 whitespace-nowrap text-[11px]', fertig ? 'text-success' : aktuell ? 'font-medium text-foreground' : 'text-muted-foreground')}>
+              <span className={cn('inline-flex items-center gap-1 whitespace-nowrap text-[11px]', fertig ? 'text-foreground' : aktuell ? 'font-medium text-foreground' : 'text-muted-foreground')}>
                 <Icon className="h-3.5 w-3.5"/>{t(`card.steps.${s}`)}
               </span>
-              {i < SCHRITTE.length - 1 && <span className={cn('h-px min-w-2 flex-1', fertig ? 'bg-success/50' : 'bg-border')}/>}
+              {i < SCHRITTE.length - 1 && <span className={cn('h-px min-w-2 flex-1', fertig ? 'bg-foreground/40' : 'bg-border')}/>}
             </div>;
           })}
         </div>
@@ -290,17 +292,17 @@ export function InterviewEntryCard({
         {!laedt && (
           <p className="border-t border-border pt-2.5 text-xs text-muted-foreground">
             {lebenslauf ? (
-              <><span className="text-success">{t('card.cvThere')}</span> · <button type="button" className="underline-offset-2 hover:text-foreground hover:underline" onClick={() => void lebenslaufAnsehen()}>{t('card.view')}</button></>
+              <><span className="text-foreground">{t('card.cvThere')}</span> · <button type="button" className="font-medium text-klick hover:underline" onClick={() => void lebenslaufAnsehen()}>{t('card.view')} ›</button></>
             ) : anfrage ? (
               <>
                 {anfrage.linkedin_at ? t('card.cvLinkedin') : anfrage.weg === 'einladung' && einladung && !anfrage.reminded_at ? t('card.cvWithInvite') : t('card.cvRequested', { when: vorTagen(anfrage.reminded_at ?? anfrage.sent_at ?? anfrage.created_at) })}
-                {email && !erinnert && !(anfrage.weg === 'einladung' && einladung && !anfrage.reminded_at) && <> · <button type="button" className="underline-offset-2 hover:text-foreground hover:underline" onClick={() => void lebenslaufErinnern()}>{t('card.remind')}</button></>}
+                {email && !erinnert && !(anfrage.weg === 'einladung' && einladung && !anfrage.reminded_at) && <> · <button type="button" className="font-medium text-klick hover:underline" onClick={() => void lebenslaufErinnern()}>{t('card.remind')} ›</button></>}
               </>
             ) : (
               <>
                 {t('card.cvMissing')}
-                {onLebenslaufAnfragen && <> · <button type="button" className="underline-offset-2 hover:text-foreground hover:underline" onClick={onLebenslaufAnfragen}>{t('card.request')}</button></>}
-                {onUploadCv && <> · <button type="button" className="underline-offset-2 hover:text-foreground hover:underline" onClick={onUploadCv}>{t('card.uploadSelf')}</button></>}
+                {onLebenslaufAnfragen && <> · <button type="button" className="font-medium text-klick hover:underline" onClick={onLebenslaufAnfragen}>{t('card.request')} ›</button></>}
+                {onUploadCv && <> · <button type="button" className="font-medium text-klick hover:underline" onClick={onUploadCv}>{t('card.uploadSelf')} ›</button></>}
               </>
             )}
           </p>

@@ -220,6 +220,7 @@ const de = {
       changeSigner: 'Unterzeichner ändern',
       refreshed: 'Stand aktualisiert.',
       refresh: 'Stand aktualisieren',
+      more: 'Mehr',
       voidSelf: 'Zurückgezogen. Schicken Sie den Vertrag selbst.',
       sendSelfAfterAll: 'Doch selbst verschicken',
       demo: 'Testbetrieb: Unterschriften sind noch nicht rechtsverbindlich.',

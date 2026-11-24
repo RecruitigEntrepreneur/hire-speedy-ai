@@ -33,9 +33,10 @@ import { intlLocale } from '@/i18n/languages';
  * (oder solange die App fehlt) geht es von Hand: Text kopieren, Bild laden.
  */
 function Segment<T extends string>({ value, options, onChange, label }: { value: T; options: { id: T; label: string }[]; onChange: (v: T) => void; label: string }) {
-  return <div role="radiogroup" aria-label={label} className="inline-flex overflow-hidden rounded-md border border-border text-xs">
+  // Graue Pille wie der Zeitraum-Umschalter (Apple-Stil, 24.11.2026)
+  return <div role="radiogroup" aria-label={label} className="inline-flex rounded-full bg-secondary p-0.5 text-xs">
     {options.map(o => <button key={o.id} type="button" role="radio" aria-checked={value === o.id} onClick={() => onChange(o.id)}
-      className={cn('px-2.5 py-1 transition-colors', value === o.id ? 'bg-muted font-medium text-foreground' : 'text-muted-foreground hover:bg-muted/60')}>{o.label}</button>)}
+      className={cn('rounded-full px-3 py-1 transition-colors', value === o.id ? 'bg-background font-medium text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>{o.label}</button>)}
   </div>;
 }
 
@@ -158,7 +159,7 @@ export function BeitragsFenster({ open, onOpenChange, job }: { open: boolean; on
       </SheetHeader>
 
       {ergebnis ? <div className="flex flex-1 flex-col items-start gap-3 overflow-y-auto p-6">
-        <p className="flex items-center gap-2 text-lg font-semibold text-emerald-600"><CheckCircle2 className="h-5 w-5"/>{tr('post.posted')}</p>
+        <p className="flex items-center gap-2 text-lg font-semibold tracking-tight"><CheckCircle2 className="h-5 w-5"/>{tr('post.posted')}</p>
         <p className="text-sm text-muted-foreground">{tr(sichtbar === 'PUBLIC' ? 'post.visibleAll' : 'post.visibleContacts', { date: new Date(ergebnis.zeit).toLocaleString(locale, { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' }) })}</p>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" asChild><a href={ergebnis.url} target="_blank" rel="noreferrer"><ExternalLink className="mr-1.5 h-4 w-4"/>{tr('post.viewPost')}</a></Button>
@@ -170,7 +171,7 @@ export function BeitragsFenster({ open, onOpenChange, job }: { open: boolean; on
           {/* Vorschau wie im Feed */}
           <div className="border-b border-border bg-muted/40 p-5 md:border-b-0 md:border-r">
             <p className="mb-2 text-xs text-muted-foreground">{tr('post.preview')}</p>
-            <div className="overflow-hidden rounded-lg border border-border bg-card">
+            <div className="overflow-hidden rounded-xl border border-border bg-background shadow-sm">
               <div className="flex gap-2.5 px-3.5 pt-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">{initialen}</span>
                 <div className="text-sm leading-tight"><p className="font-semibold">{kontakt?.name || tr('post.yourName')}</p><p className="flex items-center gap-1 text-xs text-muted-foreground">{tr('post.feedLine')} · {sichtbar === 'PUBLIC' ? <Globe className="h-3 w-3"/> : <Users className="h-3 w-3"/>}</p></div>
@@ -188,60 +189,61 @@ export function BeitragsFenster({ open, onOpenChange, job }: { open: boolean; on
           {/* Anpassen */}
           <div className="space-y-5 p-5 text-sm">
             <section className="space-y-2">
-              <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs text-muted-foreground">{tr('post.text')}</p><Segment<Ton> label={tr('post.toneLabel')} value={ton} options={TOENE} onChange={t => { setTon(t); setBearbeitet(false); }}/></div>
+              <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-[13px] font-medium">{tr('post.text')}</p><Segment<Ton> label={tr('post.toneLabel')} value={ton} options={TOENE} onChange={t => { setTon(t); setBearbeitet(false); }}/></div>
               <Textarea value={text} rows={9} onChange={e => { setText(e.target.value); setBearbeitet(true); }}
                 className={cn('text-[13px] leading-5', funde.length && 'border-destructive focus-visible:ring-destructive')}/>
               <div className="flex justify-between text-xs text-muted-foreground">
                 {bearbeitet ? <button type="button" className="underline-offset-2 hover:underline" onClick={() => setBearbeitet(false)}>{tr('post.resetTemplate')}</button> : <span>{tr('post.editable')}</span>}
                 <span className={cn(lang && 'text-destructive')}>{text.length.toLocaleString(locale)} / {BEITRAG_MAX.toLocaleString(locale)}</span>
               </div>
-              {funde.length > 0 ? <div role="alert" className="space-y-2 rounded-md border border-destructive/40 bg-destructive/5 p-3">
+              {funde.length > 0 ? <div role="alert" className="space-y-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3">
                 <p className="flex items-center gap-1.5 font-medium text-destructive"><AlertTriangle className="h-4 w-4"/>{tr('post.leaks', { count: funde.length })}</p>
                 <ul className="space-y-0.5 text-xs text-muted-foreground">{funde.map(f => <li key={f.treffer}>„{f.treffer.trim()}“ {grundText(f.grund, normLang(i18n.language))}</li>)}</ul>
                 <Button size="sm" variant="outline" onClick={() => { setText(ersetzeFunde(text, funde)); setBearbeitet(true); }}>{tr('post.autoReplace')}</Button>
-              </div> : <p className="flex items-start gap-1.5 rounded-md bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700"><ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0"/>{tr('post.anonymous', { region: beitrag.region.text })}</p>}
+              </div> : <p className="flex items-start gap-1.5 rounded-lg bg-muted px-3 py-2 text-xs leading-5 text-muted-foreground"><ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0"/>{tr('post.anonymous', { region: beitrag.region.text })}</p>}
             </section>
 
             <section className="space-y-2">
-              <p className="text-xs text-muted-foreground">{tr('post.image')}</p>
+              <p className="text-[13px] font-medium">{tr('post.image')}</p>
               <div className="flex flex-wrap gap-2"><Segment<Vorlage> label={tr('post.templateLabel')} value={vorlage} options={VORLAGEN} onChange={setVorlage}/><Segment<Format> label={tr('post.formatLabel')} value={format} options={FORMATE.map(f => ({ id: f.id, label: f.label }))} onChange={setFormat}/></div>
             </section>
 
             <section className="space-y-2.5">
-              <p className="text-xs text-muted-foreground">{tr('post.inPost')}</p>
+              <p className="text-[13px] font-medium">{tr('post.inPost')}</p>
               <label className="flex items-center justify-between gap-3"><span>{tr('post.showSalary')}{beitrag.gehalt ? <span className="text-muted-foreground"> ({beitrag.gehalt})</span> : null}</span><Switch checked={gehalt} onCheckedChange={setGehalt}/></label>
               {partner.data && <label className="flex items-center justify-between gap-3"><span>{tr('post.partnerBadge')}</span><Switch checked={partnerZeigen} onCheckedChange={setPartnerZeigen}/></label>}
               <div className="flex items-center justify-between gap-3">
                 <span>{tr('post.bookingLink')}</span>
-                {slug ? <span className="flex items-center gap-1 text-xs text-emerald-600"><CheckCircle2 className="h-3.5 w-3.5"/>{tr('post.pageActive')}</span>
-                  : <Link to={`/recruiter/profile/terminseite?zurueck=${encodeURIComponent(rueck)}`} className="flex items-center gap-1 text-xs text-amber-700 underline-offset-2 hover:underline"><CalendarOff className="h-3.5 w-3.5"/>{tr('post.setupPage')}</Link>}
+                {slug ? <span className="flex items-center gap-1 text-xs text-muted-foreground"><Check className="h-3.5 w-3.5"/>{tr('post.pageActive')}</span>
+                  : <Link to={`/recruiter/profile/terminseite?zurueck=${encodeURIComponent(rueck)}`} className="flex items-center gap-1 text-xs font-medium text-klick hover:underline"><CalendarOff className="h-3.5 w-3.5"/>{tr('post.setupPage')} ›</Link>}
               </div>
               {!slug && <p className="text-xs text-muted-foreground">{tr('post.withoutPage')}</p>}
               <div className="space-y-1">
                 <label htmlFor="beitrag-region" className="text-xs text-muted-foreground">{tr('post.region')}</label>
-                <Input id="beitrag-region" className="h-8" value={region || beitrag.region.text} onChange={e => setRegion(e.target.value)}/>
-                {!beitrag.region.sicher && !region && <p className="text-xs text-amber-700">{tr('post.regionUnsure')}</p>}
+                <Input id="beitrag-region" className="h-9 rounded-lg" value={region || beitrag.region.text} onChange={e => setRegion(e.target.value)}/>
+                {!beitrag.region.sicher && !region && <p className="text-xs text-muted-foreground">{tr('post.regionUnsure')}</p>}
               </div>
             </section>
 
             <section className="space-y-2">
-              <p className="text-xs text-muted-foreground">{tr('post.visibleFor')}</p>
+              <p className="text-[13px] font-medium">{tr('post.visibleFor')}</p>
               <Segment<'PUBLIC' | 'CONNECTIONS'> label={tr('post.visibility')} value={sichtbar} options={[{ id: 'PUBLIC', label: tr('post.all') }, { id: 'CONNECTIONS', label: tr('post.contactsOnly') }]} onChange={setSichtbar}/>
             </section>
 
-            {(vonHand || !direkt) && <section className="space-y-2 rounded-lg border border-border p-3">
+            {(vonHand || !direkt) && <section className="space-y-2 rounded-xl border border-border p-3">
               <p className="text-xs text-muted-foreground">{direkt ? tr('post.manual') : tr('post.manualUntil')}</p>
               <div className="grid gap-1.5">
                 <Button variant="outline" size="sm" className="justify-start" onClick={() => void textKopieren()}><Copy className="mr-2 h-3.5 w-3.5"/>{tr('post.step1')}</Button>
                 <Button variant="outline" size="sm" className="justify-start" onClick={() => void bildLaden()}><Download className="mr-2 h-3.5 w-3.5"/>{tr('post.step2')}</Button>
                 <Button size="sm" className="justify-start bg-[#0A66C2] text-white hover:bg-[#004182]" asChild><a href="https://www.linkedin.com/feed/?shareActive=true" target="_blank" rel="noreferrer"><Linkedin className="mr-2 h-3.5 w-3.5"/>{tr('post.step3')}</a></Button>
               </div>
-              <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => void selbstGepostet()}><Check className="mr-1.5 h-3.5 w-3.5"/>{tr('post.iPosted')}</Button>
+              <Button variant="ghost" size="sm" className="font-medium text-klick hover:text-klick" onClick={() => void selbstGepostet()}><Check className="mr-1.5 h-3.5 w-3.5"/>{tr('post.iPosted')}</Button>
             </section>}
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3">
+        {/* Leiste unten nur, wenn etwas darin steht (24.11.2026: vorher leerer Balken beim Posten von Hand) */}
+        {(fehler || direkt) && <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-3">
           {fehler ? <p role="alert" className="flex max-w-md items-start gap-1.5 text-xs text-destructive"><X className="mt-0.5 h-3.5 w-3.5 shrink-0"/>{fehler}</p>
             : direkt && !vonHand ? <button type="button" className="text-xs text-muted-foreground underline-offset-2 hover:underline" onClick={() => setVonHand(true)}>{tr('post.preferManual')}</button> : <span/>}
           {direkt && (li.isLoading ? <Button disabled><Loader2 className="mr-2 h-4 w-4 animate-spin"/>LinkedIn …</Button>
@@ -251,7 +253,7 @@ export function BeitragsFenster({ open, onOpenChange, job }: { open: boolean; on
             : <Button className="bg-[#0A66C2] text-white hover:bg-[#004182]" disabled={!sauber || sendet} onClick={() => void freigeben()}>
                 {sendet ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Linkedin className="mr-2 h-4 w-4"/>}{funde.length ? tr('post.fixFirst', { count: funde.length }) : tr('post.release')}
               </Button>)}
-        </div>
+        </div>}
       </>}
     </SheetContent>
   </Sheet>;

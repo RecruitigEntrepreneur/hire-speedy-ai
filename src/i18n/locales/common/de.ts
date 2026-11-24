@@ -33,7 +33,8 @@ const de = {
   },
   candidateHero: {
     at: ' bei {{company}}',
-    years: '{{count}}J Erfahrung',
+    years_one: '{{count}} Jahr Erfahrung',
+    years_other: '{{count}} Jahre Erfahrung',
   },
   mobileNav: {
     label: 'Hauptmenü',

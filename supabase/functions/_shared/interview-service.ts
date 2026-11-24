@@ -1207,6 +1207,12 @@ export async function finalizeBooking(ctx: ServiceCtx, b: InterviewBundle, start
       consent_confirmed: true, consent_confirmed_at: consentAt,
     });
   }
+  // Ein bestätigter Termin legt die Firma immer offen (24.11.2026, Marko): der Kandidat geht dorthin,
+  // und der Headhunter muss wissen, bei wem. Bisher blieb sie verdeckt, wenn der Name des Kandidaten
+  // schon vorher freigegeben war oder bei der Terminwahl keine Einwilligung gespeichert wurde.
+  if (!b.submission.company_revealed && submissionPatch.company_revealed !== true) {
+    Object.assign(submissionPatch, { company_revealed: true, company_revealed_at: nowIso });
+  }
   const { error: subErr } = await ctx.db.from('submissions').update(submissionPatch).eq('id', b.submission.id);
   if (subErr) console.error('[interview] Freigabe nicht gespeichert', subErr.code, subErr.message);
   if (opts.consent) {

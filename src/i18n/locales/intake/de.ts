@@ -565,7 +565,7 @@ const de = {
       link: 'Link',
       pdf: 'PDF',
       title: 'Ihre offene Stelle aufnehmen',
-      subDefault: 'Meist in drei bis fünf Minuten. Ohne Registrierung — Ihre Angaben werden dabei fortlaufend gespeichert.',
+      subDefault: 'Meist in drei bis fünf Minuten. Ohne Registrierung. Ihre Angaben werden dabei fortlaufend gespeichert.',
       readingAd: 'Ihre Anzeige wird gelesen …',
       cardPasteHint: 'Der schnellste Weg. Wir bauen daraus das Profil, Sie prüfen nur noch.',
       pasteButton: 'Einfügen',

@@ -49,6 +49,8 @@ interface CandidateMainContentProps {
   onStartInterview: () => void;
   /** Ersetzt die alte Interview-Kurzübersicht (Kandidatenakte). */
   dossierSlot?: ReactNode;
+  /** Links über „Skills und Expertise“, z. B. Wechsel-Eckdaten (Marko, 24.11.2026) */
+  factsSlot?: ReactNode;
   /** Einreichen aus „Passende Stellen", optional mit vorausgewählter Stelle. */
 }
 
@@ -60,6 +62,7 @@ export function CandidateMainContent({
   onAddActivity,
   onStartInterview,
   dossierSlot,
+  factsSlot,
 }: CandidateMainContentProps) {
   const { t } = useTranslation('candidateDetail');
   return (
@@ -69,21 +72,15 @@ export function CandidateMainContent({
           candidateId={candidate.id}
           firstName={candidate.full_name.split(' ')[0] || candidate.full_name}
         />
+        {factsSlot}
         <CandidateSkillsCard skills={candidate.skills} certifications={candidate.certifications} />
         <CandidateCvAiSummaryCard summary={candidate.cv_ai_summary || null} bullets={candidate.cv_ai_bullets} />
         <div>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              {t('activity.recent')}
-            </h3>
-            <Button variant="ghost" size="sm" onClick={onAddActivity}>
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
+          {/* Eine Karte „Aktivitäten“ mit „+ Eintragen“ statt Überschrift über der Karte (24.11.2026) */}
           <CandidateActivityTimeline
             activities={activities.slice(0, 10)}
             loading={activitiesLoading}
+            onAdd={onAddActivity}
           />
           {activities.length > 10 && (
             <p className="text-xs text-muted-foreground mt-2 text-center">
@@ -102,8 +99,7 @@ export function CandidateMainContent({
         {tags.length > 0 && (
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Tag className="h-4 w-4 text-primary" />
+              <CardTitle className="text-[15px] font-semibold tracking-tight">
                 Tags
               </CardTitle>
             </CardHeader>
@@ -120,8 +116,7 @@ export function CandidateMainContent({
         )}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-primary" />
+            <CardTitle className="text-[15px] font-semibold tracking-tight">
               {t('main.careerTimeline')}
             </CardTitle>
           </CardHeader>

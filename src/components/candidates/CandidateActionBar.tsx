@@ -15,6 +15,8 @@ interface CandidateActionBarProps {
   exposeReady?: boolean;
   currentStatus?: string;
   className?: string;
+  /** Grau statt blau, solange es noch kein Gespräch gibt: dann ist „Zum Gespräch einladen“ der blaue Knopf (24.11.2026). */
+  submitQuiet?: boolean;
 }
 
 export function CandidateActionBar({ 
@@ -24,7 +26,8 @@ export function CandidateActionBar({
   onEnterNotes,
   exposeReady = false,
   currentStatus = 'new',
-  className 
+  className,
+  submitQuiet = false,
 }: CandidateActionBarProps) {
   const { t } = useTranslation('candidateDetail');
   if (currentStatus === 'placed') {
@@ -52,7 +55,8 @@ export function CandidateActionBar({
     )}>
       <div className="container max-w-7xl mx-auto px-4 py-3">
         <div className="flex items-center justify-center gap-3 max-sm:[&>button]:h-11">
-          {/* Always show Exposé */}
+          {/* Always show Exposé; ausgegraut mit Erklärung beim Überfahren (24.11.2026) */}
+          <span title={exposeReady ? undefined : t('actionBar.exposeLocked')} className="inline-flex">
           <Button
             variant="outline"
             size="sm"
@@ -60,18 +64,20 @@ export function CandidateActionBar({
             disabled={!exposeReady}
             className={cn('gap-2', HANDY_SYMBOL)}
           >
-            <FileText className="h-4 w-4" />
+            <FileText className="h-4 w-4 sm:hidden" />
             <span>{t('actionBar.expose')}</span>
           </Button>
+          </span>
 
           {/* Context-dependent primary action */}
           {(currentStatus === 'new' || currentStatus === 'contacted') && (
             <Button
               onClick={onSubmitToJob}
               size="sm"
+              variant={submitQuiet ? 'outline' : 'default'}
               className="gap-2"
             >
-              <Send className="h-4 w-4" />
+              <Send className="h-4 w-4 sm:hidden" />
               <span className="hidden sm:inline">{t('actionBar.submitToJob')}</span>
               <span className="sm:hidden">{t('actionBar.submit')}</span>
             </Button>
@@ -84,7 +90,7 @@ export function CandidateActionBar({
               onClick={onStartInterview}
               className={cn('gap-2', HANDY_SYMBOL)}
             >
-              <Mic className="h-4 w-4" />
+              <Mic className="h-4 w-4 sm:hidden" />
               <span>{t('actionBar.interview')}</span>
             </Button>
           )}

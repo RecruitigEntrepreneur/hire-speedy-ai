@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Lock, Search, Check } from 'lucide-react';
+import { Lock, Check } from 'lucide-react';
 import { formatAnonymousCompanyShort, formatWorkModel } from '@/lib/anonymousCompanyFormat';
 import { spezialistenGrenze, verdienstImMonat, verdienstJeTag } from '@/lib/recruiterContracting';
 import { FirmenLogo } from '@/components/company/FirmenLogo';
@@ -55,11 +55,12 @@ interface JobActionCardProps {
   onToggleActive: (e: React.MouseEvent) => void;
 }
 
-const formatSalaryRange = (min: number | null, max: number | null, t: (key: string, options?: Record<string, unknown>) => string): string | null => {
-  const k = (n: number) => `${Math.round(n / 1000)}`;
-  if (min && max) return `€${k(min)}–${k(max)}k`;
-  if (min) return t('card.salaryFrom', { amount: `€${k(min)}k` });
-  if (max) return t('card.salaryUpTo', { amount: `€${k(max)}k` });
+// Ausgeschrieben statt „€50–60k“ (24.11.2026)
+const formatSalaryRange = (min: number | null, max: number | null, t: (key: string, options?: Record<string, unknown>) => string, locale: string): string | null => {
+  const eur = (n: number) => `${Math.round(n).toLocaleString(locale)} €`;
+  if (min && max) return t('card.salaryRange', { min: Math.round(min).toLocaleString(locale), max: eur(max) });
+  if (min) return t('card.salaryFrom', { amount: eur(min) });
+  if (max) return t('card.salaryUpTo', { amount: eur(max) });
   return null;
 };
 
@@ -86,7 +87,7 @@ export function JobActionCard({
   const { t, i18n } = useTranslation('recruiterJobs');
   const locale = intlLocale(i18n.language);
   const pending = useRecruiterPending();
-  const salaryRange = formatSalaryRange(job.salary_min, job.salary_max, t);
+  const salaryRange = formatSalaryRange(job.salary_min, job.salary_max, t, locale);
   const tagVerdienst = verdienstJeTag(job);
   const monatVerdienst = verdienstImMonat(job);
   const tagessatz = spezialistenGrenze(job);
@@ -113,10 +114,10 @@ export function JobActionCard({
       onClick={onSelect}
       onKeyDown={(e) => { if (e.key === 'Enter') onSelect(); }}
       className={cn(
-        'group cursor-pointer rounded-lg border bg-card px-4 py-3 transition-colors',
+        'group cursor-pointer rounded-xl border bg-card px-4 py-3 transition-colors',
         isSelected
-          ? 'border-primary/60 ring-1 ring-primary/40'
-          : 'border-border hover:border-muted-foreground/40',
+          ? 'border-foreground ring-1 ring-inset ring-foreground'
+          : 'hover:bg-accent/30',
       )}
     >
       {/* Zeile 1: Titel | Verdienst */}
@@ -126,8 +127,8 @@ export function JobActionCard({
           {job.title}
           {plan?.research?.own && <span className="text-sm font-normal text-muted-foreground"> · {t('card.ownPlacement')}</span>}
         </h3>
-        <span className="shrink-0 text-[15px] font-semibold tabular-nums text-emerald-500">
-          <Honorar>{tagVerdienst ?? (plan ? `${plan.research ? '' : '≈ '}${euroKurz(plan.totalCents)}` : earning ? `€${earning.toLocaleString(locale)}` : `${job.recruiter_fee_percentage} %`)}</Honorar>
+        <span className="shrink-0 text-[15px] font-semibold tabular-nums">
+          <Honorar>{tagVerdienst ?? (plan ? euroKurz(plan.totalCents) : earning ? `${earning.toLocaleString(locale)} €` : `${job.recruiter_fee_percentage} %`)}</Honorar>
         </span>
       </div>
 
@@ -139,14 +140,11 @@ export function JobActionCard({
           {urgent && <span aria-hidden="true">·</span>}
           {isRevealed ? (
             <>
-              <FirmenLogo url={job.company_logo_url} name={revealedCompanyName} size={16} />
+              {job.company_logo_url && <FirmenLogo url={job.company_logo_url} name={revealedCompanyName} size={16} />}
               <span className="min-w-0 truncate text-foreground/80">{revealedCompanyName}</span>
             </>
           ) : (
-            <>
-              <Lock className="h-3 w-3 shrink-0" aria-label={t('card.companyAnonymous')} />
-              <span className="truncate">{formatAnonymousCompanyShort({ industry: job.industry, companySize: job.company_size_band })}</span>
-            </>
+            <span className="truncate" title={t('card.companyAnonymous')}>{formatAnonymousCompanyShort({ industry: job.industry, companySize: job.company_size_band })}</span>
           )}
           {job.location && <><span aria-hidden="true">·</span><span className="truncate">{job.location}</span></>}
           {job.remote_type && <><span aria-hidden="true" className="hidden sm:inline">·</span><span className="hidden shrink-0 sm:inline">{formatWorkModel(job.remote_type)}</span></>}
@@ -168,7 +166,7 @@ export function JobActionCard({
       {/* Fuß: Frische | Ich suche (keine Zahl anderer Headhunter) */}
       <div className="mt-2.5 flex items-center justify-between gap-2">
         {pausedUntil ? (
-          <span className="truncate text-[11px] text-amber-600">
+          <span className="truncate text-[11px] text-muted-foreground">
             {t('card.pausedUntil', { date: new Date(pausedUntil).toLocaleDateString(locale, { day: '2-digit', month: '2-digit' }) })}
           </span>
         ) : (
@@ -176,20 +174,19 @@ export function JobActionCard({
         )}
 
         {isActive ? (
-          <span data-tour={tourId ? `${tourId}.activate` : undefined} className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-emerald-500">
+          <span data-tour={tourId ? `${tourId}.activate` : undefined} className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-klick">
             <Check className="h-3.5 w-3.5" />{t('card.searching')}
           </span>
         ) : (
           <Button
-            variant="outline"
             size="sm"
             data-tour={tourId ? `${tourId}.activate` : undefined}
-            className="h-7 shrink-0 px-2.5 text-xs"
+            className="h-8 shrink-0 rounded-full px-4 text-xs"
             disabled={!!pausedUntil || pending}
             title={pending ? pendingText('hint') : undefined}
             onClick={onToggleActive}
           >
-            {pending ? <Lock className="mr-1 h-3 w-3" /> : <Search className="mr-1 h-3 w-3" />}
+            {pending && <Lock className="mr-1 h-3 w-3" />}
             {t('card.iSearch')}
           </Button>
         )}

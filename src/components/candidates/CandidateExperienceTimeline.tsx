@@ -147,12 +147,10 @@ export function CandidateExperienceTimeline({ candidateId, onReparse, isReparsin
                 <div className="space-y-1">
                   <h4 className="font-semibold">{exp.job_title}</h4>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Building2 className="h-3.5 w-3.5" />
                     <span>{anonymized ? t('experience.company') : exp.company_name}</span>
                   </div>
                   {exp.location && !anonymized && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <MapPin className="h-3 w-3" />
                       <span>{exp.location}</span>
                     </div>
                   )}
@@ -160,13 +158,12 @@ export function CandidateExperienceTimeline({ candidateId, onReparse, isReparsin
                 
                 <div className="flex flex-col items-end gap-1">
                   <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                    <Calendar className="h-3.5 w-3.5" />
                     <span>
                       {formatDate(exp.start_date)} – {exp.is_current ? t('experience.today') : formatDate(exp.end_date)}
                     </span>
                   </div>
                   {exp.is_current && (
-                    <Badge variant="secondary" className="text-xs font-medium text-muted-foreground">{t('common.current')}</Badge>
+                    <Badge variant="secondary" className="rounded-full text-xs font-normal text-muted-foreground">{t('common.current')}</Badge>
                   )}
                 </div>
               </div>
@@ -206,13 +203,13 @@ export function CandidateExperienceTimeline({ candidateId, onReparse, isReparsin
                             <Button 
                               variant="ghost" 
                               size="sm" 
-                              className="p-0 h-auto text-xs mt-2 text-muted-foreground hover:text-foreground"
+                              className="mt-2 h-auto p-0 text-xs font-medium text-klick hover:bg-transparent hover:text-klick hover:underline"
                               onClick={() => toggleExpanded(exp.id)}
                             >
                               {expandedIds.has(exp.id) ? (
                                 <>{t('common.less')} <ChevronUp className="h-3 w-3 ml-1" /></>
                               ) : (
-                                <>{t('experience.more', { count: items.length - 3 })} <ChevronDown className="h-3 w-3 ml-1" /></>
+                                <>{t('experience.more', { count: items.length - 3 })} ›</>
                               )}
                             </Button>
                           )}
@@ -231,13 +228,13 @@ export function CandidateExperienceTimeline({ candidateId, onReparse, isReparsin
                             <Button 
                               variant="ghost" 
                               size="sm" 
-                              className="p-0 h-auto text-xs mt-2 text-muted-foreground hover:text-foreground"
+                              className="mt-2 h-auto p-0 text-xs font-medium text-klick hover:bg-transparent hover:text-klick hover:underline"
                               onClick={() => toggleExpanded(exp.id)}
                             >
                               {expandedIds.has(exp.id) ? (
                                 <>{t('common.less')} <ChevronUp className="h-3 w-3 ml-1" /></>
                               ) : (
-                                <>{t('common.showMore')} <ChevronDown className="h-3 w-3 ml-1" /></>
+                                <>{t('common.showMore')} ›</>
                               )}
                             </Button>
                           )}

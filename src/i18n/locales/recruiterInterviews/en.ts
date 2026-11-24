@@ -3,6 +3,27 @@ import type { Messages } from '../../types';
 
 const en: Messages<typeof de> = {
   recruiterInterviews: {
+    card: { view: 'View', asked: 'requested {{time}}', tasks_one: '{{count}} task', tasks_other: '{{count}} tasks' },
+    window: {
+      confirmed: 'confirmed', held: 'held', noDate: 'no date yet', round: 'Interview {{n}}',
+      step: '{{label}} · step {{n}} of {{total}}', processEnded: 'Process ended',
+      todo: 'Open in this process', toTask: 'Go to task',
+      interview: 'The interview', askedOn: 'requested on {{date}}', expired: 'expired',
+      companyLater: 'Company not disclosed yet: only once the date is confirmed.',
+      reason: 'Reason', note: 'Note on the interview',
+      debrief: 'Debrief', open: 'still open', done: 'recorded', clientView: "Client's impression", pending: 'pending',
+      history: 'History', submitted: 'Submitted',
+      glance: 'At a glance', company: 'Company', notRevealed: 'not disclosed yet', job: 'Job', briefing: 'Briefing',
+      candidate: 'Candidate', profile: 'Profile', fee: 'Fee',
+      notes: 'Your notes', noNotes: 'No note yet.',
+      toCalendar: 'Add to calendar', fullPage: 'Open full page',
+    },
+    calendar: { prev: 'Previous month', next: 'Next month', has: 'interview', count_one: '{{count}} interview', count_other: '{{count}} interviews', showAll: 'Show all' },
+    tabs: { upcoming: 'Upcoming', awaiting: 'No date yet', past: 'Past', cancelled: 'Cancelled' },
+    hero: { title: 'Next interview at the client', live: 'in progress', view: 'View interview', none: 'No interview coming up right now.' },
+    summary: { week_one: '{{count}} interview this week', week_other: '{{count}} interviews this week', noDate_one: '{{count}} without a date', noDate_other: '{{count}} without a date' },
+    searchPh: 'Candidate or job …',
+    noMatch: 'No interview matches your search.',
     title: 'Interviews',
     subtitle: 'All appointments for your candidates — confirmed, pending, and awaiting debrief',
     stats: {

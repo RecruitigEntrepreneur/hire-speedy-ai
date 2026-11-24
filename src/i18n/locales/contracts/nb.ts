@@ -220,6 +220,7 @@ const nb: Messages<typeof de> = {
       changeSigner: 'Endre signatar',
       refreshed: 'Status oppdatert.',
       refresh: 'Oppdater status',
+      more: 'Mer',
       voidSelf: 'Trukket tilbake. Send kontrakten selv.',
       sendSelfAfterAll: 'Send selv likevel',
       demo: 'Testmodus: signaturene er ennå ikke juridisk bindende.',

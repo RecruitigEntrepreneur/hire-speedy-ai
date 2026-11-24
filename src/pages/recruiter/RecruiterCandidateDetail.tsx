@@ -26,7 +26,8 @@ import { CandidateActionBar } from '@/components/candidates/CandidateActionBar';
 import { CandidateMainContent } from '@/components/candidates/CandidateMainContent';
 import { CandidateEditSheet, EditFocus } from '@/components/candidates/dossier/CandidateEditSheet';
 import { CandidateInterviewDialog } from '@/components/candidates/dossier/CandidateInterviewDialog';
-import { DossierFactsCard, DossierReadinessCard } from '@/components/candidates/dossier/DossierCards';
+import { PoolKnopf, PoolZeile } from '@/components/candidates/pool/PoolFenster';
+import { DossierFactsCard, DossierReadinessKasten } from '@/components/candidates/dossier/DossierCards';
 import { SubmitToJobDialog } from '@/components/candidates/dossier/SubmitToJobDialog';
 import { CaptureDialog } from '@/components/candidates/dossier/CaptureDialog';
 import { InterviewEntryCard } from '@/components/candidates/dossier/InterviewEntryCard';
@@ -281,6 +282,20 @@ export default function RecruiterCandidateDetail() {
             onCvUpload={() => setCvUploadOpen(true)}
             onStartInterview={handleStartInterview}
             onLebenslaufAnfragen={!dossier.loading && !dossier.cv && !lebenslaufAnfrage ? () => setLebenslaufAnfragenOpen(true) : undefined}
+            poolSlot={<PoolZeile kandidat={{ id: candidate.id, name: candidate.full_name, rolle: candidate.job_title, phone: candidate.phone, email: candidate.email }} />}
+            poolButtonSlot={<PoolKnopf kandidat={{ id: candidate.id, name: candidate.full_name, rolle: candidate.job_title, phone: candidate.phone, email: candidate.email }} />}
+            readinessSlot={dossier.loading ? undefined : (
+              <DossierReadinessKasten
+                readiness={dossier.readiness}
+                firstName={vorname(candidate.full_name)}
+                onEdit={openEdit}
+                onUploadCv={() => setCvUploadOpen(true)}
+                onStartInterview={handleStartInterview}
+                onCompleteAndSubmit={() => { setSubmitAfterInterview(true); handleStartInterview(); }}
+                onViewExpose={handleViewExpose}
+                onSubmit={() => setSubmitOpen(true)}
+              />
+            )}
           />
 
         {/* Aufgaben-Fenster: öffnet sich über ?aufgabe= (Dashboard, Aufgaben-Block im Profilkopf) */}
@@ -350,21 +365,11 @@ export default function RecruiterCandidateDetail() {
                   onLebenslaufAnfragen={() => setLebenslaufAnfragenOpen(true)}
                   onUploadCv={() => setCvUploadOpen(true)}
                 />
-                <DossierReadinessCard
-                  readiness={dossier.readiness}
-                  firstName={vorname(candidate.full_name)}
-                  cv={dossier.cv}
-                  onEdit={openEdit}
-                  onUploadCv={() => setCvUploadOpen(true)}
-                  onStartInterview={handleStartInterview}
-                  onCompleteAndSubmit={() => { setSubmitAfterInterview(true); handleStartInterview(); }}
-                  onViewExpose={handleViewExpose}
-                  onSubmit={() => setSubmitOpen(true)}
-                />
-                <DossierFactsCard form={dossier.form} onEdit={openEdit} />
+                {/* „Bereit zum Einreichen“ steht als kleiner Kasten oben rechts im Kopf (24.11.2026) */}
               </div>
             )
           }
+          factsSlot={dossier.loading ? undefined : <DossierFactsCard form={dossier.form} onEdit={openEdit} />}
         />
       </div>
 
@@ -374,6 +379,7 @@ export default function RecruiterCandidateDetail() {
         onSubmitToJob={() => setSubmitOpen(true)}
         exposeReady={readiness?.isReady}
         currentStatus={currentStatus}
+        submitQuiet={!dossier.loading && !(dossier.form.interview_date || dossier.form.interview_status === 'completed')}
       />
 
       <AddActivityDialog open={addActivityOpen} onOpenChange={setAddActivityOpen} onSubmit={handleAddActivity} />

@@ -74,8 +74,9 @@ function MiniStagePipeline({ currentStage }: { currentStage: string | null }) {
                 className={cn(
                   'h-1.5 rounded-full transition-all',
                   isActive ? 'w-5' : 'w-2.5',
-                  isActive ? stageConfig.dotColor :
-                  isPassed ? 'bg-green-400' :
+                  // Apple-Stil (24.11.2026): Fortschritt blau, nur „Eingestellt“ grün
+                  isActive ? (stage === 'hired' ? 'bg-green-600' : 'bg-klick') :
+                  isPassed ? 'bg-klick' :
                   'bg-muted-foreground/20'
                 )}
               />
@@ -153,14 +154,14 @@ export function JobCandidateProcessCards({ submissions, onOpenSubmitForm }: JobC
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Users className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+          <span className="text-sm font-medium">
             {t('processCards.title', { count: submissions.length })}
           </span>
         </div>
         <Button
           variant="ghost"
           size="sm"
-          className="h-6 text-xs text-muted-foreground hover:text-foreground"
+          className="h-7 text-sm font-medium text-klick hover:bg-transparent hover:text-klick hover:underline"
           onClick={onOpenSubmitForm}
         >
           {t('processCards.submitAnother')}
@@ -193,14 +194,14 @@ export function JobCandidateProcessCards({ submissions, onOpenSubmitForm }: JobC
                 key={sub.id}
                 onClick={() => { setSelectedSubmissionId(sub.id); setDialogOpen(true); }}
                 className={cn(
-                  'shrink-0 w-56 rounded-lg border p-2.5 transition-all hover:shadow-sm group cursor-pointer',
+                  'shrink-0 w-56 rounded-xl border bg-card p-3 transition-all hover:shadow-sm group cursor-pointer',
                   'hover:border-muted-foreground/30'
                 )}
               >
                 {/* Row 1: Avatar + Name + Navigate */}
                 <div className="flex items-center gap-2 min-w-0">
                   <Avatar className="h-6 w-6 shrink-0">
-                    <AvatarFallback className="bg-primary/10 text-primary text-[10px]">
+                    <AvatarFallback className="bg-secondary text-foreground text-[10px]">
                       {initials}
                     </AvatarFallback>
                   </Avatar>
@@ -231,7 +232,7 @@ export function JobCandidateProcessCards({ submissions, onOpenSubmitForm }: JobC
                   <MiniStagePipeline currentStage={sub.stage} />
                   <Badge
                     variant="outline"
-                    className={cn('shrink-0 text-[9px] px-1.5 py-0 leading-4', stageInfo.className)}
+                    className={cn('shrink-0 rounded-full border-transparent px-2 py-0 text-[10px] font-normal leading-4', stageInfo.key === 'hired' ? 'bg-green-500/10 text-green-700 dark:text-green-500' : 'bg-secondary text-muted-foreground')}
                   >
                     {t(`stages.${stageInfo.key}.short`)}
                   </Badge>
@@ -248,8 +249,7 @@ export function JobCandidateProcessCards({ submissions, onOpenSubmitForm }: JobC
                   {sub.match_score != null && (
                     <span className={cn(
                       'font-medium tabular-nums',
-                      sub.match_score >= 80 ? 'text-emerald-600' :
-                      sub.match_score >= 60 ? 'text-amber-600' : 'text-muted-foreground'
+                      sub.match_score >= 80 ? 'text-foreground' : 'text-muted-foreground'
                     )}>
                       {t('processCards.match', { score: sub.match_score })}
                     </span>

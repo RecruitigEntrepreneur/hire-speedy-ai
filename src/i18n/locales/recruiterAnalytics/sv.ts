@@ -1,0 +1,47 @@
+// Auswertung des Headhunters.
+const sv = {
+  title: 'Analys',
+  subtitle: 'Vad som händer med dina presentationer.',
+  periodAria: 'Period',
+  period: { '30': '30 dagar', '90': 'Kvartal', '365': '12 månader' },
+  error: 'Analysen kunde inte laddas.',
+  days_one: '{{count}} dag',
+  days_other: '{{count}} dagar',
+  empty: { title: 'Ingen presentation under perioden ännu', text: 'När du presenterar kandidater ser du här vad som händer med dem.', link: 'Visa lediga uppdrag' },
+  kpi: { submitted: 'Presenterade', invited: 'Till intervju', hired: 'Anställda', fee: 'Arvode från anställningar' },
+  stage: { submitted: 'Presenterade', interview: 'Intervju', offer: 'Erbjudande', hired: 'Anställda' },
+  arrive: { question: 'Går mina kandidater hem?', answer: '{{percent}} % av dina presentationer bjuds in.', few: 'För få presentationer för en kvot ännu.' },
+  speed: {
+    question: 'Hur snabbt går det?',
+    answer_one: 'Inbjudan kommer efter {{count}} dag.',
+    answer_other: 'Inbjudan kommer efter {{count}} dagar.',
+    none: 'Ingen inbjudan under perioden ännu.',
+    toInvite: 'Presentation till inbjudan',
+    toHire: 'Presentation till anställning',
+    waiting: 'Väntar på kunden',
+    waitingValue_one: '{{count}} presentation, längst {{days}} dagar',
+    waitingValue_other: '{{count}} presentationer, längst {{days}} dagar',
+  },
+  fail: {
+    question: 'Var faller det?',
+    none: 'Inget avslag under perioden.',
+    answer_one: '{{count}} avslag från kunden.',
+    answer_other: '{{count}} avslag från kunden.',
+    rejected: 'Avslag från kunden',
+    withdrawn: 'Tillbakadragna',
+    reasons: 'Kundernas skäl',
+  },
+  money: {
+    question: 'Vad ger det mig?',
+    none: 'Ingen anställning under perioden ännu.',
+    answer_one: '{{amount}} från {{count}} anställning.',
+    answer_other: '{{amount}} från {{count}} anställningar.',
+    perHire: 'Per anställning',
+    perSubmission: 'Per presentation',
+    link: 'Intäkter',
+  },
+  jobs: { title: 'Per uppdrag', job: 'Uppdrag', toInvite: 'Till inbjudan', unknown: 'Uppdrag', total: 'Totalt' },
+  note: 'Vi räknar periodens presentationer och vad som har hänt med dem till i dag. Tider är medianvärdet.',
+};
+
+export default sv;

@@ -36,17 +36,15 @@ export function BulkActionsBar({
 
   return (
     <div className="fixed bottom-[calc(var(--handy-leiste,0px)+1.5rem)] left-1/2 -translate-x-1/2 z-50 max-w-[calc(100vw-1rem)]">
-      <div className="flex items-center gap-3 bg-card border shadow-lg rounded-lg px-4 py-3">
-        <Badge variant="secondary" className="font-medium">
-          {t('bulk.selected', { count: selectedCount })}
-        </Badge>
+      {/* Apple-Stil (24.11.2026): weiße Leiste, Knöpfe ohne Symbole, Löschen nur in roter Schrift */}
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-background px-3 py-2.5 shadow-lg">
+        <span className="px-1 text-sm font-medium">{t('bulk.selected', { count: selectedCount })}</span>
 
         {/* Assign Tag */}
         {tags.length > 0 && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
-                <Tag className="h-4 w-4 mr-2" />
                 {t('bulk.assignTag')}
                 <ChevronDown className="h-4 w-4 ml-1" />
               </Button>
@@ -70,7 +68,6 @@ export function BulkActionsBar({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
-                <Tag className="h-4 w-4 mr-2" />
                 {t('bulk.removeTag')}
                 <ChevronDown className="h-4 w-4 ml-1" />
               </Button>
@@ -91,19 +88,16 @@ export function BulkActionsBar({
 
         {/* Add to Pool */}
         <Button variant="outline" size="sm" onClick={onAddToPool}>
-          <UserPlus className="h-4 w-4 mr-2" />
           {t('actions.talentPool')}
         </Button>
 
         {/* Export */}
         <Button variant="outline" size="sm" onClick={onExport}>
-          <Download className="h-4 w-4 mr-2" />
           {t('bulk.export')}
         </Button>
 
         {/* Delete */}
-        <Button variant="destructive" size="sm" onClick={onDelete}>
-          <Trash2 className="h-4 w-4 mr-2" />
+        <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={onDelete}>
           {t('actions.delete')}
         </Button>
 

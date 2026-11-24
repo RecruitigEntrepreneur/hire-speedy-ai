@@ -19,59 +19,66 @@ import { dateFnsLocale } from '@/lib/candidateDateLocale';
 interface CandidateActivityTimelineProps {
   activities: CandidateActivity[];
   loading: boolean;
+  /** Mit „+ Eintragen“ im Kartenkopf und kurzer Leer-Zeile (Profil, 24.11.2026) */
+  onAdd?: () => void;
 }
 
 // Beschriftung über candidateDetail:activity.badges.<typ>
 const activityConfig: Record<string, { icon: React.ElementType; color: string; bgColor: string }> = {
   call: {
     icon: Phone,
-    color: 'text-emerald-600',
-    bgColor: 'bg-emerald-100',
+    color: 'text-muted-foreground',
+    bgColor: 'bg-secondary',
   },
   email: {
     icon: Mail,
-    color: 'text-blue-600',
-    bgColor: 'bg-blue-100',
+    color: 'text-muted-foreground',
+    bgColor: 'bg-secondary',
   },
   note: {
     icon: FileText,
-    color: 'text-gray-600',
-    bgColor: 'bg-gray-100',
+    color: 'text-muted-foreground',
+    bgColor: 'bg-secondary',
   },
   status_change: {
     icon: ArrowRightLeft,
-    color: 'text-purple-600',
-    bgColor: 'bg-purple-100',
+    color: 'text-muted-foreground',
+    bgColor: 'bg-secondary',
   },
   playbook_used: {
     icon: BookOpen,
-    color: 'text-amber-600',
-    bgColor: 'bg-amber-100',
+    color: 'text-muted-foreground',
+    bgColor: 'bg-secondary',
   },
   alert_actioned: {
     icon: CheckCircle,
-    color: 'text-emerald-600',
-    bgColor: 'bg-emerald-100',
+    color: 'text-muted-foreground',
+    bgColor: 'bg-secondary',
   },
   hubspot_import: {
     icon: Upload,
-    color: 'text-orange-600',
-    bgColor: 'bg-orange-100',
+    color: 'text-muted-foreground',
+    bgColor: 'bg-secondary',
   },
 };
 
-export function CandidateActivityTimeline({ activities, loading }: CandidateActivityTimelineProps) {
+export function CandidateActivityTimeline({ activities, loading, onAdd }: CandidateActivityTimelineProps) {
   const { t, i18n } = useTranslation('candidateDetail');
   const locale = dateFnsLocale(i18n.language);
+  // Apple-Stil (24.11.2026): Überschrift ohne Symbol, graue Kreise statt bunter
+  const kopf = (anzahl?: number) => (
+    <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
+      <CardTitle className="flex items-center gap-2 text-[15px] font-semibold tracking-tight">
+        {t('activity.heading')}
+        {!!anzahl && <span className="text-sm font-normal text-muted-foreground tabular-nums">{anzahl}</span>}
+      </CardTitle>
+      {onAdd && <button type="button" onClick={onAdd} className="text-sm font-medium text-klick hover:underline">+ {t('activity.add')}</button>}
+    </CardHeader>
+  );
   if (loading) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            {t('activity.heading')}
-          </CardTitle>
-        </CardHeader>
+        {kopf()}
         <CardContent className="space-y-4">
           {[1, 2, 3].map(i => (
             <div key={i} className="flex gap-4">
@@ -90,18 +97,14 @@ export function CandidateActivityTimeline({ activities, loading }: CandidateActi
   if (activities.length === 0) {
     return (
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5" />
-            {t('activity.heading')}
-          </CardTitle>
-        </CardHeader>
+        {kopf()}
         <CardContent>
-          <div className="text-center py-8 text-muted-foreground">
-            <Clock className="h-12 w-12 mx-auto opacity-50 mb-3" />
-            <p>{t('activity.empty')}</p>
-            <p className="text-sm">{t('activity.emptyHint')}</p>
-          </div>
+          {onAdd
+            ? <p className="text-sm text-muted-foreground">{t('activity.empty')}. {t('activity.emptyHint')}.</p>
+            : <div className="text-center py-8 text-muted-foreground">
+                <p>{t('activity.empty')}</p>
+                <p className="text-sm">{t('activity.emptyHint')}</p>
+              </div>}
         </CardContent>
       </Card>
     );
@@ -119,13 +122,7 @@ export function CandidateActivityTimeline({ activities, loading }: CandidateActi
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Clock className="h-5 w-5" />
-          {t('activity.heading')}
-          <Badge variant="secondary" className="ml-2">{activities.length}</Badge>
-        </CardTitle>
-      </CardHeader>
+      {kopf(activities.length)}
       <CardContent>
         <div className="space-y-6">
           {Object.entries(groupedActivities).map(([date, dayActivities]) => (
@@ -156,7 +153,7 @@ export function CandidateActivityTimeline({ activities, loading }: CandidateActi
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
                             <p className="font-medium text-sm truncate">{activity.title}</p>
-                            <Badge variant="outline" className="text-xs mt-1">
+                            <Badge variant="outline" className="mt-1 rounded-full border-transparent bg-secondary text-xs font-normal text-muted-foreground">
                               {t(`activity.badges.${typeKey}`)}
                             </Badge>
                           </div>

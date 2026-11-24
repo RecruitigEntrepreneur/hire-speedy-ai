@@ -1825,6 +1825,49 @@ neue Tabelle, keine neuen Secrets.
 
 ---
 
+## 63 — Headhunter-Seite im neuen Look, Talent Pool mit eigenen Pools, Pipeline neu (25.11.2026)
+
+Commit siehe `git log` („Apple-Stil: Headhunter-Seite, Talent Pool, Pipeline“). **2 Migrationen, 3 Edge Functions,
+Publish.** Nach Nr. 62. Headhunter-Seite einzeln überarbeitet: Übersicht, Aufgaben, Interviews, Offene Stellen,
+Stellenseite, Auswertung (neu aufgebaut), Kandidatenprofil, Meine Kandidaten (Karten und Liste, Reiter nach Stand),
+Pipeline (sechs Stufen wie auf der Aufgaben-Seite, je Karte „wer ist dran“ und Wartezeit), Fenster „Vorgang“ und
+„Interview fertig“. Talent Pool: eigene Pools mit Namen, Knopf im Profilkopf, Fenster zum Hineinlegen, Reiter in
+„Meine Kandidaten“, Aufgabe „Kontakt halten“ am fälligen Tag; der Menüpunkt „Talent Pool“ links entfällt. Ein
+bestätigter Interview-Termin legt die Firma für den Headhunter jetzt immer offen. Neue Texte in Deutsch, Englisch,
+Schwedisch und Norwegisch. Keine neuen Secrets.
+
+> 1. Aktuellen Stand von `main` übernehmen.
+> 2. Genau diese zwei Migrationen über den Migrations-Flow ausführen, in dieser Reihenfolge. Keine andere Datei, die
+>    noch nicht im Journal steht.
+>    a) `supabase/migrations/20261125100000_talent_pool_stufe1.sql`: nur Ergänzungen an der bestehenden Tabelle
+>       `public.talent_pool`. Vier neue Spalten (`consent_at`, `consent_source`, `retention_until`,
+>       `change_readiness`), vier CHECK-Bedingungen neu gesetzt (je `DROP CONSTRAINT IF EXISTS` vorher; die neuen
+>       Listen enthalten alle bisherigen Werte), ein Index. Keine neue Tabelle, keine Daten-Einfügungen, kein
+>       BEGIN/COMMIT, kein Cron, keine Funktion.
+>    b) `supabase/migrations/20261125110000_talent_pools_eigene.sql`: neue Tabelle `public.talent_pools`
+>       (`recruiter_id` als einfache `uuid`, kein Fremdschlüssel auf `auth.users`). Erst
+>       `GRANT ALL … TO service_role` und `GRANT SELECT, INSERT, UPDATE, DELETE … TO authenticated`, danach
+>       `ENABLE ROW LEVEL SECURITY` mit zwei Regeln (Headhunter nur eigene Zeilen, Admin lesend über
+>       `public.has_role`). Dazu an `public.talent_pool`: neue Spalte `pool_id` (Fremdschlüssel auf
+>       `public.talent_pools`, `ON DELETE CASCADE`), die alte Eindeutigkeit
+>       `talent_pool_candidate_id_recruiter_id_key` entfällt (`DROP CONSTRAINT IF EXISTS`), dafür ein eindeutiger
+>       Index je Kandidat, Headhunter und Pool. Keine Daten-Einfügungen, kein BEGIN/COMMIT, kein Cron, keine Funktion.
+>    Beide so ausführen, wie sie in der Datei stehen.
+> 3. Diese 3 Edge Functions deployen (nur die gemeinsame Datei `_shared/interview-service.ts` ist geändert;
+>    Einstellungen unverändert, `verify_jwt` steht in `supabase/config.toml`):
+>    `interview-request`, `process-interview-response`, `interview-client-link`.
+> 4. Danach Publish. Reihenfolge ist wichtig: erst die Migrationen, dann die Functions, dann Publish – die neue
+>    Oberfläche liest und schreibt `talent_pools` und die neuen Spalten von `talent_pool`.
+> 5. Keine Secrets anlegen oder ändern.
+> 6. Am Code nichts ändern. Nichts überspringen. Falls etwas nicht durchläuft, alle Befunde gesammelt mit Grund
+>    melden. Am Ende melden: beide Migrationen gelaufen (Journal-Einträge), welche Functions deployt sind, und dass
+>    Publish durch ist.
+
+Danach: `drizzle/migrations/meta/_journal.json` prüfen (zwei neue Einträge `…_talent_pool_stufe1` und
+`…_talent_pools_eigene` nach `0060_wartezustand_headhunter`).
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über

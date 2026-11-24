@@ -45,6 +45,7 @@ const en: Messages<typeof de> = {
     noPlacements: 'No placements yet. As soon as an employment contract is binding, you will see here what you get and when.',
   },
   tile: {
+    next: 'Next credit note',
     nextLine: 'next credit note {{amount}} · {{slot}}',
   },
   steps: {

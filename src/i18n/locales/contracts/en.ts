@@ -220,6 +220,7 @@ const en: Messages<typeof de> = {
       changeSigner: 'Change signer',
       refreshed: 'Status refreshed.',
       refresh: 'Refresh status',
+      more: 'More',
       voidSelf: 'Withdrawn. Send the contract yourself.',
       sendSelfAfterAll: 'Send it yourself after all',
       demo: 'Test mode: signatures are not yet legally binding.',

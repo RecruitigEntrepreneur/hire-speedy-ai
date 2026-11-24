@@ -3,6 +3,17 @@ import type { Messages } from '../../types';
 
 const sv: Messages<typeof de> = {
   list: {
+    pool: { edit: 'Byt namn eller ta bort', all: 'Alla', due: 'Dags att höra av sig', create: 'Skapa ny pool' },
+    summary: '{{total}} kandidater · {{process}} i process · {{placed}} anställda',
+    tabs: {
+      all: 'Alla',
+      process: 'I process',
+      free: 'Lediga',
+      placed: 'Anställda',
+      noCv: 'CV saknas',
+      pool: 'Talangpool',
+      label: 'Efter status',
+    },
     title: 'Mina kandidater',
     subtitle: 'Hantera din kandidatdatabas',
     manageTags: 'Hantera taggar',

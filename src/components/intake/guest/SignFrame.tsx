@@ -264,8 +264,7 @@ export function SignFrame({ url, du = false, onDone, onAbbruch, onNeuerLink, onP
   return (
     <div className="space-y-3">
       {haengt && (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-amber-500/40 bg-amber-500/5 px-3 py-2">
-          <TriangleAlert className="h-4 w-4 shrink-0 text-amber-600" />
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg bg-secondary/60 px-3 py-2">
           <p className="min-w-0 flex-1 text-xs">
             <span className="font-medium">{tx('noContractQuestion')}</span>{' '}
             {t('sign.noContractText')}

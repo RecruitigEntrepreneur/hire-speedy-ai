@@ -1,3 +1,4 @@
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { term } from '@/lib/candidateTerms';
 import { Link } from 'react-router-dom';
@@ -13,7 +14,6 @@ import {
   Upload,
   MapPin,
   CheckCircle,
-  TrendingUp,
   FileText,
 } from 'lucide-react';
 import {
@@ -39,6 +39,12 @@ interface CandidateHeroHeaderProps {
   onStartInterview?: () => void;
   /** „Lebenslauf anfragen“ (05.11.2026): nur solange kein Lebenslauf in der Akte liegt. */
   onLebenslaufAnfragen?: () => void;
+  /** „Bereit zum Einreichen“ als kleiner Kasten oben rechts (24.11.2026); ersetzt die Marke unter dem Namen. */
+  readinessSlot?: ReactNode;
+  /** Talent Pool in der Stand-Zeile */
+  poolSlot?: ReactNode;
+  /** Knopf „Talent Pool“ bei den anderen Knöpfen (25.11.2026) */
+  poolButtonSlot?: ReactNode;
 }
 
 export function CandidateHeroHeader({
@@ -51,9 +57,14 @@ export function CandidateHeroHeader({
   onCvUpload,
   onStartInterview,
   onLebenslaufAnfragen,
+  readinessSlot,
+  poolSlot,
+  poolButtonSlot,
 }: CandidateHeroHeaderProps) {
   const { t } = useTranslation(['candidateDetail', 'candidateTerms', 'common']);
   const initials = initialen(candidate.full_name);
+  // „+3“ klappt die übrigen Skills auf (Marko, 24.11.2026)
+  const [alleSkills, setAlleSkills] = useState(false);
   const { getCurrentDocuments } = useCandidateDocuments(candidateId);
   const currentCv = getCurrentDocuments().find(d => d.document_type === 'cv');
 
@@ -69,21 +80,22 @@ export function CandidateHeroHeader({
       </Link>
 
       {/* Compact Hero Card */}
-      <div className="rounded-xl border bg-card shadow-sm">
+      <div className="rounded-xl border bg-card">
         <div className="p-4 md:p-5">
           {/* Raster statt Flex (16.11.2026): am Handy stehen die Knöpfe unter Bild und Name über die
               volle Breite, ab sm rechts daneben wie bisher. Vorher verdeckten sie am Handy den Namen. */}
           <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-4 gap-y-3 sm:grid-cols-[auto_minmax(0,1fr)_auto]">
             {/* Avatar */}
             <div className="relative shrink-0">
-              <Avatar className="h-14 w-14 ring-2 ring-primary/20">
-                <AvatarFallback className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground text-lg font-semibold">
+              {/* Apple-Stil (24.11.2026): graues Kürzel wie in der Liste, kein schwarzer Kreis mit Ring */}
+              <Avatar className="h-14 w-14">
+                <AvatarFallback className="bg-secondary text-lg font-semibold text-foreground">
                   {initials}
                 </AvatarFallback>
               </Avatar>
-              {readiness?.isReady && (
-                <div className="absolute -bottom-0.5 -right-0.5 h-5 w-5 bg-green-500 rounded-full border-2 border-background flex items-center justify-center">
-                  <CheckCircle className="h-3 w-3 text-white" />
+              {readiness?.isReady && !readinessSlot && (
+                <div className="absolute -bottom-0.5 -right-0.5 h-5 w-5 bg-foreground rounded-full border-2 border-background flex items-center justify-center">
+                  <CheckCircle className="h-3 w-3 text-background" />
                 </div>
               )}
             </div>
@@ -98,7 +110,7 @@ export function CandidateHeroHeader({
                     </span>
                     {candidate.city && (
                       <>
-                        <span className="text-border">•</span>
+                        <span aria-hidden="true">·</span>
                         <span className="flex items-center gap-1">
                           <MapPin className="h-3 w-3" />
                           {candidate.city}
@@ -107,23 +119,22 @@ export function CandidateHeroHeader({
                     )}
                     {!!candidate.experience_years && (
                       <>
-                        <span className="text-border">•</span>
+                        <span aria-hidden="true">·</span>
                         <span>{t('common:candidateHero.years', { count: candidate.experience_years })}</span>
                       </>
                     )}
                   </div>
                   {/* Inline Badges with Tooltip */}
-                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                  {!readinessSlot && <div className="flex flex-wrap items-center gap-1.5 mt-2">
                     {readiness?.isReady ? (
-                      <Badge className="bg-success/10 text-success border-success/20 text-xs">
+                      <Badge variant="outline" className="rounded-full border-transparent bg-secondary text-xs font-normal text-muted-foreground">
                         <CheckCircle className="h-3 w-3 mr-1" />
                         {t('hero.ready')}
                       </Badge>
                     ) : readiness && (
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Badge variant="outline" className="text-warning border-warning/50 text-xs cursor-help">
-                            <TrendingUp className="h-3 w-3 mr-1" />
+                          <Badge variant="outline" className="cursor-help rounded-full border-transparent bg-secondary text-xs font-normal text-muted-foreground">
                             {t('hero.readyCount', { done: readiness.done, total: readiness.total })}
                           </Badge>
                         </TooltipTrigger>
@@ -137,11 +148,12 @@ export function CandidateHeroHeader({
                         </TooltipContent>
                       </Tooltip>
                     )}
-                  </div>
+                  </div>}
                 </div>
                 
-                {/* Actions Row */}
-                <div className="col-span-2 flex flex-wrap items-center gap-1.5 sm:col-span-1 sm:justify-end">
+                {/* Actions Row; darunter rechts „Bereit zum Einreichen“ als kleiner Kasten (Entwurf A, 24.11.2026) */}
+                <div className="col-span-2 flex flex-col gap-2 sm:col-span-1 sm:items-end">
+                <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
                   <Button variant="outline" size="sm" className="h-8" onClick={onEdit}>
                     <Pencil className="h-3.5 w-3.5 mr-1.5" />
                     {t('common.edit')}
@@ -156,6 +168,7 @@ export function CandidateHeroHeader({
                       {t('hero.requestCv')}
                     </Button>
                   )}
+                  {poolButtonSlot}
                   {candidate.phone && (
                     <Button 
                       variant="outline" 
@@ -200,7 +213,16 @@ export function CandidateHeroHeader({
                     </Tooltip>
                   )}
                 </div>
+                </div>
           </div>
+
+          {/* Stand-Zeile (25.11.2026): links „Bereit zum Einreichen“, rechts der Talent Pool */}
+          {(readinessSlot || poolSlot) && (
+            <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t pt-3">
+              {readinessSlot}
+              {poolSlot}
+            </div>
+          )}
           
           {/* Key Facts Grid - compact inline */}
           <div className="mt-4 pt-3 border-t">
@@ -210,18 +232,19 @@ export function CandidateHeroHeader({
           {/* Skills & Expertise Badges */}
           {(!!candidate.skills?.length || !!(candidate as any).certifications?.length) && (
             <div className="flex flex-wrap items-center gap-1 mt-2 px-0">
-              {candidate.skills?.slice(0, 8).map((skill) => (
-                <Badge key={skill} variant="secondary" className="text-[10px] px-1.5 py-0 h-5 font-normal">
+              {candidate.skills?.slice(0, alleSkills ? undefined : 8).map((skill) => (
+                <Badge key={skill} variant="secondary" className="h-5 rounded-full px-2 py-0 text-[10px] font-normal">
                   {skill}
                 </Badge>
               ))}
               {(candidate.skills?.length ?? 0) > 8 && (
-                <span className="text-[10px] text-muted-foreground ml-0.5">
-                  +{(candidate.skills?.length ?? 0) - 8}
-                </span>
+                <button type="button" onClick={() => setAlleSkills((v) => !v)} aria-expanded={alleSkills}
+                  className="ml-0.5 text-[11px] font-medium text-klick hover:underline">
+                  {alleSkills ? t('common.showLess') : `+${(candidate.skills?.length ?? 0) - 8} ›`}
+                </button>
               )}
               {(candidate as any).certifications?.map((cert: string) => (
-                <Badge key={cert} variant="outline" className="text-[10px] px-1.5 py-0 h-5 font-normal text-amber-600 border-amber-400/50">
+                <Badge key={cert} variant="outline" className="h-5 rounded-full border-transparent bg-secondary px-2 py-0 text-[10px] font-normal text-muted-foreground">
                   {cert}
                 </Badge>
               ))}

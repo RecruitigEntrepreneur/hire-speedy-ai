@@ -24,10 +24,12 @@ const sv: Messages<typeof de> = {
     openJobs_other: '{{count}} öppna tjänster',
     urgentCount: '{{count}} brådskande',
     potentialFee: '<fee/> möjligt arvode',
-    myActiveJobs: 'Mina aktiva uppdrag ({{count}})',
+    myActiveJobs: 'Det här arbetar du med',
     stageCurrent: '{{stage}} (aktuellt)',
     openJobPage: 'Öppna tjänstens sida',
     notSubmittedYet: 'Ingen presenterad ännu',
+    submittedAgo: 'presenterad {{when}}',
+    noneRunning: 'ingen pågående kandidat',
     searchPlaceholder: 'Titel eller kompetens',
     filter: {
       remote: 'Distans',
@@ -97,6 +99,7 @@ const sv: Messages<typeof de> = {
     },
   },
   card: {
+    salaryRange: '{{min}} till {{max}}',
     salaryFrom: 'från {{amount}}',
     salaryUpTo: 'upp till {{amount}}',
     contracting: 'Konsultuppdrag · {{rate}} / dag',

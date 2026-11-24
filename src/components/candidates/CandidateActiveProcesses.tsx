@@ -8,7 +8,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import {
-  Briefcase,
   Calendar,
   ExternalLink,
   Video,
@@ -123,8 +122,9 @@ function MiniStagePipeline({ currentStage }: { currentStage: string | null }) {
                 className={cn(
                   'h-1.5 rounded-full transition-all',
                   isActive ? 'w-5' : 'w-2.5',
-                  isActive ? stageConfig.dotColor :
-                  isPassed ? 'bg-green-400' :
+                  // Fortschritt blau, nur „Eingestellt“ grün (Apple-Stil, 24.11.2026)
+                  isActive ? (stage === 'hired' ? 'bg-green-600' : 'bg-klick') :
+                  isPassed ? 'bg-klick' :
                   'bg-muted-foreground/20'
                 )}
               />
@@ -147,7 +147,7 @@ function TripleBlindBadge({ companyRevealed, identityUnlocked }: { companyReveal
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <Unlock className="h-3 w-3 text-green-500 shrink-0" />
+          <Unlock className="h-3 w-3 text-muted-foreground shrink-0" />
         </TooltipTrigger>
         <TooltipContent side="bottom" className="text-xs">{t('process.identitiesUnlocked')}</TooltipContent>
       </Tooltip>
@@ -303,11 +303,8 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
   if (isLoading) {
     return (
       <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Briefcase className="h-3.5 w-3.5 text-muted-foreground animate-pulse" />
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            {t('process.title')}
-          </span>
+        <div className="flex h-6 items-center">
+          <span className="text-sm font-medium">{t('process.title')}</span>
         </div>
         <div className="flex gap-2">
           <div className="h-[110px] w-[200px] bg-muted/30 rounded-lg animate-pulse shrink-0" />
@@ -321,13 +318,10 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
   if (!processes || processes.length === 0) {
     return (
       <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            {t('process.title')}
-          </span>
+        <div className="flex h-6 items-center">
+          <span className="text-sm font-medium">{t('process.title')}</span>
         </div>
-        <p className="text-xs text-muted-foreground pl-5.5">{t('process.none')}</p>
+        <p className="text-xs text-muted-foreground">{t('process.none')}</p>
         {fenster}
       </div>
     );
@@ -336,11 +330,9 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
   return (
     <div className="space-y-2">
       {/* Header */}
-      <div className="flex h-6 items-center gap-2">
-        <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-          Aktive Prozesse ({processes.length})
-        </span>
+      {/* Apple-Stil (24.11.2026): normale Schreibweise, ohne Symbol */}
+      <div className="flex h-6 items-center">
+        <span className="text-sm font-medium">{t('process.title')} ({processes.length})</span>
       </div>
 
       {/* Horizontal scroll container */}
@@ -361,7 +353,6 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {processes.map((process) => {
-            const stageInfo = getStageInfo(process.stage);
             const companyRevealed = !!(process as any).company_revealed;
             const identityUnlocked = !!(process as any).identity_unlocked;
 
@@ -389,10 +380,8 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
                 key={process.id}
                 onClick={() => openSubmissionDialog(process.id)}
                 className={cn(
-                  'shrink-0 snap-start h-[110px] w-[200px] rounded-lg border p-2.5 transition-all hover:shadow-sm group cursor-pointer',
-                  isAwaitingOptIn && 'border-amber-500/30 bg-amber-500/5',
-                  interviewInfo?.urgent && 'border-primary/30 bg-primary/5',
-                  !isAwaitingOptIn && !interviewInfo?.urgent && 'hover:border-muted-foreground/30'
+                  'shrink-0 snap-start h-[110px] w-[200px] rounded-xl border bg-background p-2.5 shadow-sm transition-all hover:shadow-md group cursor-pointer',
+                  interviewInfo?.urgent ? 'border-foreground/30' : 'hover:border-muted-foreground/30'
                 )}
               >
                 {/* Row 1: Company + icons */}
@@ -434,7 +423,7 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
                   <MiniStagePipeline currentStage={process.stage} />
                   <Badge
                     variant="outline"
-                    className={cn('shrink-0 text-[9px] px-1.5 py-0 leading-4', stageInfo.className)}
+                    className={cn('shrink-0 rounded-full border-transparent px-2 py-0 text-[9px] font-normal leading-4', process.stage === 'hired' || process.stage === 'placed' ? 'bg-green-500/10 text-green-700 dark:text-green-500' : 'bg-secondary text-muted-foreground')}
                   >
                     {t(`stageShort.${stageKey(process.stage)}`)}
                   </Badge>
@@ -447,7 +436,7 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); setOfferFor(process.id); }}
-                        className="inline-flex items-center gap-1 rounded border border-primary/40 px-1.5 py-px font-medium text-primary hover:bg-primary/10"
+                        className="inline-flex items-center gap-1 font-medium text-klick hover:underline"
                       >
                         <FileText className="h-2.5 w-2.5" />
                         {t('process.openOffer')}
@@ -459,7 +448,7 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
                   {!process.runningOffer && interviewInfo && (
                     <span className={cn(
                       'inline-flex items-center gap-1 font-medium',
-                      interviewInfo.urgent ? 'text-primary' : 'text-foreground'
+                      'text-foreground'
                     )}>
                       <Calendar className="h-2.5 w-2.5" />
                       {interviewInfo.text}
@@ -467,7 +456,7 @@ export function CandidateActiveProcesses({ candidateId }: CandidateActiveProcess
                   )}
 
                   {!process.runningOffer && isAwaitingOptIn && !interviewInfo && (
-                    <span className="inline-flex items-center gap-1 text-amber-600 font-medium">
+                    <span className="inline-flex items-center gap-1 font-medium text-foreground">
                       <Clock className="h-2.5 w-2.5" />
                       {t('process.awaitingOptIn')}
                     </span>

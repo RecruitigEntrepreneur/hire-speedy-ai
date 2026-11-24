@@ -157,7 +157,7 @@ function RecommendationForm({ c, onClose, onDone, onNachgespraech }: { c: Recrui
       )}
 
       {!c.nachgespraech && onNachgespraech && c.lastInterview && !withoutTalk && (
-        <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/[0.06] p-3 text-sm">
+        <div className="space-y-2 rounded-lg border bg-secondary/60 p-3 text-sm">
           <p>{t('rec.noNach', { name })}</p>
           <div className="flex flex-wrap items-center gap-3">
             <Button size="sm" onClick={() => { onClose(); onNachgespraech(c); }}>{t('rec.doNach')}</Button>
@@ -182,7 +182,7 @@ function RecommendationForm({ c, onClose, onDone, onNachgespraech }: { c: Recrui
               <Input value={r.value} onChange={(e) => set(r.key, { value: e.target.value, on: e.target.value.trim() ? (r.value.trim() ? r.on : true) : false })}
                 placeholder={r.placeholder} className="h-8 text-sm" aria-label={r.label} />
             </div>
-            {r.privateHint && <p className="ml-6 mt-1 text-xs text-amber-600 dark:text-amber-400">{r.privateHint}</p>}
+            {r.privateHint && <p className="ml-6 mt-1 text-xs text-muted-foreground">{r.privateHint}</p>}
           </div>
         ))}
       </div>

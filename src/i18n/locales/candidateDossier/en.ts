@@ -164,6 +164,10 @@ const en: Messages<typeof de> = {
   },
   cards: {
     cvOpenFailed: 'The CV could not be opened.',
+    missingLabel: 'Missing:',
+    missingPoints_one: '{{count}} item',
+    missingPoints_other: '{{count}} items',
+    allPoints: 'All items',
     readyTitle: 'Ready to submit',
     doneOf: '{{done}} of {{total}}',
     actComplete: 'complete',
@@ -184,6 +188,7 @@ const en: Messages<typeof de> = {
     missing: 'missing',
     maxCommute: 'max. {{n}} min',
     factsTitle: 'Key facts for the move',
+    editShort: 'Edit',
     factsEdit: 'Edit key facts for the move',
     commuteMissing: 'Commute missing',
     employment: 'Employment',

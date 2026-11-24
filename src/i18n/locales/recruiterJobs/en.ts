@@ -24,10 +24,12 @@ const en: Messages<typeof de> = {
     openJobs_other: '{{count}} open roles',
     urgentCount: '{{count}} urgent',
     potentialFee: '<fee/> potential fee',
-    myActiveJobs: 'My active jobs ({{count}})',
+    myActiveJobs: 'You are working on',
     stageCurrent: '{{stage}} (current)',
     openJobPage: 'Open role page',
     notSubmittedYet: 'Not submitted yet',
+    submittedAgo: 'submitted {{when}}',
+    noneRunning: 'no candidate in progress',
     searchPlaceholder: 'Title or skill',
     filter: {
       remote: 'Remote',
@@ -97,6 +99,7 @@ const en: Messages<typeof de> = {
     },
   },
   card: {
+    salaryRange: '{{min}} to {{max}}',
     salaryFrom: 'from {{amount}}',
     salaryUpTo: 'up to {{amount}}',
     contracting: 'Contracting · {{rate}} / day',

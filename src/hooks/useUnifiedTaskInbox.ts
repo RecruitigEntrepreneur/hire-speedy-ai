@@ -8,6 +8,8 @@ import { ladeVorbereitung } from '@/lib/vorbereitenLaden';
 import i18n from '@/i18n';
 import { fmtDayMonth, fmtMoney, fmtTime } from '@/lib/localeFormat';
 import { startTaskKind } from '../../supabase/functions/_shared/abrechnung-view';
+import { poolAufgabenHeute, type PoolEintrag } from '@/lib/talentPool';
+import { isClosedStage } from '@/lib/submissionStage';
 
 // Titel, Beschreibung und Hinweise der Aufgaben in der Sprache der Oberfläche, gelesen beim
 // Laden (README Regel 7). Logik vergleicht nie diese Texte, sondern `variant` und die Felder.
@@ -78,6 +80,8 @@ export interface UnifiedTaskItem {
   variant?: string;
   /** Ort der Stelle (recruiter_jobs_view.location): daraus die Sprache des Kunden, wenn nichts Besseres da ist. */
   jobLocation?: string | null;
+  /** „Kontakt halten“ (25.11.2026): fälliger Eintrag im Talent Pool, öffnet das Kontakt-Fenster. */
+  pool?: PoolEintrag;
   /** Absagegrund des Kunden (so gespeichert), für den Satz im Fenster. */
   reason?: string | null;
   /** Angebot: wann die Mail an den Kandidaten von selbst rausgeht. */
@@ -653,6 +657,25 @@ function mapOptInDue(sub: any, now: number): UnifiedTaskItem {
     companyName: safeCompany(job, sub.company_revealed),
     jobLocation: job?.location ?? null,
     isStale: false,
+  };
+}
+
+// Abgeleitete Aufgabe: Kandidat im Talent Pool, der vereinbarte Kontakt ist fällig (25.11.2026)
+function mapPoolKontakt(row: any, recruiterId: string): UnifiedTaskItem {
+  const c = row.candidates;
+  const { candidates: _c, ...eintrag } = row;
+  return {
+    itemType: 'derived', itemId: `pool-${row.id}`, recruiterId,
+    title: tt('pool.title', { name: c?.full_name || tt('fallback.candidate') }),
+    description: row.notes || null, recommendedAction: tt('pool.action'),
+    taskCategory: 'pool_contact', sortPriority: ALERT_PRIORITY_MAP.low, priority: 'low',
+    submissionId: null, candidateId: row.candidate_id, jobId: null, playbookId: null,
+    createdAt: row.next_contact_at, dueAt: row.next_contact_at,
+    isRead: false, isArchived: false, isCompleted: false, completedAt: null, snoozedUntil: null,
+    impactScore: 40, feeValue: null,
+    candidateName: c?.full_name || null, candidatePhone: c?.phone || null, candidateEmail: c?.email || null,
+    jobTitle: null, companyName: null, isStale: false,
+    pool: eintrag as PoolEintrag,
   };
 }
 
@@ -1299,6 +1322,18 @@ export function useUnifiedTaskInbox(filter: TaskFilter = 'all') {
       const prepItems = (await prepPromise).map(v => mapVorbereitung(v, user.id)).filter(i => !suppressions[i.itemId]);
       setSoonItems(prepItems.filter(i => i.prep!.frisch));
       derivedItems.push(...prepItems.filter(i => !i.prep!.frisch));
+
+      // Talent Pool: fällige Kontakte, höchstens fünf am Tag; wer in einem Prozess steckt, pausiert
+      const poolRes = await (supabase as any).from('talent_pool')
+        .select('id, candidate_id, pool_id, pool_type, contact_frequency, next_contact_at, last_contacted_at, notes, consent_at, consent_source, retention_until, change_readiness, is_active, opted_out_at, created_at, candidates(full_name, phone, email)')
+        .eq('recruiter_id', user.id).eq('is_active', true).lte('next_contact_at', nowDate.toISOString());
+      const poolRows = (poolRes.data || []) as any[];
+      if (poolRows.length) {
+        const { data: laufend } = await supabase.from('submissions').select('candidate_id, stage')
+          .eq('recruiter_id', user.id).in('candidate_id', poolRows.map(r => r.candidate_id));
+        const imProzess = new Set((laufend || []).filter((s: any) => !isClosedStage(s.stage)).map((s: any) => s.candidate_id as string));
+        derivedItems.push(...poolAufgabenHeute(poolRows, imProzess, nowDate).map(r => mapPoolKontakt(r, user.id)));
+      }
 
       // Merge + sort: by sortPriority ASC, then impact DESC, then createdAt DESC
       const staleBefore = nowMs - 21 * DAY_MS;

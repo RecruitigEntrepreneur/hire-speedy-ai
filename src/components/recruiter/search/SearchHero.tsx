@@ -54,7 +54,7 @@ const pausedText = (until: string | null | undefined, t: T) => (until ? t('hero.
 export function JobPausedBadge({ until }: { until: string | null | undefined }) {
   const { t } = useTranslation('recruiterSearch');
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-500">
+    <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium text-foreground">
       <PauseCircle className="h-3.5 w-3.5" aria-hidden="true" />
       {pausedText(until, t)}
     </span>
@@ -83,8 +83,8 @@ export function SearchHeroAction({ search, jobPaused, pausedUntil, onStart, onSu
   if (ruht(search, jobPaused)) {
     return <Button size="lg" disabled><PauseCircle />{jobPaused ? pausedText(pausedUntil, t) : t('hero.searchRests')}</Button>;
   }
-  if (!search.searching) return <Button size="lg" onClick={onStart}><Search />{candidateName ? t('hero.searchAndPresent', { name: candidateName }) : t('hero.iSearch')}</Button>;
-  return <Button size="lg" onClick={onSubmit}><Plus />{candidateName ? t('hero.present', { name: candidateName }) : t('hero.prepare')}</Button>;
+  if (!search.searching) return <Button size="lg" onClick={onStart}>{candidateName ? t('hero.searchAndPresent', { name: candidateName }) : t('hero.iSearch')}</Button>;
+  return <Button size="lg" onClick={onSubmit}>{candidateName ? t('hero.present', { name: candidateName }) : t('hero.prepare')}</Button>;
 }
 
 /** Eine Zeile unter dem Kopf: was „Ich suche“ bedeutet, Stand der Suche, offene Kundenfrage oder Pause. */
@@ -97,7 +97,7 @@ export function SearchHeroStatus({ search, jobPaused, pausedUntil, companyName, 
   if (ruht(search, jobPaused)) {
     const review = !jobPaused && row?.review_hold;
     return (
-      <span className="text-amber-500">
+      <span className="font-medium text-foreground">
         {review
           ? t('hero.review')
           : [t('hero.clientPaused'), pausedUntil ? t('hero.newFrom', { date: fmtDayShort(pausedUntil) }) : null, searching ? t('hero.deadlineStill') : null].filter(Boolean).join(' · ')}
@@ -109,7 +109,7 @@ export function SearchHeroStatus({ search, jobPaused, pausedUntil, companyName, 
   }
   if (openQuestion) {
     return (
-      <button type="button" onClick={onAnswer} className="inline-flex items-center gap-1.5 text-amber-500 hover:text-amber-400">
+      <button type="button" onClick={onAnswer} className="inline-flex items-center gap-1.5 font-medium text-klick hover:underline">
         <HelpCircle className="h-3.5 w-3.5" aria-hidden="true" />
         <span><Trans t={t} i18nKey="hero.question" values={{ company: companyName || t('q.theCompany') }} components={{ u: <span className="underline underline-offset-2" /> }} /></span>
       </button>
@@ -118,10 +118,12 @@ export function SearchHeroStatus({ search, jobPaused, pausedUntil, companyName, 
   const days = daysUntil(row!.ends_at);
   return (
     <span className="inline-flex flex-wrap items-center gap-x-1.5 sm:justify-end">
-      <span className="inline-flex items-center gap-1 text-emerald-500"><Check className="h-3.5 w-3.5" aria-hidden="true" />
+      <span className="inline-flex items-center gap-1 font-medium text-klick"><Check className="h-3.5 w-3.5" aria-hidden="true" />{t('hero.searching')}</span>
+      <span aria-hidden="true">·</span>
+      <span>
         {row!.submissions > 0
-          ? t('hero.searchingSubmitted', { count: row!.submissions })
-          : t('hero.searchingDaysLeft', { count: days ?? 30 })}
+          ? t('hero.submittedCount', { count: row!.submissions })
+          : t('hero.daysLeft', { count: days ?? 30 })}
       </span>
       <span aria-hidden="true">·</span>
       <button type="button" className={link} onClick={onEnd}>{t('end.confirm')}</button>
@@ -136,9 +138,9 @@ export function SearchMobileAction({ search, jobPaused, pausedUntil, onStart, on
     return <Button className="min-w-0 flex-1" disabled><PauseCircle />{jobPaused ? pausedText(pausedUntil, t) : t('hero.searchRests')}</Button>;
   }
   if (!search.loading && !search.searching) {
-    return <Button className="min-w-0 flex-1" onClick={onStart}><Search />{candidateName ? t('hero.present', { name: candidateName }) : t('hero.iSearch')}</Button>;
+    return <Button className="min-w-0 flex-1" onClick={onStart}>{candidateName ? t('hero.present', { name: candidateName }) : t('hero.iSearch')}</Button>;
   }
-  return <Button className="min-w-0 flex-1" onClick={onSubmit}><Plus />{candidateName ? t('hero.present', { name: candidateName }) : t('hero.prepare')}</Button>;
+  return <Button className="min-w-0 flex-1" onClick={onSubmit}>{candidateName ? t('hero.present', { name: candidateName }) : t('hero.prepare')}</Button>;
 }
 
 /** „Kennst du X schon?“, wenn die Frage nach dem „Ich suche“ offen geblieben ist. */

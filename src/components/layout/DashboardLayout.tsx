@@ -162,7 +162,8 @@ export function DashboardLayout({ children, fluid = false, activeHref }: Dashboa
     { label: tNav('items.jobs'), kurz: tNav('short.jobs'), href: '/recruiter/jobs', icon: <Briefcase className="h-4 w-4" /> },
     { label: tNav('items.candidates'), kurz: tNav('short.candidates'), href: '/recruiter/candidates', icon: <Users className="h-4 w-4" /> },
     { label: tNav('items.pipeline'), href: '/recruiter/submissions', icon: <FileText className="h-4 w-4" /> },
-    { label: tNav('items.talentPool'), href: '/recruiter/talent-pool', icon: <Database className="h-4 w-4" /> },
+    { label: tNav('items.analytics'), href: '/recruiter/analytics', icon: <BarChart3 className="h-4 w-4" /> },
+    // Talent Pool lebt seit 25.11.2026 als Reiter in „Meine Kandidaten“; die alte Seite bleibt per Adresse erreichbar
     // Matchunt Liga (16.11.2026): kein Menüpunkt mehr, sondern das Kärtchen unten über den Einstellungen
     { label: tNav('items.earnings'), href: '/recruiter/earnings', icon: <DollarSign className="h-4 w-4" /> },
     // 15.11.2026: Benachrichtigungen nur noch über „Alle ansehen“ in der Glocke, Nachrichten als

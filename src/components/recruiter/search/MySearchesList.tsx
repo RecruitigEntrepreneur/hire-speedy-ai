@@ -178,8 +178,8 @@ export function MySearchesList({ onSubmit }: { onSubmit: (jobId: string, title: 
           </CardContent>
         </Card>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-border/40">
-          <div className="hidden grid-cols-[minmax(0,1.6fr)_minmax(0,0.8fr)_minmax(0,1.3fr)_auto] gap-3 border-b border-border/40 bg-muted/30 px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground md:grid">
+        <div className="overflow-hidden rounded-xl border bg-card">
+          <div className="hidden grid-cols-[minmax(0,1.6fr)_minmax(0,0.8fr)_minmax(0,1.3fr)_auto] gap-3 border-b px-3 py-2 text-xs font-medium text-muted-foreground md:grid">
             <span>{t('mine.col.job')}</span>
             <span>{t('mine.col.candidates')}</span>
             <span>{t('mine.col.stand')}</span>
@@ -212,8 +212,8 @@ export function MySearchesList({ onSubmit }: { onSubmit: (jobId: string, title: 
                 <div className="min-w-0 text-xs">
                   <span
                     className={cn(
-                      stand.tone === 'ok' && 'text-emerald-600',
-                      stand.tone === 'warn' && 'text-amber-600',
+                      // Ruhig (24.11.2026): keine Ampelfarben; was Aufmerksamkeit braucht, steht fett
+                      stand.tone === 'warn' && 'font-medium text-foreground',
                       stand.tone === 'muted' && 'text-muted-foreground',
                     )}
                   >
@@ -221,15 +221,14 @@ export function MySearchesList({ onSubmit }: { onSubmit: (jobId: string, title: 
                   </span>
                   {note && <span className="block text-muted-foreground">{note}</span>}
                   {openQuestion && (
-                    <button type="button" className="block text-left text-primary underline-offset-2 hover:underline" onClick={() => setQuestion(s)}>
+                    <button type="button" className="block text-left text-klick hover:underline" onClick={() => setQuestion(s)}>
                       {t('mine.openQuestion', { company: s.company_name || t('q.theCompany') })}
                     </button>
                   )}
                 </div>
                 <div className="flex items-center justify-end gap-1">
                   {canSubmit && (
-                    <Button size="sm" variant="outline" className="h-7 gap-1 text-xs" onClick={() => onSubmit(s.job_id, s.title)}>
-                      <Send className="h-3 w-3" />
+                    <Button size="sm" variant="secondary" className="h-7 rounded-full px-3 text-xs" onClick={() => onSubmit(s.job_id, s.title)}>
                       {t('q.submit')}
                     </Button>
                   )}

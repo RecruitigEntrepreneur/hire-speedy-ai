@@ -3,6 +3,27 @@ import type { Messages } from '../../types';
 
 const sv: Messages<typeof de> = {
   recruiterInterviews: {
+    card: { view: 'Visa', asked: 'begärd {{time}}', tasks_one: '{{count}} uppgift', tasks_other: '{{count}} uppgifter' },
+    window: {
+      confirmed: 'bekräftad', held: 'genomförd', noDate: 'utan tid', round: 'Intervju {{n}}',
+      step: '{{label}} · steg {{n}} av {{total}}', processEnded: 'Processen avslutad',
+      todo: 'Öppet i den här processen', toTask: 'Till uppgiften',
+      interview: 'Intervjun', askedOn: 'begärd {{date}}', expired: 'har gått ut',
+      companyLater: 'Företaget visas först när tiden är bekräftad.',
+      reason: 'Skäl', note: 'Anteckning till intervjun',
+      debrief: 'Uppföljning', open: 'fortfarande öppen', done: 'antecknad', clientView: 'Kundens intryck', pending: 'väntar',
+      history: 'Förlopp', submitted: 'Presenterad',
+      glance: 'I korthet', company: 'Företag', notRevealed: 'visas inte ännu', job: 'Uppdrag', briefing: 'Briefing',
+      candidate: 'Kandidat', profile: 'Profil', fee: 'Arvode',
+      notes: 'Dina anteckningar', noNotes: 'Ingen anteckning ännu.',
+      toCalendar: 'Lägg till i kalendern', fullPage: 'Öppna hela sidan',
+    },
+    calendar: { prev: 'Föregående månad', next: 'Nästa månad', has: 'intervju', count_one: '{{count}} intervju', count_other: '{{count}} intervjuer', showAll: 'Visa alla' },
+    tabs: { upcoming: 'Kommande', awaiting: 'Utan tid', past: 'Tidigare', cancelled: 'Inställda' },
+    hero: { title: 'Nästa intervju hos kunden', live: 'pågår', view: 'Visa intervjun', none: 'Ingen intervju på gång just nu.' },
+    summary: { week_one: '{{count}} intervju den här veckan', week_other: '{{count}} intervjuer den här veckan', noDate_one: '{{count}} utan tid', noDate_other: '{{count}} utan tid' },
+    searchPh: 'Kandidat eller uppdrag …',
+    noMatch: 'Ingen intervju matchar sökningen.',
     title: 'Intervjuer',
     subtitle: 'Alla dina kandidaters tider — bekräftade, öppna och att följa upp',
     stats: {

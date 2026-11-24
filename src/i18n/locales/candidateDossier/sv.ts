@@ -164,6 +164,10 @@ const sv: Messages<typeof de> = {
   },
   cards: {
     cvOpenFailed: 'Det gick inte att öppna cv:t.',
+    missingLabel: 'Saknas:',
+    missingPoints_one: '{{count}} punkt',
+    missingPoints_other: '{{count}} punkter',
+    allPoints: 'Alla punkter',
     readyTitle: 'Redo att skickas in',
     doneOf: '{{done}} av {{total}}',
     actComplete: 'avsluta',
@@ -184,6 +188,7 @@ const sv: Messages<typeof de> = {
     missing: 'saknas',
     maxCommute: 'max {{n}} min',
     factsTitle: 'Nyckeluppgifter för bytet',
+    editShort: 'Redigera',
     factsEdit: 'Redigera nyckeluppgifter för bytet',
     commuteMissing: 'Pendlingstid saknas',
     employment: 'Anställning',

@@ -12,21 +12,16 @@ import { LigaDashboardCard } from '@/components/recruiter/liga/LigaDashboardCard
 import { LigaAwardDialog } from '@/components/recruiter/liga/LigaAwardDialog';
 import {
   Briefcase,
-  Users,
-  FileText,
-  ArrowUpRight,
   Loader2,
-  Lock,
   CheckCircle,
-  MapPin,
   Phone,
   Check,
-  ChevronRight,
-  Calendar,
-  Euro,
-  Building2,
   Video,
+  CalendarDays,
+  CheckSquare,
   Compass,
+  Euro,
+  FileText,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { formatAnonymousCompany } from '@/lib/anonymousCompanyFormat';
@@ -46,8 +41,8 @@ import { useMinutenTakt, useUnifiedTaskInbox, type UnifiedTaskItem } from '@/hoo
 import { buildGuide, prepTexts } from '@/components/recruiter/tasks/taskWindow';
 import { dfLocale, loc } from '@/components/recruiter/tasks/sprache';
 import { dashboardRows, rowItem, splitJetzt, type JetztRow } from '@/components/recruiter/tasks/jetztRows';
-import { VORBEREITEN_TON } from '@/lib/kandidatVorbereiten';
 import { useRecruiterInterviewAgenda } from '@/hooks/useRecruiterInterviewAgenda';
+import { useRecruiterAnalytics } from '@/hooks/useRecruiterAnalytics';
 import { useActivityLogger } from '@/hooks/useCandidateActivityLog';
 import { HubSpotImportDialog } from '@/components/candidates/HubSpotImportDialog';
 import { CvUploadDialog } from '@/components/candidates/CvUploadDialog';
@@ -61,9 +56,10 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { format, isToday, isTomorrow } from 'date-fns';
 import { isMissingColumnError } from '@/lib/intakeCapture';
-import { verdienstJeTag } from '@/lib/recruiterContracting';
+import { istContracting, verdienstJeTag } from '@/lib/recruiterContracting';
+import { KachelReiter } from '@/components/dashboard/bento/KachelTeile';
 import { Honorar } from '@/components/recruiter/Honorar';
-import { ErhaltenKachel, ErhaltenZeile } from '@/components/recruiter/verdienste/ErhaltenKachel';
+import { GeldZeilen } from '@/components/recruiter/verdienste/ErhaltenKachel';
 import { KonditionenHinweis } from '@/components/recruiter/verdienste/KonditionenHinweis';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -113,14 +109,11 @@ const getFirstName = (user: any): string => {
 };
 
 const formatEuro = (amount: number): string => {
-  if (amount >= 1000) {
-    return `€${Math.round(amount / 1000).toLocaleString(loc())}k`;
-  }
-  return `€${amount.toLocaleString(loc())}`;
+  return `${Math.round(amount).toLocaleString(loc())} €`;
 };
 
 const formatEuroFull = (amount: number): string => {
-  return `€${amount.toLocaleString(loc())}`;
+  return `${Math.round(amount).toLocaleString(loc())} €`;
 };
 
 const calculatePotentialEarning = (
@@ -137,14 +130,6 @@ const calculatePotentialEarning = (
 };
 
 type T = (key: string, options?: Record<string, unknown>) => string;
-const formatInterviewDate = (dateStr: string, t: T): string => {
-  const date = new Date(dateStr);
-  const time = format(date, 'HH:mm');
-  if (isToday(date)) return t('date.today', { time });
-  if (isTomorrow(date)) return t('date.tomorrow', { time });
-  return t('date.other', { date: format(date, t('date.dayPattern'), { locale: dfLocale() }), time });
-};
-
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export default function RecruiterDashboard() {
@@ -182,6 +167,17 @@ export default function RecruiterDashboard() {
   const { data: interviewAgenda } = useRecruiterInterviewAgenda();
   const { logActivity } = useActivityLogger();
 
+  // Reiter wie auf dem Kunden-Dashboard (23.11.2026): ein Reiter erscheint nur, wenn es dafür etwas gibt
+  const [stellenTab, setStellenTab] = useState<'all' | 'perm' | 'freelance'>('all');
+  const [terminTab, setTerminTab] = useState<'all' | 'today'>('all');
+  const stellenContracting = useMemo(() => recentJobs.filter(j => istContracting(j)), [recentJobs]);
+  const stellenFest = useMemo(() => recentJobs.filter(j => !istContracting(j)), [recentJobs]);
+  const stellenAktiv = stellenTab === 'freelance' && stellenContracting.length ? 'freelance' : stellenTab === 'perm' && stellenContracting.length ? 'perm' : 'all';
+  const stellenSicht = (stellenAktiv === 'freelance' ? stellenContracting : stellenAktiv === 'perm' ? stellenFest : recentJobs).slice(0, 4);
+
+  // Quote am Fuß der Interview-Karte: dieselbe Rechnung wie die Seite „Auswertung“, über 12 Monate
+  const { analytics: jahr } = useRecruiterAnalytics('365');
+
   // Anstehende Interviews aus der reveal-sicheren Agenda (inkl. unbestätigter Termine)
   const upcomingInterviews: UpcomingInterview[] = useMemo(() => {
     if (!interviewAgenda) return [];
@@ -199,6 +195,8 @@ export default function RecruiterDashboard() {
         submissionId: iv.submissionId,
       }));
   }, [interviewAgenda]);
+  const termineHeute = useMemo(() => upcomingInterviews.filter(iv => isToday(new Date(iv.date))), [upcomingInterviews]);
+  const terminAktiv = terminTab === 'today' && termineHeute.length ? 'today' : 'all';
 
   usePageViewTracking('recruiter_dashboard');
 
@@ -244,7 +242,7 @@ export default function RecruiterDashboard() {
         .select(spalten)
         .eq('status', 'published')
         .order('created_at', { ascending: false })
-        .limit(4);
+        .limit(40);
       // Contracting: Verdienst je Einsatztag (Migration 20260929100000). Vor
       // deren Ausrollen fehlen die Spalten -- dann wie bisher ohne.
       // Firmenlogo nach dem Reveal (Migration 20261019170000) -- vorher ohne.
@@ -316,10 +314,10 @@ export default function RecruiterDashboard() {
       submissions.forEach((s: any) => { s.jobs = pipelineJobsById[s.job_id] ?? null; });
 
       const stages: PipelineStage[] = [
-        { key: 'submitted', statuses: ['submitted', 'pending'], color: 'bg-amber-500', count: 0 },
-        { key: 'in_review', statuses: ['in_review'], color: 'bg-blue-500', count: 0 },
-        { key: 'interview', statuses: ['interview'], color: 'bg-purple-500', count: 0 },
-        { key: 'offer', statuses: ['offer'], color: 'bg-emerald-500', count: 0 },
+        { key: 'submitted', statuses: ['submitted', 'pending'], color: 'bg-foreground/75', count: 0 },
+        { key: 'in_review', statuses: ['in_review'], color: 'bg-foreground/75', count: 0 },
+        { key: 'interview', statuses: ['interview'], color: 'bg-foreground/75', count: 0 },
+        { key: 'offer', statuses: ['offer'], color: 'bg-foreground/75', count: 0 },
       ];
 
       // Conversion probabilities per stage (industry averages)
@@ -421,10 +419,6 @@ export default function RecruiterDashboard() {
   const urgentCount = useMemo(() => jetztRows.filter(r => r.critical).length, [jetztRows]);
   const totalPendingAlerts = jetztRows.length;
 
-  const maxPipelineCount = useMemo(() => {
-    return Math.max(...pipelineStages.map(s => s.count), 1);
-  }, [pipelineStages]);
-
   // Neu dabei: noch keine Kandidaten und keine laufende Vorstellung. „Alles erledigt“ wäre dann irreführend.
   const isNewcomer = stats.myCandidates === 0 && stats.activeSubmissions === 0;
 
@@ -494,24 +488,24 @@ export default function RecruiterDashboard() {
 
         {/* ═══ HEADER ═══ Lebenslauf hineinziehen (05.11.2026) */}
         <LebenslaufAblage onFiles={(fs) => ablageMelden(ablageAnfragen(fs))}>
-        <Card className="border-border/30 shadow-sm" data-tour="dashboard.header">
+        <Card data-tour="dashboard.header">
           <CardContent className="p-4 sm:p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h1 className="text-2xl font-bold tracking-tight">
+                <h1 className="text-2xl font-semibold tracking-tight">
                   {t(`greeting.${greetingKey()}`, { name: getFirstName(user) || t('greeting.fallbackName') })}
                 </h1>
                 <p className="text-sm text-muted-foreground mt-1">
                   {greetingSubtext}
-                  <span className="hidden whitespace-nowrap text-muted-foreground/60 md:inline"> · {t('header.dropHint')}</span>
+                  <span className="hidden md:inline"> {t('header.dropHint')}</span>
                 </p>
               </div>
 
               {/* Am Handy (16.11.2026, Marko: 2A): „Kandidaten anlegen“ breit, „Rundgang“ als Rahmenknopf
                   daneben in derselben Zeile; auf sehr schmalen Handys bricht der Rundgang um. */}
               <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:flex-nowrap">
-                <Button variant="ghost" size="sm" className="max-sm:border max-sm:border-border" onClick={guide.start}>
-                  <Compass className="mr-1.5 h-3.5 w-3.5 max-sm:hidden" />
+                <Button variant="secondary" size="sm" className="rounded-full px-4" onClick={guide.start}>
+                  <Compass className="h-4 w-4" aria-hidden="true" />
                   {t('header.tour')}
                 </Button>
 {pending
@@ -543,31 +537,21 @@ export default function RecruiterDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
           {/* ─── CELL 1: Aufgaben (top-left) ─── */}
-          <Card className="border-border/30 shadow-sm">
+          <Card>
             <CardContent className="p-4 sm:p-5">
               <div className="flex items-center justify-between gap-2 mb-3">
                 <div className="flex min-w-0 items-center gap-2">
-                  <h2 className="font-semibold">{t('tasks.title')}</h2>
+                  <CheckSquare className="h-4 w-4 shrink-0 text-klick" aria-hidden="true" /><h2 className="text-[15px] font-semibold tracking-tight">{t('tasks.title')}</h2>
                   {totalPendingAlerts > 0 && (
                     <Badge variant="secondary" className="text-xs">
                       {totalPendingAlerts}
                     </Badge>
                   )}
-                  {urgentCount > 0 && (
-                    <Badge className="whitespace-nowrap text-xs bg-destructive/10 text-destructive border-0">
-                      {t('tasks.urgent', { count: urgentCount })}
-                    </Badge>
-                  )}
                 </div>
-                <Button
-                  variant="ghost" size="sm" className="h-8 shrink-0 px-2 text-xs text-muted-foreground sm:h-7 sm:px-3"
-                  onClick={() => navigate('/recruiter/influence')}
-                  aria-label={t('tasks.all')}
-                >
-                  {/* Am Handy nur der Pfeil: „Aufgaben“ steht ohnehin unten in der Leiste */}
-                  <span className="hidden sm:inline">{t('tasks.all')}</span>
-                  <ChevronRight className="h-4 w-4 sm:ml-1 sm:h-3.5 sm:w-3.5" />
-                </Button>
+                {/* Am Handy nur der Pfeil: „Aufgaben“ steht ohnehin unten in der Leiste */}
+                <Link to="/recruiter/influence" aria-label={t('tasks.all')} className="shrink-0 text-sm text-klick hover:underline">
+                  <span className="hidden sm:inline">{t('tasks.all')} </span>›
+                </Link>
               </div>
 
               {totalPendingAlerts === 0 && isNewcomer ? (
@@ -575,13 +559,11 @@ export default function RecruiterDashboard() {
                   <Briefcase className="mx-auto h-9 w-9 text-muted-foreground/40 mb-2" />
                   <p className="font-medium text-sm">{t('tasks.emptyNewTitle')}</p>
                   <p className="text-xs text-muted-foreground">{t('tasks.emptyNewText')}</p>
-                  <Button variant="link" size="sm" className="mt-1 h-auto p-0 text-xs" asChild>
-                    <Link to="/recruiter/jobs">{t('tasks.openJobs')}</Link>
-                  </Button>
+                  <Link to="/recruiter/jobs" className="mt-1 inline-block text-xs text-klick hover:underline">{t('tasks.openJobs')} ›</Link>
                 </div>
               ) : totalPendingAlerts === 0 ? (
                 <div className="text-center py-8">
-                  <CheckCircle className="mx-auto h-9 w-9 text-emerald-500/40 mb-2" />
+                  <CheckCircle className="mx-auto h-9 w-9 text-muted-foreground/40 mb-2" />
                   <p className="font-medium text-sm">{t('tasks.doneTitle')}</p>
                   <p className="text-xs text-muted-foreground">{t('tasks.doneText')}</p>
                 </div>
@@ -615,22 +597,13 @@ export default function RecruiterDashboard() {
                         onClick={() => handleViewTask(row)}
                         onKeyDown={(e) => { if (e.key === 'Enter') handleViewTask(row); }}
                         className={cn(
-                          'flex items-center gap-3 rounded-lg px-2.5 py-2.5 transition-all cursor-pointer group',
-                          row.critical
-                            ? 'bg-destructive/[0.04] hover:bg-destructive/[0.08]'
-                            : 'hover:bg-accent/50'
+                          '-mx-2.5 flex items-center gap-3 rounded-lg px-2.5 py-2.5 transition-all cursor-pointer group',
+                          'hover:bg-accent/50'
                         )}
                       >
-                        <div className={cn(
-                          'w-1.5 h-1.5 rounded-full shrink-0',
-                          row.critical ? 'bg-destructive' : 'bg-muted-foreground/30'
-                        )} />
-
                         <div className="flex-1 min-w-0">
-                          {idx === 0 && <p className="text-[10px] font-semibold uppercase tracking-wide text-destructive">{t('tasks.next')}</p>}
                           <div className="flex items-center gap-1.5">
-                            <span className="text-sm font-medium truncate">{title}</span>
-                            <Badge variant="secondary" className={cn('h-4 shrink-0 px-1.5 text-[10px] font-medium', item.prep && VORBEREITEN_TON[item.prep.art])}>{pill}</Badge>
+                            <span className={cn('text-sm truncate', idx === 0 ? 'font-semibold' : 'font-medium')}>{title}</span>
                             {person && person.others.length > 0 && (
                               <span className="text-[11px] text-muted-foreground shrink-0">+{person.others.length}</span>
                             )}
@@ -639,12 +612,14 @@ export default function RecruiterDashboard() {
                         </div>
 
                         {row.fee > 0 && (
-                          <span className="text-xs font-semibold text-emerald-600 shrink-0 tabular-nums">
+                          <span className="hidden text-xs text-muted-foreground shrink-0 tabular-nums sm:inline">
                             <Honorar>{formatEuro(row.fee)}</Honorar>
                           </span>
                         )}
 
-                        <div className="flex items-center gap-0.5 shrink-0">
+                        <span className="shrink-0 whitespace-nowrap text-xs text-klick">{pill} ›</span>
+
+                        <div className="flex items-center gap-0.5 shrink-0 empty:hidden">
                           {item.prep?.art === 'termin' && item.prep.termin?.joinUrl ? (
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -672,7 +647,7 @@ export default function RecruiterDashboard() {
                               <TooltipTrigger asChild>
                                 <Button
                                   variant="ghost" size="sm"
-                                  className="h-8 w-8 p-0 md:h-6 md:w-6 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
+                                  className="h-8 w-8 p-0 md:h-6 md:w-6 text-muted-foreground hover:text-foreground"
                                   onClick={(e) => { e.stopPropagation(); handleMarkDone(item); }}
                                 >
                                   <Check className="h-3 w-3" />
@@ -680,147 +655,92 @@ export default function RecruiterDashboard() {
                               </TooltipTrigger>
                               <TooltipContent>{t('tasks.done')}</TooltipContent>
                             </Tooltip>
-                          ) : (
-                            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-                          )}
+                          ) : null}
                         </div>
                       </div>
                     );
                   })}
 
                   {totalPendingAlerts > 5 && (
-                    <Button
-                      variant="ghost" size="sm"
-                      className="w-full text-xs text-muted-foreground mt-1"
-                      onClick={() => navigate('/recruiter/influence')}
-                    >
-                      {t('tasks.showAll', { count: totalPendingAlerts })}
-                      <ChevronRight className="h-3.5 w-3.5 ml-1" />
-                    </Button>
+                    <Link to="/recruiter/influence" className="mt-1 block py-1.5 text-sm text-klick hover:underline">
+                      {t('tasks.showAll', { count: totalPendingAlerts })} ›
+                    </Link>
                   )}
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* ─── CELL 2: Pipeline (top-right) ─── */}
-          <Card className="border-border/30 shadow-sm">
+          {/* ─── CELL 2: Dein Geld, darunter die Pipeline als vier Zahlen (23.11.2026, Marko) ─── */}
+          <Card>
             <CardContent className="p-4 sm:p-5">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="font-semibold">{t('pipeline.title')}</h2>
-                <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" asChild>
-                  <Link to="/recruiter/submissions">
-                    {t('pipeline.details')}
-                    <ArrowUpRight className="ml-1 h-3 w-3" />
-                  </Link>
-                </Button>
+                <div className="flex min-w-0 items-center gap-2"><Euro className="h-4 w-4 shrink-0 text-klick" aria-hidden="true" /><h2 className="text-[15px] font-semibold tracking-tight">{t('overview.title')}</h2></div>
+                <Link to="/recruiter/earnings" className="text-sm text-klick hover:underline">{t('overview.earnings')} ›</Link>
               </div>
-
-              <div className="space-y-2.5 mb-4">
-                {pipelineStages.map((stage) => (
-                  <div key={stage.key} className="flex items-center gap-3">
-                    <span className="text-xs text-muted-foreground w-20 shrink-0">
-                      {t(`pipeline.stages.${stage.key}`)}
-                    </span>
-                    <div className="flex-1 h-2.5 rounded-full bg-muted/50 overflow-hidden">
-                      <div
-                        className={cn('h-full rounded-full transition-all duration-500', stage.color)}
-                        style={{ width: `${Math.max((stage.count / maxPipelineCount) * 100, stage.count > 0 ? 12 : 0)}%` }}
-                      />
-                    </div>
-                    <span className="text-sm font-semibold w-6 text-right tabular-nums">
-                      {stage.count}
-                    </span>
-                  </div>
-                ))}
-                {prepCount > 0 && (
-                  <Link to="/recruiter/influence" className="flex items-center justify-between gap-3 border-t border-border/40 pt-2.5 text-xs text-muted-foreground hover:text-foreground">
-                    <span>{t('pipeline.beforeSubmission')}</span>
-                    <span className="w-6 text-right text-sm font-semibold tabular-nums text-foreground">{prepCount}</span>
-                  </Link>
-                )}
-              </div>
-
-              <div className="pt-3 border-t border-border/40 space-y-1.5">
+              <div className="divide-y text-sm">
+                <GeldZeilen />
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="flex items-center justify-between text-sm cursor-help">
-                      <span className="text-muted-foreground">{t('pipeline.expected')}</span>
-                      <div className="flex items-baseline gap-2">
-                        <span className="font-semibold text-emerald-600"><Honorar>{formatEuroFull(stats.pipelineRealCase)}</Honorar></span>
-                        <span className="text-[11px] text-muted-foreground">
-                          <Honorar>{`(${formatEuro(stats.pipelineWorstCase)} – ${formatEuro(stats.pipelineBestCase)})`}</Honorar>
-                        </span>
+                    <div className="cursor-help py-2.5 last:pb-0">
+                      <div className="flex items-baseline justify-between gap-3">
+                        <span className="text-muted-foreground">{t('overview.expected')}</span>
+                        <span className="font-semibold tabular-nums"><Honorar>{formatEuroFull(stats.pipelineRealCase)}</Honorar></span>
                       </div>
+                      <p className="mt-0.5 text-right text-xs text-muted-foreground">
+                        <Honorar>{t('pipeline.range', { min: Math.round(stats.pipelineWorstCase).toLocaleString(loc()), max: formatEuro(stats.pipelineBestCase) })}</Honorar>
+                      </p>
                     </div>
                   </TooltipTrigger>
                   <TooltipContent side="bottom" className="max-w-[220px] text-xs">
                     {t('pipeline.expectedHint')}
                   </TooltipContent>
                 </Tooltip>
-                {/* „Erhalten“ statt „Verdient“ (H1, Umbau 11.11.2026): nur, was als Gutschrift ausgezahlt ist */}
-                <ErhaltenZeile />
               </div>
 
-              {/* Interviews inside Pipeline cell */}
-              {upcomingInterviews.length > 0 && (
-                <div className="mt-4 pt-3 border-t border-border/40">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-medium text-muted-foreground">{t('pipeline.upcoming')}</p>
-                    <Link
-                      to="/recruiter/interviews"
-                      className="text-xs text-muted-foreground hover:text-primary flex items-center gap-0.5"
-                    >
-                      {t('pipeline.all')}
-                      <ArrowUpRight className="h-3 w-3" />
-                    </Link>
-                  </div>
-                  <div className="space-y-2">
-                    {upcomingInterviews.map((interview, i) => (
-                      <div
-                        key={i}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => navigate(`/recruiter/submissions/${interview.submissionId}`)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/recruiter/submissions/${interview.submissionId}`); }}
-                        className="flex gap-2.5 p-2 rounded-md bg-muted/30 hover:bg-muted/50 cursor-pointer transition-colors"
-                      >
-                        <Video className="h-3.5 w-3.5 text-purple-500 mt-0.5 shrink-0" />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs font-medium flex items-center gap-1.5">
-                            {formatInterviewDate(interview.date, t)}
-                            {!interview.confirmed && (
-                              <Badge variant="outline" className="text-[9px] h-4 px-1 border-amber-500/50 text-amber-600 dark:text-amber-400">
-                                {t('pipeline.unconfirmed')}
-                              </Badge>
-                            )}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {interview.candidateName} · {interview.jobTitle}
-                          </p>
-                        </div>
-                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0 mt-0.5" />
-                      </div>
-                    ))}
-                  </div>
+              <div className="mt-4 border-t pt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex min-w-0 items-center gap-2"><FileText className="h-4 w-4 shrink-0 text-klick" aria-hidden="true" /><h2 className="text-[15px] font-semibold tracking-tight">{t('pipeline.title')}</h2></div>
+                  <Link to="/recruiter/submissions" className="text-sm text-klick hover:underline">{t('pipeline.details')} ›</Link>
                 </div>
-              )}
+                <div className="grid grid-cols-4 gap-2">
+                  {pipelineStages.map((stage) => (
+                    <div key={stage.key} className="min-w-0">
+                      <p className={cn('text-xl font-semibold tracking-tight tabular-nums', stage.count === 0 && 'text-muted-foreground/50')}>{stage.count}</p>
+                      <p className="truncate text-xs text-muted-foreground">{t(`pipeline.stages.${stage.key}`)}</p>
+                    </div>
+                  ))}
+                </div>
+                {prepCount > 0 && (
+                  <Link to="/recruiter/influence" className="mt-3 block text-xs text-klick hover:underline">
+                    {t('pipeline.beforeSubmission')}: {prepCount} ›
+                  </Link>
+                )}
+              </div>
             </CardContent>
           </Card>
 
           {/* ─── CELL 3: Top Jobs (bottom-left) ─── */}
-          <Card className="border-border/30 shadow-sm" data-tour="dashboard.topJobs">
+          <Card data-tour="dashboard.topJobs">
             <CardContent className="p-4 sm:p-5">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="font-semibold">{t('topJobs.title')}</h2>
-                <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground" asChild>
-                  <Link to="/recruiter/jobs">
-                    {t('topJobs.all', { count: stats.openJobs })}
-                    <ArrowUpRight className="ml-1 h-3 w-3" />
-                  </Link>
-                </Button>
+                <div className="flex min-w-0 items-center gap-2"><Briefcase className="h-4 w-4 shrink-0 text-klick" aria-hidden="true" /><h2 className="text-[15px] font-semibold tracking-tight">{t('topJobs.title')}</h2></div>
+                <Link to="/recruiter/jobs" className="text-sm text-klick hover:underline">{t('topJobs.all', { count: stats.openJobs })} ›</Link>
               </div>
 
+              {recentJobs.length > 0 && (
+                <KachelReiter<'all' | 'perm' | 'freelance'>
+                  items={[
+                    { key: 'all', label: t('topJobs.tabAll', { count: Math.max(stats.openJobs, recentJobs.length) }) },
+                    ...(stellenContracting.length && stellenFest.length ? [
+                      { key: 'perm' as const, label: t('topJobs.tabPerm', { count: stellenFest.length }) },
+                      { key: 'freelance' as const, label: t('topJobs.tabFreelance', { count: stellenContracting.length }) },
+                    ] : []),
+                  ]}
+                  value={stellenAktiv}
+                  onChange={setStellenTab}
+                />
+              )}
               {recentJobs.length === 0 ? (
                 <div className="text-center py-8">
                   <Briefcase className="mx-auto h-9 w-9 text-muted-foreground/30 mb-2" />
@@ -828,35 +748,29 @@ export default function RecruiterDashboard() {
                 </div>
               ) : (
                 <div className="space-y-1.5">
-                  {recentJobs.map((job) => {
+                  {stellenSicht.map((job) => {
                     const earning = calculatePotentialEarning(job.salary_min, job.salary_max, job.recruiter_fee_percentage);
 
                     return (
                       <Link
                         key={job.id}
                         to={`/recruiter/jobs/${job.id}`}
-                        className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-accent/50 transition-all group"
+                        className="-mx-2.5 flex items-center gap-3 p-2.5 rounded-lg hover:bg-accent/50 transition-all group"
                       >
-                        {revealedJobIds.has(job.id) || job.company_name ? (
+                        {/* Kein Platzhalter (23.11.2026): ein Bild nur, wenn die Firma offengelegt ist und ein echtes Logo hat */}
+                        {revealedJobIds.has(job.id) && job.company_logo_url && (
                           <FirmenLogo url={job.company_logo_url} name={job.company_name} size={32} />
-                        ) : (
-                          <div className="h-8 w-8 rounded-md bg-muted/60 flex items-center justify-center shrink-0">
-                            <Lock className="h-3.5 w-3.5 text-muted-foreground/50" />
-                          </div>
                         )}
 
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">
+                          <p className="text-sm font-medium truncate">
                             {job.title}
                           </p>
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                             {revealedJobIds.has(job.id) ? (
                               <span className="truncate">{job.company_name}</span>
                             ) : (
-                              <span className="flex items-center gap-0.5 truncate">
-                                <Lock className="h-2.5 w-2.5" />
-                                {job.industry || t('topJobs.company')}
-                              </span>
+                              <span className="truncate">{job.industry || t('topJobs.company')}</span>
                             )}
                             <span className="text-border">·</span>
                             <span className="truncate">{job.location}</span>
@@ -864,8 +778,8 @@ export default function RecruiterDashboard() {
                         </div>
 
                         <div className="text-right shrink-0">
-                          <p className="text-xs font-semibold text-emerald-600">
-                            <Honorar>{verdienstJeTag(job) ?? (earning ? formatEuro(earning) : `${job.recruiter_fee_percentage}%`)}</Honorar>
+                          <p className="text-xs font-medium tabular-nums">
+                            <Honorar>{verdienstJeTag(job)?.replace('–', ` ${t('topJobs.to')} `) ?? (earning ? formatEuro(earning) : `${job.recruiter_fee_percentage} %`)}</Honorar>
                           </p>
                           {verdienstJeTag(job) && <p className="text-[10px] text-muted-foreground">{t('topJobs.perDay')}</p>}
                         </div>
@@ -877,70 +791,70 @@ export default function RecruiterDashboard() {
             </CardContent>
           </Card>
 
-          {/* ─── CELL 4: Quick Stats & Actions (bottom-right) ─── */}
-          <Card className="border-border/30 shadow-sm">
-            <CardContent className="p-4 sm:p-5">
-              <h2 className="font-semibold mb-3">{t('overview.title')}</h2>
-
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">{t('overview.openJobs')}</span>
-                  </div>
-                  <p className="text-xl font-bold">{stats.openJobs}</p>
-                </div>
-                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">{t('overview.candidates')}</span>
-                  </div>
-                  <p className="text-xl font-bold">{stats.myCandidates}</p>
-                </div>
-                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
-                  <div className="flex items-center gap-2 mb-1">
-                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">{t('overview.inPipeline')}</span>
-                  </div>
-                  <p className="text-xl font-bold">{stats.activeSubmissions}</p>
-                </div>
-                <ErhaltenKachel />
+          {/* ─── CELL 4: Anstehende Interviews als Kalenderblatt, am Fuß die Woche (23.11.2026, Marko) ─── */}
+          <Card className="flex flex-col">
+            <CardContent className="flex flex-1 flex-col p-4 sm:p-5">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex min-w-0 items-center gap-2"><CalendarDays className="h-4 w-4 shrink-0 text-klick" aria-hidden="true" /><h2 className="text-[15px] font-semibold tracking-tight">{t('pipeline.upcoming')}</h2></div>
+                <Link to="/recruiter/interviews" className="text-sm text-klick hover:underline">{t('pipeline.all')} ›</Link>
               </div>
+              <KachelReiter<'all' | 'today'>
+                items={[
+                  { key: 'all', label: t('pipeline.tabAll', { count: upcomingInterviews.length }) },
+                  ...(termineHeute.length ? [{ key: 'today' as const, label: t('pipeline.tabToday', { count: termineHeute.length }) }] : []),
+                ]}
+                value={terminAktiv}
+                onChange={setTerminTab}
+              />
+              {upcomingInterviews.length === 0 ? (
+                <p className="py-6 text-center text-xs text-muted-foreground">{t('pipeline.noInterviews')}</p>
+              ) : (
+                <div className="space-y-0.5">
+                  {(terminAktiv === 'today' ? termineHeute : upcomingInterviews).map((interview, i) => {
+                    const tag = new Date(interview.date);
+                    return (
+                      <div
+                        key={i}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => navigate(`/recruiter/submissions/${interview.submissionId}`)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/recruiter/submissions/${interview.submissionId}`); }}
+                        className="-mx-2.5 flex items-center gap-3 rounded-lg px-2.5 py-2 hover:bg-accent/50 cursor-pointer transition-colors"
+                      >
+                        <div className="w-11 shrink-0 overflow-hidden rounded-lg border text-center" aria-hidden="true">
+                          <p className="bg-secondary text-[11px] leading-[18px] text-muted-foreground">{format(tag, 'EEEEEE', { locale: dfLocale() })}</p>
+                          <p className="text-base font-semibold leading-7 tabular-nums">{format(tag, 'd')}</p>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium truncate">{interview.candidateName}</p>
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">
+                            <span className="sr-only">{format(tag, t('date.dayPattern'), { locale: dfLocale() })}, </span>
+                            {t('date.timeOnly', { time: format(tag, 'HH:mm') })} · {interview.confirmed ? interview.jobTitle : t('pipeline.unconfirmed')}
+                          </p>
+                        </div>
+                        <span className="shrink-0 text-xs text-klick">{t('pipeline.open')} ›</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
-              <div className="space-y-2">
-                <Button
-                  variant="outline" size="sm"
-                  className="w-full justify-start text-sm"
-                  asChild
-                >
-                  <Link to="/recruiter/jobs">
-                    <Briefcase className="mr-2 h-3.5 w-3.5" />
-                    {t('overview.browseJobs')}
-                    <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
-                  </Link>
-                </Button>
-                <Button
-                  variant="outline" size="sm"
-                  className="w-full justify-start text-sm"
-                  asChild
-                >
-                  <Link to="/recruiter/candidates">
-                    <Users className="mr-2 h-3.5 w-3.5" />
-                    {t('overview.myCandidates')}
-                    <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
-                  </Link>
-                </Button>
-                <Button
-                  variant="outline" size="sm"
-                  className="w-full justify-start text-sm"
-                  asChild
-                >
-                  <Link to="/recruiter/earnings">
-                    <Euro className="mr-2 h-3.5 w-3.5" />
-                    {t('overview.earnings')}
-                    <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-muted-foreground" />
-                  </Link>
-                </Button>
+              {/* Fuß (23.11.2026, Marko): eine Quote und ein Satz, führt zur Auswertung */}
+              <div className="mt-auto pt-3">
+                <Link to="/recruiter/analytics" className="flex items-center gap-4 border-t pt-3">
+                  {!jahr || jahr.submitted === 0 ? (
+                    <p className="min-w-0 flex-1 text-sm text-muted-foreground">{t('analytics.none')}</p>
+                  ) : (
+                    <>
+                      <p className="shrink-0 text-2xl font-semibold tracking-tight tabular-nums">{jahr.inviteRate != null ? `${jahr.inviteRate} %` : jahr.submitted}</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm">{jahr.inviteRate != null ? t('analytics.sentence') : t('analytics.few')}</p>
+                        {jahr.inviteRate != null && <p className="text-xs text-muted-foreground">{t('analytics.sub', { interviews: jahr.interviews, submitted: jahr.submitted })}</p>}
+                      </div>
+                    </>
+                  )}
+                  <span className="shrink-0 text-sm text-klick">{t('analytics.link')} ›</span>
+                </Link>
               </div>
             </CardContent>
           </Card>

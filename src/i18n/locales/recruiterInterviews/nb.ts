@@ -3,6 +3,27 @@ import type { Messages } from '../../types';
 
 const nb: Messages<typeof de> = {
   recruiterInterviews: {
+    card: { view: 'Vis', asked: 'forespurt {{time}}', tasks_one: '{{count}} oppgave', tasks_other: '{{count}} oppgaver' },
+    window: {
+      confirmed: 'bekreftet', held: 'gjennomført', noDate: 'uten tid', round: 'Intervju {{n}}',
+      step: '{{label}} · trinn {{n}} av {{total}}', processEnded: 'Prosessen er avsluttet',
+      todo: 'Åpent i denne prosessen', toTask: 'Til oppgaven',
+      interview: 'Intervjuet', askedOn: 'forespurt {{date}}', expired: 'utløpt',
+      companyLater: 'Firmaet vises først når tiden er bekreftet.',
+      reason: 'Grunn', note: 'Notat til intervjuet',
+      debrief: 'Oppfølging', open: 'fortsatt åpen', done: 'notert', clientView: 'Kundens inntrykk', pending: 'venter',
+      history: 'Forløp', submitted: 'Presentert',
+      glance: 'Kort fortalt', company: 'Firma', notRevealed: 'vises ikke ennå', job: 'Oppdrag', briefing: 'Briefing',
+      candidate: 'Kandidat', profile: 'Profil', fee: 'Honorar',
+      notes: 'Dine notater', noNotes: 'Ingen notater ennå.',
+      toCalendar: 'Legg til i kalenderen', fullPage: 'Åpne hele siden',
+    },
+    calendar: { prev: 'Forrige måned', next: 'Neste måned', has: 'intervju', count_one: '{{count}} intervju', count_other: '{{count}} intervjuer', showAll: 'Vis alle' },
+    tabs: { upcoming: 'Kommende', awaiting: 'Uten tid', past: 'Tidligere', cancelled: 'Avlyst' },
+    hero: { title: 'Neste intervju hos kunden', live: 'pågår', view: 'Vis intervjuet', none: 'Ingen intervjuer på gang akkurat nå.' },
+    summary: { week_one: '{{count}} intervju denne uken', week_other: '{{count}} intervjuer denne uken', noDate_one: '{{count}} uten tid', noDate_other: '{{count}} uten tid' },
+    searchPh: 'Kandidat eller oppdrag …',
+    noMatch: 'Ingen intervjuer passer til søket.',
     title: 'Intervjuer',
     subtitle: 'Alle avtalene til kandidatene dine — bekreftet, åpne og til oppfølging',
     stats: {

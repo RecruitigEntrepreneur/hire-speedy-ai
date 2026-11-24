@@ -55,7 +55,7 @@ describe('Fakten je Stelle', () => {
   it('stellt die Angaben neben die Stelle', () => {
     const a = stelleAbgleichen(sophie, stelle({ title: 'Head of Sales DACH', salary_min: 130000, salary_max: 160000 }), sophie.target_roles);
     expect(a.rolle).toBe(true);
-    expect(a.fakten).toEqual(['Ort wie Sophie', 'hybrid wie gewünscht', 'Wunsch 95k unter dem Budget']);
+    expect(a.fakten).toEqual(['Ort wie Sophie', 'hybrid wie gewünscht', 'Wunsch 95.000 € unter dem Budget']);
     expect(a.ausschluss).toBeNull();
   });
   it('anderer Ort, Umzug offen, kein Budget', () => {
@@ -65,7 +65,7 @@ describe('Fakten je Stelle', () => {
   });
   it('Arbeitsmodell weicht ab, Sprache verlangt', () => {
     const a = stelleAbgleichen(sophie, stelle({ remote_type: 'onsite', salary_max: 100000, required_languages: ['Englisch'] }), []);
-    expect(a.fakten).toEqual(['Ort wie Sophie', 'vor Ort, gewünscht hybrid', 'Wunsch 95k im Budget', 'Englisch verlangt, eingetragen']);
+    expect(a.fakten).toEqual(['Ort wie Sophie', 'vor Ort, gewünscht hybrid', 'Wunsch 95.000 € im Budget', 'Englisch verlangt, eingetragen']);
   });
   it('Pflichtsprache als Kürzel aus der Aufnahme', () => {
     const a = stelleAbgleichen(sophie, stelle({ required_languages: [{ code: 'de', minLevel: 'C1' }] }), []);
@@ -83,13 +83,13 @@ describe('Fakten je Stelle', () => {
     expect(a.gleicherOrt).toBe(true);
   });
   it('Meta-Zeile wie in der Jobliste', () => {
-    expect(stelleMeta(stelle({ salary_min: 65000, salary_max: 80000 }))).toBe('München · hybrid · 65–80k');
+    expect(stelleMeta(stelle({ salary_min: 65000, salary_max: 80000 }))).toBe('München · hybrid · 65.000–80.000 €');
   });
 });
 
 describe('Feste Ausschlüsse', () => {
   it('Budget unter dem Mindestgehalt', () => {
-    expect(stelleAbgleichen(sophie, stelle({ salary_max: 85000 }), []).ausschluss).toBe('Budget unter Sophies Mindestgehalt (90k)');
+    expect(stelleAbgleichen(sophie, stelle({ salary_max: 85000 }), []).ausschluss).toBe('Budget unter Sophies Mindestgehalt (90.000 €)');
   });
   it('nur vor Ort gegen nur remote', () => {
     expect(stelleAbgleichen({ ...sophie, remote_preference: 'remote' }, stelle({ remote_type: 'onsite' }), []).ausschluss).toBe('Nur vor Ort, Sophie will nur remote');

@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Button } from '@/components/ui/button';
-import { LayoutGrid, List, Table2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export type ViewMode = 'cards' | 'list' | 'table';
 
@@ -11,25 +10,25 @@ interface ViewToggleProps {
 
 export function ViewToggle({ view, onViewChange }: ViewToggleProps) {
   const { t } = useTranslation('candidates');
-  const views: { value: ViewMode; icon: typeof LayoutGrid; label: string }[] = [
-    { value: 'cards', icon: LayoutGrid, label: t('view.cards') },
-    { value: 'list', icon: List, label: t('view.list') },
-    { value: 'table', icon: Table2, label: t('view.table') },
+  // Zwei Ansichten mit Wort, graue Pille wie die Reiter (24.11.2026); „Tabelle“ steckt in „Liste“.
+  const views: { value: ViewMode; label: string }[] = [
+    { value: 'cards', label: t('view.cards') },
+    { value: 'list', label: t('view.list') },
   ];
-
+  const aktiv = view === 'table' ? 'list' : view;
   return (
-    <div className="flex items-center border rounded-lg overflow-hidden">
-      {views.map(({ value, icon: Icon, label }) => (
-        <Button
+    <div role="group" className="inline-flex shrink-0 self-start rounded-full bg-secondary p-1">
+      {views.map(({ value, label }) => (
+        <button
           key={value}
-          variant={view === value ? 'default' : 'ghost'}
-          size="sm"
-          className="rounded-none px-3"
+          type="button"
+          aria-pressed={aktiv === value}
           onClick={() => onViewChange(value)}
-          title={label}
+          className={cn('rounded-full px-3.5 py-1.5 text-sm transition-colors',
+            aktiv === value ? 'bg-background font-medium text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}
         >
-          <Icon className="h-4 w-4" />
-        </Button>
+          {label}
+        </button>
       ))}
     </div>
   );
