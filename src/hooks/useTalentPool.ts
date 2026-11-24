@@ -247,7 +247,7 @@ export function useTalentAlerts() {
         (data || []).forEach((a: any) => { a.jobs = jobsById[a.job_id] ?? null; });
       }
 
-      return data as TalentAlert[];
+      return data as unknown as TalentAlert[];
     },
     enabled: !!user,
   });
