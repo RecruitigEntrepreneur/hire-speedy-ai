@@ -15292,6 +15292,9 @@ export type Database = {
           added_reason: string | null
           availability: string | null
           candidate_id: string
+          change_readiness: string | null
+          consent_at: string | null
+          consent_source: string | null
           contact_frequency: string | null
           created_at: string | null
           experience_years: number | null
@@ -15301,10 +15304,12 @@ export type Database = {
           next_contact_at: string | null
           notes: string | null
           opted_out_at: string | null
+          pool_id: string | null
           pool_type: string | null
           preferred_locations: string[] | null
           preferred_roles: string[] | null
           recruiter_id: string
+          retention_until: string | null
           salary_expectation_max: number | null
           salary_expectation_min: number | null
           skills_snapshot: Json | null
@@ -15316,6 +15321,9 @@ export type Database = {
           added_reason?: string | null
           availability?: string | null
           candidate_id: string
+          change_readiness?: string | null
+          consent_at?: string | null
+          consent_source?: string | null
           contact_frequency?: string | null
           created_at?: string | null
           experience_years?: number | null
@@ -15325,10 +15333,12 @@ export type Database = {
           next_contact_at?: string | null
           notes?: string | null
           opted_out_at?: string | null
+          pool_id?: string | null
           pool_type?: string | null
           preferred_locations?: string[] | null
           preferred_roles?: string[] | null
           recruiter_id: string
+          retention_until?: string | null
           salary_expectation_max?: number | null
           salary_expectation_min?: number | null
           skills_snapshot?: Json | null
@@ -15340,6 +15350,9 @@ export type Database = {
           added_reason?: string | null
           availability?: string | null
           candidate_id?: string
+          change_readiness?: string | null
+          consent_at?: string | null
+          consent_source?: string | null
           contact_frequency?: string | null
           created_at?: string | null
           experience_years?: number | null
@@ -15349,10 +15362,12 @@ export type Database = {
           next_contact_at?: string | null
           notes?: string | null
           opted_out_at?: string | null
+          pool_id?: string | null
           pool_type?: string | null
           preferred_locations?: string[] | null
           preferred_roles?: string[] | null
           recruiter_id?: string
+          retention_until?: string | null
           salary_expectation_max?: number | null
           salary_expectation_min?: number | null
           skills_snapshot?: Json | null
@@ -15389,7 +15404,44 @@ export type Database = {
             referencedRelation: "client_offers_view"
             referencedColumns: ["candidate_id"]
           },
+          {
+            foreignKeyName: "talent_pool_pool_id_fkey"
+            columns: ["pool_id"]
+            isOneToOne: false
+            referencedRelation: "talent_pools"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      talent_pools: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          default_frequency: string
+          description: string | null
+          id: string
+          name: string
+          recruiter_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          default_frequency?: string
+          description?: string | null
+          id?: string
+          name: string
+          recruiter_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          default_frequency?: string
+          description?: string | null
+          id?: string
+          name?: string
+          recruiter_id?: string
+        }
+        Relationships: []
       }
       tech_domains: {
         Row: {

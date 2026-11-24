@@ -428,6 +428,20 @@
       "when": 1794849542462,
       "tag": "0060_wartezustand_headhunter",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1795544325399,
+      "tag": "0061_talent_pool_stufe1",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1795544357435,
+      "tag": "0062_talent_pools_eigene",
+      "breakpoints": true
     }
   ]
 }
