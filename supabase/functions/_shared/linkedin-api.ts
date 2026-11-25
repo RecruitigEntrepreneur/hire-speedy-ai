@@ -105,7 +105,7 @@ export async function posten(cfg: LinkedinConfig, token: string, o: {
   });
   const initData = await init.json().catch(() => ({}));
   if (!init.ok || !initData?.value?.uploadUrl) throw new LinkedinError(init.status, String(initData?.message ?? 'Bild-Upload nicht möglich'));
-  const hoch = await fetch(initData.value.uploadUrl, { method: 'PUT', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/octet-stream' }, body: o.bild });
+  const hoch = await fetch(initData.value.uploadUrl, { method: 'PUT', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/octet-stream' }, body: o.bild as BodyInit });
   if (!hoch.ok) throw new LinkedinError(hoch.status, 'Bild konnte nicht hochgeladen werden');
   const res = await fetch('https://api.linkedin.com/rest/posts', {
     method: 'POST',
