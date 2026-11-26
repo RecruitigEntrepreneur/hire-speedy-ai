@@ -1,10 +1,19 @@
 // deno-lint-ignore-file no-explicit-any
-// Kalender verbinden (Microsoft 365): Status, Anmeldung starten, trennen,
-// Freigabe-Bitte an die IT, Rücksprung von Microsoft.
+// Kalender und Gesprächswerkzeug verbinden: Outlook (Microsoft 365) oder Google
+// Kalender, dazu Zoom (26.11.2026). Status, Anmeldung starten, trennen,
+// Freigabe-Bitte an die IT (nur Microsoft), Rücksprung vom Anbieter.
 import type { SupabaseClient, User } from 'https://esm.sh/@supabase/supabase-js@2';
 import { generateToken } from './tokens.ts';
 import { adminConsentUrl, authorizeUrl, exchangeCode, pkcePair, saveConnection, type MsConfig } from './msgraph-calendar.ts';
-import { calendarStatusFor, must, type ServiceCtx } from './interview-service.ts';
+import { calendarStatusFor, hubOf, must, type ServiceCtx } from './interview-service.ts';
+import { googleAuthorizeUrl, googleExchangeCode } from './google-calendar.ts';
+import { zoomAuthorizeUrl, zoomExchangeCode, zoomMe } from './zoom-meetings.ts';
+import { saveOtherConnection } from './calendar-hub.ts';
+
+type Provider = 'microsoft' | 'google' | 'zoom';
+const providerOf = (raw: unknown): Provider => (raw === 'google' || raw === 'zoom' ? raw : 'microsoft');
+/** Je Person ein Kalender: wer Google verbindet, trennt Outlook und umgekehrt. Zoom kommt dazu. */
+const otherCalendar = (p: Provider): Provider | null => (p === 'google' ? 'microsoft' : p === 'microsoft' ? 'google' : null);
 import * as mails from './interview-mails.ts';
 import { languageOfEmail, languageOfUser } from './recipient-language.ts';
 
@@ -30,19 +39,26 @@ export async function status(ctx: ServiceCtx, user: User) {
 }
 
 export async function connect(ctx: ServiceCtx, user: User, body: any) {
-  must(ctx.ms, 'Die Kalender-Verbindung ist noch nicht eingerichtet.', 'not_deployed');
+  const provider = providerOf(body.provider);
+  const hub = hubOf(ctx);
+  must(provider === 'microsoft' ? hub.ms : provider === 'google' ? hub.google : hub.zoom, 'Diese Verbindung ist noch nicht eingerichtet.', 'not_deployed');
   const { verifier, challenge } = await pkcePair();
   const state = generateToken();
   const { error } = await ctx.db.from('calendar_oauth_states').insert({
-    state, user_id: user.id, provider: 'microsoft', purpose: 'connect', code_verifier: verifier,
+    state, user_id: user.id, provider, purpose: 'connect', code_verifier: verifier,
     return_path: safeReturnPath(body.returnPath), expires_at: new Date(ctx.now() + 15 * 60000).toISOString(),
   });
   must(!error, 'Die Anmeldung konnte nicht gestartet werden.', 'internal_error');
-  return { url: authorizeUrl(ctx.ms!, state, challenge, user.email ?? undefined) };
+  const url = provider === 'google' ? googleAuthorizeUrl(hub.google!, state, challenge, user.email ?? undefined)
+    : provider === 'zoom' ? zoomAuthorizeUrl(hub.zoom!, state, challenge)
+    : authorizeUrl(ctx.ms!, state, challenge, user.email ?? undefined);
+  return { url };
 }
 
-export async function disconnect(ctx: ServiceCtx, user: User) {
-  await ctx.db.from('calendar_connections').delete().eq('user_id', user.id).eq('provider', 'microsoft');
+export async function disconnect(ctx: ServiceCtx, user: User, body: any = {}) {
+  // Ohne Angabe: der verbundene Kalender (Outlook oder Google), wie bisher
+  const which = body.provider === 'zoom' ? ['zoom'] : body.provider === 'google' ? ['google'] : body.provider === 'microsoft' ? ['microsoft'] : ['microsoft', 'google'];
+  await ctx.db.from('calendar_connections').delete().eq('user_id', user.id).in('provider', which);
   return { ok: true };
 }
 
@@ -102,6 +118,11 @@ export async function handleCallback(ctx: ServiceCtx, params: URLSearchParams): 
   }
 
   await ctx.db.from('calendar_oauth_states').delete().eq('state', stateKey);
+  if (error && state.provider !== 'microsoft') {
+    // Google/Zoom: abgebrochen oder abgelehnt
+    console.warn(`[calendar] ${state.provider}-Fehler`, error, description.slice(0, 160));
+    return withStatus(app, returnPath, 'fehler', { grund: error === 'access_denied' ? 'abgebrochen' : error.slice(0, 40), anbieter: String(state.provider) });
+  }
   if (error) {
     // AADSTS65001/90094/90095: Zustimmung nur durch Admin möglich
     const needsAdmin = /AADSTS(65001|90094|90095|90099)|admin|consent_required/i.test(`${error} ${description}`);
@@ -110,9 +131,33 @@ export async function handleCallback(ctx: ServiceCtx, params: URLSearchParams): 
   }
   const code = params.get('code');
   if (!code || !state.code_verifier || !state.user_id) return withStatus(app, returnPath, 'fehler');
+  const provider = providerOf(state.provider);
+  const other = otherCalendar(provider);
+  const hub = hubOf(ctx);
+  if (provider === 'google' || provider === 'zoom') {
+    // Rückmeldung je Anbieter: ?kalender=… (Google) bzw. ?zoom=… (Zoom)
+    const back = (status: string, extra: Record<string, string> = {}) => provider === 'zoom' ? withStatus(app, returnPath, status, { ...extra, anbieter: 'zoom' }) : withStatus(app, returnPath, status, { ...extra, anbieter: 'google' });
+    try {
+      if (provider === 'google') {
+        const tokens = await googleExchangeCode(hub.google!, code, state.code_verifier);
+        await saveOtherConnection(ctx.db as SupabaseClient, 'google', hub.google!.encryptionKey, state.user_id, tokens, tokens.email);
+      } else {
+        const tokens = await zoomExchangeCode(hub.zoom!, code, state.code_verifier);
+        const me = await zoomMe(tokens.accessToken).catch(() => ({ email: null }));
+        await saveOtherConnection(ctx.db as SupabaseClient, 'zoom', hub.zoom!.encryptionKey, state.user_id, tokens, me.email);
+      }
+      if (other) await ctx.db.from('calendar_connections').delete().eq('user_id', state.user_id).eq('provider', other);
+      return back('verbunden');
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      console.warn(`[calendar] ${provider}: Code-Tausch gescheitert`, message.slice(0, 200));
+      return back('fehler', { grund: /Rechte|scopes/i.test(message) ? 'rechte' : 'tausch' });
+    }
+  }
   try {
     await saveConnection(ctx.db as SupabaseClient, ctx.ms as MsConfig, state.user_id, await exchangeCode(ctx.ms as MsConfig, code, state.code_verifier));
     await ctx.db.from('calendar_it_requests').update({ status: 'approved', approved_at: new Date(ctx.now()).toISOString() }).eq('requested_by', state.user_id).eq('status', 'sent');
+    if (other) await ctx.db.from('calendar_connections').delete().eq('user_id', state.user_id).eq('provider', other);
     return withStatus(app, returnPath, 'verbunden');
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);

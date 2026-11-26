@@ -23,3 +23,8 @@ export function OutlookKalenderIcon({ className }: IconProps) {
 export function GoogleKalenderIcon({ className }: IconProps) {
   return <img src="/logos/google-kalender.svg" alt="" aria-hidden="true" draggable={false} className={cn('h-5 w-5 shrink-0 select-none', className)}/>;
 }
+
+/** Zoom: schlichtes App-Symbol (blaues Feld, weiße Kamera), 26.11.2026. */
+export function ZoomIcon({ className }: IconProps) {
+  return <img src="/logos/zoom.svg" alt="" aria-hidden="true" draggable={false} className={cn('h-5 w-5 shrink-0 select-none', className)}/>;
+}

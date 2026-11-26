@@ -1,5 +1,5 @@
+import { useKalenderT } from './kalenderText';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { useTranslation } from 'react-i18next';
 import { AlertTriangle, Check, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,7 +27,7 @@ type Check =
  * sofort geprüft wie eine Kachel im Raster.
  */
 export function CustomTimeRow({ dayKey, dayLabel, durationMinutes, selected, onAdd, onClose, onCheckTime }: Props) {
-  const { t } = useTranslation('clientInterviews');
+  const { t } = useKalenderT('clientInterviews');
   const [time, setTime] = useState('');
   const [check, setCheck] = useState<Check>({ state: 'idle' });
   const seq = useRef(0);

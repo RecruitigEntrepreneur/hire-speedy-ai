@@ -1,3 +1,4 @@
+import { toolText } from '@/lib/interviewScheduling';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -62,11 +63,11 @@ export default function TerminVerwalten() {
 
   if (modus === 'abgesagt' || t.status === 'cancelled') return rahmen(<><CheckCircle2 className="h-7 w-7 text-muted-foreground"/><h1 className="text-lg font-semibold">{tr('verwalten.cancelledTitle')}</h1><p className="text-sm text-muted-foreground">{tr('verwalten.cancelledBody', { name: vorname })}</p></>);
   if (t.status === 'vorbei') return rahmen(<>{kopf}<p className="text-sm text-muted-foreground">{tr('verwalten.past')}</p></>);
-  if (modus === 'verschoben') return rahmen(<><CheckCircle2 className="h-7 w-7 text-emerald-600"/><h1 className="text-lg font-semibold">{tr('verwalten.movedTitle')}</h1>{kopf}<p className="text-sm text-muted-foreground">{tr(t.mode === 'teams' ? 'verwalten.movedBodyTeams' : 'verwalten.movedBody', { name: vorname })}</p></>);
+  if (modus === 'verschoben') return rahmen(<><CheckCircle2 className="h-7 w-7 text-emerald-600"/><h1 className="text-lg font-semibold">{tr('verwalten.movedTitle')}</h1>{kopf}<p className="text-sm text-muted-foreground">{toolText(tr(t.mode === 'teams' ? 'verwalten.movedBodyTeams' : 'verwalten.movedBody', { name: vorname }), t.werkzeug)}</p></>);
 
   return rahmen(<>
     {kopf}
-    {t.mode === 'teams' && t.join_url && modus === 'ansicht' && <Button variant="outline" asChild><a href={t.join_url} target="_blank" rel="noreferrer"><Video className="mr-2 h-4 w-4"/>{tr('verwalten.joinTeams')}</a></Button>}
+    {t.mode === 'teams' && t.join_url && modus === 'ansicht' && <Button variant="outline" asChild><a href={t.join_url} target="_blank" rel="noreferrer"><Video className="mr-2 h-4 w-4"/>{toolText(tr('verwalten.joinTeams'), t.werkzeug)}</a></Button>}
     {meldung && <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{meldung}</p>}
     {modus === 'ansicht' && <div className="grid gap-2 sm:grid-cols-2">
       <Button onClick={() => setModus('verschieben')}>{tr('verwalten.otherTime')}</Button>

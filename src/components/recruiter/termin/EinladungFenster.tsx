@@ -1,3 +1,4 @@
+import { toolText } from '@/lib/interviewScheduling';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeftRight, CalendarOff, Check, Copy, Loader2, Phone, Send, Video } from 'lucide-react';
@@ -45,7 +46,13 @@ export function EinladungFenster({ open, onOpenChange, candidate, onFertig }: {
   const kal = useCalendarStatus();
   const hhVorname = (kontakt?.name ?? '').trim().split(/\s+/)[0] || '';
   const dauer = zeile?.duration_minutes ?? 15;
-  const [angebot, setAngebot] = useState<Angebot>(letztesAngebot);
+  // Video-Werkzeug der Terminseite (Teams, Google Meet oder Zoom): Texte nennen es beim Namen
+  const werkzeug = zeile?.video_tool ?? (kal.status?.provider === 'google' && kal.state === 'connected' ? 'meet' : 'teams');
+  // Video nur anbieten, wenn ein Link entstehen kann: Kalender verbunden, Zoom verbunden oder Matchunt-Teams-Konto
+  const videoMoeglich = kal.isLoading || kal.state === 'connected' || kal.status?.zoom?.state === 'connected' || !!kal.status?.providers?.matchuntTeams;
+  const angebote = videoMoeglich ? ANGEBOTE : ANGEBOTE.filter((a) => a.key === 'phone');
+  const [angebotGewaehlt, setAngebot] = useState<Angebot>(letztesAngebot);
+  const angebot: Angebot = videoMoeglich ? angebotGewaehlt : 'phone';
   const [anlass, setAnlass] = useState<EinladungAnlass>('kennenlernen');
   const [text, setText] = useState('');
   const [bearbeitet, setBearbeitet] = useState(false);
@@ -57,8 +64,8 @@ export function EinladungFenster({ open, onOpenChange, candidate, onFertig }: {
   // Der Vorschlag folgt Angebot und Anlass, bis der Headhunter selbst etwas geändert hat.
   useEffect(() => {
     if (!open || bearbeitet) return;
-    setText(mitLebenslaufSatz(einladungsText({ vorname: candidate.vorname, hhVorname, dauer, anlass, angebot }), lebenslauf));
-  }, [open, bearbeitet, candidate.vorname, hhVorname, dauer, anlass, angebot, lebenslauf]);
+    setText(mitLebenslaufSatz(toolText(einladungsText({ vorname: candidate.vorname, hhVorname, dauer, anlass, angebot }), werkzeug), lebenslauf));
+  }, [open, bearbeitet, candidate.vorname, hhVorname, dauer, anlass, angebot, lebenslauf, werkzeug]);
   useEffect(() => { if (!open) { setBearbeitet(false); setKopiert(false); } else setLebenslauf(!candidate.hatLebenslauf); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Das Häkchen nimmt den Satz mit, auch wenn der Text schon selbst geändert ist.
@@ -107,7 +114,8 @@ export function EinladungFenster({ open, onOpenChange, candidate, onFertig }: {
 
   const seiteFehlt = !seiteLaedt && !zeile?.active;
   // Lokal (Modus localdb) täuscht TERMIN_TEST_KALENDER einen Kalender vor; dort gibt es keine Outlook-Anbindung.
-  const kalenderFehlt = !kal.isLoading && kal.state !== 'connected' && import.meta.env.MODE !== 'localdb';
+  // Ohne Kalender geht es seit 26.11.2026 auch (Terminseite ohne Kalender freigeschaltet): nur ein ruhiger Hinweis
+  const ohneKalender = !kal.isLoading && kal.state !== 'connected' && import.meta.env.MODE !== 'localdb';
 
   return <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent className="sm:max-w-lg">
@@ -116,20 +124,21 @@ export function EinladungFenster({ open, onOpenChange, candidate, onFertig }: {
         <DialogDescription>{t('einladung.description', { name: candidate.vorname })}</DialogDescription>
       </DialogHeader>
 
-      {seiteFehlt || kalenderFehlt ? <div className="space-y-3 rounded-lg bg-muted/50 p-4 text-sm">
-        <p className="flex items-center gap-2 font-medium"><CalendarOff className="h-4 w-4"/>{seiteFehlt ? t('einladung.pageInactive') : t('einladung.calendarMissing')}</p>
+      {seiteFehlt ? <div className="space-y-3 rounded-lg bg-muted/50 p-4 text-sm">
+        <p className="flex items-center gap-2 font-medium"><CalendarOff className="h-4 w-4"/>{t('einladung.pageInactive')}</p>
         <p className="text-muted-foreground">{t('einladung.setupText', { name: candidate.vorname })}</p>
         <Button size="sm" asChild><Link to={`/recruiter/profile/terminseite?zurueck=${encodeURIComponent(`/recruiter/candidates/${candidate.id}`)}`}>{t('einladung.setupCta')}</Link></Button>
       </div> : <div className="space-y-4">
         <div>
           <p className="mb-1.5 text-sm font-medium">{t('einladung.offerQuestion')}</p>
           <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label={t('einladung.offerQuestion')}>
-            {ANGEBOTE.map(({ key, Icon }) => <button key={key} type="button" role="radio" aria-checked={angebot === key} onClick={() => setAngebot(key)}
+            {angebote.map(({ key, Icon }) => <button key={key} type="button" role="radio" aria-checked={angebot === key} onClick={() => setAngebot(key)}
               className={cn('rounded-lg border p-2.5 text-left transition-colors', angebot === key ? 'border-foreground bg-muted/50' : 'border-border hover:bg-muted/30')}>
-              <span className="flex items-center gap-1.5 text-sm font-medium"><Icon className="h-4 w-4"/>{t(`angebot.${key}.label`)}</span>
+              <span className="flex items-center gap-1.5 text-sm font-medium"><Icon className="h-4 w-4"/>{toolText(t(`angebot.${key}.label`), werkzeug)}</span>
               <span className="mt-0.5 block text-xs text-muted-foreground">{t(`angebot.${key}.hint`)}</span>
             </button>)}
           </div>
+          {ohneKalender && <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground"><CalendarOff className="h-3.5 w-3.5 shrink-0"/>{t('einladung.noCalendarNote', { name: candidate.vorname })}</p>}
         </div>
 
         <label className="flex cursor-pointer items-start gap-2.5 text-sm">

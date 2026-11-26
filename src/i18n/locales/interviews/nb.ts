@@ -10,6 +10,7 @@ const nb: Messages<typeof de> = {
     video: 'Videosamtale',
     teams: 'Teams',
     meet: 'Google Meet',
+    zoom: 'Zoom',
     phone: 'Telefon',
     onsite: 'På stedet',
     fallback: 'Intervju',
@@ -68,6 +69,9 @@ const nb: Messages<typeof de> = {
   calendar: {
     connected: 'Outlook er tilkoblet.',
     connectFailed: 'Outlook kunne ikke kobles til. Prøv igjen.',
+    connectedTool: '{{name}} er tilkoblet.',
+    connectFailedTool: '{{name}} kunne ikke kobles til. Prøv igjen.',
+    rightsMissing: 'Google ga ikke alle kalendertillatelser. Huk av alle boksene når du kobler til.',
   },
   error: {
     generic: 'Det gikk ikke. Prøv igjen.',

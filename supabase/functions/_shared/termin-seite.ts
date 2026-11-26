@@ -24,15 +24,18 @@ export type Gespraechsart = 'teams' | 'phone';
 export interface TerminEinstellungen {
   rules: InterviewHoursRules;
   dauer: number;
+  /** 'teams' heißt „per Video“; das Werkzeug steht in videoTool */
   arten: Gespraechsart[];
+  videoTool: 'teams' | 'meet' | 'zoom';
 }
 
-export function einstellungenAus(row: { rules?: unknown; duration_minutes?: number | null; allow_teams?: boolean | null; allow_phone?: boolean | null }): TerminEinstellungen {
+export function einstellungenAus(row: { rules?: unknown; duration_minutes?: number | null; allow_teams?: boolean | null; allow_phone?: boolean | null; video_tool?: string | null }): TerminEinstellungen {
   const roh = row.rules && typeof row.rules === 'object' && Object.keys(row.rules as object).length ? row.rules : TERMIN_STANDARD;
   const arten: Gespraechsart[] = [];
   if (row.allow_teams !== false) arten.push('teams');
   if (row.allow_phone !== false) arten.push('phone');
-  return { rules: normalizeRules(roh), dauer: [15, 30, 45, 60].includes(Number(row.duration_minutes)) ? Number(row.duration_minutes) : 15, arten: arten.length ? arten : ['teams'] };
+  const videoTool = row.video_tool === 'meet' || row.video_tool === 'zoom' ? row.video_tool : 'teams';
+  return { rules: normalizeRules(roh), dauer: [15, 30, 45, 60].includes(Number(row.duration_minutes)) ? Number(row.duration_minutes) : 15, arten: arten.length ? arten : ['teams'], videoTool };
 }
 
 /** Kurze Gespräche im 15-Minuten-Raster, längere halbstündlich. */

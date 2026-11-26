@@ -1,12 +1,12 @@
+import { useKalenderT } from './kalenderText';
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Check, ChevronLeft, ChevronRight, Plus, RefreshCw, X } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Button } from '@/components/ui/button';
-import { OutlookKalenderIcon } from '@/components/brand/MarkenLogos';
+import { GoogleKalenderIcon, OutlookKalenderIcon } from '@/components/brand/MarkenLogos';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import {
+import { toolText,
   MAX_PROPOSALS,
   fmtDayShort,
   fmtTime,
@@ -69,7 +69,7 @@ export function ProposalGrid({
   weekStart, canGoBack, canGoForward, onWeekChange, note, data, isLoading, isFetching, error, onRetry,
   selected, onToggle, onAdd, peopleCount, durationMinutes, minNoticeHours, onCheckTime, calendar, onConnectCalendar, onOpenHoursSettings,
 }: Props) {
-  const { t } = useTranslation('clientInterviews');
+  const { t } = useKalenderT('clientInterviews');
   const [customDay, setCustomDay] = useState<string | null>(null);
   const isMobile = useIsMobile();
   const [handyTag, setHandyTag] = useState<string | null>(null);
@@ -116,7 +116,7 @@ export function ProposalGrid({
         <div className="flex flex-col gap-2 rounded-lg bg-secondary/60 p-3 text-sm text-muted-foreground sm:flex-row sm:items-center">
           <p className="flex-1">
             {calendar.state === 'expired'
-              ? t('grid.expired')
+              ? toolText(t('grid.expired'), null, calendar.provider)
               : calendar.state === 'not_configured'
                 ? t('grid.checkOwn')
                 : t('grid.notConnected')}{' '}
@@ -124,8 +124,9 @@ export function ProposalGrid({
           </p>
           {calendar.state !== 'not_configured' && (
             <Button type="button" size="sm" variant="outline" className="h-8 shrink-0 bg-background" onClick={onConnectCalendar}>
-              <OutlookKalenderIcon className="h-4 w-4" />
-              {calendar.state === 'expired' ? t('grid.reconnectOutlook') : t('calendar.connectOutlook')}
+              {calendar.provider === 'google' ? <GoogleKalenderIcon className="h-4 w-4" /> : !calendar.providers?.google && <OutlookKalenderIcon className="h-4 w-4" />}
+              {calendar.state === 'expired' ? toolText(t('grid.reconnectOutlook'), null, calendar.provider)
+                : calendar.providers?.google ? t('calendar.connectTitle') : t('calendar.connectOutlook')}
             </Button>
           )}
         </div>
@@ -137,7 +138,7 @@ export function ProposalGrid({
             {t('grid.unreadable')}
           </p>
           <Button type="button" size="sm" variant="outline" className="h-8 shrink-0 bg-background" onClick={onConnectCalendar}>
-            <OutlookKalenderIcon className="h-4 w-4" />
+            {calendar.provider === 'google' ? <GoogleKalenderIcon className="h-4 w-4" /> : <OutlookKalenderIcon className="h-4 w-4" />}
             {t('grid.reconnectOutlook')}
           </Button>
         </div>

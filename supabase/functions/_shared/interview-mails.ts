@@ -61,7 +61,10 @@ export interface PersonRef { name: string; title?: string | null }
 
 /** Wie das Gespräch stattfindet. */
 export interface MeetingInfo {
+  /** 'teams' = per Video; welches Werkzeug, steht in tool */
   format: 'teams' | 'phone' | 'onsite';
+  /** Video-Werkzeug (26.11.2026); fehlt es, ist es Teams */
+  tool?: VideoTool | null;
   companyName: string;
   joinUrl?: string | null;
   address?: string | null;
@@ -70,6 +73,23 @@ export interface MeetingInfo {
   /** Vor Ort: Ansprechpartner am Empfang */
   contactName?: string | null;
   contactPhone?: string | null;
+}
+
+export type VideoTool = 'teams' | 'meet' | 'zoom';
+
+/**
+ * Texte wurden für Teams geschrieben. Für Google Meet und Zoom tauschen wir den
+ * Namen aus („Microsoft Teams“ → „Google Meet“, „Teams-Link“ → „Zoom-Link“).
+ * In diesen Mails steht „Teams“ nur für das Werkzeug, nie für „Mannschaften“.
+ */
+export function toolText(text: string, tool?: VideoTool | null): string {
+  if (!tool || tool === 'teams') return text;
+  const full = tool === 'meet' ? 'Google Meet' : 'Zoom';
+  return text.replace(/Microsoft Teams/g, full).replace(/\bTeams(?=[\s:.,)-]|$)/g, full);
+}
+export function toolize<T extends MailContent>(c: T, tool?: VideoTool | null): T {
+  if (!tool || tool === 'teams') return c;
+  return { ...c, subject: toolText(c.subject, tool), html: toolText(c.html, tool), text: toolText(c.text, tool) };
 }
 
 /** „Sandra Weiß, 089 …“ – leer, wenn nichts angegeben ist. */
@@ -97,13 +117,13 @@ export function formatSentence(mt: MeetingInfo, minutes: number, withAddress = t
     const a = withAddress && mt.address ? `: ${mt.address.replace(/\s*\n\s*/g, ', ')}` : '';
     return L({ de: m`${d} vor Ort${a}.`, en: m`${d} in person${a}.`, sv: m`${d} på plats${a}.`, nb: m`${d} på stedet${a}.` });
   }
-  return L({ de: m`${d} über Microsoft Teams.`, en: m`${d} on Microsoft Teams.`, sv: m`${d} via Microsoft Teams.`, nb: m`${d} via Microsoft Teams.` });
+  return toolText(L({ de: m`${d} über Microsoft Teams.`, en: m`${d} on Microsoft Teams.`, sv: m`${d} via Microsoft Teams.`, nb: m`${d} via Microsoft Teams.` }), mt.tool);
 }
 
 /** Kurzes Etikett: „Microsoft Teams“, „Telefon“, „Vor Ort“. */
-export const formatLabel = (f: MeetingInfo['format'], lang?: Lx) => (f === 'phone'
+export const formatLabel = (f: MeetingInfo['format'], lang?: Lx, tool?: VideoTool | null) => (f === 'phone'
   ? langOf(lang)({ de: 'Telefon', en: 'Phone', sv: 'Telefon', nb: 'Telefon' })
-  : f === 'onsite' ? langOf(lang)({ de: 'Vor Ort', en: 'In person', sv: 'På plats', nb: 'På stedet' }) : 'Microsoft Teams');
+  : f === 'onsite' ? langOf(lang)({ de: 'Vor Ort', en: 'In person', sv: 'På plats', nb: 'På stedet' }) : toolText('Microsoft Teams', tool));
 
 function locationHtml(mt: MeetingInfo, lang?: Lx) {
   const L = langOf(lang);
@@ -255,7 +275,7 @@ export function candidateInvitation(o: {
   };
 }
 
-export function candidateBooked(o: { firstName: string | null; companyName: string; jobTitle: string; startIso: string; durationMinutes: number; joinUrl: string | null; recruiter: { name: string; phone: string | null } | null; link: string; meeting?: MeetingInfo; round?: number; lang?: Lx }): MailContent {
+function candidateBookedRaw(o: { firstName: string | null; companyName: string; jobTitle: string; startIso: string; durationMinutes: number; joinUrl: string | null; recruiter: { name: string; phone: string | null } | null; link: string; meeting?: MeetingInfo; round?: number; lang?: Lx }): MailContent {
   const lang = o.lang;
   const L = langOf(lang);
   const link = withLang(o.link, lang);
@@ -361,7 +381,7 @@ export function candidateWithdrawn(o: { firstName: string | null; companyName: s
 
 // --- Headhunter ---------------------------------------------------------------
 
-export function recruiterRequested(o: { recruiterFirstName: string | null; candidateName: string; candidatePhone: string | null; companyName: string; jobTitle: string; slots: string[]; durationMinutes: number; round: number; detailUrl: string; format?: MeetingInfo['format']; previousStart?: string | null; meeting?: MeetingInfo | null; lang?: Lx }): MailContent {
+function recruiterRequestedRaw(o: { recruiterFirstName: string | null; candidateName: string; candidatePhone: string | null; companyName: string; jobTitle: string; slots: string[]; durationMinutes: number; round: number; detailUrl: string; format?: MeetingInfo['format']; tool?: VideoTool | null; previousStart?: string | null; meeting?: MeetingInfo | null; lang?: Lx }): MailContent {
   const lang = o.lang;
   const L = langOf(lang);
   const first = o.slots[0];
@@ -422,7 +442,7 @@ export function recruiterRequested(o: { recruiterFirstName: string | null; candi
   };
 }
 
-export function recruiterUpdate(o: { kind: 'booked' | 'alternative' | 'declined'; candidateName: string; companyName: string; jobTitle: string; startIso?: string; durationMinutes?: number; reason?: string | null; detailUrl: string; format?: MeetingInfo['format']; lang?: Lx }): MailContent {
+function recruiterUpdateRaw(o: { kind: 'booked' | 'alternative' | 'declined'; candidateName: string; companyName: string; jobTitle: string; startIso?: string; durationMinutes?: number; reason?: string | null; detailUrl: string; format?: MeetingInfo['format']; tool?: VideoTool | null; lang?: Lx }): MailContent {
   const lang = o.lang;
   const L = langOf(lang);
   const when = o.startIso ? `${formatBerlinRange(o.startIso, o.durationMinutes ?? 60, lang)}${o.format ? ` · ${formatLabel(o.format, lang)}` : ''}` : '';
@@ -479,7 +499,7 @@ export function clientRescheduleDeclined(o: { candidateLabel: string; jobTitle: 
   return { subject: heading, html: layout({ lang, preheader: o.jobTitle, heading, body, cta: { label: L({ de: 'Interviews öffnen', en: 'Open interviews', sv: 'Öppna intervjuer', nb: 'Åpne intervjuer' }), url: o.agendaUrl } }), text: plain(heading, when, o.reason && `${L(L_MESSAGE)}: ${o.reason}`, o.agendaUrl) };
 }
 
-export function clientBooked(o: { candidateName: string; jobTitle: string; startIso: string; durationMinutes: number; inOutlook: boolean; profileUrl: string; meeting?: MeetingInfo; round?: number; lang?: Lx }): MailContent {
+function clientBookedRaw(o: { candidateName: string; jobTitle: string; startIso: string; durationMinutes: number; inOutlook: boolean; calendarName?: string; profileUrl: string; meeting?: MeetingInfo; round?: number; lang?: Lx }): MailContent {
   const lang = o.lang;
   const L = langOf(lang);
   const round = o.round ?? 1;
@@ -493,10 +513,10 @@ export function clientBooked(o: { candidateName: string; jobTitle: string; start
     meeting.format === 'onsite' && meeting.address ? p(L({ de: m`${c} kommt zu: ${esc(meeting.address).replace(/\n/g, ', ')}`, en: m`${c} will come to: ${esc(meeting.address).replace(/\n/g, ', ')}`, sv: m`${c} kommer till: ${esc(meeting.address).replace(/\n/g, ', ')}`, nb: m`${c} kommer til: ${esc(meeting.address).replace(/\n/g, ', ')}` })) : '',
     p(o.inOutlook
       ? L({
-        de: m`${teams ? 'Der Termin mit Teams-Link' : 'Der Termin'} steht in Ihrem Outlook. Ihre Kollegen haben die Einladung von Ihnen bekommen.`,
-        en: m`${teams ? 'The appointment with the Teams link' : 'The appointment'} is in your Outlook. Your colleagues have received the invitation from you.`,
-        sv: m`${teams ? 'Mötet med Teams-länken' : 'Mötet'} finns i din Outlook. Dina kollegor har fått inbjudan från dig.`,
-        nb: m`${teams ? 'Avtalen med Teams-lenken' : 'Avtalen'} ligger i Outlook. Kollegene dine har fått invitasjonen fra deg.`,
+        de: m`${teams ? 'Der Termin mit Teams-Link' : 'Der Termin'} steht in Ihrem ${o.calendarName ?? 'Outlook'}. Ihre Kollegen haben die Einladung von Ihnen bekommen.`,
+        en: m`${teams ? 'The appointment with the Teams link' : 'The appointment'} is in your ${o.calendarName ?? 'Outlook'}. Your colleagues have received the invitation from you.`,
+        sv: m`${teams ? 'Mötet med Teams-länken' : 'Mötet'} finns i din ${o.calendarName ?? 'Outlook'}. Dina kollegor har fått inbjudan från dig.`,
+        nb: m`${teams ? 'Avtalen med Teams-lenken' : 'Avtalen'} ligger i ${o.calendarName ?? 'Outlook'}. Kollegene dine har fått invitasjonen fra deg.`,
       })
       : L(L_INVITE_ATTACHED)),
     round === 1 ? p(L({ de: 'Name, Kontakt und Lebenslauf sind jetzt in Matchunt freigegeben.', en: 'Name, contact details and CV are now unlocked in Matchunt.', sv: 'Namn, kontaktuppgifter och CV är nu upplåsta i Matchunt.', nb: 'Navn, kontaktinformasjon og CV er nå låst opp i Matchunt.' })) : '',
@@ -567,7 +587,7 @@ export function clientDeclined(o: { candidateLabel: string; jobTitle: string; re
   return { subject: title, html: layout({ lang, preheader: o.jobTitle, heading: title, body, cta: { label: L({ de: 'Zu den Bewerbern', en: 'Go to candidates', sv: 'Till kandidaterna', nb: 'Til kandidatene' }), url: o.agendaUrl } }), text: plain(`${title}.`, o.reason && `${L(L_REASON)}: ${o.reason}`) };
 }
 
-export function attendeeBooked(o: { name: string; organizerName: string; candidateName: string; jobTitle: string; startIso: string; durationMinutes: number; joinUrl: string | null; agendaUrl: string; meeting?: MeetingInfo; lang?: Lx }): MailContent {
+function attendeeBookedRaw(o: { name: string; organizerName: string; candidateName: string; jobTitle: string; startIso: string; durationMinutes: number; joinUrl: string | null; agendaUrl: string; meeting?: MeetingInfo; lang?: Lx }): MailContent {
   const lang = o.lang;
   const L = langOf(lang);
   const meeting: MeetingInfo = o.meeting ?? { format: 'teams', companyName: '' };
@@ -815,7 +835,7 @@ export function recruiterRecommendationReminder(o: { recruiterFirstName: string 
 
 // --- Erinnerung am Vortag --------------------------------------------------------
 
-export function candidateReminder(o: { firstName: string | null; companyName: string; jobTitle: string; startIso: string; durationMinutes: number; round: number; meeting: MeetingInfo; interviewers: PersonRef[]; recruiter: { name: string; phone: string | null } | null; lang?: Lx }): MailContent {
+function candidateReminderRaw(o: { firstName: string | null; companyName: string; jobTitle: string; startIso: string; durationMinutes: number; round: number; meeting: MeetingInfo; interviewers: PersonRef[]; recruiter: { name: string; phone: string | null } | null; lang?: Lx }): MailContent {
   const lang = o.lang;
   const L = langOf(lang);
   const when = clockSpan(o.startIso, o.durationMinutes, lang);
@@ -865,7 +885,7 @@ export function candidateReminder(o: { firstName: string | null; companyName: st
   };
 }
 
-export function clientReminder(o: { name: string | null; candidateName: string; jobTitle: string; startIso: string; durationMinutes: number; round: number; meeting: MeetingInfo; agendaUrl: string; lang?: Lx }): MailContent {
+function clientReminderRaw(o: { name: string | null; candidateName: string; jobTitle: string; startIso: string; durationMinutes: number; round: number; meeting: MeetingInfo; agendaUrl: string; lang?: Lx }): MailContent {
   const lang = o.lang;
   const L = langOf(lang);
   const when = formatBerlinRange(o.startIso, o.durationMinutes, lang);
@@ -891,3 +911,17 @@ export function clientReminder(o: { name: string | null; candidateName: string; 
   ].join('');
   return { subject: heading, html: layout({ lang, preheader: when, heading, body, cta: { label: L({ de: 'Interview öffnen', en: 'Open interview', sv: 'Öppna intervjun', nb: 'Åpne intervjuet' }), url: o.agendaUrl } }), text: plain(heading, when, o.agendaUrl) };
 }
+
+export const candidateBooked = (o: Parameters<typeof candidateBookedRaw>[0]): MailContent => toolize(candidateBookedRaw(o), o.meeting?.tool);
+
+export const clientBooked = (o: Parameters<typeof clientBookedRaw>[0]): MailContent => toolize(clientBookedRaw(o), o.meeting?.tool);
+
+export const attendeeBooked = (o: Parameters<typeof attendeeBookedRaw>[0]): MailContent => toolize(attendeeBookedRaw(o), o.meeting?.tool);
+
+export const candidateReminder = (o: Parameters<typeof candidateReminderRaw>[0]): MailContent => toolize(candidateReminderRaw(o), o.meeting?.tool);
+
+export const clientReminder = (o: Parameters<typeof clientReminderRaw>[0]): MailContent => toolize(clientReminderRaw(o), o.meeting?.tool);
+
+export const recruiterUpdate = (o: Parameters<typeof recruiterUpdateRaw>[0]): MailContent => toolize(recruiterUpdateRaw(o), o.tool);
+
+export const recruiterRequested = (o: Parameters<typeof recruiterRequestedRaw>[0]): MailContent => toolize(recruiterRequestedRaw(o), o.tool ?? o.meeting?.tool);

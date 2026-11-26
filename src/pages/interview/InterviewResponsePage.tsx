@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import {
+import { toolText,
   candidateApi, fmtDayLong, fmtDayShort, fmtRange, fmtTime, type CandidateView, durationLabel } from '@/lib/interviewScheduling';
 import {
   GermanTime, PublicInterviewShell, QuoteBlock, RecruiterContactCard, StatusIcon,
@@ -230,7 +230,7 @@ function InviteHeader({ view }: { view: CandidateView }) {
 }
 
 const formatText = (t: TFunction, view: CandidateView) =>
-  view.format === 'phone' ? t('candidate.formatPhone', { company: view.companyName }) : view.format === 'onsite' ? t('candidate.formatOnsite') : t('candidate.formatTeams');
+  view.format === 'phone' ? t('candidate.formatPhone', { company: view.companyName }) : view.format === 'onsite' ? t('candidate.formatOnsite') : toolText(t('candidate.formatTeams'), view.tool);
 
 function OnsiteBlock({ view }: { view: CandidateView }) {
   const { t } = useTranslation('interviewResponse');
@@ -675,7 +675,7 @@ function ScheduledPanel({ view }: { view: CandidateView }) {
           {view.format === 'phone' ? <Phone className="h-4 w-4 text-muted-foreground" /> : view.format === 'onsite' ? <Building2 className="h-4 w-4 text-muted-foreground" /> : <Video className="h-4 w-4 text-muted-foreground" />}
           {view.format === 'phone'
             ? (view.callPhone ? t('candidate.companyCallsNumber', { company: view.companyName, digits: view.callPhone.replace('··· ', '') }) : t('candidate.companyCalls', { company: view.companyName }))
-            : view.format === 'onsite' ? t('candidate.onsite') : t('candidate.formatTeams')}
+            : view.format === 'onsite' ? t('candidate.onsite') : toolText(t('candidate.formatTeams'), view.tool)}
         </p>
         <OnsiteBlock view={view} />
         {view.interviewers.length > 0 && (
@@ -689,7 +689,7 @@ function ScheduledPanel({ view }: { view: CandidateView }) {
       <div className="space-y-3">
         {view.format === 'teams' && (s?.joinUrl ? (
           <Button asChild size="lg" className="h-12 w-full">
-            <a href={s.joinUrl} target="_blank" rel="noopener noreferrer"><Video /> {t('candidate.openTeams')}</a>
+            <a href={s.joinUrl} target="_blank" rel="noopener noreferrer"><Video /> {toolText(t('candidate.openTeams'), view.tool)}</a>
           </Button>
         ) : (
           <p className="rounded-xl border border-border bg-card p-4 text-sm">{t('candidate.linkLater')}</p>
@@ -708,7 +708,7 @@ function ScheduledPanel({ view }: { view: CandidateView }) {
 
       <p className="text-sm text-muted-foreground">
         {view.format === 'teams'
-          ? (s?.joinUrl ? t('candidate.teamsInfoWithLink') : t('candidate.teamsInfo'))
+          ? (s?.joinUrl ? toolText(t('candidate.teamsInfoWithLink'), view.tool) : toolText(t('candidate.teamsInfo'), view.tool))
           : t('candidate.otherInfo')}
       </p>
 

@@ -7,7 +7,7 @@
 // Headhunters; Links auf öffentliche Seiten tragen dann `?lang=`.
 import { esc, layout } from './intake-mail.ts';
 import { formatBerlinDateLong, formatBerlinTime } from './interview-time.ts';
-import type { MailContent } from './interview-mails.ts';
+import { toolize, type MailContent, type VideoTool } from './interview-mails.ts';
 import { terminText, type Gespraechsart } from './termin-seite.ts';
 import { lang as langOf, m, withLang, type Lang } from './mail-i18n.ts';
 import { hinweisTexte } from './lebenslauf-hinweis.ts';
@@ -28,7 +28,7 @@ const artText = (mode: Gespraechsart, hhName: string, lang?: Lang | null) => (mo
   : langOf(lang)({ de: m`per Telefon, ${hhName} ruft dich an`, en: m`by phone, ${hhName} will call you`, sv: m`per telefon, ${hhName} ringer dig`, nb: m`på telefon, ${hhName} ringer deg` }));
 const absatz = (t: string) => `<p style="margin:0 0 12px 0;">${t}</p>`;
 
-export function kandidatBestaetigt(o: {
+function kandidatBestaetigtRaw(o: {
   vorname: string; hhName: string; stelle: string | null; startIso: string; dauer: number; mode: Gespraechsart;
   joinUrl: string | null; verwaltenUrl: string; mitLebenslauf: boolean; verschoben?: boolean;
   /** Lebenslauf angefragt und noch nicht da (05.11.2026): Link zum Nachreichen. */
@@ -210,9 +210,11 @@ export function kandidatAbgesagt(o: { vorname: string; hhName: string; startIso:
   };
 }
 
-export function headhunterNeu(o: {
+function headhunterNeuRaw(o: {
   hhVorname: string; kandidat: { name: string; email: string; phone: string | null; linkedin: string | null; note: string | null };
   stelle: string | null; startIso: string; dauer: number; mode: Gespraechsart; joinUrl: string | null; imOutlook: boolean;
+  /** Name des Kalenders, in dem der Termin steht (Outlook oder Google Kalender) */
+  kalenderName?: string;
   akteUrl: string; herkunft: 'linkedin_beitrag' | 'terminseite'; lebenslauf: boolean; verschoben?: { vonIso: string };
   lang?: Lang | null;
 }): MailContent {
@@ -233,7 +235,7 @@ export function headhunterNeu(o: {
   const lNotiz = L({ de: 'Notiz', en: 'Note', sv: 'Anteckning', nb: 'Notat' });
   const tabelle = `<table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px;line-height:1.5;margin:4px 0 14px 0;">${[
     zeile(lWann, `<b>${esc(zeit)}</b>${o.verschoben ? ` <span style="color:#6b7280;">(${L({ de: m`vorher ${esc(wann(o.verschoben.vonIso, o.dauer, o.lang))}`, en: m`previously ${esc(wann(o.verschoben.vonIso, o.dauer, o.lang))}`, sv: m`tidigare ${esc(wann(o.verschoben.vonIso, o.dauer, o.lang))}`, nb: m`tidligere ${esc(wann(o.verschoben.vonIso, o.dauer, o.lang))}` })})</span>` : ''}`),
-    zeile(lWie, `${wie} ${L({ de: m`(von ${esc(k.name.split(' ')[0])} gewählt)`, en: m`(chosen by ${esc(k.name.split(' ')[0])})`, sv: m`(valt av ${esc(k.name.split(' ')[0])})`, nb: m`(valgt av ${esc(k.name.split(' ')[0])})` })}${o.imOutlook ? L({ de: ' · steht in deinem Outlook', en: ' · in your Outlook', sv: ' · finns i din Outlook', nb: ' · ligger i Outlook' }) : ''}`),
+    zeile(lWie, `${wie} ${L({ de: m`(von ${esc(k.name.split(' ')[0])} gewählt)`, en: m`(chosen by ${esc(k.name.split(' ')[0])})`, sv: m`(valt av ${esc(k.name.split(' ')[0])})`, nb: m`(valgt av ${esc(k.name.split(' ')[0])})` })}${o.imOutlook ? L({ de: m` · steht in deinem ${o.kalenderName ?? 'Outlook'}`, en: m` · in your ${o.kalenderName === 'Google Kalender' ? 'Google Calendar' : 'Outlook'}`, sv: m` · finns i din ${o.kalenderName ?? 'Outlook'}`, nb: m` · ligger i ${o.kalenderName ?? 'Outlook'}` }) : L({ de: ' · Kalenderdatei hängt an', en: ' · calendar file attached', sv: ' · kalenderfil bifogad', nb: ' · kalenderfil vedlagt' })}`),
     k.phone ? zeile(lTelefon, esc(k.phone)) : '',
     zeile(lMail, esc(k.email)),
     k.linkedin ? zeile('LinkedIn', `<a href="${esc(k.linkedin)}">${L({ de: 'Profil ansehen', en: 'View profile', sv: 'Visa profil', nb: 'Se profil' })}</a>`) : '',
@@ -298,3 +300,9 @@ export function headhunterAbgesagt(o: { hhVorname: string; kandidat: string; ste
     text: `${satz(o.kandidat, zeit, '')}${o.grund ? `\n${lGrund}: ${o.grund}` : ''}\n\n${L({ de: 'Akte', en: 'Candidate file', sv: 'Kandidatakt', nb: 'Kandidatmappe' })}: ${o.akteUrl}`,
   };
 }
+
+/** Mit Video-Werkzeug (26.11.2026): Texte nennen Google Meet oder Zoom statt Teams. */
+export const kandidatBestaetigt = (o: Parameters<typeof kandidatBestaetigtRaw>[0] & { tool?: VideoTool | null }) => toolize(kandidatBestaetigtRaw(o), o.tool);
+
+/** Mit Video-Werkzeug (26.11.2026): Texte nennen Google Meet oder Zoom statt Teams. */
+export const headhunterNeu = (o: Parameters<typeof headhunterNeuRaw>[0] & { tool?: VideoTool | null }) => toolize(headhunterNeuRaw(o), o.tool);

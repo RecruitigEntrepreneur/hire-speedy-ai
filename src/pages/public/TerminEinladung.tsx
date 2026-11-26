@@ -1,3 +1,4 @@
+import { toolText } from '@/lib/interviewScheduling';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -90,15 +91,15 @@ export default function TerminEinladung() {
 
   if (ergebnis) return huelle(<div className="space-y-4">
     <CheckCircle2 className="h-8 w-8 text-emerald-600"/>
-    <div><h1 className="text-xl font-semibold">{t('common.doneHeading')}</h1><p className="mt-1 text-sm">{tagLang(ergebnis.start)} · {uhrzeit(ergebnis.start)}–{uhrzeit(ergebnis.ende)} · {ergebnis.mode === 'teams' ? t('common.teams') : t('common.phoneCallsYou', { name: hhVorname })}</p><p className="text-sm text-muted-foreground">{t('common.with', { name: hh.name })}</p></div>
-    <Button variant="outline" onClick={() => downloadIcs(t('common.icsFile'), buildIcs({ title: t('common.icsTitle', { name: hh.name }), start: new Date(ergebnis.start), durationMinutes: d.dauer, description: ergebnis.join_url ? t('common.icsTeams', { url: ergebnis.join_url }) : t('common.icsCallsYou', { name: hhVorname }), location: ergebnis.mode === 'teams' ? 'Microsoft Teams' : t('common.phone'), url: ergebnis.join_url ?? undefined }))}>
+    <div><h1 className="text-xl font-semibold">{t('common.doneHeading')}</h1><p className="mt-1 text-sm">{tagLang(ergebnis.start)} · {uhrzeit(ergebnis.start)}–{uhrzeit(ergebnis.ende)} · {ergebnis.mode === 'teams' ? toolText(t('common.teams'), d?.werkzeug) : t('common.phoneCallsYou', { name: hhVorname })}</p><p className="text-sm text-muted-foreground">{t('common.with', { name: hh.name })}</p></div>
+    <Button variant="outline" onClick={() => downloadIcs(t('common.icsFile'), buildIcs({ title: t('common.icsTitle', { name: hh.name }), start: new Date(ergebnis.start), durationMinutes: d.dauer, description: ergebnis.join_url ? toolText(t('common.icsTeams', { url: ergebnis.join_url }), d?.werkzeug) : t('common.icsCallsYou', { name: hhVorname }), location: ergebnis.mode === 'teams' ? toolText('Microsoft Teams', d?.werkzeug) : t('common.phone'), url: ergebnis.join_url ?? undefined }))}>
       <CalendarPlus className="mr-2 h-4 w-4"/>{t('common.addToCalendar')}
     </Button>
     {lebenslaufFehlt && <div className="space-y-3 rounded-lg bg-muted/50 p-4 text-sm">
       <div><p className="font-medium">{t('einladung.welcomesCv', { name: hhVorname })}</p><p className="text-muted-foreground">{t('einladung.welcomesCvBody', { name: hhVorname })}</p></div>
       {nachreichen ? <LebenslaufNachreichen ziel={{ einladung: token }} hhName={hh.name}/> : <Button size="sm" onClick={() => setNachreichen(true)}>{t('einladung.uploadNow')}</Button>}
     </div>}
-    <p className="text-sm text-muted-foreground">{t(ergebnis.mode === 'teams' ? (lebenslaufFehlt ? 'einladung.mailInfoTeamsCv' : 'einladung.mailInfoTeams') : (lebenslaufFehlt ? 'einladung.mailInfoCv' : 'einladung.mailInfo'))}</p>
+    <p className="text-sm text-muted-foreground">{toolText(t(ergebnis.mode === 'teams' ? (lebenslaufFehlt ? 'einladung.mailInfoTeamsCv' : 'einladung.mailInfoTeams') : (lebenslaufFehlt ? 'einladung.mailInfoCv' : 'einladung.mailInfo')), d?.werkzeug)}</p>
   </div>);
 
   if (d.stand !== 'offen') {
@@ -111,7 +112,7 @@ export default function TerminEinladung() {
     if (d.stand === 'gebucht' && d.lebenslauf === 'angefragt') {
       return huelle(<div className="space-y-5">
         <div><h1 className="text-xl font-semibold">{texte[0]}</h1>
-          <p className="mt-2 text-sm text-muted-foreground">{d.termin ? t('einladung.bookedLine', { date: tagLang(d.termin.start), time: uhrzeit(d.termin.start), mode: d.termin.mode === 'teams' ? t('common.teams') : t('common.phone') }) : ''}{texte[1]}</p></div>
+          <p className="mt-2 text-sm text-muted-foreground">{d.termin ? t('einladung.bookedLine', { date: tagLang(d.termin.start), time: uhrzeit(d.termin.start), mode: d.termin.mode === 'teams' ? toolText(t('common.teams'), d?.werkzeug) : t('common.phone') }) : ''}{texte[1]}</p></div>
         <div className="space-y-2"><p className="text-sm font-medium">{t('einladung.sendCvLater')}</p><LebenslaufNachreichen ziel={{ einladung: token }} hhName={hh.name}/></div>
       </div>);
     }
@@ -132,7 +133,7 @@ export default function TerminEinladung() {
     </div>
     <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
       <span>{t('common.minutesConfidential', { count: d.dauer })}</span>
-      {d.arten.length === 1 && <span className="inline-flex items-center gap-1">· {d.arten[0] === 'teams' ? <><Video className="h-3.5 w-3.5"/>{t('common.teams')}</> : <><Phone className="h-3.5 w-3.5"/>{t('common.callsYou', { name: hhVorname })}</>}</span>}
+      {d.arten.length === 1 && <span className="inline-flex items-center gap-1">· {d.arten[0] === 'teams' ? <><Video className="h-3.5 w-3.5"/>{toolText(t('common.teams'), d?.werkzeug)}</> : <><Phone className="h-3.5 w-3.5"/>{t('common.callsYou', { name: hhVorname })}</>}</span>}
     </p>
 
     {!d.offen || !d.tage.length ? <div className="space-y-1 rounded-lg bg-muted/50 p-5">
@@ -150,7 +151,7 @@ export default function TerminEinladung() {
         <div className="grid grid-cols-2 gap-2">
           {(['teams', 'phone'] as const).map(m => <label key={m} className={cn('flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm', mode === m ? 'border-foreground' : 'border-border')}>
             <input type="radio" name="art" className="sr-only" checked={mode === m} onChange={() => setMode(m)}/>
-            {m === 'teams' ? <Video className="h-4 w-4"/> : <Phone className="h-4 w-4"/>}{m === 'teams' ? t('common.teams') : t('common.phoneCalls', { name: hhVorname })}
+            {m === 'teams' ? <Video className="h-4 w-4"/> : <Phone className="h-4 w-4"/>}{m === 'teams' ? toolText(t('common.teams'), d?.werkzeug) : t('common.phoneCalls', { name: hhVorname })}
           </label>)}
         </div>{fehlerBei('mode')}
       </fieldset>}

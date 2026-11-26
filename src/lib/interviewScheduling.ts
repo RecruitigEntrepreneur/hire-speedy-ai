@@ -55,7 +55,28 @@ export interface TeamPerson {
   needsName?: boolean;
 }
 
+/** 'teams' heißt „per Video“; welches Werkzeug, steht in VideoTool (26.11.2026). */
 export type MeetingFormat = 'teams' | 'phone' | 'onsite';
+export type VideoTool = 'teams' | 'meet' | 'zoom';
+export const VIDEO_TOOL_NAME: Record<VideoTool, string> = { teams: 'Microsoft Teams', meet: 'Google Meet', zoom: 'Zoom' };
+/** Kurzname für Knöpfe und Hinweise: „Teams“, „Google Meet“, „Zoom“. */
+export const VIDEO_TOOL_SHORT: Record<VideoTool, string> = { teams: 'Teams', meet: 'Google Meet', zoom: 'Zoom' };
+/** Was beim Anfragen gesendet wird: Werkzeug bei Video, sonst Telefon oder vor Ort. */
+export type MeetingChoice = VideoTool | 'phone' | 'onsite';
+export type CalendarProvider = 'microsoft' | 'google';
+
+/**
+ * Texte wurden für Teams und Outlook geschrieben. Für Google Meet/Zoom und den
+ * Google Kalender tauschen wir die Namen aus („Teams-Link“ → „Zoom-Link“,
+ * „in Ihrem Outlook“ → „in Ihrem Google Kalender“). 26.11.2026.
+ */
+export function toolText(text: string, tool?: VideoTool | null, calendar?: CalendarProvider | null): string {
+  let out = text;
+  if (tool && tool !== 'teams') out = out.replace(/Microsoft Teams/g, VIDEO_TOOL_NAME[tool]).replace(/\bTeams(?=[\s:.,)-]|$)/g, VIDEO_TOOL_SHORT[tool]);
+  if (calendar === 'google') out = out.replace(/\bOutlook\b/g, 'Google Kalender');
+  return out;
+}
+export type ConnectProvider = CalendarProvider | 'zoom';
 export type FunctionKey = 'fachbereich' | 'fuehrungskraft' | 'geschaeftsfuehrung' | 'hr' | 'andere';
 export const FUNCTION_LABELS: Record<FunctionKey, string> = { fachbereich: 'Fachbereich', fuehrungskraft: 'Führungskraft', geschaeftsfuehrung: 'Geschäftsführung', hr: 'HR', andere: 'Andere' };
 /** Vorgeschlagener Zugriff je Funktion: Geschäftsführung und HR sehen alles. */
@@ -91,10 +112,15 @@ export type CalendarState = 'not_configured' | 'not_connected' | 'connected' | '
 
 export interface CalendarStatus {
   state: CalendarState;
-  provider: 'microsoft' | null;
+  /** Kalender der Person: Outlook oder Google (einer von beiden) */
+  provider: CalendarProvider | null;
   accountEmail: string | null;
-  /** Link an die IT wurde gesendet und noch nicht bestätigt */
+  /** Link an die IT wurde gesendet und noch nicht bestätigt (nur Outlook) */
   itRequest: { itEmail: string; sentAt: string } | null;
+  /** Welche Anbieter Matchunt eingerichtet hat; fehlt bei älteren Functions (dann nur Outlook) */
+  providers?: { microsoft: boolean; google: boolean; zoom: boolean; matchuntTeams?: boolean };
+  /** Zoom als eigenes Gesprächswerkzeug */
+  zoom?: { state: 'not_configured' | 'not_connected' | 'connected' | 'expired'; accountEmail: string | null };
 }
 
 export interface RequestContext {
@@ -125,6 +151,9 @@ export interface RequestContext {
   locationNoteDefault?: string | null;
   /** Entsteht beim Buchen ein Teams-Link (Outlook verbunden oder Matchunt-Konto)? */
   teamsLink?: 'auto' | 'manual';
+  /** Wählbare Video-Werkzeuge (Teams immer, Meet mit Google Kalender, Zoom mit Zoom) */
+  videoTools?: { tool: VideoTool; link: 'auto' | 'manual' }[];
+  preferredVideoTool?: VideoTool;
   /** Darf Kollegen ins Team einladen; sonst Namen der Admins */
   invite: { allowed: boolean; adminNames: string[] };
 }
@@ -162,6 +191,10 @@ export interface InterviewDetails {
   scheduledAt: string | null;
   durationMinutes: number;
   format: MeetingFormat;
+  /** Video-Werkzeug (fehlt bei älteren Functions: Teams) */
+  tool?: VideoTool;
+  /** Kalender des Organisators, in dem der Termin steht */
+  calendarName?: string;
   joinUrl: string | null;
   onsite: { address: string; note: string | null; mapsUrl: string; contactName?: string | null; contactPhone?: string | null } | null;
   callPhone: string | null;
@@ -211,7 +244,8 @@ export interface CheckTimeResult {
 
 export interface SendInput {
   submissionId: string;
-  meetingFormat: MeetingFormat;
+  /** Werkzeug bei Video ('teams' | 'meet' | 'zoom'), sonst 'phone' | 'onsite' */
+  meetingFormat: MeetingChoice;
   /** Pflicht bei „Vor Ort“ */
   onsiteAddress?: string | null;
   /** Hinweis für den Kandidaten bei „Vor Ort“ (Empfang, Parken) */
@@ -300,9 +334,10 @@ export const interviewApi = {
 
 export const calendarApi = {
   status: () => callFunction<CalendarStatus>('calendar-connect', { action: 'status' }),
-  /** liefert die Microsoft-Anmeldeseite; der Rücksprung landet auf returnPath */
-  connect: (returnPath: string) => callFunction<{ url: string }>('calendar-connect', { action: 'connect', returnPath }),
-  disconnect: () => callFunction<{ ok: true }>('calendar-connect', { action: 'disconnect' }),
+  /** liefert die Anmeldeseite des Anbieters; der Rücksprung landet auf returnPath */
+  connect: (returnPath: string, provider: ConnectProvider = 'microsoft') => callFunction<{ url: string }>('calendar-connect', { action: 'connect', returnPath, provider }),
+  /** ohne Anbieter: der verbundene Kalender (Outlook oder Google) */
+  disconnect: (provider?: ConnectProvider) => callFunction<{ ok: true }>('calendar-connect', { action: 'disconnect', ...(provider ? { provider } : {}) }),
   requestIt: (itEmail: string) => callFunction<{ sent: boolean; link: string }>('calendar-connect', { action: 'it_request', itEmail }),
 };
 
@@ -333,6 +368,7 @@ export interface CandidateView {
   jobTitle: string;
   durationMinutes: number;
   format: MeetingFormat;
+  tool?: VideoTool;
   /** Vor Ort: Adresse, Hinweis, Kartenlink */
   onsite: { address: string; note: string | null; mapsUrl: string; contact?: string | null } | null;
   /** Telefon: hinterlegte Nummer des Kandidaten, maskiert („··· 11“), oder null */

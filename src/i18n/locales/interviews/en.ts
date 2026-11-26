@@ -10,6 +10,7 @@ const en: Messages<typeof de> = {
     video: 'Video call',
     teams: 'Teams',
     meet: 'Google Meet',
+    zoom: 'Zoom',
     phone: 'Phone',
     onsite: 'On site',
     fallback: 'Interview',
@@ -68,6 +69,9 @@ const en: Messages<typeof de> = {
   calendar: {
     connected: 'Outlook is connected.',
     connectFailed: 'Outlook could not be connected. Please try again.',
+    connectedTool: '{{name}} is connected.',
+    connectFailedTool: '{{name}} could not be connected. Please try again.',
+    rightsMissing: 'Google did not grant all calendar permissions. Please tick every box when connecting.',
   },
   error: {
     generic: "That didn't work. Please try again.",
