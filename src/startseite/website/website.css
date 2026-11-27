@@ -102,7 +102,10 @@
 }
 
 /* Kopfzeile der Unterseiten (27.11.2026): wie die Leiste der Startseite, klebt oben, leicht durchscheinend */
-.mw-kopf { position: sticky; top: 0; z-index: 40; background: color-mix(in srgb, var(--mu-bg) 88%, transparent); -webkit-backdrop-filter: saturate(1.8) blur(16px); backdrop-filter: saturate(1.8) blur(16px); border-bottom: 1px solid var(--mu-ln); }
+.mw-kopf { position: sticky; top: 0; z-index: 40; border-bottom: 1px solid var(--mu-ln); isolation: isolate; }
+/* Die Unschärfe liegt auf einer eigenen Ebene: Läge sie auf .mw-kopf selbst, würden feste Ebenen darin (Sprachauswahl
+   am Handy, von unten) nur innerhalb der Kopfzeile gerechnet und hingen oben aus dem Bild (Fehler 27.11.2026). */
+.mw-kopf::before { content: ""; position: absolute; inset: 0; z-index: -1; background: color-mix(in srgb, var(--mu-bg) 88%, transparent); -webkit-backdrop-filter: saturate(1.8) blur(16px); backdrop-filter: saturate(1.8) blur(16px); }
 .mw-kopf-innen { height: 64px; display: flex; align-items: center; gap: 16px; }
 .mw-kopf-logo { display: inline-flex; align-items: center; gap: 10px; color: var(--mu-tx); text-decoration: none; font-family: var(--mu-fh), sans-serif; font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
 .mw-kopf-nav { display: flex; gap: 28px; margin-left: auto; margin-right: 12px; }

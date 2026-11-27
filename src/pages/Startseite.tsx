@@ -12,7 +12,6 @@ import Aufgaben from '@/startseite/matchunt/s42-aufgaben';
 import Fragen from '@/startseite/matchunt/s80-fragen';
 import { Rahmen } from '@/startseite/website/Rahmen';
 import { Kopf } from '@/startseite/website/Kopf';
-import { Abschluss } from '@/startseite/website/Abschluss';
 import type { Code } from '@/startseite/website/sprachen';
 import { websiteSprache } from './website/sprache';
 import '@/startseite/matchunt/stil.css';
@@ -57,14 +56,14 @@ export default function Startseite() {
   }, [hash]);
   return (
     <div className="mu-schriften">
-      {/* Kopf A und Fuß A (27.11.2026): Kopfzeile bleibt oben stehen, vor dem Fuß ein Abschluss-Aufruf */}
+      {/* Kopf A und Fuß A (27.11.2026): Kopfzeile bleibt oben stehen. Den blauen Abschluss-Aufruf vor dem Fuß hat
+          Marko am selben Tag wieder entfernt – nach den Fragen kommt direkt der Fuß. */}
       <Rahmen code={code} stil="apple" modus="hell" kopf={<Kopf />}>
         {SEKTIONEN.map(([id, Teil]) => (
           <div key={id} id={ANKER[id]} className="sa-teil">
             <div className="mu" data-stil="apple" data-modus="hell"><Teil /></div>
           </div>
         ))}
-        <div className="mu" data-stil="apple" data-modus="hell"><Abschluss /></div>
       </Rahmen>
     </div>
   );

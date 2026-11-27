@@ -1965,6 +1965,21 @@ besetzt → Firma); die Website läuft als eigenes, leichtes Bündel (`src/Websi
 > 3. Publish.
 > 4. Am Code nichts ändern. Am Ende melden, dass Publish durch ist.
 
+**Erledigt 27.11.2026:** live `d58f2f3`.
+
+---
+
+## 68 — Website: Sprachauswahl am Handy, Abschluss-Aufruf der Startseite entfernt (27.11.2026)
+
+**Keine Migration, keine Edge Function, nur Publish.** Nach Nr. 67. Am Handy fuhr die Sprachauswahl in der
+Kopfzeile nicht von unten hoch, sondern hing oben aus dem Bild (die Unschärfe der Kopfzeile liegt jetzt auf einer
+eigenen Ebene). Der blaue Abschluss-Aufruf „Ihre Stelle, unsere Headhunter.“ vor dem Fuß der Startseite ist entfernt.
+
+> 1. Aktuellen Stand von `main` übernehmen.
+> 2. Keine Migration ausführen, keine Edge Function deployen, keine Secrets ändern.
+> 3. Publish.
+> 4. Am Code nichts ändern. Am Ende melden, dass Publish durch ist.
+
 ---
 
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
