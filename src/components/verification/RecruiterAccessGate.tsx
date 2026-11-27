@@ -13,6 +13,8 @@ interface Access { allowed: boolean; pending: boolean }
 /** Wartezustand: unterschrieben, aber noch nicht gegengezeichnet. Nur Ansehen (RecruiterWaiting.tsx). */
 const PendingContext = createContext(false);
 export const useRecruiterPending = () => useContext(PendingContext);
+/** Beispiel-Bühne des Rundgangs: Dort zeigen die Seiten alle Knöpfe, auch im Wartezustand. */
+export const RecruiterPendingOverride = PendingContext.Provider;
 
 // Ein erlaubter Zugang wird im Gerät gemerkt (höchstens 24 h), damit die Seite nicht bei
 // jedem Neuladen auf die Prüfung wartet; geprüft wird trotzdem jedes Mal im Hintergrund
@@ -39,10 +41,11 @@ function remember(userId: string, access: Access) {
   }
 }
 
-export default function RecruiterAccessGate({children}:{children:ReactNode}) {
+/** Zugang und Wartezustand; dieselbe Abfrage nutzt auch der Rundgang (Text im Wartezustand). */
+export function useRecruiterAccess(enabled=true) {
   const {user}=useAuth();
-  const {data,isPending,error,refetch}=useQuery({
-    queryKey:['recruiter-access',user?.id], enabled:!!user,
+  return useQuery({
+    queryKey:['recruiter-access',user?.id], enabled:!!user&&enabled,
     queryFn:async():Promise<Access>=>{
       const result=await onboardingApi<Partial<Access>>(false,{action:'access'});
       const access={allowed:result.allowed===true,pending:result.pending===true};
@@ -54,6 +57,10 @@ export default function RecruiterAccessGate({children}:{children:ReactNode}) {
     // Im Wartezustand fällt die Sperre von selbst, sobald Matchunt gegengezeichnet hat.
     refetchInterval:query=>query.state.data?.pending?60_000:false,
   });
+}
+
+export default function RecruiterAccessGate({children}:{children:ReactNode}) {
+  const {data,isPending,error,refetch}=useRecruiterAccess();
   if(isPending)return <p role="status" className="p-8">Ihr Zugang wird geprüft …</p>;
   if(error&&data===undefined)return <div role="alert" className="p-8">Ihr Zugang konnte nicht geprüft werden. <button onClick={()=>void refetch()}>Erneut versuchen</button></div>;
   return data?.allowed ? <PendingContext.Provider value={data.pending}>{children}</PendingContext.Provider> : <Navigate to="/recruiter/onboarding" replace/>;

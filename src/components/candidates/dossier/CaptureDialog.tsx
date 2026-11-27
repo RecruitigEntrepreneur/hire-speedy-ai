@@ -306,7 +306,7 @@ export function CaptureDialog({ open, onOpenChange, mode, candidateId, form, onS
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[92vh] w-[96vw] max-w-3xl flex-col gap-0 overflow-hidden p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
+      <DialogContent className="flex max-h-[92vh] w-[96vw] max-w-3xl flex-col gap-0 overflow-hidden p-0" onOpenAutoFocus={(e) => e.preventDefault()} data-tour="capture.window">
         <div className="border-b border-border px-6 pb-3 pt-5">
           <DialogTitle className="pr-8 text-base">{title} · {draft.full_name}</DialogTitle>
           <DialogDescription className="mt-1 text-xs">
@@ -524,14 +524,14 @@ export function CaptureDialog({ open, onOpenChange, mode, candidateId, form, onS
                   {m.key === 'rolle' && <RolleBlock form={draft} set={set} />}
                   {m.key === 'kontakt' && <KontaktBlock form={draft} set={set} />}
                   {m.key === 'interview' && (
-                    <div className="space-y-3">
+                    <div className="space-y-3" data-tour="capture.interview">
                       <div className="flex flex-wrap items-center gap-2">
                         <Input type="date" aria-label={t('gaps.dateAria')} className="h-8 w-40" value={draft.interview_date ?? format(new Date(), 'yyyy-MM-dd')} onChange={(e) => set({ interview_date: e.target.value || null })} />
                         <ChipGroup options={INTERVIEW_TYPE_OPTIONS} value={draft.interview_type} onChange={(v) => set({ interview_type: v })} />
                       </div>
                       <Textarea value={draft.why_now} onChange={(e) => set({ why_now: e.target.value })} rows={2} placeholder={t('gaps.whyNowPlaceholder')} />
                       {onComplete && (
-                        <Button size="sm" variant="outline" onClick={() => void finishInterview()} disabled={saving}>
+                        <Button size="sm" variant="outline" data-tour="capture.complete" onClick={() => void finishInterview()} disabled={saving}>
                           {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{t('gaps.completeInterview')}
                         </Button>
                       )}
@@ -579,7 +579,7 @@ export function CaptureDialog({ open, onOpenChange, mode, candidateId, form, onS
               </>
             )}
             {step === 'quick' && (
-              <Button onClick={async () => { if (await persist(draft)) setStep('gaps'); }} disabled={saving}>
+              <Button data-tour="capture.saveRest" onClick={async () => { if (await persist(draft)) setStep('gaps'); }} disabled={saving}>
                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{t('foot.saveRest')}
               </Button>
             )}

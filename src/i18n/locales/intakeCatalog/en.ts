@@ -6,12 +6,12 @@ const en: Messages<typeof de> = {
   q: {
     firmengroesse: {
       text: 'How many people do you currently employ?',
-      why: 'Candidates ask this in the first conversation, and the recruiter needs it for the approach.',
+      why: 'Candidates ask this in the first conversation, and the headhunter needs it for the approach.',
       chapter: 'Company',
     },
     verguetung: {
       text: 'What is the range for the fixed salary?',
-      why: 'Without a range no recruiter can approach anyone — it is every candidate’s first question.',
+      why: 'Without a range no headhunter can approach anyone — it is every candidate’s first question.',
       chapter: 'Compensation',
     },
     kriterien: {
@@ -45,12 +45,12 @@ const en: Messages<typeof de> = {
     },
     arbeitserlaubnis: {
       text: 'Does the candidate need a work permit, or do you sponsor a visa?',
-      why: 'A knock-out criterion: without the answer, the recruiter approaches candidates who are not allowed to start.',
+      why: 'A knock-out criterion: without the answer, the headhunter approaches candidates who are not allowed to start.',
       chapter: 'Working hours & process',
     },
     abwerbeschutz: {
       text: 'Which companies must we under no circumstances recruit from?',
-      why: 'Recruiting from a client’s own client damages the business relationship. Only the recruiter sees this, and only once they are searching.',
+      why: 'Recruiting from a client’s own client damages the business relationship. Only the headhunter sees this, and only once they are searching.',
       chapter: 'Working hours & process',
     },
     vakanz: {
@@ -61,12 +61,12 @@ const en: Messages<typeof de> = {
     },
     alltag: {
       text: 'Can you paint me a picture of the candidate’s working day?',
-      why: 'The recruiter describes this working day when talking to candidates. Without it the role stays abstract.',
+      why: 'The headhunter describes this working day when talking to candidates. Without it the role stays abstract.',
       chapter: 'Role & scope',
     },
     entscheidung: {
       text: 'Who does the candidate report to, and is anyone besides you involved in the final decision?',
-      why: 'Knowing this, the recruiter can gear the conversation towards the right person.',
+      why: 'Knowing this, the headhunter can gear the conversation towards the right person.',
       chapter: 'Process & decision-makers',
     },
     auswahlprozess: {
@@ -88,13 +88,13 @@ const en: Messages<typeof de> = {
     usp: {
       text: 'What unique selling points can you offer as a company, and what advantages does the position itself have that perhaps only an expert would appreciate — for example no cold calling in a sales role?',
       textFreelance: 'What makes this project attractive — the technology, the reference, or the prospect of follow-on work?',
-      why: 'The argument the recruiter uses to win over someone who is not even looking.',
+      why: 'The argument the headhunter uses to win over someone who is not even looking.',
       chapter: 'Sell & story (EVP)',
     },
     kultur: {
       text: 'How would you describe your company culture?',
       textFreelance: 'How do people work together at your company — what should an external specialist be prepared for?',
-      why: 'The recruiter has to describe it credibly without naming the company.',
+      why: 'The headhunter has to describe it credibly without naming the company.',
       chapter: 'Work model & culture',
     },
     foerderung: {
@@ -105,7 +105,7 @@ const en: Messages<typeof de> = {
     vertrag: {
       text: 'How is the employment contract set up? Are there any points in it that are sensitive or could put candidates off?',
       textFreelance: 'How is the service contract set up? Are there clauses that put freelancers off?',
-      why: 'Better the recruiter knows beforehand than the candidate backs out at signing.',
+      why: 'Better the headhunter knows beforehand than the candidate backs out at signing.',
       chapter: 'Timing & contract',
     },
     einwaende: {
@@ -115,12 +115,12 @@ const en: Messages<typeof de> = {
     },
     branche: {
       text: 'What is currently going well in your industry? What challenges is your industry currently facing?',
-      why: 'The argument that lets the recruiter reach a contented candidate in the first place.',
+      why: 'The argument that lets the headhunter reach a contented candidate in the first place.',
       chapter: 'Sell & story (EVP)',
     },
     pipeline: {
       text: 'How many candidates do you currently have, or have you had, in the process? Have candidates ever dropped out at the offer stage? If so, why?',
-      why: 'Tells the recruiter who they are up against and which objection to pre-empt.',
+      why: 'Tells the headhunter who they are up against and which objection to pre-empt.',
       chapter: 'Risks & candour',
     },
   },

@@ -14,6 +14,8 @@ import { gleicherWert } from '@/lib/anzeigeZitat';
 import { AbteilungsTreppe } from './AbteilungsTreppe';
 import { EigeneEintraege } from './EigeneEintraege';
 import { teamgroesseAus, type Abteilungsaufbau } from '../../../../supabase/functions/_shared/abteilung';
+import { GeaendertMarke } from '@/components/intake/guest/mitarbeit';
+import { M3Zaehler, useIntakeM3 } from '@/components/intake/guest/m3';
 
 /** Vorschlaege fuer die Treppe "Aufbau der Abteilung" (Rollen, Schnittstellen). */
 export interface AufbauVorschlaege {
@@ -71,6 +73,7 @@ interface Props {
 export function CatalogFields({ place, known, onSet, contract, mustHaves = [], onConfirm, aufbauVorschlaege, nur, treppeOhneWeiter = false, gross = false, anzeige = null, anzeigeWerte }: Props) {
   // Laedt die Namespaces und zeichnet beim Sprachwechsel neu; die Katalogtexte lesen beim Aufruf.
   const { t } = useTranslation(['intake', 'intakeCatalog']);
+  const m3 = useIntakeM3();
   /** Was die Anzeige zu einem Feld sagte (gemerkt), sonst der noch ungepruefte Wert. */
   const adVon = (k: string): unknown =>
     anzeigeWerte && k in anzeigeWerte ? anzeigeWerte[k] : known[k]?.from === 'ad' ? known[k]?.value : undefined;
@@ -145,12 +148,29 @@ export function CatalogFields({ place, known, onSet, contract, mustHaves = [], o
                   <p className={gross ? (zeigeFrage ? 'mb-1.5 text-sm font-medium text-foreground' : 'mb-2 text-base font-semibold text-foreground') : 'mb-1 text-[11px] text-muted-foreground'}>
                     {slotLabelT(s, contract)}
                     {!s.required && <span className="ml-1 text-[10px]">{t('shared.optional')}</span>}
+                    <GeaendertMarke feld={s.key} />
                     {gross && adVon(s.key) !== undefined && (
                       <span className="ml-1.5 inline-block align-middle">
                         <AnzeigeEtikett anzeige={anzeige} wert={adVon(s.key)} anzeigeText={wertAnzeigeT(s.key, adVon(s.key), contract)} abweichend={!gleicherWert(known[s.key]?.value, adVon(s.key))} />
                       </span>
                     )}
                   </p>
+                  {m3 && s.key === 'remote_days' ? (
+                    /* Airbnb-Stil (27.11.2026): Zähler statt sieben Zahlen-Chips. */
+                    <M3Zaehler
+                      wert={typeof known[s.key]?.value === 'number' ? (known[s.key]!.value as number) : null}
+                      max={5}
+                      onWert={(n) => onSet(s.key, n)}
+                      einheit={t('fields.zaehler.tageProWoche')}
+                      minusLabel={t('fields.zaehler.weniger')}
+                      plusLabel={t('fields.zaehler.mehr')}
+                      frei={{
+                        label: chipLabelT(s, contract, 'frei wählbar'),
+                        aktiv: known[s.key]?.value === 'frei wählbar',
+                        onClick: () => onSet(s.key, 'frei wählbar'),
+                      }}
+                    />
+                  ) : (
                   <FeldEingabe
                     contract={contract}
                     slot={s}
@@ -173,6 +193,7 @@ export function CatalogFields({ place, known, onSet, contract, mustHaves = [], o
                     ruhig={gross}
                     anzeigeWert={gross ? adVon(s.key) : undefined}
                   />
+                  )}
                   </>
                   )}
                 </div>

@@ -51,7 +51,11 @@ const sv: Messages<typeof de> = {
     'c-myJob': {
       title: 'Din tjänst finns redan här',
       body: 'Din första tjänst har du redan lämnat in. Vi granskar den just nu och ger den sedan till våra headhunters, utan ditt företagsnamn.',
-      bodyLive: 'Din första tjänst har du redan lämnat in, och den är live. Kortet visar var sökningen står; ett klick öppnar tjänstesidan.',
+      bodyLive: 'Din tjänst är live. Kortet visar direkt hur långt sökningen har kommit, vem som är ny och hur många headhunters som söker. Kandidaterna och headhuntrarna här är exempel.',
+      p1: 'Hur långt sökningen har kommit',
+      p2: 'Vem som är med, blått är nytt',
+      p3: 'Vad som hände senast',
+      p4: 'Hur många headhunters som söker',
     },
     'c-jobsExample': {
       title: 'Så ser din tjänst ut när den är igång',
@@ -209,6 +213,7 @@ const sv: Messages<typeof de> = {
       concerns: 'Introduktion i våra system. Kan han börja tidigare?',
       colleagueName: 'Anna Weber',
       colleagueEmail: 'anna.weber@exempel.se',
+      colleagueMessage: 'Om tjänsten {{job}}: ge gärna kort feedback efter intervjuerna, så bestämmer vi tillsammans.',
     },
     data: {
       yourCompany: 'Exempelföretaget AB',

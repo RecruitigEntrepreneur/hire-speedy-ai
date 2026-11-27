@@ -146,7 +146,7 @@ export function PassendeStellenCard({ candidateId, firstName }: {
   const rollenFakt = ergebnis?.rollenQuelle === 'wunsch' ? t('openJobs.roleWish', { genitive: genitiv(v), name: v }) : t('openJobs.roleToday');
 
   return (
-    <Card>
+    <Card data-tour="dossier.jobs">
       <CardHeader className="space-y-1 pb-1">
         <div className="flex items-center justify-between gap-2">
           <CardTitle className="text-[15px] font-semibold tracking-tight">{t('openJobs.title')}</CardTitle>

@@ -537,7 +537,7 @@ export default function RecruiterDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
           {/* ─── CELL 1: Aufgaben (top-left) ─── */}
-          <Card>
+          <Card data-tour="dashboard.tasks">
             <CardContent className="p-4 sm:p-5">
               <div className="flex items-center justify-between gap-2 mb-3">
                 <div className="flex min-w-0 items-center gap-2">
@@ -672,7 +672,7 @@ export default function RecruiterDashboard() {
           </Card>
 
           {/* ─── CELL 2: Dein Geld, darunter die Pipeline als vier Zahlen (23.11.2026, Marko) ─── */}
-          <Card>
+          <Card data-tour="dashboard.pipeline">
             <CardContent className="p-4 sm:p-5">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex min-w-0 items-center gap-2"><Euro className="h-4 w-4 shrink-0 text-klick" aria-hidden="true" /><h2 className="text-[15px] font-semibold tracking-tight">{t('overview.title')}</h2></div>

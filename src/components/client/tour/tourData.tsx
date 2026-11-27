@@ -2,7 +2,7 @@ import { createContext, useContext, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '@/integrations/supabase/client';
-import { buildTourData, type TourData, type TourFallback, type TourJobSource } from '@/lib/clientDemo';
+import { buildTourData, isContracting, type TourData, type TourFallback, type TourJobSource } from '@/lib/clientDemo';
 
 /**
  * Woraus der Kunden-Rundgang seine Bilder baut: die neueste eingereichte Stelle des
@@ -16,7 +16,16 @@ const COLUMNS = 'id,title,status,location,salary_min,salary_max,employment_type,
 /** Eingereicht: live oder in Prüfung. Entwürfe zeigt der Rundgang nicht als „Ihre Stelle“. */
 const SUBMITTED = ['published', 'pending_approval', 'pending_client_approval'];
 
-/** Neueste eingereichte Stelle des Kunden; im Zweifel keine, dann läuft alles am Beispiel. */
+/** Aus den eingereichten Stellen (neueste zuerst) die erste in Festanstellung. */
+export function pickTourJob<R extends { employment_type?: unknown }>(rows: R[]): R | null {
+  return rows.find((r) => !isContracting(typeof r.employment_type === 'string' ? r.employment_type : null)) ?? null;
+}
+
+/**
+ * Neueste eingereichte Stelle des Kunden in FESTANSTELLUNG; im Zweifel keine, dann läuft alles
+ * am Beispiel. Contracting-Stellen zeigt der Rundgang nicht (Marko 17.11.2026: „wir wollen
+ * standardmäßig Festanstellung zeigen“ – bei Kanna Medics kam sonst immer „Der Einsatz“).
+ */
 export function useClientTourJob(userId: string | null) {
   return useQuery({
     queryKey: ['client-tour-job', userId],
@@ -25,9 +34,9 @@ export function useClientTourJob(userId: string | null) {
     queryFn: async (): Promise<TourJobSource | null> => {
       const { data, error } = await supabase.from('jobs').select(COLUMNS)
         .eq('client_id', userId!).in('status', SUBMITTED)
-        .order('created_at', { ascending: false }).limit(1);
+        .order('created_at', { ascending: false }).limit(20);
       if (error) return null;
-      const row = (data?.[0] ?? null) as Record<string, unknown> | null;
+      const row = pickTourJob((data ?? []) as Record<string, unknown>[]);
       if (!row) return null;
       const list = row.must_haves;
       return { ...(row as unknown as TourJobSource), must_haves: Array.isArray(list) ? list.map(String) : null };

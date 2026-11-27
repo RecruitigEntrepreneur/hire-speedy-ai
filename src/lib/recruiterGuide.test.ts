@@ -1,44 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { GUIDE_CHAPTERS, GUIDE_STATE_KEY, GUIDE_STEPS, matchRoute, placeCard, readGuideState, TOUR_SEEN_KEY, tourSeen, tourStorageKey, unionRect, visibleSteps } from './recruiterGuide';
+import { GUIDE_STATE_KEY, matchRoute, placeCard, readGuideState, TOUR_POSTPONED_KEY, TOUR_SEEN_KEY, tourPostponedStorageKey, tourSeen, tourSettled, tourStorageKey, unionRect } from './recruiterGuide';
+import { recruiterGuideSteps } from './recruiterTour';
 
 const viewport = { width: 1280, height: 800 };
 const card = { width: 360, height: 240 };
 
-describe('Begleiteter Rundgang: Ablauf', () => {
-  it('führt in sechs Kapiteln von der Begrüßung zum Abschluss, Kapitel für Kapitel', () => {
-    expect(GUIDE_STEPS[0].id).toBe('welcome');
-    expect(GUIDE_STEPS.at(-1)?.id).toBe('done');
-    expect(new Set(GUIDE_STEPS.map(s => s.chapter))).toEqual(new Set([1, 2, 3, 4, 5, 6]));
-    expect(GUIDE_CHAPTERS).toHaveLength(6);
-    const chapters = GUIDE_STEPS.map(s => s.chapter);
-    expect(chapters).toEqual([...chapters].sort((a, b) => a - b));
-    expect(new Set(GUIDE_STEPS.map(s => s.id)).size).toBe(GUIDE_STEPS.length);
-  });
-
-  it('lässt nichts Unumkehrbares anklicken', () => {
-    for (const id of ['activate', 'jobSubmit', 'candidatesAdd']) {
-      const step = GUIDE_STEPS.find(s => s.id === id)!;
-      expect(step.lockTarget).toBe(true);
-      expect(step.click).toBeUndefined();
-    }
-  });
-
-  it('jeder Klick-Schritt führt auf die Seite des nächsten Schritts', () => {
-    GUIDE_STEPS.forEach((step, i) => {
-      if (!step.click?.to) return;
-      expect(GUIDE_STEPS[i + 1].route).toBe(step.click.to);
-    });
-    const skip = GUIDE_STEPS.find(s => s.skipWhenMissing);
-    expect(GUIDE_STEPS.some(s => s.id === skip?.skipWhenMissing)).toBe(true);
-  });
-
-  it('lässt Vorschau-Schritte auf schmalen Bildschirmen weg', () => {
-    expect(visibleSteps(1280).map(s => s.id)).toContain('preview');
-    expect(visibleSteps(800).map(s => s.id)).not.toContain('preview');
-    expect(visibleSteps(800).map(s => s.id)).not.toContain('openPreview');
-    expect(visibleSteps(375).map(s => s.id)).toContain('openBriefing');
-  });
-
+describe('Begleiteter Rundgang: Seiten', () => {
   it('erkennt Seiten auch mit Kennung im Pfad', () => {
     expect(matchRoute('/recruiter/jobs/:id', '/recruiter/jobs/5f2c')).toBe(true);
     expect(matchRoute('/recruiter/jobs/:id', '/recruiter/jobs')).toBe(false);
@@ -92,13 +59,27 @@ describe('Begleiteter Rundgang: Merker', () => {
     expect(tourSeen(null, empty)).toBe(true);
   });
 
+  it('„Später“ hält den Rundgang an, ohne ihn abzuhaken', () => {
+    const user = { id: 'u1', user_metadata: {} };
+    const empty = { getItem: () => null };
+    expect(tourSettled(user, empty)).toBe(false);
+    expect(tourSettled({ ...user, user_metadata: { [TOUR_POSTPONED_KEY]: '2026-11-17' } }, empty)).toBe(true);
+    expect(tourSeen({ ...user, user_metadata: { [TOUR_POSTPONED_KEY]: '2026-11-17' } }, empty)).toBe(false);
+    expect(tourSettled(user, { getItem: key => (key === tourPostponedStorageKey('u1') ? '2026-11-17' : null) })).toBe(true);
+  });
+
+  it('der alte Merker gilt nicht mehr: Wer den alten Rundgang sah, bekommt den neuen einmal', () => {
+    expect(tourSeen({ id: 'u1', user_metadata: { recruiter_tour_seen_at: '2026-09-21' } }, { getItem: () => null })).toBe(false);
+  });
+
   it('setzt nur einen eigenen, gültigen Stand fort', () => {
+    const steps = recruiterGuideSteps();
     const store = (value: unknown) => ({ getItem: (key: string) => (key === GUIDE_STATE_KEY ? JSON.stringify(value) : null) });
-    expect(readGuideState(store({ userId: 'u1', stepId: 'filters', paused: false }), 'u1')).toEqual({ userId: 'u1', stepId: 'filters', paused: false });
-    expect(readGuideState(store({ userId: 'u2', stepId: 'filters' }), 'u1')).toBeNull();
-    expect(readGuideState(store({ userId: 'u1', stepId: 'gibtsnicht' }), 'u1')).toBeNull();
-    expect(readGuideState(store({ userId: 'u1', stepId: 'jobHeader', jobPath: '/recruiter/jobs/abc' }), 'u1')?.jobPath).toBe('/recruiter/jobs/abc');
-    expect(readGuideState(store({ userId: 'u1', stepId: 'jobHeader', jobPath: 'https://evil.example' }), 'u1')?.jobPath).toBeUndefined();
-    expect(readGuideState({ getItem: () => '{kaputt' }, 'u1')).toBeNull();
+    expect(readGuideState(store({ userId: 'u1', stepId: 'h-jobs', paused: false }), 'u1', steps)).toEqual({ userId: 'u1', stepId: 'h-jobs', paused: false });
+    expect(readGuideState(store({ userId: 'u2', stepId: 'h-jobs' }), 'u1', steps)).toBeNull();
+    expect(readGuideState(store({ userId: 'u1', stepId: 'filters' }), 'u1', steps)).toBeNull();
+    expect(readGuideState(store({ userId: 'u1', stepId: 'h-jobs', jobPath: '/recruiter/jobs/abc' }), 'u1', steps)?.jobPath).toBe('/recruiter/jobs/abc');
+    expect(readGuideState(store({ userId: 'u1', stepId: 'h-jobs', jobPath: 'https://evil.example' }), 'u1', steps)?.jobPath).toBeUndefined();
+    expect(readGuideState({ getItem: () => '{kaputt' }, 'u1', steps)).toBeNull();
   });
 });

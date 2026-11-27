@@ -223,7 +223,7 @@ export function LebenslaufAblageLeiste() {
       <li key={e.id} className="group flex items-center gap-2 border-b border-border/60 px-3 py-2 last:border-b-0">
         <div className="min-w-0 flex-1">
           {profil ? (
-            <button type="button" title={t('bar.openProfile')} className="flex max-w-full items-center truncate text-left text-sm font-medium hover:underline hover:underline-offset-2" onClick={() => navigate(profil)}>
+            <button type="button" title={t('bar.openProfile')} data-tour="ablage.name" className="flex max-w-full items-center truncate text-left text-sm font-medium hover:underline hover:underline-offset-2" onClick={() => navigate(profil)}>
               <Check className="mr-1 h-3.5 w-3.5 shrink-0 text-muted-foreground" /><span className="truncate">{titel}</span>
             </button>
           ) : (

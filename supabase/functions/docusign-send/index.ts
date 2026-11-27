@@ -119,6 +119,8 @@ serve(async (req) => {
       if (body?.draft_token) {
         const found = await resolveDraft(supabase, body.draft_token);
         if (!found.ok) return fail(found.reason!, found.message!);
+        // Eingeladene Kollegin (Rolle „beschreiben“): kein Vertrag.
+        if (found.token?.rolle === 'beschreiben') return fail('not_allowed', 'Diese Aktion ist der einladenden Person vorbehalten.');
         draftId = found.draft!.id;
       } else {
         const admin = await requireAdmin(req, supabase);

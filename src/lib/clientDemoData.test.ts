@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildTourData, DEMO, type TourJobSource } from './clientDemo';
-import { DEMO_IDS, DEMO_PHASES, demoRegistry, demoWorld, type DemoInput, type DemoPhase } from './clientDemoData';
+import { DEMO_IDS, DEMO_PHASES, colleagueAddress, demoRegistry, demoWorld, type DemoInput, type DemoPhase } from './clientDemoData';
 import type { DemoQuery } from './demoBackend';
 import { candidateAnonCode } from './anonymization';
 import { feedbackWayOf } from './interviewScheduling';
@@ -161,5 +161,16 @@ describe('Demo-Modus: jedes Bühnenbild gibt es', () => {
     ]) {
       for (const step of clientGuideSteps(ctx).filter((s) => s.scene)) expect(CLIENT_TOUR_SCENES[step.scene!], step.id).toBeTruthy();
     }
+  });
+});
+
+describe('Demo-Modus: Kollegin einladen, nah am Kunden', () => {
+  it('nimmt die Firmen-Domain des Kunden, bei Postfächern für alle die Beispieladresse', () => {
+    expect(colleagueAddress('anna.weber@beispiel.de', 'klara.berg@medtec-sued.de')).toBe('anna.weber@medtec-sued.de');
+    expect(colleagueAddress('anna.weber@beispiel.de', 'Klara@MedTec-Sued.DE')).toBe('anna.weber@medtec-sued.de');
+    expect(colleagueAddress('anna.weber@beispiel.de', 'klara@gmail.com')).toBe('anna.weber@beispiel.de');
+    expect(colleagueAddress('anna.weber@beispiel.de', 'klara@web.de')).toBe('anna.weber@beispiel.de');
+    expect(colleagueAddress('anna.weber@beispiel.de', '')).toBe('anna.weber@beispiel.de');
+    expect(colleagueAddress('anna.weber@beispiel.de', null)).toBe('anna.weber@beispiel.de');
   });
 });

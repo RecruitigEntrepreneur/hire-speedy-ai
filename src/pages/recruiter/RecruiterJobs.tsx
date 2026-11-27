@@ -34,7 +34,7 @@ import {
   Unlock,
 } from 'lucide-react';
 import { useRecruiterPending } from '@/components/verification/RecruiterAccessGate';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import i18n from '@/i18n';
 import { useRecruiterPipeline, PIPELINE_LABELS, type PipelineStageKey } from '@/hooks/useRecruiterPipeline';
@@ -302,6 +302,17 @@ export default function RecruiterJobs() {
     }
     setActivationDialogJobId(jobId);
   }, [pending, isSearching, effectiveCanActivate, jobs]);
+
+  // Rundgang (lib/recruiterTour.ts): Die Bühne öffnet „Aktiv suchen“ für die Beispielstelle selbst,
+  // auch nach Neuladen oder Zurück. Einmal je Adresse, sobald die Stelle in der Liste steht.
+  const tourState = useLocation().state as { tour?: string; jobId?: string } | null;
+  const tourOpened = useRef<string | null>(null);
+  useEffect(() => {
+    const id = tourState?.tour === 'activate' ? tourState.jobId : undefined;
+    if (!id || tourOpened.current === id || !jobs.some(j => j.id === id)) return;
+    tourOpened.current = id;
+    setActivationDialogJobId(id);
+  }, [tourState, jobs]);
 
   const handleConfirmActivation = useCallback(async (): Promise<ConfirmResult> => {
     if (!activationDialogJobId) return { ok: false, error: t('list.noJobChosen') };

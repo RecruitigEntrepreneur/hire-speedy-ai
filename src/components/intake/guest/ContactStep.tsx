@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Card, CardContent } from '@/components/ui/card';
+import { M3Kopf } from './m3';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { isFreemailAddress, isPlausibleEmail } from '@/lib/domain';
-import { Info, Building2, User, ArrowRight, Check, Loader2 } from 'lucide-react';
+import { Info, Building2, User, ArrowRight, Check, Loader2, UserRound } from 'lucide-react';
 import { isFailure, type GuestDraft } from '@/hooks/useGuestIntake';
 import {
   fehlendeFirmenangaben, hatRechtsform,
@@ -39,11 +39,22 @@ interface Props {
   onNext: () => void;
   /** Impressum-Leser: Firmierung, Anschrift, Register von der Firmendomain. */
   onEnrich?: (domain?: string) => Promise<Anreicherung | { reason: string; message: string }>;
+  /** Seit 26.11.2026 wird die Adresse am Anfang bestätigt: dann steht hier nur noch „bestätigt“. */
+  verifiedEmail?: string | null;
 }
 
 const REQUIRED = ['contact_name', 'contact_email', 'company_name'] as const;
 
-export function ContactStep({ draft, freemailBlocked, onChange, onNext, onEnrich }: Props) {
+/** Sind Kontakt und Firmendaten so weit, dass der Schritt „Kontakt“ weitergehen würde? */
+export function kontaktVollstaendig(draft: Record<string, unknown> | object): boolean {
+  const werte = Object.fromEntries(
+    Object.entries(draft as Record<string, unknown>).map(([k, v]) => [k, v == null ? '' : String(v)]),
+  ) as Record<string, string>;
+  if (REQUIRED.some((k) => !String(werte[k] ?? '').trim())) return false;
+  return fehlendeFirmenangaben(werte).length === 0;
+}
+
+export function ContactStep({ draft, freemailBlocked, onChange, onNext, onEnrich, verifiedEmail }: Props) {
   const { t } = useTranslation('clientFunnel');
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
@@ -157,7 +168,7 @@ export function ContactStep({ draft, freemailBlocked, onChange, onNext, onEnrich
     return (
       <div className={opts.span ? 'sm:col-span-2' : undefined}>
         <Label htmlFor={key} className="text-xs text-muted-foreground">
-          {label} {opts.required && <span className="text-destructive">*</span>}
+          {label} {opts.required && <span className="text-muted-foreground">*</span>}
         </Label>
         <Input
           id={key}
@@ -166,7 +177,7 @@ export function ContactStep({ draft, freemailBlocked, onChange, onNext, onEnrich
           placeholder={opts.placeholder}
           onChange={(e) => update(key, e.target.value)}
           onBlur={() => setTouched((t) => ({ ...t, [key]: true }))}
-          className="mt-1"
+          className="mt-1.5 h-11"
           aria-invalid={showError || undefined}
         />
         {opts.hint && <p className="mt-1 text-[11px] text-muted-foreground">{opts.hint}</p>}
@@ -175,23 +186,18 @@ export function ContactStep({ draft, freemailBlocked, onChange, onNext, onEnrich
   };
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
-      <div>
-        <h2 className="text-2xl font-semibold tracking-tight">{t('contact.title')}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t('contact.lead')}
-        </p>
-      </div>
+    /* Stil M3 (26.11.2026): Kopf mittig, zwei Gruppen ohne Karten, graue Felder, Weiter über die volle Breite. */
+    <div className="space-y-6">
+      <M3Kopf icon={UserRound} titel={t('contact.title')} lead={t('contact.lead')} />
 
-      <Card>
-        <CardContent className="space-y-4 p-5">
+      <section className="space-y-4">
           <p className="text-[15px] font-semibold tracking-tight">{t('contact.person')}</p>
           <div className="grid gap-4 sm:grid-cols-2">
             {field('contact_name', t('contact.name'), { required: true, placeholder: t('common.namePlaceholder') })}
             {field('contact_role', t('contact.role'), { placeholder: t('contact.rolePlaceholder') })}
             <div className="sm:col-span-2">
               <Label htmlFor="contact_email" className="text-xs text-muted-foreground">
-                {t('common.businessEmail')} <span className="text-destructive">*</span>
+                {t('common.businessEmail')} <span className="text-muted-foreground">*</span>
               </Label>
               <Input
                 id="contact_email"
@@ -202,7 +208,7 @@ export function ContactStep({ draft, freemailBlocked, onChange, onNext, onEnrich
                 placeholder={t('common.emailPlaceholder')}
                 onChange={(e) => update('contact_email', e.target.value)}
                 onBlur={nachEmail}
-                className="mt-1"
+                className="mt-1.5 h-11"
                 aria-invalid={emailInvalid || freemailRejected || undefined}
               />
               {emailInvalid && (
@@ -218,7 +224,11 @@ export function ContactStep({ draft, freemailBlocked, onChange, onNext, onEnrich
                   {t('contact.freemailHint')}
                 </p>
               )}
-              {!emailInvalid && !freemail && (
+              {verifiedEmail && email.trim().toLowerCase() === verifiedEmail.trim().toLowerCase() ? (
+                <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
+                  <Check className="h-3 w-3" /> {t('verify.confirmedTitle')}
+                </p>
+              ) : !emailInvalid && !freemail && (
                 <p className="mt-1 text-[11px] text-muted-foreground">
                   {t('contact.codeHint')}
                 </p>
@@ -226,11 +236,9 @@ export function ContactStep({ draft, freemailBlocked, onChange, onNext, onEnrich
             </div>
             {field('contact_phone', t('contact.phone'), { placeholder: t('contact.phonePlaceholder') })}
           </div>
-        </CardContent>
-      </Card>
+      </section>
 
-      <Card>
-        <CardContent className="space-y-4 p-5">
+      <section className="space-y-4 border-t pt-6">
           <p className="text-[15px] font-semibold tracking-tight">{t('contact.company')}</p>
           <div className="grid gap-4 sm:grid-cols-2">
             {field('company_name', t('contact.companyName'), {
@@ -254,7 +262,7 @@ export function ContactStep({ draft, freemailBlocked, onChange, onNext, onEnrich
               </p>
             )}
             {impressum.stand === 'gefunden' && (
-              <div className="rounded-lg bg-secondary/60 p-3 text-sm sm:col-span-2">
+              <div className="rounded-[14px] bg-secondary p-4 text-sm sm:col-span-2">
                 <p className="text-xs text-muted-foreground">{t('contact.imprintFound', { domain })}</p>
                 {impressum.daten.legal_name && <p className="mt-1 font-medium">{impressum.daten.legal_name}</p>}
                 <p className="text-muted-foreground">
@@ -289,18 +297,17 @@ export function ContactStep({ draft, freemailBlocked, onChange, onNext, onEnrich
             {field('company_vat_id', t('contact.vatId'), { placeholder: t('common.optional') })}
             {field('company_registration_number', t('contact.registration'), { placeholder: t('common.optional') })}
           </div>
-        </CardContent>
-      </Card>
+      </section>
 
-      <p className="text-xs text-muted-foreground">{t('contact.anonymityNote')}</p>
+      <p className="text-center text-xs leading-relaxed text-muted-foreground">{t('contact.anonymityNote')}</p>
 
-      <div className="flex items-center justify-end gap-3 border-t pt-4">
+      <div className="space-y-2.5 text-center">
         {missing.length > 0 && (
-          <span className="text-xs text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             {t('common.missing', { fields: missing.map((k) => t(`fieldLabel.${k}`, { defaultValue: k })).join(', ') })}
-          </span>
+          </p>
         )}
-        <Button onClick={onNext} disabled={!canProceed}>{t('common.next')}</Button>
+        <Button size="lg" className="w-full rounded-full" onClick={onNext} disabled={!canProceed}>{t('common.next')}</Button>
       </div>
     </div>
   );

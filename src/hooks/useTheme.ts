@@ -5,12 +5,17 @@ type Theme = 'dark' | 'light';
 const STORAGE_KEY = 'matchunt-theme';
 const SYNC_EVENT = 'matchunt:theme';
 
-export function useTheme() {
+/**
+ * `standard`: gilt nur, solange niemand selbst gewählt hat. Die Einstiege von außen
+ * (Kunden-Aufnahme, Anmeldung, Headhunter-Onboarding) starten hell (26.11.2026);
+ * die Wahl wird gespeichert und gilt danach überall.
+ */
+export function useTheme(standard: Theme = 'dark') {
   const [theme, setThemeState] = useState<Theme>(() => {
     if (typeof window !== 'undefined') {
-      return (localStorage.getItem(STORAGE_KEY) as Theme) || 'dark';
+      try { return (localStorage.getItem(STORAGE_KEY) as Theme) || standard; } catch { return standard; }
     }
-    return 'dark';
+    return standard;
   });
 
   useEffect(() => {
@@ -20,7 +25,7 @@ export function useTheme() {
     } else {
       root.classList.remove('light');
     }
-    localStorage.setItem(STORAGE_KEY, theme);
+    try { localStorage.setItem(STORAGE_KEY, theme); } catch { /* privates Fenster: dann nur für diese Seite */ }
     // Knopf oben und Einstellungen › Darstellung zeigen immer dasselbe (15.11.2026)
     window.dispatchEvent(new CustomEvent(SYNC_EVENT, { detail: theme }));
   }, [theme]);

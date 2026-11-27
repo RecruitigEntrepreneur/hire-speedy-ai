@@ -128,13 +128,19 @@ export default function ClientLogin() {
   };
   const [icon, title, lead] = head[phase];
 
-  return <div className="mh-ui mh-onboarding">
-    <header className="mh-header">
-      <div className="mh-actions"><a href="/" className="mh-brand" aria-label={t('login.homeLabel')}><MatchuntWordmark size="md"/></a><span className="mh-header-tag">{t('login.tag')}</span></div>
-      <div className="mh-header-account"><LanguageMenu/><ThemeToggle/></div>
+  // Stil M3 (26.11.2026): wie das Headhunter-Onboarding -- grauer Grund, Blatt in der Mitte, Logo mittig.
+  return <div className="mh-ui mh-onboarding mh-neu mh-m3 min-h-screen">
+    <header className="mx-auto grid max-w-5xl grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 py-4 md:px-6">
+      <div/>
+      <a href="/" className="flex flex-col items-center" aria-label={t('login.homeLabel')}>
+        <MatchuntWordmark size="md"/>
+        <span className="mt-0.5 text-[11px] text-muted-foreground">{t('login.tag')}</span>
+      </a>
+      <div className="flex items-center justify-end gap-2"><LanguageMenu/><ThemeToggle standard="light"/></div>
     </header>
-    <LanguageHint/>
-    <main className="mh-main mh-login">
+    <LanguageHint className="border-b-0"/>
+    <main className="mx-auto max-w-xl px-3 pb-6 md:px-6">
+      <div className="mh-blatt rounded-[22px] px-5 py-7 sm:px-8 sm:py-8">
       <section className="mh-panel" aria-live="polite">
         <div className="mh-verify">
           <div className="mh-verify-icon">{icon}</div>
@@ -175,7 +181,12 @@ export default function ClientLogin() {
           {error && <p role="alert" className="mh-alert mh-error">{error}</p>}
         </div>
       </section>
-      <footer className="mh-footer"><span>{t('login.footer')}</span><div><a href="/impressum">{t('login.imprint')}</a><a href="/datenschutz">{t('login.privacy')}</a></div></footer>
+      </div>
+      <footer className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 pb-10 pt-6 text-xs text-muted-foreground">
+        <span>{t('login.footer')}</span>
+        <a className="hover:text-foreground" href="/impressum">{t('login.imprint')}</a>
+        <a className="hover:text-foreground" href="/datenschutz">{t('login.privacy')}</a>
+      </footer>
     </main>
   </div>;
 }

@@ -219,7 +219,7 @@ export function VorstellenFenster({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-2rem)] max-w-4xl gap-0 overflow-hidden p-0">
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-4xl gap-0 overflow-hidden p-0" data-tour="vorstellen.window">
         {schritt === 'auswahl' && kandidatFest && kandidat ? (
           <StellenWahl kandidat={kandidat} searches={searches} initialJobId={initialJobId} schritte={schritte}
             onWahl={stelleGewaehlt} onClose={() => onOpenChange(false)} />
@@ -341,7 +341,7 @@ function StellenWahl({ kandidat, searches, initialJobId, schritte, onWahl, onClo
               eingereicht.has(j.id) ? (
                 <Zeile key={j.id} gedimmt titel={j.title} unter={t('jobPick.alreadyHere', { name })} rechts={<Pill>{t('jobPick.presented')}</Pill>} />
               ) : (
-                <Zeile key={j.id} titel={j.title} unter={unterzeile(j)} rechts={<>{fitPill(j)}<ChevronRight className="h-4 w-4 text-muted-foreground" /></>} onClick={() => onWahl(j)} />
+                <Zeile key={j.id} stelle={j.id} titel={j.title} unter={unterzeile(j)} rechts={<>{fitPill(j)}<ChevronRight className="h-4 w-4 text-muted-foreground" /></>} onClick={() => onWahl(j)} />
               )
             ))}
           </Gruppe>
@@ -606,7 +606,7 @@ function VorstellenAblauf({ job, firma, kandidat, schritt, setSchritt, schritte,
     const weiterOk = !v.akte.loading && !v.blocked && !v.pruefungLaeuft && !offeneWarnung;
     return (
       <Rahmen schritte={schritte} aktuell="passung" rail={rail}
-        fuss={<>{zurueckZurAuswahl}<Button onClick={() => setSchritt('kunde')} disabled={!weiterOk}>
+        fuss={<>{zurueckZurAuswahl}<Button data-tour="vorstellen.next" onClick={() => setSchritt('kunde')} disabled={!weiterOk}>
           {v.pruefungLaeuft ? <><Loader2 className="mr-1.5 h-4 w-4 animate-spin" />{t('checking')}</> : <>{abweichungen.length && !v.blocked ? t('fit.continueAnyway') : t('next')}<ChevronRight className="ml-1 h-4 w-4" /></>}
         </Button></>}>
         {v.akte.loading ? <Lade text={t('fit.loadingFile')} /> : (
@@ -661,7 +661,7 @@ function VorstellenAblauf({ job, firma, kandidat, schritt, setSchritt, schritte,
   if (schritt === 'kunde') {
     return (
       <Rahmen schritte={schritte} aktuell="kunde" rail={rail}
-        fuss={<><Button variant="outline" onClick={() => setSchritt('passung')}><ChevronLeft className="mr-1 h-4 w-4" />{t('back')}</Button><Button onClick={() => setSchritt('abschicken')}>{t('next')}<ChevronRight className="ml-1 h-4 w-4" /></Button></>}>
+        fuss={<><Button variant="outline" onClick={() => setSchritt('passung')}><ChevronLeft className="mr-1 h-4 w-4" />{t('back')}</Button><Button data-tour="vorstellen.next" onClick={() => setSchritt('abschicken')}>{t('next')}<ChevronRight className="ml-1 h-4 w-4" /></Button></>}>
         <Kundenansicht v={v} kandidatId={kandidat.id} name={name} firma={firma} />
       </Rahmen>
     );
@@ -674,7 +674,7 @@ function VorstellenAblauf({ job, firma, kandidat, schritt, setSchritt, schritte,
     return (
       <Rahmen schritte={schritte} aktuell="abschicken" rail={rail}
         fuss={<><Button variant="outline" onClick={() => setSchritt('kunde')}><ChevronLeft className="mr-1 h-4 w-4" />{t('back')}</Button>
-          <Button onClick={() => void abschicken()} disabled={!darf}>{busy ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Send className="mr-1.5 h-4 w-4" />}{t('send.button', { name })}</Button></>}>
+          <Button data-tour="vorstellen.send" onClick={() => void abschicken()} disabled={!darf}>{busy ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Send className="mr-1.5 h-4 w-4" />}{t('send.button', { name })}</Button></>}>
         <h3 className="text-lg font-semibold">{firma ? t('send.titleCompany', { name, company: firma }) : t('send.titleJob', { name, job: job.title })}</h3>
         <p className="mb-4 mt-1 text-sm text-muted-foreground">{t('send.subtitle')}</p>
         <div className="space-y-2 rounded-xl border border-border p-3.5 text-sm">
@@ -685,7 +685,7 @@ function VorstellenAblauf({ job, firma, kandidat, schritt, setSchritt, schritte,
           <CvZeile cv={v.akte.cv} onNeu={() => setCvOpen(true)} />
         </div>
         <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-border px-3.5 py-3 text-sm">
-          <Checkbox className="mt-0.5" checked={consent} onCheckedChange={(c) => setConsent(c === true)} />
+          <Checkbox className="mt-0.5" data-tour="vorstellen.consent" checked={consent} onCheckedChange={(c) => setConsent(c === true)} />
           <span>
             {firma ? t('send.consentCompany', { name, company: firma }) : t('send.consentGeneric', { name })}
             {zustimmungAm && <span className="mt-1 block text-xs text-muted-foreground">{t('send.consentInInterview', { date: zustimmungAm, name })}</span>}
@@ -969,7 +969,7 @@ function Gruppe({ titel, children }: { titel: string; children: ReactNode }) {
 
 const initialen = (n: string) => n.split(/\s+/).filter((p) => p && p.toLowerCase() !== 'test').map((p) => p[0]).slice(0, 2).join('').toUpperCase();
 
-function Zeile({ titel, unter, rechts, onClick, gedimmt = false, avatar }: { titel: string; unter?: string; rechts?: ReactNode; onClick?: () => void; gedimmt?: boolean; avatar?: string }) {
+function Zeile({ titel, unter, rechts, onClick, gedimmt = false, avatar, stelle }: { titel: string; unter?: string; rechts?: ReactNode; onClick?: () => void; gedimmt?: boolean; avatar?: string; /** Anker für den Rundgang: Kennung der Stelle */ stelle?: string }) {
   const inhalt = (
     <>
       {avatar && <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold">{initialen(avatar) || '?'}</span>}
@@ -982,7 +982,7 @@ function Zeile({ titel, unter, rechts, onClick, gedimmt = false, avatar }: { tit
   );
   const cls = cn('flex w-full items-center gap-3 px-3 py-2.5 text-left', gedimmt && 'opacity-50');
   return onClick
-    ? <button type="button" className={cn(cls, 'transition-colors hover:bg-muted/50')} onClick={onClick}>{inhalt}</button>
+    ? <button type="button" data-job-row={stelle} className={cn(cls, 'transition-colors hover:bg-muted/50')} onClick={onClick}>{inhalt}</button>
     : <div className={cls}>{inhalt}</div>;
 }
 

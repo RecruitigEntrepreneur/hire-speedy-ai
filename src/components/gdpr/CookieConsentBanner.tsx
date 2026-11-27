@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { setCookieBannerOpen } from "@/lib/cookieBanner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -13,8 +14,14 @@ export function CookieConsentBanner() {
   const { t } = useTranslation("privacy");
   const [showSettings, setShowSettings] = useState(false);
   const [isVisible, setIsVisible] = useState(!hasConsented);
+  const shown = isVisible && !hasConsented;
+  // Der Rundgang wartet, solange der Hinweis offen ist (lib/cookieBanner.ts).
+  useEffect(() => {
+    setCookieBannerOpen(shown);
+    return () => setCookieBannerOpen(false);
+  }, [shown]);
 
-  if (!isVisible || hasConsented) return null;
+  if (!shown) return null;
 
   const handleAcceptAll = () => {
     acceptAll();

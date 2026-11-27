@@ -83,7 +83,7 @@ export function SearchHeroAction({ search, jobPaused, pausedUntil, onStart, onSu
   if (ruht(search, jobPaused)) {
     return <Button size="lg" disabled><PauseCircle />{jobPaused ? pausedText(pausedUntil, t) : t('hero.searchRests')}</Button>;
   }
-  if (!search.searching) return <Button size="lg" onClick={onStart}>{candidateName ? t('hero.searchAndPresent', { name: candidateName }) : t('hero.iSearch')}</Button>;
+  if (!search.searching) return <Button size="lg" data-tour="job.search" onClick={onStart}>{candidateName ? t('hero.searchAndPresent', { name: candidateName }) : t('hero.iSearch')}</Button>;
   return <Button size="lg" onClick={onSubmit}>{candidateName ? t('hero.present', { name: candidateName }) : t('hero.prepare')}</Button>;
 }
 
@@ -138,7 +138,7 @@ export function SearchMobileAction({ search, jobPaused, pausedUntil, onStart, on
     return <Button className="min-w-0 flex-1" disabled><PauseCircle />{jobPaused ? pausedText(pausedUntil, t) : t('hero.searchRests')}</Button>;
   }
   if (!search.loading && !search.searching) {
-    return <Button className="min-w-0 flex-1" onClick={onStart}>{candidateName ? t('hero.present', { name: candidateName }) : t('hero.iSearch')}</Button>;
+    return <Button className="min-w-0 flex-1" data-tour="job.search" onClick={onStart}>{candidateName ? t('hero.present', { name: candidateName }) : t('hero.iSearch')}</Button>;
   }
   return <Button className="min-w-0 flex-1" onClick={onSubmit}>{candidateName ? t('hero.present', { name: candidateName }) : t('hero.prepare')}</Button>;
 }

@@ -62,7 +62,7 @@ export function OfferAnswerDialog({ submissionId, onClose, onDone }: Props) {
   });
   return (
     <Dialog open={!!submissionId} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl" data-tour="offerAnswer.window">
         {ctx.isLoading || !ctx.data ? (
           <>
             <DialogHeader><DialogTitle>{t('answer.title')}</DialogTitle><DialogDescription>{t('common.loading')}</DialogDescription></DialogHeader>
@@ -214,7 +214,7 @@ function AnswerForm({ c, onClose, onDone }: { c: RecruiterOfferContext; onClose:
           <p>{t('answer.callFirst', { when: whenDe(cand!.mailDueAt!, now) })}</p>
           <div className="flex flex-wrap gap-2">
             {callButton}
-            <Button size="sm" className="h-8" disabled={!!busy} onClick={talked}>
+            <Button size="sm" className="h-8" data-tour="offerAnswer.talked" disabled={!!busy} onClick={talked}>
               {busy === 'talked' && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}{t('answer.talkedSend')}
             </Button>
           </div>
@@ -293,7 +293,7 @@ function AnswerForm({ c, onClose, onDone }: { c: RecruiterOfferContext; onClose:
             <p className="mb-1.5 text-sm font-medium">{t('answer.answeredByPhone', { name })}</p>
             <div className="grid grid-cols-3 gap-1 rounded-md border border-border/60 bg-muted/30 p-1">
               {WAYS.map((w) => (
-                <button key={w} type="button" onClick={() => setWay(way === w ? null : w)}
+                <button key={w} type="button" data-way={w} onClick={() => setWay(way === w ? null : w)}
                   className={cn('rounded px-2 py-1.5 text-sm', way === w ? 'bg-background font-medium shadow-sm' : 'text-muted-foreground hover:text-foreground')}>
                   {t(`answer.ways.${w}`)}
                 </button>
@@ -355,7 +355,7 @@ function AnswerForm({ c, onClose, onDone }: { c: RecruiterOfferContext; onClose:
         )}
         <Button variant="ghost" onClick={onClose}>{open && way ? t('common.cancel') : t('common.close')}</Button>
         {open && way && (
-          <Button disabled={!!busy || !ready} onClick={save}>
+          <Button data-tour="offerAnswer.accept" disabled={!!busy || !ready} onClick={save}>
             {busy === 'save' && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
             {way === 'accepted' ? t('answer.ways.accepted') : way === 'countered' ? t('answer.sendTo', { company: firma }) : t('answer.ways.declined')}
           </Button>

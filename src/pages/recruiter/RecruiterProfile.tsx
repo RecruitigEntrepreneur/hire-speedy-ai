@@ -87,12 +87,13 @@ function ProfileTabs({ items, active, status }: { items: typeof MENU; active: Se
   const { t } = useTranslation('recruiterProfile');
   const activeRef = useRef<HTMLAnchorElement>(null);
   useEffect(() => { activeRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }, [active]);
-  return <nav aria-label={t('tabsAria')} className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+  return <nav aria-label={t('tabsAria')} data-tour="profile.tabs" className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
     {/* Apple-Stil (25.11.2026, Fassung A): Pillen wie auf den anderen Seiten; Reihenfolge und Adressen unverändert */}
     <div className="inline-flex min-w-max gap-0.5 rounded-full bg-secondary p-1">
       {items.map(m => {
         const s = status[m.id];
         return <NavLink key={m.id} to={pathOf(m.id)} end ref={m.id === active ? activeRef : undefined}
+          data-tour={m.id === 'terminseite' ? 'profile.tab.booking' : m.id === 'ueber-dich' ? 'profile.tab.about' : undefined}
           className={({ isActive }) => cn('flex items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm transition-colors',
             isActive ? 'bg-background font-medium text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>
           {t(`menu.${m.id}`)}

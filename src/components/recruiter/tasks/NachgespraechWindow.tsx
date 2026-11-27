@@ -97,11 +97,11 @@ interface Umfeld {
 }
 const UMFELD_LEER: Umfeld = { interview: null, akte: { expected_salary: null, notice_period: null, availability_date: null }, stelle: { salary_min: null, salary_max: null }, rollen: [], verlauf: [] };
 
-function Chips<T extends string>({ options, value, onChange }: { options: { key: T; label: string }[]; value: T | null; onChange: (v: T | null) => void }) {
+function Chips<T extends string>({ options, value, onChange, name }: { options: { key: T; label: string }[]; value: T | null; onChange: (v: T | null) => void; name?: string }) {
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap gap-1.5" data-field={name}>
       {options.map(o => (
-        <Button key={o.key} type="button" size="sm" variant={value === o.key ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => onChange(value === o.key ? null : o.key)}>{o.label}</Button>
+        <Button key={o.key} type="button" data-chip={o.key} aria-pressed={value === o.key} size="sm" variant={value === o.key ? 'default' : 'outline'} className="h-7 text-xs" onClick={() => onChange(value === o.key ? null : o.key)}>{o.label}</Button>
       ))}
     </div>
   );
@@ -317,7 +317,7 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot, onEmpf
 
   return (
     <Dialog open onOpenChange={o => { if (!o) onClose(); }}>
-      <DialogContent className="max-h-[90vh] gap-0 overflow-y-auto p-0 sm:max-w-3xl">
+      <DialogContent className="max-h-[90vh] gap-0 overflow-y-auto p-0 sm:max-w-3xl" data-tour="debrief.window">
         <DialogHeader className="space-y-2 border-b p-5 pb-4 text-left">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">{initials(target.candidateName)}</div>
@@ -408,7 +408,7 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot, onEmpf
                       <Textarea value={form.verlauf} onChange={e => set('verlauf', e.target.value)} rows={2} className="text-sm" placeholder={t('nach.q.howWentPlaceholder', { who: werNom })} />
                     </Frage>
                     <Frage label={t('nach.q.gut')} fehlt={!form.bauchgefuehl}>
-                      <Chips options={opts(BAUCH, 'bauch')} value={form.bauchgefuehl} onChange={v => set('bauchgefuehl', v)} />
+                      <Chips name="bauch" options={opts(BAUCH, 'bauch')} value={form.bauchgefuehl} onChange={v => set('bauchgefuehl', v)} />
                     </Frage>
                     <Frage label={t('nach.q.collaboration')}>
                       <Chips options={opts(DREI, 'drei')} value={form.zusammenarbeit} onChange={v => set('zusammenarbeit', v)} />
@@ -424,18 +424,18 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot, onEmpf
                       )}
                     </Frage>
                     <Frage label={t('nach.q.offer', { who: werNom })}>
-                      <Input value={euroText.af} onChange={e => setEuroText(t => ({ ...t, af: e.target.value }))} className="h-8 text-sm" placeholder={t('nach.q.fixMin')} inputMode="numeric" />
+                      <Input data-field="fixMin" value={euroText.af} onChange={e => setEuroText(t => ({ ...t, af: e.target.value }))} className="h-8 text-sm" placeholder={t('nach.q.fixMin')} inputMode="numeric" />
                       <MultiChips options={opts(ANGEBOT_PUNKTE, 'angebot')} value={form.angebot_punkte} onChange={v => set('angebot_punkte', v)} />
                       <Input value={form.angebot_text} onChange={e => set('angebot_text', e.target.value)} className="h-8 text-sm" placeholder={t('nach.q.offerOther')} />
                     </Frage>
                     <Frage label={t('nach.q.start')}>
-                      <Chips options={opts(START, 'start')} value={form.start_art} onChange={v => set('start_art', v)} />
+                      <Chips name="start" options={opts(START, 'start')} value={form.start_art} onChange={v => set('start_art', v)} />
                       {form.start_art === 'fester_tag' && (
                         <Input type="date" value={form.start_datum ?? ''} onChange={e => set('start_datum', e.target.value || null)} className="h-8 w-44 text-sm" />
                       )}
                     </Frage>
                     <Frage label={t('nach.q.wantsOn', { who: werNom })} fehlt={!form.will_weiter}>
-                      <Chips options={opts(DREI, 'drei')} value={form.will_weiter} onChange={v => set('will_weiter', v)} />
+                      <Chips name="weiter" options={opts(DREI, 'drei')} value={form.will_weiter} onChange={v => set('will_weiter', v)} />
                       <Input value={form.bedenken} onChange={e => set('bedenken', e.target.value)} className="h-8 text-sm" placeholder={t('nach.q.concernsPlaceholder')} />
                     </Frage>
                   </div>
@@ -493,7 +493,7 @@ export function NachgespraechWindow({ target, onClose, onDone, laterSlot, onEmpf
               {laterSlot}
               {target.submissionId && <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => navigate(`/recruiter/submissions/${target.submissionId}`)}>{t('window.submission')}</Button>}
               {existing && <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setEditing(false)}>{t('nach.cancel')}</Button>}
-              <Button size="sm" className="h-8 text-xs" disabled={saving || loading || !istAusgefuellt(aktuell)} onClick={save}>{existing ? t('nach.update') : t('nach.save')}</Button>
+              <Button size="sm" className="h-8 text-xs" data-tour="debrief.save" disabled={saving || loading || !istAusgefuellt(aktuell)} onClick={save}>{existing ? t('nach.update') : t('nach.save')}</Button>
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-1.5">

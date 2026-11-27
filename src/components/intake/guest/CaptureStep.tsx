@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { intlLocale } from '@/i18n/languages';
 import { frageChapterT, slotLabelNachKeyT, slotLabelT } from '@/lib/briefCatalogText';
@@ -17,7 +17,8 @@ import { CatalogFields } from '@/components/dashboard/intake/CatalogFields';
 import { einzelneBezeichnungen } from '../../../../supabase/functions/_shared/abteilung';
 import { CollapsibleGroup } from './CollapsibleGroup';
 import { ContractKindStep, ContractKindDeclined } from './ContractKindStep';
-import { EtappenAnsicht } from './EtappenAnsicht';
+import { DIALOG_IN_REIHENFOLGE, EtappenAnsicht } from './EtappenAnsicht';
+import { useVorschlaege } from './vorschlaege';
 import {
   BRIEF_QUESTIONS, EMPTY_CATALOG_STATE, blockingGaps, completeness as katalogCompleteness, knownFromForm, nextQuestion,
   ungepruefte, slotLabel, slotChipWert, slotChips,
@@ -36,7 +37,9 @@ import {
 import { isFailure } from '@/hooks/useGuestIntake';
 import { docxToText, isDocx } from '@/lib/docxText';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, ChevronDown, FileText, FileUp, Link2, Loader2, Sparkles } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, ChevronDown, FileText, FileUp, Link2, Loader2, PenLine, Sparkles, UserRound, Users } from 'lucide-react';
+import { minutenOhneAnzeige } from './etappenZeit';
+import { M3Hinweis, M3Kopf, M3Zeile, useIntakeBack, useIntakeM3 } from './m3';
 
 /**
  * Die Aufnahme selbst — dieselben Bausteine wie im Dashboard-Studio.
@@ -149,6 +152,28 @@ interface Props {
   /** Etappen-Kopf: rechts oben (Ablauf) und Meldung, solange er sichtbar ist. */
   kopfRechts?: React.ReactNode;
   onKopf?: (sichtbar: boolean) => void;
+  /**
+   * Gast-Aufnahme seit 27.11.2026 (Marko): Art wählen, die Stelle hineingeben
+   * (Anzeige ablegen oder „Worum geht es?“), DANN die E-Mail -- vor den Fragen.
+   * Wer einladen will, bestätigt vor dem Einladen. Solange die E-Mail fehlt,
+   * zeigt dieser Schritt an diesen Stellen `bestaetigung` (den Code-Schritt)
+   * und macht danach dort weiter, wo der Kunde hinwollte.
+   */
+  sperreBisBestaetigt?: boolean;
+  /** Der Code-Schritt; `weiter` setzt den gewählten Weg fort, `status` sagt, was inzwischen läuft. */
+  bestaetigung?: (weiter: () => void, ziel: 'fragen' | 'einladen' | 'anzeige', status: ReactNode | null) => ReactNode;
+  /** Die Art der Besetzung ist gewählt. */
+  onArt?: () => void;
+  /** Hochzählen: zurück zur Wahl der Art (Zurück aus dem Code-Schritt). */
+  artZeigen?: number;
+  /** Die Art ist schon gewählt (vor dem Code-Schritt): nach der Bestätigung gleich der Einstieg. */
+  nachWahl?: boolean;
+  /** Variante C: „Jemand anderes kennt sie besser“ -- Kollegin einladen. Fehlt, wird die Zeile nicht gezeigt. */
+  onKollegen?: () => void;
+  /** Gleichzeitiges Arbeiten: wo ich gerade bin (Schritt der Stelle oder Einstieg). */
+  onOrt?: (ort: { id: string; label: string; etappe?: number | null }) => void;
+  /** Eingeladene Kollegin: die Art der Besetzung hat der Einladende gewählt, sie bleibt fest. */
+  artFest?: boolean;
 }
 
 /** Welcher Einstieg gerade zu sehen ist. */
@@ -156,13 +181,15 @@ interface Props {
 // selbst. 'reselect' ist etwas anderes: der bewusste Rueckweg aus dem Editor
 // zur Startauswahl. Beides in einen Wert zu legen hiesse, den Rueckweg nicht
 // vom Ausgangszustand unterscheiden zu koennen.
-type EntryMode = 'kind' | 'anue' | 'confirm' | 'choose' | 'reselect' | 'paste' | 'url';
+// 'anzeige': Variante C der Gast-Aufnahme -- seit 27.11.2026 (E1) ein Blatt zum Ablegen, Einfügen oder Verlinken.
+type EntryMode = 'kind' | 'anue' | 'confirm' | 'choose' | 'reselect' | 'paste' | 'url' | 'anzeige';
 
 export function CaptureStep({
   state, onState, companyDefaults, seedTitle, seedText, contactName,
   askAi, parseText, parseUrl, parsePdf, onNext, onResumeLater, company, onCompany, onEnrich,
   nextLabel: nextLabelProp, entrySub, entryExtras, autoBuildText, autoBuildFile,
   fertigesProfil = false, firmaFest = null, firmen = [], firmaId = null, onFirma, ansicht = 'etappen', speicherStand, kopfRechts, onKopf,
+  sperreBisBestaetigt = false, bestaetigung, onArt, artZeigen = 0, nachWahl = false, onKollegen, onOrt, artFest = false,
 }: Props) {
   const { t, i18n } = useTranslation(['intake', 'intakeCatalog']);
   // Nicht als Default-Parameter: der Text folgt der gewählten Sprache.
@@ -180,7 +207,7 @@ export function CaptureStep({
    * vorgeschaltete Wahl waere eine Huerde vor dem einfachsten Weg.
    */
   const [entryMode, setEntryMode] = useState<EntryMode>(
-    seedTitle ? 'confirm' : state.built ? 'choose' : 'kind',
+    nachWahl ? 'choose' : seedTitle ? 'confirm' : state.built ? 'choose' : 'kind',
   );
   const [building, setBuilding] = useState(false);
   const [aiNote, setAiNote] = useState<string | null>(null);
@@ -188,6 +215,76 @@ export function CaptureStep({
   const [lesenGescheitert, setLesenGescheitert] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const briefingRef = useRef<HTMLDivElement>(null);
+
+  // Stil M3 (nur Gast-Aufnahme): „‹ Zurück“ oben links für die Einstiegsseiten.
+  // Sobald die Etappen zu sehen sind, meldet EtappenAnsicht ihr eigenes Zurück an.
+  const m3 = useIntakeM3();
+  // E-Mail vor den Fragen (27.11.2026): der Code-Schritt erscheint hier, wenn der
+  // gewählte Weg weiter will. Kam jemand mit begonnener Stelle unbestätigt zurück
+  // (Neuladen), steht er gleich da.
+  const [bestaetigen, setBestaetigen] = useState<'fragen' | 'einladen' | null>(
+    () => (sperreBisBestaetigt && bestaetigung && state.built ? 'fragen' : null),
+  );
+  const fortsetzung = useRef<(() => void) | null>(null);
+  /** Der Ja-Weg: die Anzeige wird gelesen, während der Code kommt. */
+  const [ausAnzeigeGelesen, setAusAnzeigeGelesen] = useState(false);
+  const vorBestaetigung = (ziel: 'fragen' | 'einladen', weiter: () => void) => {
+    if (!sperreBisBestaetigt || !bestaetigung) { weiter(); return; }
+    fortsetzung.current = weiter;
+    setBestaetigen(ziel);
+  };
+  /** Die Anzeige wird gelesen; derweil kommt der Code-Schritt (Text, Link und Datei gleich). */
+  const lesenUndBestaetigen = () => {
+    setAusAnzeigeGelesen(true);
+    vorBestaetigung('fragen', () => {});
+  };
+  const nachBestaetigung = () => {
+    const f = fortsetzung.current;
+    fortsetzung.current = null;
+    setBestaetigen(null);
+    f?.();
+  };
+  const zeigtEtappen = ansicht === 'etappen' && !!state.built && !['reselect', 'paste', 'url', 'kind', 'anue', 'anzeige'].includes(entryMode);
+  const einstiegZurueck =
+    bestaetigen ? () => { fortsetzung.current = null; setBestaetigen(null); }
+    : entryMode === 'anue' ? () => setEntryMode('kind')
+    : entryMode === 'anzeige' ? () => setEntryMode(state.built ? 'reselect' : 'choose')
+    : entryMode === 'paste' || entryMode === 'url' ? () => setEntryMode(seedTitle ? 'confirm' : 'choose')
+    : entryMode === 'reselect' && state.built ? () => setEntryMode(seedTitle ? 'confirm' : 'choose')
+    : entryMode === 'choose' && !state.built && !artFest ? () => setEntryMode(seedTitle ? 'confirm' : 'kind')
+    : entryMode === 'kind' && state.built ? () => setEntryMode('choose')
+    : null;
+  useIntakeBack(einstiegZurueck, m3 && (!zeigtEtappen || !!bestaetigen));
+
+  // Außerhalb der Etappen meldet der Einstieg den Ort (die Etappen melden ihren Schritt selbst).
+  useEffect(() => {
+    if (!zeigtEtappen) onOrt?.({ id: 'einstieg', label: t('capture.entry.title') });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zeigtEtappen]);
+  // E1 (27.11.2026): Solange das Ablage-Blatt offen ist, nimmt die ganze Seite eine
+  // Datei an. Sonst öffnete der Browser ein knapp daneben abgelegtes PDF selbst.
+  const ablageOffen = m3 && entryMode === 'anzeige' && !building;
+  const ablegenRef = useRef<(e: DragEvent) => void>(() => {});
+  useEffect(() => {
+    if (!ablageOffen) return;
+    const ueber = (e: DragEvent) => { if (e.dataTransfer?.types.includes('Files')) { e.preventDefault(); setDragging(true); } };
+    const weg = (e: DragEvent) => { if (!e.relatedTarget) setDragging(false); };
+    const ab = (e: DragEvent) => { e.preventDefault(); setDragging(false); ablegenRef.current(e); };
+    window.addEventListener('dragover', ueber);
+    window.addEventListener('dragleave', weg);
+    window.addEventListener('drop', ab);
+    return () => { window.removeEventListener('dragover', ueber); window.removeEventListener('dragleave', weg); window.removeEventListener('drop', ab); setDragging(false); };
+  }, [ablageOffen]);
+
+  const artGezeigt = useRef(artZeigen);
+  useEffect(() => {
+    if (artGezeigt.current === artZeigen) return;
+    artGezeigt.current = artZeigen;
+    fortsetzung.current = null;
+    setBestaetigen(null);
+    setEntryMode(seedTitle && !state.built ? 'confirm' : 'kind');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [artZeigen]);
 
   const { built, answers, dyn, freelance, flexibility, revealSetup, type } = state;
 
@@ -234,7 +331,7 @@ export function CaptureStep({
     setAiNote(null);
     setLesenGescheitert(false);
     const res =
-      mode === 'url' ? await parseUrl(url.trim())
+      mode === 'url' ? await parseUrl((textOverride ?? url).trim())
       : mode === 'pdf' ? await parsePdf(file!)
       : await parseText((textOverride ?? text).trim());
     setBuilding(false);
@@ -383,7 +480,8 @@ export function CaptureStep({
           return;
         }
         setText(inhalt);
-        await buildFrom('text', undefined, inhalt);
+        void buildFrom('text', undefined, inhalt);
+        lesenUndBestaetigen();
       } catch (err) {
         setBuilding(false);
         setAiNote(err instanceof Error ? err.message : t('capture.note.wordUnreadable'));
@@ -392,6 +490,7 @@ export function CaptureStep({
     }
     if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
       void buildFrom('pdf', file);
+      lesenUndBestaetigen();
       return;
     }
     setAiNote(t('capture.note.wrongFileType'));
@@ -419,7 +518,8 @@ export function CaptureStep({
    *  Vorher rief dessen Knopf onNext direkt und umging Titel, Firma, Standort
    *  und Gehaltsband. */
   const weiter = () => {
-    if (sperren.length > 0) {
+    // Die eingeladene Kollegin gibt auch mit Lücken zurück; fertig macht der Einladende.
+    if (sperren.length > 0 && !artFest) {
       zeigeFeld(sperren[0].key);
       toast.error(t('capture.toast.missingToContinue', { fields: sperren.map((s) => s.label).join(', ') }));
       return;
@@ -463,6 +563,30 @@ export function CaptureStep({
     }),
     [vorwissen, built, freelance, type, flexibility, dyn.catalog?.known],
   );
+
+  // Antwort-Vorschläge der KI vorausladen (Variante A, 27.11.2026): schon während des
+  // Code-Schritts für die ersten Fragen, danach einen Schritt voraus (EtappenAnsicht).
+  const vorschlaege = useVorschlaege({
+    askAi, type, jobDraft, known: katalogKnown,
+    askedFollowups: dyn.catalog?.askedFollowups ?? [],
+    answerSuggestions: dyn.catalog?.answerSuggestions ?? {},
+    kiAus: dyn.catalog?.aiAvailable === false,
+    onNeu: (neu) => onState((st) => ({
+      ...st,
+      dyn: {
+        ...st.dyn,
+        catalog: {
+          ...(st.dyn.catalog ?? EMPTY_CATALOG_STATE),
+          answerSuggestions: { ...(st.dyn.catalog?.answerSuggestions ?? {}), ...neu },
+        },
+      },
+    })),
+  });
+  useEffect(() => {
+    if (bestaetigen !== 'fragen' || !built || building) return;
+    vorschlaege.hole(DIALOG_IN_REIHENFOLGE.slice(0, 2));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bestaetigen, !!built, building]);
 
   /**
    * Einen Wert in den Katalog schreiben. `from` sagt, wie stark er ist.
@@ -692,7 +816,8 @@ export function CaptureStep({
   const sperren = useMemo(() => {
     const aus: { key: string; label: string }[] = [];
     if (!built?.title?.trim()) aus.push({ key: 'title', label: t('shared.jobTitle') });
-    if (!String(company.company_name ?? '').trim()) {
+    // Den Firmennamen trägt der Einladende ein, nicht die eingeladene Kollegin (artFest).
+    if (!String(company.company_name ?? '').trim() && !artFest) {
       aus.push({ key: 'company_name', label: t('shared.companyName') });
     }
     if (!built?.location?.trim() && built?.remote_type !== 'remote') {
@@ -801,6 +926,19 @@ export function CaptureStep({
   // Vorher war hier eine leere Textarea. Sie hat die Vorbelegung des
   // persönlichen Links verschenkt und Arbeit verlangt, bevor irgendetwas
   // Sichtbares passiert war — genau der Punkt, an dem Leute abspringen.
+  if (bestaetigen && bestaetigung) {
+    const status = ausAnzeigeGelesen
+      ? building ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />{t('capture.entry.liestNoch')}</>
+        : built ? <><Check className="h-3.5 w-3.5" />{built.title ? t('capture.entry.liestFertigTitel', { title: built.title }) : t('capture.entry.liestFertig')}</>
+        : aiNote ? <>{t('capture.entry.liestFehler')}</> : null
+      : bestaetigen === 'fragen' && built && (built.title || built.location)
+        ? <>{[built.title, built.location].filter(Boolean).join(' · ')}</>
+        : null;
+    // Ließ sich die Anzeige nicht lesen, geht es nach dem Code zurück zur Anzeige, nicht zu den Fragen.
+    const ziel = bestaetigen === 'fragen' && ausAnzeigeGelesen && !building && !built && aiNote ? 'anzeige' : bestaetigen;
+    return <>{bestaetigung(nachBestaetigung, ziel, status)}</>;
+  }
+
   if (entryMode === 'kind') {
     return (
       /* data-tour: Ankerpunkte des Kunden-Rundgangs (lib/clientGuide.ts). */
@@ -811,6 +949,7 @@ export function CaptureStep({
           // capture.type als contract_type mit jedem Autosave.
           onState((s) => ({ ...s, type: kind }));
           setEntryMode('choose');
+          onArt?.();
           // Vom Dashboard mitgebrachter Text: gleich daraus bauen, statt ihn
           // ein zweites Mal einfuegen zu lassen.
           if (!built && autoBuildFile) {
@@ -832,13 +971,14 @@ export function CaptureStep({
         onContracting={() => {
           onState((s) => ({ ...s, type: 'freelance' }));
           setEntryMode('choose');
+          onArt?.();
         }}
         onBack={() => setEntryMode('kind')}
       />
     );
   }
 
-  if (!built || entryMode === 'reselect' || entryMode === 'paste' || entryMode === 'url') {
+  if (!built || entryMode === 'reselect' || entryMode === 'paste' || entryMode === 'url' || entryMode === 'anzeige') {
     // 'reselect' zeigt die Auswahl auch dann, wenn schon ein Profil begonnen
     // wurde -- der Rueckweg aus dem Editor. Ohne diesen Fall klickte der Knopf
     // "Zurueck zur Auswahl" ins Leere.
@@ -849,11 +989,117 @@ export function CaptureStep({
       <button
         type="button"
         onClick={() => setEntryMode(seedTitle ? 'confirm' : 'choose')}
-        className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+        className={m3 ? 'font-medium text-klick hover:underline' : 'text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground'}
       >
         {t('capture.entry.backToProfile')}
       </button>
     ) : null;
+
+    // ---- Variante C (Gast-Aufnahme, M3): Lesen, „Wie haben Sie die Anzeige?“, Datei ----
+    if (m3 && building && ['paste', 'url', 'anzeige', 'choose', 'reselect'].includes(entryMode)) {
+      return <M3Kopf icon={Dreht} titel={t('capture.entry.liestTitle')} lead={t('capture.entry.liestLead')} />;
+    }
+    if (m3 && entryMode === 'anzeige') {
+      // E1: ein Feld für alles. Datei ablegen, Text oder Link einfügen; darunter ein Feld nur für Links.
+      const eingabe = text.trim();
+      const linkOben = istAnzeigeLink(eingabe) ? eingabe : null;
+      const linkUnten = url.trim();
+      const bereit = linkOben ? true : eingabe.length >= 10 ? true : istAnzeigeLink(linkUnten);
+      const los = () => {
+        if (building) return;
+        const ziel = linkOben ?? (istAnzeigeLink(linkUnten) ? linkUnten : null);
+        if (!(eingabe.length >= 10 && !linkOben) && !ziel) return;
+        void (eingabe.length >= 10 && !linkOben ? buildFrom('text') : buildFrom('url', undefined, mitSchema(ziel!)));
+        lesenUndBestaetigen();
+      };
+      ablegenRef.current = (e: DragEvent) => {
+        const file = e.dataTransfer?.files?.[0];
+        if (file) { void takeFile(file); return; }
+        const rein = e.dataTransfer?.getData('text/uri-list') || e.dataTransfer?.getData('text/plain');
+        if (rein?.trim()) setText(rein.trim());
+      };
+      return (
+        <div>
+          <M3Kopf icon={FileText} titel={t('capture.entry.ablegenTitle')} lead={t('capture.entry.ablegenLead')} />
+          {hasWork && <M3Hinweis className="mb-3">{t('capture.entry.replaceWarning')} {backToProfile}</M3Hinweis>}
+          <div
+            data-tour="intake.ways"
+            data-intake-way="ablage"
+            className={cn(
+              'relative rounded-[14px] border-2 border-dashed transition-colors',
+              dragging ? 'border-klick bg-secondary' : eingabe ? 'border-foreground/25' : 'border-foreground/20 hover:border-foreground/35 focus-within:border-foreground/40',
+            )}
+          >
+            <Textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onPaste={(e) => {
+                // Eine kopierte Datei (z. B. aus dem Finder) kommt als Datei, nicht als Text.
+                const file = e.clipboardData?.files?.[0];
+                if (file) { e.preventDefault(); void takeFile(file); }
+              }}
+              rows={eingabe ? 9 : 6}
+              aria-label={t('capture.entry.ablegenFeld')}
+              className="min-h-[156px] resize-none rounded-[12px] border-0 bg-transparent text-sm shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+            />
+            {!text && (
+              <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1.5 px-6 text-center">
+                <FileUp className="h-6 w-6 text-muted-foreground" />
+                <span className="text-sm font-medium text-foreground">{dragging ? t('capture.entry.ablegenLos') : t('capture.entry.ablegenFeld')}</span>
+                <span className="text-xs text-muted-foreground">{t('capture.entry.ablegenFeldHint')}</span>
+              </div>
+            )}
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+            <span className="min-w-0 truncate">
+              {linkOben ? t('capture.entry.linkErkannt', { host: hostVon(linkOben) }) : eingabe ? t('capture.entry.textErkannt') : null}
+            </span>
+            <span className="flex shrink-0 items-center gap-3">
+              {eingabe && <button type="button" onClick={() => setText('')} className="font-medium text-klick hover:underline">{t('capture.entry.leeren')}</button>}
+              <button type="button" onClick={() => fileRef.current?.click()} className="inline-flex items-center gap-1 font-medium text-klick hover:underline">
+                <FileUp className="h-3.5 w-3.5" />{t('capture.entry.dateiWaehlen')}
+              </button>
+            </span>
+          </div>
+          {!linkOben && (
+            <div className="mt-5">
+              <p className="mb-1.5 text-xs text-muted-foreground">{t('capture.entry.linkFeld')}</p>
+              <div className="relative">
+                <Link2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder={t('capture.entry.linkPlatzhalter')}
+                  inputMode="url"
+                  className="h-11 pl-9"
+                  onKeyDown={(e) => { if (e.key === 'Enter') los(); }}
+                />
+              </div>
+            </div>
+          )}
+          {aiNote && lesenGescheitert ? (
+            <M3Hinweis className="mt-4">
+              <p>{t('capture.entry.readFailed')}</p>
+              <Button size="lg" className="mt-3 w-full rounded-full" disabled={building || !bereit} onClick={los}>{t('capture.entry.tryAgain')}</Button>
+              <button type="button" className="mx-auto mt-2 block text-sm font-medium text-klick hover:underline" onClick={() => startManual()}>{t('capture.entry.withoutAd')}</button>
+            </M3Hinweis>
+          ) : (
+            <>
+              {aiNote && (
+                <M3Hinweis className="mt-4">
+                  {aiNote}{' '}
+                  <button type="button" onClick={() => startManual()} className="font-medium text-klick hover:underline">{t('capture.entry.manual')}</button>
+                </M3Hinweis>
+              )}
+              <Button size="lg" className="mt-5 w-full gap-2 rounded-full" disabled={building || !bereit} onClick={los}>
+                <Sparkles className="h-4 w-4" />{t('capture.entry.buildProfile')}
+              </Button>
+            </>
+          )}
+          <input ref={fileRef} type="file" accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="hidden" onChange={pickPdf} />
+        </div>
+      );
+    }
 
     // ---- Anzeige einfügen / Link -------------------------------------------
     if (entryMode === 'paste' || entryMode === 'url') {
@@ -957,6 +1203,46 @@ export function CaptureStep({
     // ---- Bestätigungsfrage (persönlicher Link) -----------------------------
     if (entryMode === 'confirm' && seedTitle && showEntry) {
       const ort = companyDefaults?.location;
+      if (m3) {
+        return (
+          <div>
+            <M3Kopf
+              icon={UserRound}
+              ort={contactName ? t('capture.entry.greeting', { name: contactName }) : undefined}
+              titel={<Trans
+                t={t}
+                i18nKey={`capture.entry.${article(seedTitle) === 'eine' ? 'confirmFem' : 'confirmMasc'}${ort ? 'At' : ''}`}
+                values={{ title: seedTitle, location: ort ?? '' }}
+                components={{ hl: <span /> }}
+              />}
+              lead={t('capture.entry.confirmAfter')}
+            />
+            <Button size="lg" className="w-full gap-2 rounded-full" onClick={() => startManual(seedTitle)}>
+              {t('capture.entry.confirmYes')} <ArrowRight className="h-4 w-4" />
+            </Button>
+            <button type="button" className="mx-auto mt-3 block text-sm font-medium text-klick hover:underline" onClick={() => setEntryMode('choose')}>
+              {t('capture.entry.confirmNo')}
+            </button>
+            <div className="mt-7 border-t pt-5 text-center">
+              <p className="text-sm font-medium">{t('capture.entry.adAtHand')}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{t('capture.entry.adSavesHalf')}</p>
+              <div className="mt-3 flex flex-wrap justify-center gap-2">
+                <Button variant="secondary" size="sm" className="gap-1.5 rounded-full" onClick={() => setEntryMode('paste')}>
+                  <FileText className="h-4 w-4" /> {t('capture.entry.pasteAd')}
+                </Button>
+                <Button variant="secondary" size="sm" className="gap-1.5 rounded-full" onClick={() => setEntryMode('url')}>
+                  <Link2 className="h-4 w-4" /> {t('capture.entry.link')}
+                </Button>
+                <Button variant="secondary" size="sm" className="gap-1.5 rounded-full" disabled={building} onClick={() => fileRef.current?.click()}>
+                  {building ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />} {t('capture.entry.pdf')}
+                </Button>
+              </div>
+            </div>
+            {aiNote && <M3Hinweis className="mt-4">{aiNote}</M3Hinweis>}
+            <input ref={fileRef} type="file" accept="application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="hidden" onChange={pickPdf} />
+          </div>
+        );
+      }
       return (
         <div className="mx-auto max-w-xl space-y-6 pt-4">
           <div>
@@ -1015,7 +1301,21 @@ export function CaptureStep({
       );
     }
 
-    // ---- Drei Wege (öffentlicher Link, oder „andere Position") -------------
+    // ---- Variante C (Gast-Aufnahme, 26.11.2026): erst eine Frage ---------------
+    if (m3) {
+      return (
+        <div>
+          <M3Kopf icon={FileText} titel={t('capture.entry.cTitle')} lead={t('capture.entry.cLead')} />
+          {hasWork && <M3Hinweis className="mb-3">{t('capture.entry.replaceWarning')} {backToProfile}</M3Hinweis>}
+          <div className="space-y-2.5">
+            <M3Zeile icon={Check} titel={t('capture.entry.cJa')} text={t('capture.entry.cJaText')} onClick={() => setEntryMode('anzeige')} />
+            <M3Zeile icon={PenLine} titel={t('capture.entry.cNein')} text={t('capture.entry.cNeinText', { minutes: minutenOhneAnzeige(type) })} data-intake-way="manual" onClick={() => startManual()} />
+            {onKollegen && <M3Zeile icon={Users} titel={t('capture.entry.cAndere')} text={t('capture.entry.cAndereText')} onClick={() => vorBestaetigung('einladen', onKollegen)} />}
+          </div>
+          {aiNote && <M3Hinweis className="mt-4">{aiNote}</M3Hinweis>}
+        </div>
+      );
+    }
     return (
       <div
         className={cn('mx-auto max-w-2xl space-y-5 rounded-xl', dragging && 'ring-2 ring-primary/50 ring-offset-4')}
@@ -1240,9 +1540,12 @@ firmaFest ? (
       <EtappenAnsicht
         state={state}
         onState={onState}
+        onOrt={onOrt}
         firmaZeile={firmaZeile}
-        onVertragsart={() => setEntryMode('kind')}
+        onVertragsart={artFest ? undefined : () => setEntryMode('kind')}
         onZurAuswahl={() => setEntryMode('reselect')}
+        vorDemNaechsten={sperreBisBestaetigt && bestaetigung ? (weiter) => vorBestaetigung('fragen', weiter) : undefined}
+        vorschlaege={vorschlaege}
         speicherStand={speicherStand}
         kopfRechts={kopfRechts}
         onKopf={onKopf}
@@ -1256,6 +1559,7 @@ firmaFest ? (
         askAi={askAi}
         sperren={sperren}
         weiter={weiter}
+        immerWeiter={artFest}
         nextLabel={nextLabel}
         onResumeLater={onResumeLater}
         firmaFest={firmaFest}
@@ -1520,6 +1824,11 @@ firmaFest ? (
 export const captureBriefingText = (answers: Answers): string | null => serializeBriefing(answers) || null;
 
 /** Ein Einstiegsweg als Karte. Klarer als drei gleich laute Knöpfe. */
+/** Drehendes Symbol, solange eine Datei gelesen wird. */
+function Dreht({ className }: { className?: string }) {
+  return <Loader2 className={cn(className, 'animate-spin')} />;
+}
+
 function EntryCard({
   icon: Icon, title, hint, action, spinning, way, onClick,
 }: {
@@ -1551,4 +1860,18 @@ function EntryCard({
  *  wird „eine" daraus. */
 function article(title: string): string {
   return /(?:in|kraft|hilfe|leitung|assistenz)\b/i.test(title.trim()) ? 'eine' : 'einen';
+}
+
+/** Ist das ein Link zu einer Anzeige (eine Adresse, kein Fließtext)? */
+function istAnzeigeLink(x: string): boolean {
+  const v = x.trim();
+  if (!v || /\s/.test(v) || v.length > 2000) return false;
+  // Mit oder ohne https:// -- „stepstone.de/stellenangebote--…“ ist auch ein Link.
+  return /^(https?:\/\/)?([a-z0-9-]+\.)+[a-z]{2,}(:\d+)?([/?#]\S*)?$/i.test(v);
+}
+
+const mitSchema = (x: string) => (/^https?:\/\//i.test(x) ? x : `https://${x}`);
+
+function hostVon(x: string): string {
+  try { return new URL(mitSchema(x)).hostname.replace(/^www\./, ''); } catch { return x.slice(0, 40); }
 }

@@ -188,7 +188,7 @@ export function LebenslaufHochladenFenster({ datei, nummer, gesamt, onHochladen,
   return (
     <Dialog open={!!datei} onOpenChange={(o) => { if (!o) onAbbrechen(); }}>
       {/* Kein Fokus-Rahmen auf „Andere Datei“ beim Öffnen: der Blick gehört den Häkchen. */}
-      <DialogContent className="max-h-[92vh] overflow-y-auto focus:outline-none sm:max-w-[520px]" onOpenAutoFocus={(e) => e.preventDefault()}>
+      <DialogContent className="max-h-[92vh] overflow-y-auto focus:outline-none sm:max-w-[520px]" onOpenAutoFocus={(e) => e.preventDefault()} data-tour="ablage.window">
         {ansicht === 'hinweis' ? (
           <>
             {zurueck}
@@ -259,7 +259,7 @@ export function LebenslaufHochladenFenster({ datei, nummer, gesamt, onHochladen,
             <div className="flex items-center gap-2.5 pt-1">
               <span className="flex-1 text-xs leading-tight text-muted-foreground">{t('upload.savedWithDate')}</span>
               <Button variant="outline" onClick={onAbbrechen}>{t('upload.cancel')}</Button>
-              <Button onClick={hochladen} aria-disabled={!alle} className={cn(!alle && 'cursor-not-allowed bg-muted text-muted-foreground hover:bg-muted')}>{t('upload.submit')}</Button>
+              <Button onClick={hochladen} aria-disabled={!alle} data-tour="ablage.submit" className={cn(!alle && 'cursor-not-allowed bg-muted text-muted-foreground hover:bg-muted')}>{t('upload.submit')}</Button>
             </div>
             {mahnen && !alle && <p className="-mt-2 text-right text-xs text-muted-foreground">{t('upload.ticksLeft', { count: offen })}</p>}
           </>

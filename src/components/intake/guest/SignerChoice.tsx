@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { M3Hinweis, M3Kopf, M3Zeile } from './m3';
 import { FileSignature, Loader2, UserCheck, Users } from 'lucide-react';
 
 /**
@@ -24,98 +24,78 @@ interface Props {
   busy: boolean;
   error: string | null;
   onChoose: (args: { self: boolean; name?: string; email?: string }) => void;
+  /** „Ihre Anfrage ist eingegangen, Vorgang …“ als Ortszeile über dem Titel. */
+  eingang?: ReactNode;
 }
 
-export function SignerChoice({ contactName, busy, error, onChoose }: Props) {
+/** Im Stil M3 (26.11.2026): Kopf mittig, zwei graue Wahlzeilen, Hinweis klein darunter. */
+export function SignerChoice({ contactName, busy, error, onChoose, eingang }: Props) {
   const { t } = useTranslation('clientFunnel');
   const [modus, setModus] = useState<'frage' | 'andere'>('frage');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
 
   return (
-    <div className="space-y-5">
-      <div className="text-center">
-        <h1 className="text-xl font-bold tracking-tight">{t('signer.title')}</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          {t('signer.lead')}
-        </p>
-      </div>
+    <div>
+      <M3Kopf
+        icon={modus === 'frage' ? FileSignature : Users}
+        ort={modus === 'frage' ? eingang : undefined}
+        titel={modus === 'frage' ? t('signer.title') : t('signer.other')}
+        lead={modus === 'frage' ? t('signer.lead') : t('signer.otherText')}
+      />
 
       {modus === 'frage' ? (
-        <div className="space-y-3">
-          <button
-            type="button"
+        <div className="space-y-2.5">
+          <M3Zeile
+            icon={UserCheck}
             disabled={busy}
             onClick={() => onChoose({ self: true })}
-            className="flex w-full items-start gap-3 rounded-lg border p-4 text-left transition-colors hover:bg-muted/50 disabled:opacity-60"
-          >
-            <UserCheck className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
-            <span>
-              <span className="block font-medium">
-                {contactName ? t('signer.selfNamed', { name: contactName }) : t('signer.self')}
-              </span>
-              <span className="mt-0.5 block text-sm text-muted-foreground">
-                {t('signer.selfText')}
-              </span>
-            </span>
-            {busy && <Loader2 className="ml-auto h-4 w-4 animate-spin" />}
-          </button>
-
-          <button
-            type="button"
+            titel={contactName ? t('signer.selfNamed', { name: contactName }) : t('signer.self')}
+            text={t('signer.selfText')}
+            rechts={busy ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : undefined}
+          />
+          <M3Zeile
+            icon={Users}
             disabled={busy}
             onClick={() => setModus('andere')}
-            className="flex w-full items-start gap-3 rounded-lg border p-4 text-left transition-colors hover:bg-muted/50 disabled:opacity-60"
-          >
-            <Users className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
-            <span>
-              <span className="block font-medium">{t('signer.other')}</span>
-              <span className="mt-0.5 block text-sm text-muted-foreground">
-                {t('signer.otherText')}
-              </span>
-            </span>
-          </button>
+            titel={t('signer.other')}
+            text={t('signer.otherText')}
+          />
         </div>
       ) : (
-        <div className="space-y-4 rounded-lg border p-4">
+        <div className="space-y-4">
           <div>
             <Label htmlFor="signer-name">{t('signer.nameLabel')}</Label>
             <Input id="signer-name" value={name} onChange={(e) => setName(e.target.value)}
-              className="mt-1" placeholder={t('common.namePlaceholder')} autoFocus />
+              className="mt-1.5 h-11" placeholder={t('common.namePlaceholder')} autoFocus />
           </div>
           <div>
             <Label htmlFor="signer-mail">{t('common.businessEmail')}</Label>
             <Input id="signer-mail" type="email" value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1" placeholder={t('common.emailPlaceholder')} />
-            <p className="mt-1 text-xs text-muted-foreground">
+              className="mt-1.5 h-11" placeholder={t('common.emailPlaceholder')} />
+            <p className="mt-1.5 text-xs text-muted-foreground">
               {t('signer.emailHint')}
             </p>
           </div>
-
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setModus('frage')} disabled={busy}>
-              {t('common.back')}
-            </Button>
-            <Button
-              className="flex-1"
-              disabled={busy || !name.trim() || !email.trim()}
-              onClick={() => onChoose({ self: false, name: name.trim(), email: email.trim() })}
-            >
-              {busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t('common.sending')}</>
-                    : <><FileSignature className="mr-2 h-4 w-4" /> {t('signer.send')}</>}
-            </Button>
-          </div>
+          <Button
+            size="lg"
+            className="w-full rounded-full"
+            disabled={busy || !name.trim() || !email.trim()}
+            onClick={() => onChoose({ self: false, name: name.trim(), email: email.trim() })}
+          >
+            {busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t('common.sending')}</>
+                  : <><FileSignature className="mr-2 h-4 w-4" /> {t('signer.send')}</>}
+          </Button>
+          <button type="button" className="mx-auto block text-sm font-medium text-klick hover:underline" onClick={() => setModus('frage')} disabled={busy}>
+            {t('common.back')}
+          </button>
         </div>
       )}
 
-      {error && (
-        <Alert variant="destructive">
-          <AlertDescription className="text-sm">{error}</AlertDescription>
-        </Alert>
-      )}
+      {error && <M3Hinweis className="mt-4">{error}</M3Hinweis>}
 
-      <p className="text-center text-xs text-muted-foreground">
+      <p className="mt-6 text-center text-xs leading-relaxed text-muted-foreground">
         {t('signer.note')}
       </p>
     </div>

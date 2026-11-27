@@ -51,7 +51,11 @@ const nb: Messages<typeof de> = {
     'c-myJob': {
       title: 'Stillingen din er allerede her',
       body: 'Din første stilling har du allerede levert. Vi kontrollerer den nå og gir den deretter til hodejegerne våre, uten firmanavnet ditt.',
-      bodyLive: 'Din første stilling har du allerede levert, og den er live. Kortet viser hvor søket står; ett klikk åpner stillingssiden.',
+      bodyLive: 'Stillingen din er live. Kortet viser med en gang hvor langt søket har kommet, hvem som er ny og hvor mange hodejegere som søker. Kandidatene og hodejegerne her er eksempler.',
+      p1: 'Hvor langt søket har kommet',
+      p2: 'Hvem som er med, blått er nytt',
+      p3: 'Hva som skjedde sist',
+      p4: 'Hvor mange hodejegere som søker',
     },
     'c-jobsExample': {
       title: 'Slik ser stillingen din ut når den er i gang',
@@ -209,6 +213,7 @@ const nb: Messages<typeof de> = {
       concerns: 'Opplæring i systemene våre. Kan han begynne tidligere?',
       colleagueName: 'Anna Weber',
       colleagueEmail: 'anna.weber@eksempel.no',
+      colleagueMessage: 'Om stillingen {{job}}: gi gjerne kort tilbakemelding etter intervjuene, så bestemmer vi sammen.',
     },
     data: {
       yourCompany: 'Eksempelfirma AS',

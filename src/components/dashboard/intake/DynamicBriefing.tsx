@@ -135,7 +135,7 @@ const RESERVEFRAGEN: DynQuestion[] = [
     id: 'team_size',
     chapter: 'Rolle & Scope',
     question: 'Wie groß ist das Team, in das die Person kommt?',
-    why: 'Ein Alleinkämpfer-Job braucht einen anderen Menschen als eine Rolle im 15er-Team.',
+    why: 'Eine Einzelkämpfer-Stelle braucht einen anderen Menschen als eine Rolle im 15er-Team.',
     chips: ['Alleinstellung', '2–5 Personen', '6–15 Personen', 'Mehr als 15'],
   },
   {

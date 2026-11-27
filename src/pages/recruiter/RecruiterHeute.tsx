@@ -534,7 +534,7 @@ function NextCard({ row, position, total, onOpen, onOpenItem, onStep }: {
             <Button size="sm" variant="secondary" className="rounded-full px-4" onClick={() => navigate(`/recruiter/candidates/${item.candidateId}?interview=live`)}>{tr('pw.openInterview')}</Button>
           </>
         ) : (
-          <Button size="sm" className="rounded-full px-4" onClick={onOpen}>{tr('heute.openTask')}</Button>
+          <Button size="sm" className="rounded-full px-4" data-tour="tasks.open" onClick={onOpen}>{tr('heute.openTask')}</Button>
         )}
         {total > 1 && <Button size="sm" variant="secondary" className="rounded-full px-4" onClick={() => onStep(1)}>{tr('heute.later')}</Button>}
       </div>

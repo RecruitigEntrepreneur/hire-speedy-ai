@@ -6,12 +6,12 @@ const de = {
   q: {
     firmengroesse: {
       text: 'Wie viele Mitarbeiter beschäftigen Sie aktuell?',
-      why: 'Der Kandidat fragt es im ersten Gespräch, und der Recruiter braucht es für die Ansprache.',
+      why: 'Der Kandidat fragt es im ersten Gespräch, und der Headhunter braucht es für die Ansprache.',
       chapter: 'Unternehmen',
     },
     verguetung: {
       text: 'In was für eine Range befindet sich das Fixgehalt?',
-      why: 'Ohne Band kann kein Recruiter ansprechen — es ist die erste Frage jedes Kandidaten.',
+      why: 'Ohne Band kann kein Headhunter ansprechen — es ist die erste Frage jedes Kandidaten.',
       chapter: 'Vergütung',
     },
     kriterien: {
@@ -24,7 +24,7 @@ const de = {
     team: {
       text: 'Wie strukturiert sich die Abteilung von der Position?',
       textFreelance: 'Wie ist das Projektteam aufgestellt, und wer arbeitet noch extern mit?',
-      why: 'Ein Alleinkämpfer-Job braucht einen anderen Menschen als eine Rolle im 15er-Team.',
+      why: 'Eine Einzelkämpfer-Stelle braucht einen anderen Menschen als eine Rolle im 15er-Team.',
       chapter: 'Eckdaten',
     },
     arbeitszeit: {
@@ -45,12 +45,12 @@ const de = {
     },
     arbeitserlaubnis: {
       text: 'Braucht der Kandidat eine Arbeitserlaubnis, oder unterstützen Sie ein Visum?',
-      why: 'Ein K.-o.-Kriterium: ohne die Antwort spricht der Recruiter Kandidaten an, die nicht anfangen dürfen.',
+      why: 'Ein K.-o.-Kriterium: ohne die Antwort spricht der Headhunter Kandidaten an, die nicht anfangen dürfen.',
       chapter: 'Arbeitszeit & Prozess',
     },
     abwerbeschutz: {
       text: 'Bei welchen Unternehmen dürfen wir auf keinen Fall abwerben?',
-      why: 'Wer beim Kunden des Kunden abwirbt, beschädigt die Geschäftsbeziehung. Nur der Recruiter sieht das, erst wenn er sucht.',
+      why: 'Wer beim Kunden des Kunden abwirbt, beschädigt die Geschäftsbeziehung. Nur der Headhunter sieht das, erst wenn er sucht.',
       chapter: 'Arbeitszeit & Prozess',
     },
     vakanz: {
@@ -61,7 +61,7 @@ const de = {
     },
     alltag: {
       text: 'Können Sie mir ein Bild des Arbeitsalltags des Kandidaten malen?',
-      why: 'Der Recruiter erzählt diesen Alltag im Kandidatengespräch. Ohne ihn bleibt die Rolle abstrakt.',
+      why: 'Der Headhunter erzählt diesen Alltag im Kandidatengespräch. Ohne ihn bleibt die Rolle abstrakt.',
       chapter: 'Rolle & Scope',
     },
     entscheidung: {
@@ -88,13 +88,13 @@ const de = {
     usp: {
       text: 'Welche Alleinstellungsmerkmale können Sie als Unternehmen anbieten und welche Vorteile bietet die Position selbst, die möglicherweise nur ein Experte zu schätzen weiß, wie zum Beispiel keine Kaltakquise bei Vertriebspositionen?',
       textFreelance: 'Was macht dieses Projekt attraktiv — Technik, Referenz, oder die Aussicht auf Anschluss?',
-      why: 'Das Argument, mit dem der Recruiter jemanden überzeugt, der gar nicht sucht.',
+      why: 'Das Argument, mit dem der Headhunter jemanden überzeugt, der gar nicht sucht.',
       chapter: 'Sell & Story (EVP)',
     },
     kultur: {
       text: 'Wie beschreiben Sie Ihre Unternehmenskultur?',
       textFreelance: 'Wie arbeitet man bei Ihnen zusammen — worauf sollte sich ein Externer einstellen?',
-      why: 'Der Recruiter muss sie glaubhaft schildern, ohne die Firma zu nennen.',
+      why: 'Der Headhunter muss sie glaubhaft schildern, ohne die Firma zu nennen.',
       chapter: 'Arbeitsmodell & Kultur',
     },
     foerderung: {
@@ -105,7 +105,7 @@ const de = {
     vertrag: {
       text: 'Wie ist der Arbeitsvertrag gestaltet? Gibt es möglicherweise Themen darin, die sensibel sind oder die Kandidaten abschrecken könnten?',
       textFreelance: 'Wie ist der Dienstvertrag gestaltet? Gibt es Klauseln, die Freiberufler abschrecken?',
-      why: 'Besser der Recruiter weiß es vorher, als der Kandidat springt beim Unterschreiben ab.',
+      why: 'Besser der Headhunter weiß es vorher, als der Kandidat springt beim Unterschreiben ab.',
       chapter: 'Timing & Vertrag',
     },
     einwaende: {
@@ -115,12 +115,12 @@ const de = {
     },
     branche: {
       text: 'Was läuft aktuell gut in Ihrer Branche? Mit welchen Herausforderungen sind Sie aktuell in Ihrer Branche konfrontiert?',
-      why: 'Das Argument, mit dem der Recruiter einen zufriedenen Kandidaten überhaupt erreicht.',
+      why: 'Das Argument, mit dem der Headhunter einen zufriedenen Kandidaten überhaupt erreicht.',
       chapter: 'Sell & Story (EVP)',
     },
     pipeline: {
       text: 'Wie viele Kandidaten haben Sie aktuell im Prozess, bzw. hatten im Prozess? Sind bei Ihnen in der Angebotsphase schon einmal Kandidaten abgesprungen? Falls ja, warum?',
-      why: 'Sagt dem Recruiter, gegen wen er antritt und welchen Einwand er vorwegnehmen muss.',
+      why: 'Sagt dem Headhunter, gegen wen er antritt und welchen Einwand er vorwegnehmen muss.',
       chapter: 'Risiken & Ehrlichkeit',
     },
   },

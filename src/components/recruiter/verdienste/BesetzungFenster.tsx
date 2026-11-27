@@ -50,7 +50,7 @@ export function BesetzungFenster({ placementId, onClose }: { placementId: string
 
   return (
     <Dialog open={!!placementId} onOpenChange={(o) => { if (!o) { setWackelt(false); onClose(); } }}>
-      <DialogContent className="max-h-[90vh] max-w-xl overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-xl overflow-y-auto" data-tour="besetzung.window">
         {!view ? (
           <div className="flex min-h-[10rem] items-center justify-center">
             {q.isError ? <p className="text-sm text-muted-foreground">{q.error instanceof Error ? q.error.message : t('api.placement')}</p> : <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
@@ -63,7 +63,7 @@ export function BesetzungFenster({ placementId, onClose }: { placementId: string
             </DialogHeader>
 
             {view.figures.length > 0 && (
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" data-tour="besetzung.figures">
                 {view.figures.map((f) => (
                   <div key={f.label} className="rounded-lg border border-border bg-muted/20 px-3 py-2">
                     <p className="text-xs text-muted-foreground"><Honorar>{f.label}</Honorar></p>
@@ -75,7 +75,7 @@ export function BesetzungFenster({ placementId, onClose }: { placementId: string
             )}
 
             {view.caseTitle && <p className="font-medium">{view.caseTitle}</p>}
-            <SchrittListe steps={view.steps} />
+            <div data-tour="besetzung.chain"><SchrittListe steps={view.steps} /></div>
 
             {view.box && <p className="rounded-lg border border-border bg-muted/30 p-3 text-sm leading-6"><Honorar>{view.box}</Honorar></p>}
 

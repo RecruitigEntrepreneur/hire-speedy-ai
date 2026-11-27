@@ -4,6 +4,7 @@ import { ArrowRight, Building2, UserRound, FileText, ArrowUpRight, ShieldCheck, 
 import { useEffect, useRef, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { REGEXP_ONLY_DIGITS } from 'input-otp';
+import { toast } from 'sonner';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -260,7 +261,8 @@ export default function RecruiterInvitation() {
             catch { /* Der nächste Schritt speichert erneut; Fehler zeigt das ausdrückliche Speichern. */ }
             return;
           }
-          await run(async () => { await load('save', { revision: c.revision, profile }); setMessage(t('invitation.draftSaved')); });
+          // „Später weiter“: kurze Bestätigung unten, die Seite bleibt ruhig.
+          await run(async () => { await load('save', { revision: c.revision, profile }); toast.success(t('invitation.draftSaved')); });
         }}
         onSubmit={() => run(async () => {
           // Kein Zwischenschritt: Mit der Bestätigung entsteht der Vertrag und öffnet sich zur Unterschrift.

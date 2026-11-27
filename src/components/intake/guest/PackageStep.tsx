@@ -2,11 +2,10 @@ import { useEffect, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import { intlLocale } from '@/i18n/languages';
-import { Card, CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
+import { M3Hinweis, M3Kopf } from './m3';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { ArrowRight, Check, Loader2, ShieldCheck } from 'lucide-react';
+import { Check, Loader2, Package, TriangleAlert } from 'lucide-react';
 import { isFailure, type IntakeFailure, type IntakePackage, type IntakePackageOffer } from '@/hooks/useGuestIntake';
 import { FileCheck2 } from 'lucide-react';
 
@@ -83,18 +82,17 @@ export function PackageStep({ load, onSelect, onNext, onTerms }: Props) {
     return () => { active = false; };
   }, [load, onTerms]);
 
+  // Stil M3 (26.11.2026): Antippen wählt (und speichert), „Weiter“ geht zur Zusammenfassung.
+  // Vorher sprang die Wahl sofort weiter -- mit aufklappenden Zeilen sähe man dann nicht, was gewählt ist.
   const select = async (key: string) => {
     setBusy(key);
     const res = await onSelect(key);
     setBusy(null);
-    if (!isFailure(res)) {
-      setChosen(key);
-      onNext();
-    }
+    if (!isFailure(res)) setChosen(key);
   };
 
   if (loadError) {
-    return <Alert variant="destructive"><AlertDescription>{t('packages.loadError')}</AlertDescription></Alert>;
+    return <M3Hinweis icon={TriangleAlert}>{t('packages.loadError')}</M3Hinweis>;
   }
   if (!offer) {
     return (
@@ -110,62 +108,41 @@ export function PackageStep({ load, onSelect, onNext, onTerms }: Props) {
   if (offer.framework) {
     const rv = offer.framework;
     return (
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <h2 className="text-2xl font-semibold tracking-tight">{t('packages.frameworkTitle')}</h2>
-          <p className="text-sm text-muted-foreground">
-            {t('packages.frameworkLead')}
+      <div>
+        <M3Kopf icon={FileCheck2} titel={t('packages.frameworkTitle')} lead={t('packages.frameworkLead')} />
+        <div className="rounded-[14px] bg-secondary p-4">
+          <p className="font-medium">
+            {rv.name ?? t('packages.agreedTerms')}
+            <span className="font-normal text-muted-foreground"> · {rv.fee_percent} %</span>
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {rv.continuity_days
+              ? t('packages.frameworkFeeContinuity', { percent: rv.fee_percent, days: rv.continuity_days })
+              : t('packages.frameworkFee', { percent: rv.fee_percent })}
+          </p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            <Trans
+              t={t}
+              i18nKey={rv.agreed_at ? 'packages.frameworkRefDated' : 'packages.frameworkRef'}
+              values={{
+                number: rv.agreement_number,
+                date: rv.agreed_at ? new Date(rv.agreed_at).toLocaleDateString(intlLocale(i18n.language)) : '',
+              }}
+              components={{ bold: <span className="font-medium text-foreground" /> }}
+            />
           </p>
         </div>
-
-        <Card>
-          <CardContent className="space-y-4 pt-6">
-            <div className="flex items-start gap-3">
-              <div className="min-w-0 flex-1">
-                <p className="font-medium">
-                  {rv.name ?? t('packages.agreedTerms')}
-                  <span className="font-normal text-muted-foreground"> · {rv.fee_percent} %</span>
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {rv.continuity_days
-                    ? t('packages.frameworkFeeContinuity', { percent: rv.fee_percent, days: rv.continuity_days })
-                    : t('packages.frameworkFee', { percent: rv.fee_percent })}
-                </p>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  <Trans
-                    t={t}
-                    i18nKey={rv.agreed_at ? 'packages.frameworkRefDated' : 'packages.frameworkRef'}
-                    values={{
-                      number: rv.agreement_number,
-                      date: rv.agreed_at ? new Date(rv.agreed_at).toLocaleDateString(intlLocale(i18n.language)) : '',
-                    }}
-                    components={{ bold: <span className="font-medium text-foreground" /> }}
-                  />
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <p className="text-xs text-muted-foreground">{offer.notice}</p>
-
-        <div className="flex justify-end border-t pt-4">
-          <Button onClick={onNext}>{t('packages.toSummary')}</Button>
-        </div>
+        <p className="mt-4 text-center text-xs leading-relaxed text-muted-foreground">{offer.notice}</p>
+        <Button size="lg" className="mt-6 w-full rounded-full" onClick={onNext}>{t('packages.toSummary')}</Button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <h2 className="text-2xl font-semibold tracking-tight">{t('packages.title')}</h2>
-        <p className="text-sm text-muted-foreground">
-          {t('packages.lead')}
-        </p>
-      </div>
+    <div>
+      <M3Kopf icon={Package} titel={t('packages.title')} lead={t('packages.lead')} />
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="space-y-2.5">
         {offer.packages.map((p) => (
           <PackageCard
             key={p.key}
@@ -179,23 +156,20 @@ export function PackageStep({ load, onSelect, onNext, onTerms }: Props) {
       </div>
 
       {offer.packages.some((p) => p.key !== 'core') && (
-        <div className="rounded-xl border bg-card p-4 text-sm">
-          <p className="font-medium">{t('packages.replacementTitle')}</p>
-          <p className="mt-1 text-muted-foreground">{t('packages.replacementText')}</p>
-        </div>
+        <details className="group mt-4 text-center">
+          <summary className="cursor-pointer list-none text-sm font-medium text-klick hover:underline">{t('packages.replacementTitle')}</summary>
+          <p className="mt-2 rounded-[14px] bg-secondary p-4 text-left text-sm leading-relaxed text-muted-foreground">{t('packages.replacementText')}</p>
+        </details>
       )}
 
-      <p className="text-xs text-muted-foreground">{offer.notice}</p>
+      <p className="mt-4 text-center text-xs leading-relaxed text-muted-foreground">{offer.notice}</p>
 
-      {chosen && (
-        <div className="flex justify-end border-t pt-4">
-          <Button onClick={onNext}>{t('packages.toSummary')}</Button>
-        </div>
-      )}
+      <Button size="lg" className="mt-6 w-full rounded-full" disabled={!chosen || busy !== null} onClick={onNext}>{t('packages.toSummary')}</Button>
     </div>
   );
 }
 
+/** Eine graue Paketzeile; gewählt = Blattfarbe mit dunklem Rand, darunter klappen die Punkte auf. */
 function PackageCard({
   pkg, selected, busy, anyBusy, onSelect,
 }: {
@@ -204,47 +178,40 @@ function PackageCard({
   const { t } = useTranslation('clientFunnel');
   const card = packageCard(t, pkg.key);
   const bullets = card?.bullets ?? pkg.bullets;
+  const kurz = pkg.key === 'continuity_90' ? t('packages.continuity2', { days: 90 })
+    : pkg.key === 'continuity_180' ? t('packages.continuity2', { days: 180 })
+    : card ? t('packages.core4') : pkg.summary;
   return (
-    <Card className={selected ? 'border-foreground ring-1 ring-foreground' : undefined}>
-      <CardContent className="flex h-full flex-col gap-4 pt-6">
-        <div className="space-y-1">
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="inline-flex items-center gap-1.5 font-semibold leading-tight">
-              {selected && <Check className="h-4 w-4 shrink-0" aria-label={t('packages.chosenBadge')} />}
-              {card?.short ?? pkg.name}
-            </h3>
-          </div>
-          {!card && <p className="text-sm text-muted-foreground">{pkg.summary}</p>}
-        </div>
-
-        <div>
-          <div className="text-3xl font-semibold tracking-tight tabular-nums">{pkg.fee_percent} %</div>
-          <p className="text-xs text-muted-foreground">{t('packages.feeBase')}</p>
-        </div>
-
-        <div className="flex-1 space-y-2">
-          {card && <p className="text-xs font-medium text-muted-foreground">{card.head}</p>}
-          <ul className="space-y-2 text-sm">
-            {bullets.map((b, i) => (
-              <li key={i} className="flex gap-2">
-                <Check className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                <span>{b}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* Nur der eine Knopf „Weiter“ unten ist blau; die Wahl selbst ist eine graue Pille. */}
-        <Button
-          variant="secondary"
-          className="w-full rounded-full"
-          disabled={anyBusy}
-          onClick={onSelect}
-        >
-          {busy ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t('common.saving')}</>
-                : selected ? t('packages.selected') : t('packages.choose', { name: card?.short ?? pkg.name })}
-        </Button>
-      </CardContent>
-    </Card>
+    <button
+      type="button"
+      onClick={onSelect}
+      disabled={anyBusy}
+      aria-pressed={selected}
+      className={cn(
+        'mk3-zeile block w-full rounded-[14px] border-2 px-4 py-3.5 text-left transition-colors disabled:opacity-70',
+        selected ? 'border-foreground bg-background' : 'border-transparent bg-secondary hover:border-foreground/25',
+      )}
+    >
+      <span className="flex items-center gap-3">
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-medium">
+            {pkg.name ?? card?.short} <span className="font-normal text-muted-foreground">· {pkg.fee_percent} %</span>
+          </span>
+          <span className="mt-0.5 block text-xs text-muted-foreground">{selected ? t('packages.feeBase') : kurz}</span>
+        </span>
+        {busy ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : selected ? <Check className="h-4 w-4 shrink-0" aria-label={t('packages.chosenBadge')} /> : null}
+      </span>
+      {selected && (
+        <span className="mt-3 block border-t pt-3">
+          {card && <span className="mb-2 block text-xs font-medium text-muted-foreground">{card.head}</span>}
+          {bullets.map((b, i) => (
+            <span key={i} className="mt-1.5 flex gap-2 text-sm">
+              <Check className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+              <span>{b}</span>
+            </span>
+          ))}
+        </span>
+      )}
+    </button>
   );
 }

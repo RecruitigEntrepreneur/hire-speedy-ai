@@ -1137,3 +1137,476 @@
 .mh-ui .mh-panel iframe {
   display: block;
 }
+
+/* ── Fassung A (26.11.2026): Headhunter-Onboarding im Stil der übrigen Plattform ──
+   Nur im Onboarding-Rahmen (.mh-neu); Anmeldeseiten und Admin nutzen dieselbe Datei unverändert. */
+.mh-neu.mh-ui .mh-panel {
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: none;
+}
+.mh-neu.mh-ui .mh-panel-head > svg {
+  display: none;
+}
+.mh-neu.mh-ui .mh-panel-head {
+  margin-bottom: 18px;
+}
+.mh-neu.mh-ui .mh-panel-head p {
+  font-size: 13px;
+}
+.mh-neu.mh-ui h2 {
+  font-size: 20px;
+  letter-spacing: -.4px;
+}
+.mh-neu.mh-ui .mh-button {
+  border-radius: 999px;
+  min-height: 40px;
+  padding: 9px 18px;
+  font-size: 13px;
+  font-weight: 500;
+  background: hsl(var(--secondary));
+  border-color: transparent;
+}
+.mh-neu.mh-ui .mh-button:hover {
+  background: hsl(var(--secondary) / 0.7);
+}
+.mh-neu.mh-ui .mh-primary {
+  background: hsl(var(--klick));
+  border-color: hsl(var(--klick));
+  color: hsl(var(--klick-foreground));
+}
+.mh-neu.mh-ui .mh-primary:hover {
+  background: hsl(var(--klick));
+  filter: brightness(1.1);
+}
+.mh-neu.mh-ui .mh-link {
+  color: hsl(var(--klick));
+  font-size: 13px;
+  font-weight: 500;
+}
+.mh-neu.mh-ui .mh-link:hover {
+  text-decoration: underline;
+}
+.mh-neu.mh-ui .mh-field {
+  font-size: 13px;
+}
+.mh-neu.mh-ui .mh-field input,
+.mh-neu.mh-ui .mh-field select,
+.mh-neu.mh-ui .mh-field textarea {
+  border-radius: 10px;
+  min-height: 42px;
+  padding: 9px 12px;
+}
+/* Unterschritte als Pillen-Reiter wie auf den anderen Seiten */
+.mh-neu.mh-ui .mh-substeps {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 999px;
+  background: hsl(var(--secondary));
+  margin-bottom: 20px;
+}
+.mh-neu.mh-ui .mh-substeps button {
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 13px;
+  background: transparent;
+  color: var(--mh-muted);
+  opacity: 1;
+}
+.mh-neu.mh-ui .mh-substeps button[aria-current=step] {
+  background: hsl(var(--background));
+  color: var(--mh-text);
+  font-weight: 500;
+  box-shadow: 0 1px 2px hsl(var(--foreground) / 0.08);
+}
+.mh-neu.mh-ui .mh-substeps button:disabled {
+  color: hsl(var(--muted-foreground) / 0.7);
+}
+/* Hinweise ruhig: graue Fläche, dunkle Schrift, keine Ampelfarben */
+.mh-neu.mh-ui .mh-alert,
+.mh-neu.mh-ui .mh-error {
+  background: hsl(var(--secondary));
+  border-color: transparent;
+  color: var(--mh-text);
+  border-radius: 12px;
+  font-weight: 500;
+}
+.mh-neu.mh-ui .mh-note {
+  border-radius: 12px;
+}
+.mh-neu.mh-ui .mh-note-ok,
+.mh-neu.mh-ui .mh-note-warn {
+  border-color: var(--mh-line);
+}
+.mh-neu.mh-ui .mh-note-ok svg,
+.mh-neu.mh-ui .mh-note-warn svg {
+  color: var(--mh-text);
+}
+.mh-neu.mh-ui .mh-choice {
+  border-radius: 14px;
+}
+.mh-neu.mh-ui .mh-choice[aria-pressed=true] {
+  border-color: var(--mh-text);
+  box-shadow: 0 0 0 1px var(--mh-text);
+}
+
+/* „Was du besetzt“ als fünf kurze Bildschirme (26.11.2026) */
+.mh-neu.mh-ui .mh-frage h2 {
+  font-size: 24px;
+  letter-spacing: -.5px;
+  margin-top: 2px;
+}
+.mh-neu.mh-ui .mh-frage .mh-muted {
+  font-size: 13px;
+  margin-top: 4px;
+}
+.mh-neu.mh-ui .mh-frage-nr {
+  font-size: 12px;
+  color: var(--mh-muted);
+}
+.mh-neu.mh-ui .mh-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.mh-neu.mh-ui .mh-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 88px;
+  padding: 14px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.3;
+  border: 1px solid var(--mh-line);
+  border-radius: 14px;
+  background: hsl(var(--background));
+  color: var(--mh-text);
+  cursor: pointer;
+  transition: border-color .12s, box-shadow .12s;
+}
+.mh-neu.mh-ui .mh-tile:hover {
+  border-color: hsl(var(--foreground) / 0.4);
+}
+.mh-neu.mh-ui .mh-tile[aria-pressed=true] {
+  border-color: var(--mh-text);
+  box-shadow: 0 0 0 1px var(--mh-text);
+}
+.mh-neu.mh-ui .mh-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mh-neu.mh-ui .mh-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  font-size: 14px;
+  border: 1px solid var(--mh-line);
+  border-radius: 14px;
+  background: hsl(var(--background));
+  color: var(--mh-text);
+  cursor: pointer;
+}
+.mh-neu.mh-ui .mh-row i {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid hsl(var(--muted-foreground));
+}
+.mh-neu.mh-ui .mh-row[aria-checked=true] {
+  border-color: var(--mh-text);
+  box-shadow: 0 0 0 1px var(--mh-text);
+}
+.mh-neu.mh-ui .mh-row[aria-checked=true] i {
+  border: 5px solid var(--mh-text);
+}
+.mh-neu.mh-ui .mh-mixbar {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+}
+.mh-neu.mh-ui .mh-mixbar i {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: hsl(var(--border));
+}
+.mh-neu.mh-ui .mh-mixbar i.mh-on {
+  background: hsl(var(--klick));
+}
+.mh-neu.mh-ui .mh-mixfoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.mh-neu.mh-ui .mh-mixfoot-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.mh-neu.mh-ui .mh-back {
+  background: none;
+  border: 0;
+  padding: 8px 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--mh-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+@media (max-width: 640px) {
+  .mh-neu.mh-ui .mh-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.mh-neu.mh-ui .mh-tile {
+  min-height: 80px;
+}
+.mh-neu.mh-ui .mh-done-list li svg {
+  color: var(--mh-text);
+}
+
+/* ── Fassung M3 (26.11.2026): Einrichtungsassistent wie bei Apple, gemischt mit Airbnb ──
+   Graues Blatt-Umfeld kommt aus OnboardingFrame; hier: Kopf mittig mit Symbol im grauen Kreis,
+   graue Felder und Kacheln ohne Rahmen, Auswahl = weiß mit dunklem Rand, blaue Schaltfläche
+   über die volle Breite, zweiter Weg als blauer Link darunter. Nur unter .mh-m3. */
+.mh-m3.mh-ui .mh-panel {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+}
+.mh-m3.mh-ui .mh-panel-head {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.mh-m3.mh-ui .mh-panel-head > svg {
+  display: block;
+  box-sizing: content-box;
+  margin: 0;
+  padding: 12px;
+  border-radius: 50%;
+  background: hsl(var(--secondary));
+  color: var(--mh-text);
+}
+.mh-m3.mh-ui .mh-panel-head > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.mh-m3.mh-ui .mh-panel-head .mh-ort {
+  order: -1;
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--mh-muted);
+}
+.mh-m3.mh-ui .mh-panel-head h2,
+.mh-m3.mh-ui .mh-verify h2 {
+  font-size: 24px;
+  line-height: 1.2;
+  letter-spacing: -.5px;
+}
+.mh-m3.mh-ui .mh-panel-head h2:focus {
+  outline: none;
+}
+.mh-m3.mh-ui .mh-panel-head p:not(.mh-ort) {
+  margin-top: 8px;
+  max-width: 30rem;
+  font-size: 14px;
+  line-height: 1.5;
+}
+/* Schaltflächen: blau über die volle Breite, die zweite Möglichkeit als Link darunter */
+.mh-m3.mh-ui .mh-actions {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  margin-top: 4px;
+}
+.mh-m3.mh-ui .mh-button {
+  min-height: 46px;
+  font-size: 15px;
+  justify-content: center;
+}
+.mh-m3.mh-ui .mh-actions .mh-button:not(.mh-primary) {
+  min-height: 40px;
+  background: transparent;
+  border-color: transparent;
+  color: hsl(var(--klick));
+  font-size: 14px;
+}
+.mh-m3.mh-ui .mh-actions .mh-button:not(.mh-primary):hover {
+  background: transparent;
+  text-decoration: underline;
+}
+.mh-m3.mh-ui form > .mh-link,
+.mh-m3.mh-ui .mh-stack > .mh-link {
+  align-self: center;
+}
+/* Felder grau ohne Rahmen */
+.mh-m3.mh-ui .mh-field {
+  font-size: 13px;
+  font-weight: 500;
+}
+.mh-m3.mh-ui .mh-field input,
+.mh-m3.mh-ui .mh-field select,
+.mh-m3.mh-ui .mh-field textarea {
+  background: hsl(var(--secondary));
+  border-color: transparent;
+  border-radius: 12px;
+  min-height: 46px;
+  padding: 11px 14px;
+  font-size: 15px;
+}
+.mh-m3.mh-ui .mh-field input:focus,
+.mh-m3.mh-ui .mh-field select:focus,
+.mh-m3.mh-ui .mh-field textarea:focus {
+  outline: none;
+  background: hsl(var(--background));
+  border-color: var(--mh-text);
+}
+.mh-m3.mh-ui .mh-field > span {
+  font-size: 13px;
+  font-weight: 600;
+}
+/* Chips grau gefüllt, Auswahl dunkel */
+.mh-m3.mh-ui .mh-chip {
+  background: hsl(var(--secondary));
+  border-color: transparent;
+  padding: 9px 15px;
+}
+.mh-m3.mh-ui .mh-chip:hover {
+  border-color: hsl(var(--foreground) / 0.3);
+}
+.mh-m3.mh-ui .mh-chip[aria-pressed=true] {
+  background: var(--mh-text);
+  color: var(--mh-canvas);
+  border-color: var(--mh-text);
+}
+/* Kacheln, Zeilen und Wahlkarten: grau, gewählt = weiß mit dunklem Rand */
+.mh-m3.mh-ui .mh-tile,
+.mh-m3.mh-ui .mh-row,
+.mh-m3.mh-ui .mh-choice {
+  background: hsl(var(--secondary));
+  border: 2px solid transparent;
+  border-radius: 14px;
+  box-shadow: none;
+}
+.mh-m3.mh-ui .mh-tile:hover,
+.mh-m3.mh-ui .mh-row:hover,
+.mh-m3.mh-ui .mh-choice:hover {
+  border-color: hsl(var(--foreground) / 0.25);
+}
+.mh-m3.mh-ui .mh-tile[aria-pressed=true],
+.mh-m3.mh-ui .mh-row[aria-checked=true],
+.mh-m3.mh-ui .mh-choice[aria-pressed=true] {
+  background: hsl(var(--background));
+  border-color: var(--mh-text);
+  box-shadow: none;
+}
+.mh-m3.mh-ui .mh-choice svg {
+  color: var(--mh-text);
+}
+.mh-m3.mh-ui .mh-tiles {
+  gap: 8px;
+}
+/* Faktenliste und Zusammenfassung als graue Liste mit feinen Trennlinien */
+.mh-m3.mh-ui .mh-facts {
+  border: 0;
+  border-radius: 14px;
+  background: hsl(var(--secondary));
+}
+.mh-m3.mh-ui .mh-facts > div {
+  border-top: 1px solid hsl(var(--background));
+  padding: 12px 16px;
+}
+.mh-m3.mh-ui .mh-facts > div:first-child {
+  border-top: 0;
+}
+/* Hinweise und Meldungen ruhig grau */
+.mh-m3.mh-ui .mh-note {
+  background: hsl(var(--secondary));
+  border-color: transparent;
+  border-radius: 14px;
+}
+.mh-m3.mh-ui .mh-note-ok,
+.mh-m3.mh-ui .mh-note-warn {
+  border-color: transparent;
+}
+.mh-m3.mh-ui .mh-alert,
+.mh-m3.mh-ui .mh-error {
+  border-radius: 14px;
+}
+/* Code-Eingabe: graue Kästchen */
+.mh-m3.mh-ui .mh-otp-slot {
+  background: hsl(var(--secondary));
+  border-color: transparent;
+  border-radius: 10px;
+  margin: 0 3px;
+}
+.mh-m3.mh-ui .mh-verify-icon {
+  width: auto;
+  height: auto;
+  padding: 12px;
+  background: hsl(var(--secondary));
+  color: var(--mh-text);
+}
+.mh-m3.mh-ui .mh-verify > div > p {
+  font-size: 14px;
+}
+@media (max-width: 640px) {
+  .mh-m3.mh-ui .mh-panel-head h2,
+  .mh-m3.mh-ui .mh-verify h2 { font-size: 21px; }
+}
+/* Grund und Blatt wie in den Apple-Einstellungen:
+   dunkel = schwarzer Grund, Blatt in Kartengrau; hell = hellgrauer Grund, weißes Blatt. */
+.mh-m3.mh-onboarding {
+  background: hsl(var(--background));
+}
+.mh-m3 .mh-blatt {
+  background: hsl(var(--card));
+}
+.light .mh-m3.mh-onboarding {
+  background: hsl(var(--card));
+}
+.light .mh-m3 .mh-blatt {
+  background: hsl(var(--background));
+  box-shadow: 0 1px 3px hsl(var(--foreground) / 0.04);
+}
+/* Trennlinie nur einmal, Abstand kommt aus dem Stapel */
+.mh-m3.mh-ui .mh-divider {
+  margin: 0;
+}
+.mh-m3.mh-ui .mh-divider + .mh-question {
+  border-top: 0;
+  padding-top: 0;
+}
+/* Zusammenfassung: Stift bleibt rechts neben dem Wert, auch bei langen Zeilen */
+.mh-m3.mh-ui .mh-summary dd {
+  flex-wrap: nowrap;
+  align-items: flex-start;
+}
+.mh-m3.mh-ui .mh-summary dd .mh-link {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+/* Kunden-Anmeldung im Stil M3 nutzt h1 statt h2 */
+.mh-m3.mh-ui .mh-verify h1 {
+  font-size: 24px;
+  line-height: 1.2;
+  letter-spacing: -.5px;
+}
+@media (max-width: 640px) {
+  .mh-m3.mh-ui .mh-verify h1 { font-size: 21px; }
+}

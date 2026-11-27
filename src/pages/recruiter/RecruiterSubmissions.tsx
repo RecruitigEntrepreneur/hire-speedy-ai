@@ -251,7 +251,8 @@ export default function RecruiterSubmissions() {
             <Link to="/recruiter/jobs" className="mt-3 inline-block text-sm font-medium text-klick hover:underline">{t('board.empty.cta')} ›</Link>
           </div>
         ) : ansicht === 'spalten' ? (
-          <>
+          // Ziel des Rundgangs (lib/recruiterGuide.ts, Schritte „pipeline“ und „optin“): ein Rahmen um Handy- und Desktop-Fassung
+          <div data-tour="pipeline.overview">
             {/* Handy: Stufen als Reiter, darunter eine Spalte */}
             <div className="md:hidden">
               <div className="-mx-1 mb-3 flex gap-1 overflow-x-auto px-1 pb-1">
@@ -267,7 +268,7 @@ export default function RecruiterSubmissions() {
             <div className="hidden overflow-x-auto pb-2 md:block">
               <div className="grid min-w-[60rem] grid-cols-6 gap-3">{STUFEN.map(spalte)}</div>
             </div>
-          </>
+          </div>
         ) : (
           <div className="overflow-x-auto rounded-xl border bg-card">
             <table className="w-full min-w-[44rem] text-sm">

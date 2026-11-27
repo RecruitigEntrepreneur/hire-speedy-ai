@@ -24,6 +24,21 @@ import { PACKAGES, isPackageKey } from './pricing/packages';
 
 /** `job`: nur die Stelle, noch ohne Kandidat (Meine Stellen ohne eigene Stelle). */
 export type DemoPhase = 'job' | 'review' | 'scheduled' | 'interviewed' | 'recommended' | 'accepted' | 'signed';
+/** Postfächer für alle: Dort hat die Firma keine eigene Domain, die Kollegin bekommt die Beispieladresse. */
+const FREEMAIL = new Set(['gmail.com', 'googlemail.com', 'web.de', 'gmx.de', 'gmx.net', 'gmx.at', 'gmx.ch', 'gmx.com', 'outlook.com', 'outlook.de',
+  'hotmail.com', 'hotmail.de', 'live.com', 'live.de', 'yahoo.com', 'yahoo.de', 'icloud.com', 'me.com', 'mac.com', 't-online.de', 'aol.com',
+  'freenet.de', 'posteo.de', 'mailbox.org', 'proton.me', 'protonmail.com', 'mail.de', 'arcor.de', 'online.de']);
+
+/**
+ * Adresse der Beispiel-Kollegin beim Einladen: mit der Firmen-Domain des Kunden (Marko 18.11.: „näher am
+ * Kunden“). Bei einem Postfach für alle oder ohne Adresse bleibt die Beispieladresse. Verschickt wird nichts.
+ */
+export function colleagueAddress(example: string, userEmail: string | null | undefined): string {
+  const domain = userEmail?.split('@')[1]?.trim().toLowerCase();
+  const local = example.split('@')[0];
+  return domain && domain.includes('.') && !FREEMAIL.has(domain) ? `${local}@${domain}` : example;
+}
+
 export const DEMO_PHASES: DemoPhase[] = ['job', 'review', 'scheduled', 'interviewed', 'recommended', 'accepted', 'signed'];
 const reached = (phase: DemoPhase, from: DemoPhase) => DEMO_PHASES.indexOf(phase) >= DEMO_PHASES.indexOf(from);
 

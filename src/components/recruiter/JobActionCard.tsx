@@ -111,6 +111,7 @@ export function JobActionCard({
       tabIndex={0}
       data-tour={tourId}
       data-job-id={tourId ? job.id : undefined}
+      data-job-card={job.id}
       onClick={onSelect}
       onKeyDown={(e) => { if (e.key === 'Enter') onSelect(); }}
       className={cn(

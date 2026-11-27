@@ -1,13 +1,8 @@
 /**
- * Begleiteter Rundgang für Headhunter (Entscheidung 21.09.2026): sechs Kapitel,
- * seitenübergreifend. Der Headhunter klickt Menüpunkte und die erste Position
- * selbst; alles andere geht mit „Weiter“. Unumkehrbares („Ich suche“, Einreichen)
- * wird nur gezeigt. Wo ein neuer Headhunter noch nichts sieht, erklärt ein
- * Beispiel im Rundgang. Ziele sind CSS-Selektoren, meist [data-tour="…"].
+ * Technik der begleiteten Rundgänge (Headhunter und Kunde): Schritt-Typ, Seitenabgleich,
+ * Platz der Karte, Merker. Die Schritte selbst stehen in lib/recruiterTour.ts (Headhunter)
+ * und lib/clientGuide.ts (Kunde). Ziele sind CSS-Selektoren, meist [data-tour="…"].
  */
-import i18n from '@/i18n';
-
-export type GuideExample = 'job' | 'submit' | 'candidate' | 'pipeline' | 'optin' | 'task' | 'interview';
 
 export interface GuideStep {
   id: string;
@@ -28,9 +23,6 @@ export interface GuideStep {
   body: string;
   /** Text, wenn der Headhunter das Ziel nicht selbst anklicken kann (Handy, schmales Fenster). */
   narrowBody?: string;
-  example?: GuideExample;
-  /** Beispiel nur zeigen, wenn das Ziel fehlt, etwa ohne offene Positionen. */
-  exampleWhenMissing?: boolean;
   /**
    * Der Headhunter klickt das Ziel selbst. Mit `to` geht es weiter, sobald diese
    * Seite offen ist, sonst direkt nach dem Klick. Unter `minWidth` bleibt das Ziel
@@ -50,8 +42,27 @@ export interface GuideStep {
    * „gefällt uns, wenn sich die Dinge selbst bewegen und es dadurch erklärt wird“).
    */
   points?: { at: string; label: string }[];
-  /** Bevorzugte Seite der Karte. Bei Menüs „left“: Die Karte steht schon beim Öffnen dort, wo sie danach bleibt. */
+  /**
+   * Bereich, der leuchtet, während der Zeiger die `points` anfährt (Stellenseite: Kopf mit Reitern
+   * und Honorar); danach zieht sich das Licht auf `target` zusammen, das der Nutzer anklickt.
+   */
+  pointArea?: string;
+  /**
+   * Nichts abdunkeln, nichts einrahmen: Die Seite bleibt, wie sie ist, die Karte steht oben rechts
+   * (Übersicht, Marko 18.11.: „jeden Bereich kurz erklären, nicht alle leuchten“).
+   */
+  bare?: boolean;
+  /** Beschriftung des Hauptknopfs statt „Weiter“ bzw. „Los geht's“ (etwa „Stelle besetzen“). */
+  nextLabel?: string;
+  /** Bevorzugte Seite der Karte. Bei Menüs „left“: Die Karte steht neben dem offenen Menü. */
   side?: 'right' | 'bottom' | 'left' | 'top';
+  /**
+   * Die Vorführung öffnet erst ein Menü (Neue Stelle, Glocke, Kandidat anlegen): Die Karte ist schon
+   * am Knopf schmal und lässt dem Menü Platz, beim Aufgehen bleibt sie stehen. Vorher stand sie breit
+   * am Knopf und sprang danach schmal ans Menü (Marko 17.11.: „erscheint zuerst in einer anderen Form
+   * ganz kurz“; „leichter Slide, aber nicht die Form ändern“).
+   */
+  cardAtTarget?: boolean;
   /**
    * Bereich, der beim Vorführen leuchtet, während die Bühne das Fenster sichtbar ausfüllt;
    * danach zieht sich das Licht auf `target` zusammen.
@@ -78,91 +89,6 @@ export interface GuideStep {
   /** Solange der Nutzer hier ist, bietet der Hinweis kein „Weiter“ an (etwa mitten in der Aufnahme). */
   holdWhile?: string;
 }
-
-/** Kapitel als Schlüssel; die Namen liest `guideChapters()` in der aktuellen Sprache. */
-export const GUIDE_CHAPTERS = ['overview', 'jobs', 'briefing', 'candidates', 'pipeline', 'tasks'] as const;
-
-// Texte stehen in src/i18n/locales/recruiterGuide und werden erst beim Lesen geholt (README Regel 7),
-// damit ein Sprachwechsel sofort gilt. Wer die Schritte zeigt, lädt den Namespace `recruiterGuide`.
-const tx = (key: string, options?: Record<string, unknown>): string => i18n.t(`recruiterGuide:${key}`, options);
-export const guideChapters = (): string[] => GUIDE_CHAPTERS.map(key => tx(`chapters.${key}`));
-
-/** Ab dieser Breite gibt es das Seitenmenü (md). */
-const MENU = 768;
-/** Ab dieser Breite öffnet die Jobvorschau neben der Liste statt als eigenes Fenster (lg). */
-const PANEL = 1024;
-const nav = (href: string) => `[data-tour="nav:${href}"]`;
-const at = (id: string) => `[data-tour="${id}"]`;
-
-type StepDef = Omit<GuideStep, 'title' | 'body' | 'narrowBody' | 'click'> & {
-  /** Es gibt einen eigenen Text für schmale Fenster (steps.<id>.narrowBody). */
-  narrow?: boolean;
-  /** Klick-Schritt; die Beschriftung steht unter steps.<id>.action. */
-  click?: { to?: string; minWidth?: number };
-};
-const text = (target: object, field: string, read: () => string) =>
-  Object.defineProperty(target, field, { enumerable: true, get: read });
-/** Schritt, dessen Texte (title, body, narrowBody, click.label) bei jedem Lesen aus der Übersetzung kommen. */
-const step = ({ narrow, click, ...rest }: StepDef): GuideStep => {
-  const s = { ...rest } as GuideStep;
-  text(s, 'title', () => tx(`steps.${rest.id}.title`));
-  text(s, 'body', () => tx(`steps.${rest.id}.body`));
-  if (narrow) text(s, 'narrowBody', () => tx(`steps.${rest.id}.narrowBody`));
-  if (click) s.click = text({ ...click }, 'label', () => tx(`steps.${rest.id}.action`)) as GuideStep['click'];
-  return s;
-};
-type MenuKey = 'jobs' | 'candidates' | 'pipeline' | 'tasks' | 'interviews';
-const menuStep = (id: string, chapter: number, route: string, href: string, menu: MenuKey): GuideStep => {
-  const label = () => tx(`menu.items.${menu}`);
-  const s = { id, chapter, route, target: nav(href) } as GuideStep;
-  text(s, 'title', () => tx(`steps.${id}.title`));
-  text(s, 'body', () => tx('menu.body', { label: label() }));
-  text(s, 'narrowBody', () => tx('menu.narrowBody', { label: label() }));
-  s.click = text({ to: href, minWidth: MENU }, 'label', () => tx('menu.open', { label: label() })) as GuideStep['click'];
-  return s;
-};
-
-export const GUIDE_STEPS: GuideStep[] = [
-  // 1 · Übersicht
-  step({ id: 'welcome', chapter: 1, route: '/recruiter' }),
-  step({ id: 'cockpit', chapter: 1, route: '/recruiter', target: at('dashboard.header') }),
-  step({ id: 'topJobs', chapter: 1, route: '/recruiter', target: at('dashboard.topJobs') }),
-  menuStep('navJobs', 1, '/recruiter', '/recruiter/jobs', 'jobs'),
-
-  // 2 · Offene Jobs
-  step({ id: 'filters', chapter: 2, route: '/recruiter/jobs', target: at('jobs.filters') }),
-  step({ id: 'card', chapter: 2, route: '/recruiter/jobs', target: at('jobs.firstCard'),
-    example: 'job', exampleWhenMissing: true, skipWhenMissing: 'candidatesAdd' }),
-  step({ id: 'activate', chapter: 2, route: '/recruiter/jobs', target: at('jobs.firstCard.activate'), lockTarget: true }),
-  step({ id: 'openPreview', chapter: 2, route: '/recruiter/jobs', target: at('jobs.firstCard'), minWidth: PANEL, click: {} }),
-  step({ id: 'preview', chapter: 2, route: '/recruiter/jobs', target: at('jobs.preview'), minWidth: PANEL }),
-  step({ id: 'openBriefing', chapter: 2, route: '/recruiter/jobs', target: at('jobs.firstCard'), narrow: true,
-    click: { to: '/recruiter/jobs/:id', minWidth: PANEL } }),
-
-  // 3 · Briefing
-  step({ id: 'jobHeader', chapter: 3, route: '/recruiter/jobs/:id', target: '[data-tour-scope="job"] header' }),
-  step({ id: 'jobTabs', chapter: 3, route: '/recruiter/jobs/:id', target: '[data-tour-scope="job"] [role="tablist"]' }),
-  step({ id: 'jobSubmit', chapter: 3, route: '/recruiter/jobs/:id', target: '[data-tour-scope="job"] aside', lockTarget: true, example: 'submit' }),
-  menuStep('navCandidates', 3, '/recruiter/jobs/:id', '/recruiter/candidates', 'candidates'),
-
-  // 4 · Meine Kandidaten
-  step({ id: 'candidatesAdd', chapter: 4, route: '/recruiter/candidates', target: at('candidates.add'), lockTarget: true, example: 'candidate' }),
-  menuStep('navPipeline', 4, '/recruiter/candidates', '/recruiter/submissions', 'pipeline'),
-
-  // 5 · Pipeline
-  step({ id: 'pipeline', chapter: 5, route: '/recruiter/submissions', target: at('pipeline.overview'), example: 'pipeline' }),
-  step({ id: 'optin', chapter: 5, route: '/recruiter/submissions', target: at('pipeline.overview'), example: 'optin' }),
-  menuStep('navTasks', 5, '/recruiter/submissions', '/recruiter/influence', 'tasks'),
-
-  // 6 · Aufgaben & Interviews
-  step({ id: 'tasks', chapter: 6, route: '/recruiter/influence', target: at('tasks.list'), example: 'task' }),
-  menuStep('navInterviews', 6, '/recruiter/influence', '/recruiter/interviews', 'interviews'),
-  step({ id: 'interviews', chapter: 6, route: '/recruiter/interviews', target: at('interviews.stats'), example: 'interview' }),
-  step({ id: 'done', chapter: 6, route: '/recruiter/interviews' }),
-];
-
-/** Schritte, die bei dieser Fensterbreite vorkommen. */
-export const visibleSteps = (width: number) => GUIDE_STEPS.filter(step => !step.minWidth || width >= step.minWidth);
 
 export function matchRoute(pattern: string, pathname: string): boolean {
   // "/dashboard/aufnahme*": der Pfad selbst und alles darunter.
@@ -252,25 +178,45 @@ export function placeCard(target: TourRect | null, card: TourSize, viewport: Tou
   return { side: 'center', top: upperHalfFree ? MARGIN : Math.max(MARGIN, maxTop), left: centerLeft };
 }
 
-/** Merker im Konto (user_metadata), damit der Rundgang auf keinem Gerät zweimal von selbst startet. */
-export const TOUR_SEEN_KEY = 'recruiter_tour_seen_at';
+/**
+ * Merker im Konto (user_metadata), damit der Rundgang auf keinem Gerät zweimal von selbst startet.
+ * Neue Schlüssel für den Rundgang an echten Seiten (17.11.2026): Wer den alten gesehen hat,
+ * bekommt den neuen einmal von selbst, wie beim Kunden.
+ */
+export const TOUR_SEEN_KEY = 'recruiter_app_tour_seen_at';
+/** „Später“ im ersten Schritt: startet nicht mehr von selbst, bleibt aber im Start-Kasten offen. */
+export const TOUR_POSTPONED_KEY = 'recruiter_app_tour_postponed_at';
 /** Rückfallebene, falls das Speichern im Konto scheitert. */
-export const tourStorageKey = (userId: string) => `matchunt.recruiterTour.${userId}`;
+export const tourStorageKey = (userId: string) => `matchunt.recruiterAppTour.${userId}`;
+export const tourPostponedStorageKey = (userId: string) => `matchunt.recruiterAppTourPostponed.${userId}`;
 
-export function tourSeen(user: { id: string; user_metadata?: Record<string, unknown> } | null, storage: Pick<Storage, 'getItem'> | null): boolean {
+type TourUser = { id: string; user_metadata?: Record<string, unknown> } | null;
+const marked = (user: NonNullable<TourUser>, storage: Pick<Storage, 'getItem'> | null, metaKey: string, key: string) => {
+  if (user.user_metadata?.[metaKey]) return true;
+  try { return Boolean(storage?.getItem(key)); } catch { return false; }
+};
+
+/** Ganz gesehen oder beendet: Im Start-Kasten ist der Rundgang erledigt. */
+export function tourSeen(user: TourUser, storage: Pick<Storage, 'getItem'> | null): boolean {
   if (!user) return true;
-  if (user.user_metadata?.[TOUR_SEEN_KEY]) return true;
-  try { return Boolean(storage?.getItem(tourStorageKey(user.id))); } catch { return false; }
+  return marked(user, storage, TOUR_SEEN_KEY, tourStorageKey(user.id));
+}
+
+/** Startet nicht mehr von selbst: gesehen oder auf „Später“ verschoben. */
+export function tourSettled(user: TourUser, storage: Pick<Storage, 'getItem'> | null): boolean {
+  if (!user) return true;
+  return tourSeen(user, storage) || marked(user, storage, TOUR_POSTPONED_KEY, tourPostponedStorageKey(user.id));
 }
 
 /** Laufender Rundgang je Browser-Tab, damit Neuladen an derselben Stelle weitermacht. */
 export interface GuideState { userId: string; stepId: string; paused: boolean; jobPath?: string }
-export const GUIDE_STATE_KEY = 'matchunt.recruiterGuide';
+/** Eigener Schlüssel ab dem Rundgang an echten Seiten (17.11.2026): Die alten Schritte gibt es nicht mehr. */
+export const GUIDE_STATE_KEY = 'matchunt.recruiterGuide2';
 
 export function readGuideState(
   storage: Pick<Storage, 'getItem'> | null,
   userId: string,
-  steps: GuideStep[] = GUIDE_STEPS,
+  steps: GuideStep[],
   key: string = GUIDE_STATE_KEY,
   dynamicRoute: string = '/recruiter/jobs/:id',
 ): GuideState | null {

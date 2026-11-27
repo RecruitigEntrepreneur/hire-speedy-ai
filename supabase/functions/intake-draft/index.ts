@@ -8,6 +8,8 @@ import {
   publicPackages, inDays, DRAFT_DAYS, TOKEN_DAYS,
 } from '../_shared/intake-core.ts';
 import { callLanguage, rememberDraftLanguage, rowLanguage, withIntakeLang } from '../_shared/intake-language.ts';
+import { applyOps, OPS_FELDER, type Op } from '../_shared/aufnahme-ops.ts';
+import { ichVon, mitarbeitInfo, opsAusBody, rolleVon, werEintragen } from '../_shared/aufnahme-mitarbeit.ts';
 
 /**
  * intake-draft — Laden und Autosave der Aufnahme. Ohne Login, per Entwurfs-Token.
@@ -39,6 +41,8 @@ const TEXT_FIELDS = [
 /** Grobe Obergrenze gegen aufgeblaehte Payloads. 512 KB reichen fuer jedes
  *  reale Briefing um ein Vielfaches. */
 const MAX_PAYLOAD_BYTES = 512 * 1024;
+
+type DraftRowLike = Record<string, any>;
 
 serve(withIntakeLang(async (req) => {
   const pre = preflight(req);
@@ -87,6 +91,7 @@ serve(withIntakeLang(async (req) => {
         link: link ? publicLink(link, ownerName) : null,
         packages,
         locked,
+        mitarbeit: await mitarbeitInfo(supabase, draft, found.token),
       });
     }
 
@@ -143,10 +148,22 @@ serve(withIntakeLang(async (req) => {
       return fail('rate_limited', 'Zu viele Speichervorgänge. Bitte kurz warten.');
     }
 
-    const patchIn = (body?.patch ?? {}) as Record<string, unknown>;
-    if (JSON.stringify(patchIn).length > MAX_PAYLOAD_BYTES) {
+    const patchIn = { ...((body?.patch ?? {}) as Record<string, unknown>) };
+    const ops: Op[] | null = opsAusBody(body?.ops);
+    if (JSON.stringify(patchIn).length + JSON.stringify(ops ?? []).length > MAX_PAYLOAD_BYTES) {
       return fail('invalid_request', 'Die Aufnahme ist zu groß. Bitte kürzen Sie die Freitexte.');
     }
+
+    // Eingeladene Kollegin (Rolle „beschreiben“): erst nach ihrer Bestätigung, und nur die Stelle.
+    const ich = ichVon(draft, found.token);
+    if (rolleVon(found.token) === 'beschreiben') {
+      if (!ich.bestaetigt) return fail('not_allowed', 'Bitte bestätigen Sie zuerst Ihre E-Mail-Adresse.');
+      for (const k of Object.keys(patchIn)) {
+        if (!(CONTENT_FIELDS as readonly string[]).includes(k) && k !== 'title' && k !== 'completeness') delete patchIn[k];
+      }
+    }
+    // Mit Änderungen je Antwort kommen die großen Felder nicht mehr als Block.
+    if (ops) for (const f of OPS_FELDER) delete patchIn[f];
 
     const update: Record<string, unknown> = {};
 
@@ -206,21 +223,50 @@ serve(withIntakeLang(async (req) => {
     );
     if (hasTitle && draft.capture_state === 'started') update.capture_state = 'in_progress';
 
-    if (Object.keys(update).length === 0) {
+    if (Object.keys(update).length === 0 && !(ops && ops.length)) {
       await touchDraft(supabase, draft.id, {}, tokenId);
-      return json({ draft: publicDraft(draft, await contractState(supabase, draft.id)), link: link ? publicLink(link, ownerName) : null, packages, locked: false });
+      return json({
+        draft: publicDraft(draft, await contractState(supabase, draft.id)), link: link ? publicLink(link, ownerName) : null, packages, locked: false,
+        mitarbeit: await mitarbeitInfo(supabase, draft, found.token),
+      });
     }
 
-    const { data: saved, error } = await supabase
-      .from('intake_drafts')
-      .update({
-        ...update,
-        last_activity_at: new Date().toISOString(),
-        purge_after: inDays(DRAFT_DAYS),
-      })
-      .eq('id', draft.id)
-      .select('*')
-      .single();
+    // ---- Schreiben --------------------------------------------------------
+    // Ohne Änderungen je Antwort wie bisher. Mit ihnen: in den AKTUELLEN Stand einsetzen
+    // und nur schreiben, wenn niemand dazwischen gespeichert hat (sonst neu lesen, bis zu 5x).
+    let saved: DraftRowLike | null = null;
+    let error: { message: string } | null = null;
+    let aktuell: DraftRowLike = draft;
+    for (let versuch = 0; versuch < 5; versuch++) {
+      if (versuch > 0) {
+        const { data } = await supabase.from('intake_drafts').select('*').eq('id', draft.id).single();
+        if (!data) break;
+        aktuell = data;
+      }
+      const schreiben: Record<string, unknown> = { ...update };
+      if (ops && ops.length) {
+        const felder = [...new Set(ops.map((o) => o.feld))];
+        const stand = applyOps(Object.fromEntries(OPS_FELDER.map((f) => [f, aktuell[f] ?? null])), ops);
+        for (const f of felder) schreiben[f] = stand[f];
+        schreiben.dyn = werEintragen(schreiben.dyn ?? aktuell.dyn, ops, ich);
+        const titel = (stand.built as Record<string, unknown> | null)?.title;
+        if (typeof titel === 'string' && !('title' in schreiben)) schreiben.title = titel.trim().slice(0, 300) || null;
+        if ((titel || aktuell.title) && aktuell.capture_state === 'started') schreiben.capture_state = 'in_progress';
+      }
+      let q = supabase
+        .from('intake_drafts')
+        .update({
+          ...schreiben,
+          last_activity_at: new Date().toISOString(),
+          purge_after: inDays(DRAFT_DAYS),
+        })
+        .eq('id', draft.id);
+      if (ops && ops.length) q = q.eq('updated_at', aktuell.updated_at);
+      const res = await q.select('*').maybeSingle();
+      error = res.error;
+      saved = res.data;
+      if (saved || error || !(ops && ops.length)) break;
+    }
 
     if (!error && tokenId) {
       await supabase
@@ -257,6 +303,7 @@ serve(withIntakeLang(async (req) => {
       link: link ? publicLink(link, ownerName) : null,
       packages,
       locked: false,
+      mitarbeit: await mitarbeitInfo(supabase, saved, found.token),
     });
   } catch (e) {
     console.error('[intake-draft]', e);

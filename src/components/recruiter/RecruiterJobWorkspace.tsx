@@ -98,8 +98,8 @@ function Kachel({ titel, hinweis, onClick, leise, grau }: { icon?: LucideIcon; t
   </button>;
 }
 
-function Gruppe({ titel, children }: { titel: string; children: ReactNode }) {
-  return <div className="space-y-0.5"><p className="px-2 pb-1 text-xs text-muted-foreground">{titel}</p>{children}</div>;
+function Gruppe({ titel, children, tour }: { titel: string; children: ReactNode; tour?: string }) {
+  return <div className="space-y-0.5" data-tour={tour}><p className="px-2 pb-1 text-xs text-muted-foreground">{titel}</p>{children}</div>;
 }
 
 /** Handy (17.11.2026): Symbol-Knöpfe der unteren Leiste mit kurzem Wort darunter. */
@@ -213,7 +213,7 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
     {/* Kopf: links die Stelle mit den Reitern, rechts Verdienst und nächster Schritt. Die
         Dreier-Leiste darunter ist seit 21.10.2026 weg: Anzeige und Briefing zeigen alles selbst. */}
     <Tabs value={tab} onValueChange={setTab} className="space-y-7">
-    <header>
+    <header data-tour="job.head">
       {/* Kopf als graue Karte wie beim Kunden (Entwurf A, 24.11.2026), Reiter unten bündig in der Karte.
           Ab 1180 px ein Raster: links Stelle und darunter gleich die Reiter, rechts über beide Zeilen
           Verdienst und Knöpfe. So entsteht keine Lücke über den Reitern. */}
@@ -247,7 +247,7 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
           </ul>}
         </div>
         <div className="flex w-full flex-col gap-2.5 sm:w-auto sm:min-w-[15rem] min-[1180px]:col-start-2 min-[1180px]:row-span-2 min-[1180px]:row-start-1 min-[1180px]:pb-6">
-          <HeroEarning job={job} onDetails={() => setShowEarning(true)} />
+          <div data-tour="job.earning"><HeroEarning job={job} onDetails={() => setShowEarning(true)} /></div>
           {/* Unter 1180 px steht der Knopf in der Leiste unten, nicht doppelt. */}
           <div className="hidden gap-2 min-[1180px]:flex">
             <div className="min-w-0 flex-1 [&_button]:w-full">{heroAction ?? <Button size="lg" onClick={onSubmit}>{t('ws.prepare')}</Button>}</div>
@@ -258,7 +258,7 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
       <div className="flex w-full flex-wrap items-end justify-between gap-x-6 gap-y-2 min-[1180px]:col-start-1 min-[1180px]:row-start-2 min-[1180px]:w-auto min-[1180px]:self-end">
         <TabsList className="-mb-px h-auto flex-nowrap justify-start gap-5 rounded-none bg-transparent p-0 sm:gap-6">
           {([['beschreibung', t('ws.tabs.ad'), t('ws.tabs.adShort')], ['briefing', t('ws.tabs.briefing'), t('ws.tabs.briefing')], ['kandidaten', t('ws.tabs.candidates'), t('ws.tabs.candidatesShort')]] as const).map(([wert, label, kurz]) =>
-            <TabsTrigger key={wert} value={wert} className="gap-1.5 rounded-none border-b-2 border-transparent px-0 pb-3 pt-1 text-sm text-muted-foreground shadow-none hover:text-foreground data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:font-medium data-[state=active]:text-foreground data-[state=active]:shadow-none">
+            <TabsTrigger key={wert} value={wert} data-tour={wert === 'beschreibung' ? 'job.tab.ad' : wert === 'briefing' ? 'job.tab.briefing' : undefined} className="gap-1.5 rounded-none border-b-2 border-transparent px-0 pb-3 pt-1 text-sm text-muted-foreground shadow-none hover:text-foreground data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:font-medium data-[state=active]:text-foreground data-[state=active]:shadow-none">
               <span className="sm:hidden">{kurz}</span><span className="hidden sm:inline">{label}</span>{wert === 'kandidaten' && <span className="font-normal tabular-nums text-muted-foreground">{submissionCount}</span>}
             </TabsTrigger>)}
         </TabsList>
@@ -310,7 +310,7 @@ export function RecruiterJobWorkspace({ job, companyRevealed, fullAccess, submis
           {/* Stand der Suche oben in der Leiste, damit er den Kopf nicht verlängert (23.11.2026). */}
           {suchStand(true) && <div className="hidden px-2 min-[1180px]:block [&_span]:!justify-start">{suchStand(true)}</div>}
           {tab === 'beschreibung' && hatAnzeige && <>
-            <Gruppe titel={t('ws.approach')}>
+            <Gruppe titel={t('ws.approach')} tour="job.approach">
               <Kachel icon={Linkedin} titel="LinkedIn" hinweis={t('ws.charsOf300', { count: zeichen })} onClick={() => ansprechen('linkedin')} />
               <Kachel icon={Mail} titel={t('ws.email')} hinweis={t('ws.emailHint')} onClick={() => ansprechen('email')} />
               <Kachel icon={Phone} titel={t('ws.phone')} hinweis={t('ws.phoneHint')} onClick={() => ansprechen('telefon')} />

@@ -2,15 +2,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Trans, useTranslation } from 'react-i18next';
 import { applyLinkLanguage } from '@/i18n';
+import { useTheme } from '@/hooks/useTheme';
 import { intlLocale } from '@/i18n/languages';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, CheckCircle2, Clock, FileSignature, Mail } from 'lucide-react';
+import { Loader2, CheckCircle2, Clock, FileSignature, Inbox, Mail } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { M3Kopf, M3Seite } from '@/components/intake/guest/m3';
+import { AenderungenProvider, AufgeteiltBlatt, DankeBlatt, EinladenBlatt, hinweiseAus, MitarbeitZeilen, useAufnahmeLive, WartenBlatt, type Felder, type HelferStand, type Hinweis, type Ort } from '@/components/intake/guest/mitarbeit';
+import { applyOps, diffOps, opSchluessel } from '../../../supabase/functions/_shared/aufnahme-ops';
 import { MatchuntWordmark } from '@/components/ui/MatchuntWordmark';
-import { IntakeShell, IntakeFailurePage, PageLanguageMenu, type StepDef } from '@/components/intake/guest/IntakeShell';
+import { IntakeShell, IntakeFailurePage, type StepDef } from '@/components/intake/guest/IntakeShell';
 import { CaptureStep, emptyCapture, captureBriefingText, type CaptureState } from '@/components/intake/guest/CaptureStep';
-import { ContactStep } from '@/components/intake/guest/ContactStep';
+import { ContactStep, kontaktVollstaendig } from '@/components/intake/guest/ContactStep';
 import { VerifyStep } from '@/components/intake/guest/VerifyStep';
 import { PackageStep } from '@/components/intake/guest/PackageStep';
 import { SignFrame } from '@/components/intake/guest/SignFrame';
@@ -36,7 +40,8 @@ import { toast } from 'sonner';
  */
 
 // Die Beschriftungen stehen in den Sprachdateien (clientFunnel: shell.steps.*).
-const STEP_KEYS = ['capture', 'contact', 'verify', 'packages', 'summary'] as const;
+// Seit 26.11.2026: „verify“ ist das Kapitel „Start“ (Art der Besetzung + E-Mail-Code) und steht vorn.
+const STEP_KEYS = ['verify', 'capture', 'contact', 'packages', 'summary'] as const;
 
 type StepKey = StepDef['key'];
 
@@ -45,11 +50,17 @@ export default function GuestIntake() {
   // Zuerst die Texte: Die Seite wartet, bis die Sprachdatei geladen ist, erst dann startet die Aufnahme.
   const { t, i18n } = useTranslation('clientFunnel');
   const bold = { bold: <strong className="text-foreground" /> };
+  // Hell als Vorgabe schon beim Laden, nicht erst wenn der Rahmen mit dem Schalter steht.
+  useTheme('light');
   const intake = useGuestIntake(token, draftToken);
   const { state, save, sendCode, confirmCode, openSession, loadPackages, selectPackage, sendContract, checkSignature, submit, forward,
-          askAi, parseText, parseUrl, parsePdf, enrichCompany } = intake;
+          askAi, parseText, parseUrl, parsePdf, enrichCompany, verbinde, holeStand, zurueckziehen, zurueckgeben } = intake;
 
   const [step, setStep] = useState<StepKey>('capture');
+  // Zurück aus dem Code-Schritt zur Wahl der Art (CaptureStep zählt mit).
+  const [artZeigen, setArtZeigen] = useState(0);
+  // Die Art ist in dieser Sitzung gewählt: nach dem Code-Schritt nicht noch einmal fragen.
+  const [artGewaehlt, setArtGewaehlt] = useState(false);
   const [capture, setCapture] = useState<CaptureState | null>(null);
   const [forwardOpen, setForwardOpen] = useState(false);
   // Die im Rahmenvertrag vereinbarte Kondition, sobald der Paketschritt sie kennt.
@@ -68,6 +79,21 @@ export default function GuestIntake() {
   // Nach der Unterschrift: bestätigen, dann ins Dashboard. `mail`: ohne Anmeldung geht der Zugang per Mail raus.
   const [abschluss, setAbschluss] = useState<'pruefen' | 'spaet' | 'mail'>('pruefen');
   const [pruefLauf, setPruefLauf] = useState(0);
+
+  // ---- Mitarbeit (26.11.2026): Kollegin einladen, gleichzeitig arbeiten -------
+  const mitarbeit = state.mitarbeit;
+  const helfer = mitarbeit?.ich.rolle === 'beschreiben';
+  // Server-Stand der Stelle (je Antwort), der zuletzt gesendete eigene Stand, der aktuelle eigene Stand.
+  const basis = useRef<Felder | null>(null);
+  const gesendet = useRef<Felder | null>(null);
+  const lokal = useRef<CaptureState | null>(null);
+  const [hinweise, setHinweise] = useState<Hinweis[]>([]);
+  const [ort, setOrt] = useState<Ort | null>(null);
+  const [zurueckVon, setZurueckVon] = useState<string | null>(null);
+  // Gerade eingeladen (V1): an diese Adresse; das Blatt „Arbeitsteilung“ sagt es einmal dazu.
+  const [frischAn, setFrischAn] = useState<string | null>(null);
+  const hinweiseRef = useRef<Hinweis[]>([]);
+  hinweiseRef.current = hinweise;
 
   const zumDashboard = () => window.location.assign('/dashboard');
 
@@ -99,9 +125,9 @@ export default function GuestIntake() {
   // Kanna Medics: Contracting bekam Festanstellungs-Konditionen angeboten).
   const contracting = (capture?.type ?? draft?.contract_type) === 'freelance';
   const steps = useMemo<StepDef[]>(
-    () => STEP_KEYS.filter((key) => !(contracting && key === 'packages'))
+    () => STEP_KEYS.filter((key) => !(contracting && key === 'packages') && (!helfer || key === 'verify' || key === 'capture'))
       .map((key) => ({ key, label: t(`shell.steps.${key}`) })),
-    [contracting, t],
+    [contracting, t, helfer],
   );
   // Sprache des Links (Einladung): greift nur, solange die Person nicht selbst gewählt hat.
   const linkLanguage = state.link?.language;
@@ -119,7 +145,8 @@ export default function GuestIntake() {
   useEffect(() => {
     if (!draft || hydratedFor.current === draft.id) return;
     hydratedFor.current = draft.id;
-    setCapture({
+    basis.current = felderAusDraft(draft);
+    setCapture(lokal.current = {
       type: draft.contract_type,
       built: (draft.built as any) ?? null,
       answers: (draft.answers as any) ?? {},
@@ -134,9 +161,16 @@ export default function GuestIntake() {
     });
 
     // Beim Fortsetzen dort einsteigen, wo es weitergeht.
-    if (draft.states.review === 'pending_admin' || draft.states.review === 'accepted') setStep('summary');
+    // Eingeladene Kollegin: nur Start und Stelle.
+    if (state.mitarbeit?.ich.rolle === 'beschreiben') setStep(state.mitarbeit.ich.bestaetigt ? 'capture' : 'verify');
+    // Eine Kollegin beschreibt gerade die Stelle: zurück auf die Arbeitsteilung.
+    else if (draft.states.identity === 'email_verified' && !['pending_admin', 'accepted'].includes(draft.states.review)
+      && state.mitarbeit?.helfer.some((h) => !h.zurueckgegeben_am)) setStep('aufgeteilt');
+    else if (draft.states.review === 'pending_admin' || draft.states.review === 'accepted') setStep('summary');
     else if (draft.states.identity === 'email_verified') {
-      setStep(draft.contract_type === 'freelance' || draft.states.commercial === 'confirmed' ? 'summary' : 'packages');
+      // Seit die E-Mail am Anfang steht: ohne Kontaktangaben ist die Stelle noch in Arbeit.
+      if (!draft.contact_name) setStep('capture');
+      else setStep(draft.contract_type === 'freelance' || draft.states.commercial === 'confirmed' ? 'summary' : 'packages');
     }
     else if (draft.states.identity === 'contact_provided') setStep('verify');
     else if (draft.built) setStep('capture');
@@ -198,13 +232,16 @@ export default function GuestIntake() {
       setCapture((prev) => {
         if (!prev) return prev;
         const next = updater(prev);
+        lokal.current = next;
+        // Wer ein Feld selbst ändert, hat die Marke daran gesehen: sie geht weg.
+        if (hinweiseRef.current.length) {
+          const selbst = new Set(diffOps(felderAusCapture(prev), felderAusCapture(next)).map(opSchluessel));
+          if (hinweiseRef.current.some((h) => selbst.has(h.schluessel))) setHinweise((hs) => hs.filter((h) => !selbst.has(h.schluessel)));
+        }
+        // Die Stelle selbst (built, answers, dyn, freelance, flexibility) geht als Änderungen je
+        // Antwort raus (opsQuelle unten); hier nur, was sich daraus ableitet.
         save({
-          contract_type: next.type,
-          built: next.built,
-          answers: next.answers,
-          dyn: next.dyn,
-          freelance: next.freelance,
-          flexibility: next.flexibility,
+          ...(helfer ? {} : { contract_type: next.type }),
           reveal_setup: next.revealSetup,
           skill_requirements: next.dyn.skillRequirements,
           completeness: next.dyn.available ? next.dyn.completeness : undefined,
@@ -225,16 +262,93 @@ export default function GuestIntake() {
             },
             briefingText: captureBriefingText(next.answers),
           }) : undefined,
-        });
+        }, false, true);
         return next;
       });
     },
-    [save],
+    [save, helfer],
   );
+
+  // Speichern je Antwort: was hat sich seit dem Serverstand geändert? Und was kam von anderen?
+  const echtzeit = useRef<{ sende: (e: 'gespeichert' | 'tippt' | 'zurueck', p?: Record<string, unknown>) => void } | null>(null);
+  useEffect(() => {
+    verbinde(
+      () => {
+        const lok = lokal.current ? felderAusCapture(lokal.current) : {};
+        gesendet.current = lok;
+        return { ops: basis.current ? diffOps(basis.current, lok) : [] };
+      },
+      (d, eigeneOps) => {
+        const S = felderAusDraft(d);
+        if (eigeneOps.length) echtzeit.current?.sende('gespeichert');
+        if (!basis.current || !lokal.current) { basis.current = S; gesendet.current = null; return; }
+        const lok = felderAusCapture(lokal.current);
+        const eigeneNeu = diffOps(gesendet.current ?? basis.current, lok);
+        const eigene = new Set(eigeneOps.map(opSchluessel));
+        const fremd = diffOps(basis.current, S).filter((o) => !eigene.has(opSchluessel(o)));
+        const alt = basis.current;
+        basis.current = S;
+        gesendet.current = null;
+        if (!fremd.length) return;
+        const neu = applyOps(S, eigeneNeu);
+        const next = { ...lokal.current, ...(neu as Partial<CaptureState>) } as CaptureState;
+        lokal.current = next;
+        setCapture(next);
+        // Je Antwort eine Marke. Ändert die Kollegin dieselbe Antwort noch einmal, bleibt
+        // „vorher“ der eigene Wert -- Rückgängig führt dorthin zurück.
+        const dazu = hinweiseAus(fremd, alt, S);
+        if (dazu.length) {
+          setHinweise((hs) => {
+            const out = [...hs];
+            for (const n of dazu) {
+              const i = out.findIndex((x) => x.schluessel === n.schluessel);
+              if (i >= 0) out[i] = { ...n, id: out[i].id, alt: out[i].alt, rueck: out[i].rueck };
+              else out.push(n);
+            }
+            return out.slice(-30);
+          });
+        }
+      },
+    );
+    return () => verbinde(null, null);
+  }, [verbinde]);
+
+  const live = useAufnahmeLive({
+    live: mitarbeit?.live ?? null,
+    ich: mitarbeit ? { kuerzel: mitarbeit.ich.kuerzel, name: mitarbeit.ich.name, rolle: mitarbeit.ich.rolle } : null,
+    ort,
+    onGespeichert: () => { void holeStand(); },
+    onZurueck: (name) => { setZurueckVon(name ?? '?'); void holeStand(); },
+  });
+  echtzeit.current = live;
+  // Wieder online: Liegengebliebenes speichern, neuen Stand holen.
+  useEffect(() => { if (live.online) { void intake.flush(); void holeStand(); } /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [live.online]);
+  // Tippen anzeigen, gedrosselt.
+  const zuletztGetippt = useRef(0);
+  const beimTippen = () => {
+    if (Date.now() - zuletztGetippt.current < 1500) return;
+    zuletztGetippt.current = Date.now();
+    live.sende('tippt');
+  };
+  const rueckgaengig = (hs: Hinweis[]) => {
+    const ids = new Set(hs.map((h) => h.id));
+    setHinweise((x) => x.filter((y) => !ids.has(y.id)));
+    updateCapture((prev) => ({ ...prev, ...(applyOps(felderAusCapture(prev), hs.flatMap((h) => h.rueck)) as Partial<CaptureState>) }));
+  };
+
+  // „Einladung ist unterwegs“ steht nur direkt nach dem Senden da.
+  useEffect(() => { if (step !== 'aufgeteilt') setFrischAn(null); }, [step]);
+
+  // Wo ich bin, für die anderen: außerhalb der Stelle der Schritt selbst.
+  useEffect(() => {
+    if (step !== 'capture') setOrt({ id: step, label: ({ verify: t('mitarbeit.ortStart'), contact: t('mitarbeit.ortKontakt'), packages: t('mitarbeit.ortPaket'), summary: t('mitarbeit.ortAnfragen'), einladen: t('mitarbeit.ortEinstieg'), danke: '', aufgeteilt: t('mitarbeit.ortUebersicht') } as Record<string, string>)[step] ?? '' });
+  }, [step, t]);
 
   // ---- Abgeleitetes -------------------------------------------------------
   const reachable = useMemo(() => {
     if (!draft) return ['capture'];
+    // Vor der Bestätigung gibt es nur das Kapitel „Start“; danach ist es erledigt.
+    if (draft.states.identity !== 'email_verified') return ['verify'];
     const out: string[] = ['capture'];
     // Nicht "existiert ein Entwurf", sondern "steht etwas drin". Nach
     // "Von Hand beschreiben" existierte built als leeres Geruest -- damit
@@ -245,8 +359,7 @@ export default function GuestIntake() {
       String(draft.built?.title ?? draft.title ?? '').trim()
     );
     if (hatPosition || draft.contact_name) out.push('contact');
-    if (draft.states.identity !== 'anonymous') out.push('verify');
-    if (draft.states.identity === 'email_verified') out.push(contracting ? 'summary' : 'packages');
+    if (draft.contact_name) out.push(contracting ? 'summary' : 'packages');
     if (!contracting && draft.states.commercial === 'confirmed') out.push('summary');
     return out;
   }, [draft, contracting]);
@@ -318,7 +431,7 @@ export default function GuestIntake() {
   // ---- Zustände der Seite -------------------------------------------------
   if (state.status === 'loading') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="mk3 flex min-h-screen items-center justify-center">
         <div className="text-center">
           <MatchuntWordmark size="sm" className="mb-6 justify-center" />
           <Loader2 className="mx-auto h-6 w-6 animate-spin text-muted-foreground" />
@@ -348,7 +461,6 @@ export default function GuestIntake() {
     );
   }
 
-  // ---- Eingereicht --------------------------------------------------------
   if (submitted || draft.states.review === 'pending_admin' || draft.states.review === 'accepted') {
     // Nach einem Neuladen ist submitted leer -- dann traegt der Entwurf die
     // Nummer. Ohne das stand dort "Vorgang ." ohne Nummer.
@@ -377,48 +489,34 @@ export default function GuestIntake() {
     const kehrtZurueck = !!vertrag?.has_envelope && !bereitsUnterschrieben && wiederaufnahme.current !== draft.id;
     if (requiresSignature && (vorbereitung || kehrtZurueck) && !signUrl) {
       return (
-        <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
-          <div className="w-full max-w-lg text-center" role="status">
-            <MatchuntWordmark size="sm" className="mb-8 justify-center" />
-            <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-muted-foreground" />
-            <h1 className="text-xl font-bold tracking-tight">{t('finish.preparingTitle')}</h1>
-            <p className="mt-2 text-sm text-muted-foreground">{mandate ? <Trans t={t} i18nKey="finish.preparingTextMandate" values={{ mandate }} components={{ b: <strong className="text-foreground" /> }} /> : t('finish.preparingText')}</p>
-          </div>
-        </div>
+        <M3Seite>
+          <M3Kopf
+            icon={Dreht}
+            titel={t('finish.preparingTitle')}
+            lead={mandate ? <Trans t={t} i18nKey="finish.preparingTextMandate" values={{ mandate }} components={{ b: <strong className="text-foreground" /> }} /> : t('finish.preparingText')}
+          />
+        </M3Seite>
       );
     }
 
     // Unterschrieben: Funnel zu Ende, es geht ins Dashboard. Hier bleibt nur, wer warten muss.
     if (requiresSignature && bereitsUnterschrieben) {
       return (
-        <div className="flex min-h-screen items-center justify-center bg-background px-4">
-          <div className="w-full max-w-lg">
-            <MatchuntWordmark size="sm" className="mb-8 justify-center" />
-            <Card>
-              <CardContent className="p-6 text-center" role="status">
-                {abschluss === 'pruefen' && <>
-                  <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-muted-foreground" />
-                  <h1 className="text-xl font-bold tracking-tight">{t('finish.signedTitle')}</h1>
-                  <p className="mt-2 text-sm text-muted-foreground">{t('finish.opening')}</p>
-                </>}
-                {abschluss === 'spaet' && <>
-                  <Clock className="mx-auto mb-3 h-6 w-6 text-amber-600" />
-                  <h1 className="text-xl font-bold tracking-tight">{t('finish.lateTitle')}</h1>
-                  <p className="mt-2 text-sm text-muted-foreground">{t('finish.lateText')}</p>
-                  <Button variant="outline" className="mt-5" onClick={() => setPruefLauf((n) => n + 1)}>{t('finish.recheck')}</Button>
-                </>}
-                {abschluss === 'mail' && <>
-                  <CheckCircle2 className="mx-auto mb-3 h-6 w-6 text-emerald-600" />
-                  <h1 className="text-xl font-bold tracking-tight">{t('finish.signedTitle')}</h1>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {t('finish.mailText', { email: draft.contact_email })}
-                  </p>
-                  <Button asChild variant="outline" className="mt-5"><Link to="/anmelden">{t('finish.toLogin')}</Link></Button>
-                </>}
-              </CardContent>
-            </Card>
+        <M3Seite>
+          <div role="status">
+            {abschluss === 'pruefen' && <M3Kopf icon={Dreht} titel={t('finish.signedTitle')} lead={t('finish.opening')} />}
+            {abschluss === 'spaet' && <>
+              {/* Grau statt Gelb: es ist nichts zu tun, nur Geduld. */}
+              <M3Kopf icon={Clock} titel={t('finish.lateTitle')} lead={t('finish.lateText')} />
+              <button type="button" className="mx-auto block text-sm font-medium text-klick hover:underline" onClick={() => setPruefLauf((n) => n + 1)}>{t('finish.recheck')}</button>
+            </>}
+            {abschluss === 'mail' && <>
+              {/* Grün bleibt: hier ist wirklich unterschrieben. */}
+              <M3Kopf icon={Unterschrieben} titel={t('finish.signedTitle')} lead={t('finish.mailText', { email: draft.contact_email })} />
+              <Button asChild size="lg" className="w-full rounded-full"><Link to="/anmelden">{t('finish.toLogin')}</Link></Button>
+            </>}
           </div>
-        </div>
+        </M3Seite>
       );
     }
 
@@ -428,138 +526,161 @@ export default function GuestIntake() {
     //     nichts an einen Dritten unterwegs ist.
     if (requiresSignature && !signUrl && !anDrittenVersandt && !bereitsUnterschrieben) {
       return (
-        <div className="relative flex min-h-screen items-center justify-center bg-background px-4 py-8">
-          <PageLanguageMenu />
-          <div className="w-full max-w-lg space-y-6">
-            <MatchuntWordmark size="sm" className="justify-center" />
-            <p className="text-center text-sm text-muted-foreground">
-              {mandate
-                ? <Trans t={t} i18nKey="submitted.receivedNumber" values={{ number: mandate }} components={bold} />
-                : t('submitted.received')}
-            </p>
-            <SignerChoice
-              contactName={draft.contact_name}
-              busy={signBusy}
-              error={signError}
-              onChoose={waehlen}
-            />
-          </div>
-        </div>
+        <M3Seite>
+          <SignerChoice
+            contactName={draft.contact_name}
+            busy={signBusy}
+            error={signError}
+            onChoose={waehlen}
+            eingang={mandate
+              ? <Trans t={t} i18nKey="submitted.receivedNumber" values={{ number: mandate }} components={bold} />
+              : t('submitted.received')}
+          />
+        </M3Seite>
       );
     }
 
     // (2) Eigenhaendig: der Vertrag im Rahmen, auf unserer Seite.
     if (requiresSignature && signUrl && !signed) {
       return (
-        <div className="relative min-h-screen bg-background px-4 py-8">
-          <PageLanguageMenu />
-          <div className="mx-auto w-full max-w-4xl space-y-4">
-            <MatchuntWordmark size="sm" className="justify-center" />
-            <div className="text-center">
-              <h1 className="text-xl font-bold tracking-tight">{t('submitted.signTitle')}</h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {mandate
-                  ? <Trans t={t} i18nKey="submitted.signLeadNumber" values={{ number: mandate }} components={bold} />
-                  : t('submitted.signLead')}
-              </p>
-            </div>
-            <SignFrame
-              url={signUrl}
-              onDone={() => setSigned(true)}
-              /* Eine FRISCHE Adresse fuer den Weg im eigenen Fenster. Die alte
-                 ist verbraucht, sobald der Rahmen sie einmal geladen hat --
-                 auch dann, wenn er nichts anzeigen durfte. docusign-send stellt
-                 zum bestehenden Umschlag eine neue Ansicht aus, solange nicht
-                 unterschrieben ist; ein zweiter Vertrag entsteht dabei nicht. */
-              onNeuerLink={async () => {
-                const res = await sendContract({ self: true });
-                return isFailure(res) ? null : res.sign_url;
-              }}
-              /* Die Wahrheit steht beim Server, nicht im Rahmen. */
-              onPruefen={async () => {
+        <M3Seite breit>
+          <M3Kopf
+            icon={FileSignature}
+            titel={t('submitted.signTitle')}
+            lead={mandate
+              ? <Trans t={t} i18nKey="submitted.signLeadNumber" values={{ number: mandate }} components={bold} />
+              : t('submitted.signLead')}
+          />
+          <SignFrame
+            url={signUrl}
+            onDone={() => setSigned(true)}
+            /* Eine FRISCHE Adresse fuer den Weg im eigenen Fenster. Die alte
+               ist verbraucht, sobald der Rahmen sie einmal geladen hat --
+               auch dann, wenn er nichts anzeigen durfte. docusign-send stellt
+               zum bestehenden Umschlag eine neue Ansicht aus, solange nicht
+               unterschrieben ist; ein zweiter Vertrag entsteht dabei nicht. */
+            onNeuerLink={async () => {
+              const res = await sendContract({ self: true });
+              return isFailure(res) ? null : res.sign_url;
+            }}
+            /* Die Wahrheit steht beim Server, nicht im Rahmen. */
+            onPruefen={async () => {
+              const res = await checkSignature();
+              if (isFailure(res)) return 'offen';
+              return res.declined ? 'abgelehnt'
+                   : res.customer_signed ? 'unterschrieben'
+                   : 'offen';
+            }}
+            onAbbruch={async (ev) => {
+              /* Wer schon unterschrieben hat und den Vertrag noch einmal öffnet,
+                 kommt mit `viewing_complete` zurück: erst nachfragen (FB-0015). */
+              if (ev === 'viewing_complete') {
                 const res = await checkSignature();
-                if (isFailure(res)) return 'offen';
-                return res.declined ? 'abgelehnt'
-                     : res.customer_signed ? 'unterschrieben'
-                     : 'offen';
-              }}
-              onAbbruch={async (ev) => {
-                /* Wer schon unterschrieben hat und den Vertrag noch einmal öffnet,
-                   kommt mit `viewing_complete` zurück: erst nachfragen (FB-0015). */
-                if (ev === 'viewing_complete') {
-                  const res = await checkSignature();
-                  if (!isFailure(res) && res.customer_signed) { setSigned(true); return; }
-                }
-                /* Die alte Adresse ist verbraucht. Sie stehen zu lassen hiesse,
-                   den Kunden vor einem toten Rahmen sitzen zu lassen -- die
-                   Frage "wer unterschreibt" erscheint nur, solange keine
-                   Adresse gesetzt ist. */
-                setSignUrl(null);
-                setSignError(
-                  ev === 'decline' ? t('submitted.declinedError') : t('submitted.expiredError'),
-                );
-              }}
-            />
-          </div>
-        </div>
+                if (!isFailure(res) && res.customer_signed) { setSigned(true); return; }
+              }
+              /* Die alte Adresse ist verbraucht. Sie stehen zu lassen hiesse,
+                 den Kunden vor einem toten Rahmen sitzen zu lassen -- die
+                 Frage "wer unterschreibt" erscheint nur, solange keine
+                 Adresse gesetzt ist. */
+              setSignUrl(null);
+              setSignError(
+                ev === 'decline' ? t('submitted.declinedError') : t('submitted.expiredError'),
+              );
+            }}
+          />
+        </M3Seite>
       );
     }
 
     return (
-      <div className="relative flex min-h-screen items-center justify-center bg-background px-4">
-        <PageLanguageMenu />
-        <div className="w-full max-w-lg">
-          <MatchuntWordmark size="sm" className="mb-8 justify-center" />
-          <Card>
-            <CardContent className="p-6 text-center">
-              <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-emerald-600/10">
-                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-              </div>
-              <h1 className="text-xl font-bold tracking-tight">{t('submitted.title')}</h1>
-              <p className="mt-2 text-sm text-muted-foreground">
-                <Trans
-                  t={t}
-                  i18nKey={mandate ? 'submitted.reviewingNumber' : 'submitted.reviewing'}
-                  values={{ number: mandate ?? '', title: capture?.built?.title ?? draft.title ?? t('submitted.yourPosition') }}
-                  components={bold}
-                />
-              </p>
-
-              {/* Liegt eine Unterschriftsansicht vor, ist sie der naechste
-                  Schritt — nicht eine Mail, die vielleicht im Spam landet.
-                  Fehlt sie (DocuSign nicht erreichbar), sagt die Seite das
-                  ehrlich, statt auf etwas zu verweisen, das nicht kommt. */}
-              <div className="mt-6 space-y-3 text-left">
-                <Step icon={Mail} title={t('submitted.mailTitle')}
-                  text={t('submitted.mailText', { email: draft.contact_email })} />
-                <Step icon={FileSignature} title={t('submitted.signatureTitle')}
-                  text={bereitsUnterschrieben
-                    ? t('submitted.signatureDone')
-                    : anDrittenVersandt
-                    ? t('submitted.signatureThird', { email: anDrittenVersandt })
-                    : t('submitted.signaturePending')} />
-              </div>
-
-              <Alert className="mt-6 text-left">
-                <AlertDescription className="text-xs">
-                  {t('submitted.notice')}
-                </AlertDescription>
-              </Alert>
-            </CardContent>
-          </Card>
+      <M3Seite>
+        {/* Grau statt Grün: unterschrieben ist hier noch nichts. */}
+        <M3Kopf
+          icon={Inbox}
+          titel={t('submitted.title')}
+          lead={<Trans
+            t={t}
+            i18nKey={mandate ? 'submitted.reviewingNumber' : 'submitted.reviewing'}
+            values={{ number: mandate ?? '', title: capture?.built?.title ?? draft.title ?? t('submitted.yourPosition') }}
+            components={bold}
+          />}
+        />
+        {/* Liegt eine Unterschriftsansicht vor, ist sie der naechste
+            Schritt — nicht eine Mail, die vielleicht im Spam landet.
+            Fehlt sie (DocuSign nicht erreichbar), sagt die Seite das
+            ehrlich, statt auf etwas zu verweisen, das nicht kommt. */}
+        <div className="space-y-3">
+          <Step icon={Mail} title={t('submitted.mailTitle')}
+            text={t('submitted.mailText', { email: draft.contact_email })} />
+          <Step icon={FileSignature} title={t('submitted.signatureTitle')}
+            text={bereitsUnterschrieben
+              ? t('submitted.signatureDone')
+              : anDrittenVersandt
+              ? t('submitted.signatureThird', { email: anDrittenVersandt })
+              : t('submitted.signaturePending')} />
+          <p className="pt-2 text-center text-xs leading-relaxed text-muted-foreground">{t('submitted.notice')}</p>
         </div>
-      </div>
+      </M3Seite>
     );
   }
 
   // ---- Der Flow -----------------------------------------------------------
   const link = state.link;
+  // „‹ Zurück“ oben links: der vorige Schritt. In der Stellen-Aufnahme melden die Seiten ihr eigenes Zurück an.
+  // Bestätigt ist bei der Kollegin ihr Zugang, sonst der Ansprechpartner.
+  const verified = helfer ? Boolean(mitarbeit?.ich.bestaetigt) : draft.states.identity === 'email_verified';
+  const stepIdx = steps.findIndex((x) => x.key === step);
+  // Die Stelle meldet ihr eigenes Zurück an; vor ihr liegt der Code-Schritt, nicht „zurück“.
+  const vorheriger = step === 'capture' || stepIdx <= 0 ? null : (steps[stepIdx - 1].key as StepKey);
+  const zurueck = step === 'verify'
+    ? (verified || helfer ? undefined : () => { setArtGewaehlt(false); setStep('capture'); setArtZeigen((n) => n + 1); })
+    : step === 'einladen' ? () => setStep('capture')
+    : step === 'danke' || step === 'aufgeteilt' ? undefined
+    : vorheriger ? () => setStep(vorheriger) : undefined;
+  const einladenderName = mitarbeit?.einladender?.name ?? t('mitarbeit.einerSie');
+  const anwesend = mitarbeit
+    // Wer fertig ist und nur noch das Danke-Blatt offen hat, zählt nicht mehr mit.
+    ? [{ kuerzel: mitarbeit.ich.kuerzel, name: mitarbeit.ich.name, ich: true }, ...live.anwesend.filter((a) => a.ort !== 'danke').map((a) => ({ kuerzel: a.kuerzel, name: a.name }))]
+    : undefined;
+  const offeneEinladungen = !helfer && mitarbeit
+    ? mitarbeit.helfer.filter((h) => !h.zurueckgegeben_am).map((h) => ({ id: h.id, name: h.name }))
+    : [];
+  // Die Kollegin, um die es auf der Arbeitsteilung geht: die offene Einladung, sonst die letzte.
+  const helferEintrag = !helfer && mitarbeit
+    ? [...mitarbeit.helfer].reverse().find((h) => !h.zurueckgegeben_am) ?? mitarbeit.helfer[mitarbeit.helfer.length - 1] ?? null
+    : null;
+  const helferDa = helferEintrag ? live.anwesend.find((a) => a.rolle === 'beschreiben' && a.name === helferEintrag.name && a.ort !== 'danke') : undefined;
+  const helferStand: HelferStand | null = helferEintrag ? {
+    id: helferEintrag.id,
+    name: helferEintrag.name,
+    zustand: helferEintrag.zurueckgegeben_am ? 'fertig' : helferDa ? 'da' : helferEintrag.bestaetigt ? 'pause' : 'offen',
+    ortLabel: helferDa?.ortLabel ?? null,
+    etappe: helferDa?.etappe ?? null,
+    zuletzt: helferEintrag.zuletzt,
+  } : null;
+  const kontaktFertig = kontaktVollstaendig(draft);
+  const oben = (
+    <MitarbeitZeilen
+      anwesend={live.anwesend}
+      tippt={live.tippt}
+      online={live.online}
+      ort={ort}
+      eingeladen={step === 'aufgeteilt' || step === 'summary' ? [] : offeneEinladungen}
+      onZurueckziehen={(id) => { void zurueckziehen(id); }}
+      zurueck={zurueckVon}
+      onZurueckGesehen={() => setZurueckVon(null)}
+    />
+  );
+  // Der erste Punkt („Start“) gilt auch, solange vor der Bestätigung die Art gewählt wird.
+  // Punkt „Start“ nur bis die Art gewählt ist; danach ist man in der Stelle (E-Mail kommt vor den Fragen).
+  const punkt = step === 'capture' && !verified && !artGewaehlt ? 'verify' : step === 'einladen' || step === 'danke' || step === 'aufgeteilt' ? 'capture' : step;
+  const artLabel = t(`kind.${(capture?.type ?? draft.contract_type) === 'freelance' ? 'contracting' : 'permanent'}Title`);
   const freemailBlocked = link?.link_type === 'public' && link?.allow_freemail === false;
 
   return (
     <IntakeShell
       steps={steps}
-      activeStep={step}
+      activeStep={punkt}
       reachable={reachable}
       onStep={(k) => setStep(k as StepKey)}
       packages={state.packages}
@@ -568,8 +689,14 @@ export default function GuestIntake() {
       saving={state.saving}
       saveError={state.saveError}
       lastSavedAt={state.lastSavedAt}
-      onResumeLater={() => setResumeOpen(true)}
+      onResumeLater={helfer ? undefined : () => setResumeOpen(true)}
+      onBack={zurueck}
+      anwesend={anwesend}
+      // Auf der Arbeitsteilung und beim Warten steht der Stand der Kollegin schon im Blatt.
+      oben={step === 'danke' || step === 'aufgeteilt' || (step === 'summary' && offeneEinladungen.length > 0) ? null : oben}
     >
+      <AenderungenProvider value={{ hinweise, type: capture?.type ?? 'full-time', onRueck: rueckgaengig, onWeg: (ids) => setHinweise((x) => x.filter((y) => !ids.includes(y.id))) }}>
+      <div onInput={beimTippen}>
       {state.saveError && (
         <Alert variant="destructive" className="mb-4">
           <AlertDescription className="text-sm">
@@ -618,33 +745,76 @@ export default function GuestIntake() {
           parsePdf={parsePdf}
           onNext={() => setStep('contact')}
           onResumeLater={() => setResumeOpen(true)}
+          sperreBisBestaetigt={!verified}
+          onArt={() => setArtGewaehlt(true)}
+          // E-Mail vor den Fragen (27.11.2026): der Code-Schritt an der Stelle, an der der Weg ihn braucht.
+          bestaetigung={(weiter, ziel, status) => (
+            <VerifyStep
+              draft={draft}
+              titel={ziel === 'einladen' ? t('verify.vorEinladenTitle') : t('verify.vorFragenTitle')}
+              status={status}
+              weiterLabel={ziel === 'einladen' ? t('verify.zurEinladung') : ziel === 'anzeige' ? t('verify.zurAnzeige') : t('verify.zuDenFragen')}
+              art={draft.contact_name ? null : { label: artLabel, onChange: () => { setArtGewaehlt(false); setArtZeigen((n) => n + 1); } }}
+              freemailBlocked={Boolean(freemailBlocked)}
+              onSend={sendCode}
+              onConfirm={confirmCode}
+              mitFirma={!draft.contact_name}
+              onEnrich={enrichCompany}
+              onCompany={(patch) => save(patch)}
+              onVerified={(company) => { setKnownCompany(company); weiter(); }}
+            />
+          )}
+          artZeigen={artZeigen}
+          nachWahl={artGewaehlt || helfer}
+          onKollegen={!helfer ? () => setStep('einladen') : undefined}
+          onOrt={setOrt}
+          artFest={helfer}
+          {...(helfer ? {
+            nextLabel: t('mitarbeit.zurueckButton', { name: einladenderName }),
+            onNext: () => { void (async () => {
+              const res = await zurueckgeben();
+              if (!isFailure(res)) { live.sende('zurueck'); setStep('danke'); }
+            })(); },
+          } : {})}
         />
       )}
 
-      {step === 'contact' && (
+      {step === 'contact' && !helfer && (
         <ContactStep
           draft={draft}
           freemailBlocked={Boolean(freemailBlocked)}
           onChange={(patch) => save(patch)}
-          onNext={() => setStep('verify')}
+          onNext={() => setStep(verified ? (contracting ? 'summary' : 'packages') : 'verify')}
           onEnrich={enrichCompany}
+          verifiedEmail={verified ? draft.contact_email : null}
         />
       )}
 
       {step === 'verify' && (
         <VerifyStep
           draft={draft}
+          {...(helfer ? {
+            festeAdresse: mitarbeit?.ich.email ?? null,
+            bestaetigt: Boolean(mitarbeit?.ich.bestaetigt),
+            titel: t('mitarbeit.helferTitle'),
+            ortText: t('mitarbeit.helferOrt', { name: einladenderName }),
+          } : {})}
+          art={helfer || draft.contact_name ? null : { label: artLabel, onChange: () => { setArtGewaehlt(false); setStep('capture'); setArtZeigen((n) => n + 1); } }}
+          freemailBlocked={Boolean(freemailBlocked)}
           onSend={sendCode}
           onConfirm={confirmCode}
-          onEditEmail={() => setStep('contact')}
+          mitFirma={!helfer && !draft.contact_name}
+          onEnrich={enrichCompany}
+          onCompany={(patch) => save(patch)}
           onVerified={(company) => {
             setKnownCompany(company);
-            setStep(contracting ? 'summary' : 'packages');
+            // Am Anfang geht es zur Stelle; kam die Bestätigung erst nach dem Kontakt, zum Paket.
+            setStep(helfer || !draft.contact_name ? 'capture' : contracting ? 'summary' : 'packages');
           }}
         />
       )}
 
-      {step === 'packages' && (
+      {step === 'packages' && !helfer && (
         <PackageStep
           load={loadPackages}
           onSelect={selectPackage}
@@ -653,7 +823,19 @@ export default function GuestIntake() {
         />
       )}
 
-      {step === 'summary' && (
+      {step === 'summary' && !helfer && offeneEinladungen.length > 0 && helferStand && (
+        <WartenBlatt
+          helfer={helferStand}
+          etappen={[
+            ...(['eckdaten', contracting ? 'konditionen' : 'verguetung', 'anforderungen', 'rahmendaten'] as const).map((e) => t(`intake:etappen.stage.${e}`)),
+            t('intake:etappen.review'),
+          ]}
+          onSelbst={() => setStep('capture')}
+          onZurueckziehen={() => { void zurueckziehen(helferStand.id); }}
+        />
+      )}
+
+      {step === 'summary' && !helfer && offeneEinladungen.length === 0 && (
         <SummaryStep
           draft={draft}
           packages={state.packages}
@@ -690,6 +872,39 @@ export default function GuestIntake() {
         />
       )}
 
+      {step === 'einladen' && !helfer && (
+        <EinladenBlatt
+          meineEmail={draft.contact_email}
+          meinName={draft.contact_name}
+          onSenden={async (email, name, nachricht, meinName) => {
+            // Der eigene Name muss vor der Einladung am Entwurf stehen (er steht in der Mail).
+            if (meinName && meinName !== draft.contact_name) { save({ contact_name: meinName }); await intake.flush(); }
+            return forward(email, name, nachricht, 'beschreiben');
+          }}
+          onGesendet={(email) => { setFrischAn(email); setStep('aufgeteilt'); }}
+        />
+      )}
+
+      {step === 'danke' && helfer && <DankeBlatt name={einladenderName} onWeiter={() => setStep('capture')} />}
+
+      {step === 'aufgeteilt' && !helfer && helferStand && (
+        <AufgeteiltBlatt
+          helfer={helferStand}
+          frischAn={frischAn}
+          kontaktFertig={kontaktFertig}
+          weiter={!kontaktFertig
+            ? { label: t('mitarbeit.firmendaten'), onClick: () => setStep('contact') }
+            : !contracting && draft.states.commercial !== 'confirmed'
+              ? { label: t('mitarbeit.zumPaket'), onClick: () => setStep('packages') }
+              // Sein Teil ist erledigt: anfragen erst, wenn die Kollegin zurückgegeben hat.
+              : helferStand.zustand === 'fertig' ? { label: t('mitarbeit.zumAnfragen'), onClick: () => setStep('summary') } : null}
+          onSelbst={() => setStep('capture')}
+          onZurueckziehen={() => { void zurueckziehen(helferStand.id); setStep('capture'); }}
+        />
+      )}
+      </div>
+      </AenderungenProvider>
+
       <ForwardDialog open={forwardOpen} onOpenChange={setForwardOpen} onForward={forward} />
       <ResumeDialog
         open={resumeOpen}
@@ -716,12 +931,32 @@ function firstName(name: string | null): string | null {
 
 function Step({ icon: Icon, title, text }: { icon: any; title: string; text: string }) {
   return (
-    <div className="flex gap-3 rounded-lg border p-3">
-      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+    <div className="flex gap-3 rounded-[14px] bg-secondary p-4">
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-foreground" />
       <div>
         <p className="text-sm font-medium">{title}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">{text}</p>
+        <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{text}</p>
       </div>
     </div>
   );
+}
+
+/** Drehendes Symbol für M3Kopf (Vorbereitung, Prüfung). */
+function Dreht({ className }: { className?: string }) {
+  return <Loader2 className={cn(className, 'animate-spin text-muted-foreground')} />;
+}
+
+/** Grünes Häkchen: nur wo wirklich unterschrieben ist. */
+function Unterschrieben({ className }: { className?: string }) {
+  return <CheckCircle2 className={cn(className, 'text-emerald-600')} />;
+}
+
+/** Die Stelle (je Antwort zusammenführbar) aus dem lokalen Zustand. */
+function felderAusCapture(c: CaptureState): Felder {
+  return { built: c.built, answers: c.answers, dyn: c.dyn, freelance: c.freelance, flexibility: c.flexibility };
+}
+
+/** Dieselben Felder aus dem Serverstand. */
+function felderAusDraft(d: { built?: unknown; answers?: unknown; dyn?: unknown; freelance?: unknown; flexibility?: unknown }): Felder {
+  return { built: d.built ?? null, answers: d.answers ?? {}, dyn: d.dyn ?? null, freelance: d.freelance ?? null, flexibility: d.flexibility ?? {} };
 }

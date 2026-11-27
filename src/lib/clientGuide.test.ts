@@ -52,8 +52,16 @@ describe('Kunden-Rundgang Fassung 3: ein Weg, einmal und fertig, auf echten Seit
     expect(clientGuideSteps(REVIEW).some(s => s.id === 'c-jobPage')).toBe(false);
   });
 
-  it('öffnet bei einer Stelle, die live ist, die echte Stellenseite', () => {
-    expect(byId(LIVE, 'c-myJob').path).toBe('/dashboard/jobs');
+  it('zeigt eine Live-Stelle oben auf der Bühne, mit Beispielkandidaten und Headhuntern, dann die echte Stellenseite', () => {
+    // Marko 17.11.: „wieso so weit unten? wir wollen da auch Beispielkandidaten und Headhunter direkt dabei haben“
+    const myJob = byId(LIVE, 'c-myJob');
+    expect(myJob.route).toBe(CLIENT_TOUR_STAGE);
+    expect(myJob.path).toBe(`${CLIENT_TOUR_STAGE}?schritt=c-myJob`);
+    expect(CLIENT_TOUR_SCENES[myJob.scene!]).toMatchObject({ phase: 'review', page: 'jobs', live: true });
+    expect(myJob.target).toBe('[data-tour-job="job-1"]');
+    expect(myJob.points?.map(p => p.at)).toEqual(['steps', 'people', 'news', 'searchers'].map(part => `[data-tour-job="job-1"] [data-card="${part}"]`));
+    for (const p of myJob.points!) expect(p.label).toBeTruthy();
+    expect(myJob.body).not.toMatch(/erste/);
     const page = byId(LIVE, 'c-jobPage');
     expect(page.route).toBe('/dashboard/jobs/job-1');
     expect(page.target).toBe('[data-tour="job.tabs"]');
@@ -186,6 +194,9 @@ describe('Kunden-Rundgang Fassung 3: ein Weg, einmal und fertig, auf echten Seit
     const tail = clientGuideSteps(REVIEW).filter(s => s.chapter === 5).map(s => s.id);
     expect(tail).toEqual(['c-team', 'c-notify', 'c-positionEntry', 'c-done']);
     expect(byId(REVIEW, 'c-team').route).toBe(CLIENT_TOUR_STAGE);
+    // Marko 18.11.: „wieso ist alles ausgegraut? lass es direkt normal“ -- Fenster gleich offen und im Licht
+    expect(CLIENT_TOUR_SCENES[byId(REVIEW, 'c-team').scene!]).toMatchObject({ page: 'team', open: 'invite', fill: 'invite' });
+    expect(byId(REVIEW, 'c-team').fillArea).toBe('[data-tour="team.inviteWindow"]');
     expect(clientGuideSteps({ ...REVIEW, waiting: true }).map(s => s.id)).not.toContain('c-positionEntry');
   });
 });

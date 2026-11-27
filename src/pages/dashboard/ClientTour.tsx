@@ -13,7 +13,7 @@ import { guideDemo } from '@/components/recruiter/guide/guideDemo';
 import { useAuth } from '@/lib/auth';
 import { useMyOrganization } from '@/hooks/useOrganization';
 import { CLIENT_TOUR_PAGES, CLIENT_TOUR_SCENES, type ClientTourScene } from '@/lib/clientGuide';
-import { DEMO_IDS, demoRegistry, demoWorld } from '@/lib/clientDemoData';
+import { DEMO_IDS, colleagueAddress, demoRegistry, demoWorld, type DemoJobRow } from '@/lib/clientDemoData';
 import { STAGE_STALE_MS, loadStageFee, loadStageJob, stageFeeKey, stageJobKey } from '@/components/client/tour/stageQueries';
 import { DEMO } from '@/lib/clientDemo';
 import CandidateDetail from '@/pages/dashboard/CandidateDetail';
@@ -139,10 +139,11 @@ function DemoStage({ scene, stepId, index }: { scene: ClientTourScene; stepId: s
   const afterTalk = scene.phase === 'interviewed';
   const fillTexts = useMemo(() => ({
     impression: t('demo.fill.impression'), strengths: t('demo.fill.strengths'), concerns: t('demo.fill.concerns'),
-    colleagueName: t('demo.fill.colleagueName'), colleagueEmail: t('demo.fill.colleagueEmail'),
+    colleagueName: t('demo.fill.colleagueName'), colleagueEmail: colleagueAddress(t('demo.fill.colleagueEmail'), user?.email),
+    colleagueMessage: t('demo.fill.colleagueMessage', { job: tour.title }),
     notifyTitle: afterTalk ? t('demo.data.notifyImpression', { name: DEMO.name }) : t('demo.data.notifyAccepted', { name: DEMO.name }),
     notifyBody: afterTalk ? t('demo.data.notifyImpressionBody', { job: tour.title }) : t('demo.data.notifyAcceptedBody', { job: tour.title }),
-  }), [t, tour.title, afterTalk]);
+  }), [t, tour.title, afterTalk, user?.email]);
   useEffect(() => {
     if (!scene.fill || !registry) return;
     const d = tour.startAt;

@@ -296,7 +296,7 @@ const FIRMA: BriefQuestion[] = [
     order: 5,
     chapter: 'Unternehmen',
     text: 'Wie viele Mitarbeiter beschäftigen Sie aktuell?',
-    why: 'Der Kandidat fragt es im ersten Gespräch, und der Recruiter braucht es für die Ansprache.',
+    why: 'Der Kandidat fragt es im ersten Gespräch, und der Headhunter braucht es für die Ansprache.',
     slots: [
       {
         /**
@@ -337,7 +337,7 @@ const LINKS: BriefQuestion[] = [
     order: 10,
     chapter: 'Vergütung',
     text: 'In was für eine Range befindet sich das Fixgehalt?',
-    why: 'Ohne Band kann kein Recruiter ansprechen — es ist die erste Frage jedes Kandidaten.',
+    why: 'Ohne Band kann kein Headhunter ansprechen — es ist die erste Frage jedes Kandidaten.',
     slots: [
       // Das Feld steht seit jeher links. Es hier nur zu FUEHREN statt neu zu
       // bauen ist der ganze Punkt: gefragt wird nichts doppelt.
@@ -462,7 +462,7 @@ const LINKS: BriefQuestion[] = [
     chapter: 'Eckdaten',
     text: 'Wie strukturiert sich die Abteilung von der Position?',
     textFreelance: 'Wie ist das Projektteam aufgestellt, und wer arbeitet noch extern mit?',
-    why: 'Ein Alleinkämpfer-Job braucht einen anderen Menschen als eine Rolle im 15er-Team.',
+    why: 'Eine Einzelkämpfer-Stelle braucht einen anderen Menschen als eine Rolle im 15er-Team.',
     slots: [
       /**
        * Der Aufbau der Abteilung als Treppe (24.09.2026).
@@ -684,7 +684,7 @@ const LINKS: BriefQuestion[] = [
     order: 70,
     chapter: 'Arbeitszeit & Prozess',
     text: 'Braucht der Kandidat eine Arbeitserlaubnis, oder unterstützen Sie ein Visum?',
-    why: 'Ein K.-o.-Kriterium: ohne die Antwort spricht der Recruiter Kandidaten an, die nicht anfangen dürfen.',
+    why: 'Ein K.-o.-Kriterium: ohne die Antwort spricht der Headhunter Kandidaten an, die nicht anfangen dürfen.',
     slots: [
       {
         key: 'visa_sponsorship', label: 'Arbeitserlaubnis oder Visum', form: 'chips',
@@ -702,7 +702,7 @@ const LINKS: BriefQuestion[] = [
     order: 80,
     chapter: 'Arbeitszeit & Prozess',
     text: 'Bei welchen Unternehmen dürfen wir auf keinen Fall abwerben?',
-    why: 'Wer beim Kunden des Kunden abwirbt, beschädigt die Geschäftsbeziehung. Nur der Recruiter sieht das, erst wenn er sucht.',
+    why: 'Wer beim Kunden des Kunden abwirbt, beschädigt die Geschäftsbeziehung. Nur der Headhunter sieht das, erst wenn er sucht.',
     slots: [
       {
         key: 'nogo_companies', label: 'Nicht abwerben bei', form: 'multi', eigene: true,
@@ -779,7 +779,7 @@ const GESPRAECH: BriefQuestion[] = [
     order: 20,
     chapter: 'Rolle & Scope',
     text: 'Können Sie mir ein Bild des Arbeitsalltags des Kandidaten malen?',
-    why: 'Der Recruiter erzählt diesen Alltag im Kandidatengespräch. Ohne ihn bleibt die Rolle abstrakt.',
+    why: 'Der Headhunter erzählt diesen Alltag im Kandidatengespräch. Ohne ihn bleibt die Rolle abstrakt.',
     slots: [
       {
         key: 'daily_routine', label: 'Der Arbeitsalltag', form: 'ai',
@@ -927,7 +927,7 @@ const GESPRAECH: BriefQuestion[] = [
     chapter: 'Sell & Story (EVP)',
     text: 'Welche Alleinstellungsmerkmale können Sie als Unternehmen anbieten und welche Vorteile bietet die Position selbst, die möglicherweise nur ein Experte zu schätzen weiß, wie zum Beispiel keine Kaltakquise bei Vertriebspositionen?',
     textFreelance: 'Was macht dieses Projekt attraktiv — Technik, Referenz, oder die Aussicht auf Anschluss?',
-    why: 'Das Argument, mit dem der Recruiter jemanden überzeugt, der gar nicht sucht.',
+    why: 'Das Argument, mit dem der Headhunter jemanden überzeugt, der gar nicht sucht.',
     slots: [
       {
         key: 'unique_selling_points', label: 'Alleinstellungsmerkmale des Unternehmens', form: 'ai',
@@ -974,7 +974,7 @@ const GESPRAECH: BriefQuestion[] = [
     // einzige ganz ohne Startvorschlag da; im Testlauf begann die Antwort
     // eines Projektleiters mit "Schwer zu sagen."
     textFreelance: 'Wie arbeitet man bei Ihnen zusammen — worauf sollte sich ein Externer einstellen?',
-    why: 'Der Recruiter muss sie glaubhaft schildern, ohne die Firma zu nennen.',
+    why: 'Der Headhunter muss sie glaubhaft schildern, ohne die Firma zu nennen.',
     slots: [
       {
         key: 'company_culture', label: 'Unternehmenskultur', form: 'ai',
@@ -1026,7 +1026,7 @@ const GESPRAECH: BriefQuestion[] = [
     chapter: 'Timing & Vertrag',
     text: 'Wie ist der Arbeitsvertrag gestaltet? Gibt es möglicherweise Themen darin, die sensibel sind oder die Kandidaten abschrecken könnten?',
     textFreelance: 'Wie ist der Dienstvertrag gestaltet? Gibt es Klauseln, die Freiberufler abschrecken?',
-    why: 'Besser der Recruiter weiß es vorher, als der Kandidat springt beim Unterschreiben ab.',
+    why: 'Besser der Headhunter weiß es vorher, als der Kandidat springt beim Unterschreiben ab.',
     slots: [
       {
         key: 'contract_sensitive_topics', label: 'Sensible Themen', form: 'multi',
@@ -1083,7 +1083,7 @@ const GESPRAECH: BriefQuestion[] = [
     order: 90,
     chapter: 'Sell & Story (EVP)',
     text: 'Was läuft aktuell gut in Ihrer Branche? Mit welchen Herausforderungen sind Sie aktuell in Ihrer Branche konfrontiert?',
-    why: 'Das Argument, mit dem der Recruiter einen zufriedenen Kandidaten überhaupt erreicht.',
+    why: 'Das Argument, mit dem der Headhunter einen zufriedenen Kandidaten überhaupt erreicht.',
     slots: [
       {
         key: 'industry_opportunities', label: 'Was läuft gut', form: 'ai',
@@ -1117,7 +1117,7 @@ export const DASHBOARD_FRAGEN: BriefQuestion[] = [
     order: 10,
     chapter: 'Risiken & Ehrlichkeit',
     text: 'Wie viele Kandidaten haben Sie aktuell im Prozess, bzw. hatten im Prozess? Sind bei Ihnen in der Angebotsphase schon einmal Kandidaten abgesprungen? Falls ja, warum?',
-    why: 'Sagt dem Recruiter, gegen wen er antritt und welchen Einwand er vorwegnehmen muss.',
+    why: 'Sagt dem Headhunter, gegen wen er antritt und welchen Einwand er vorwegnehmen muss.',
     slots: [
       {
         key: 'candidates_in_pipeline', label: 'Aktuell im Prozess', form: 'number',

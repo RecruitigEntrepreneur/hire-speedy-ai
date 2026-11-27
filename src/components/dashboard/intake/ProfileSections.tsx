@@ -1,6 +1,7 @@
 import { useMemo, useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { intlLocale } from '@/i18n/languages';
+import { euroAusText } from '@/lib/euroAusText';
 import { frageKurzT } from '@/lib/briefCatalogText';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -90,30 +91,48 @@ export function EuroSpanne({ feld, von, bis, einheit, onVon, onBis }: {
   onBis: (n: number | null) => void;
 }) {
   const { t, i18n } = useTranslation(['intake', 'intakeCatalog']);
-  const zeige = (n: number | null | undefined) => (n ? n.toLocaleString(intlLocale(i18n.language)) : '');
-  const lies = (t: string) => {
-    const ziffern = t.replace(/\D/g, '').slice(0, 7);
-    return ziffern ? Number(ziffern) : null;
-  };
-  const euro = (wert: number | null | undefined, on: (n: number | null) => void, platz: string, dataFeld?: string) => (
+  const locale = intlLocale(i18n.language);
+  const zeige = (n: number | null | undefined) => (n ? n.toLocaleString(locale) : '');
+  // Jahresgehalt: „55“ heißt 55.000. Beim Tagessatz sind kleine Zahlen echt.
+  const jahr = feld === 'salary_range';
+  const beispiel = jahr ? [55000, 65000] : [800, 950];
+  // Während des Tippens steht der Text so da, wie er getippt wird; beim Verlassen wird er gelesen.
+  const [roh, setRoh] = useState<{ von: string | null; bis: string | null }>({ von: null, bis: null });
+  // Wurde eine Seite als Tausend gelesen, sagt eine Zeile, was jetzt dasteht.
+  const [verstanden, setVerstanden] = useState(false);
+  const euro = (seite: 'von' | 'bis', wert: number | null | undefined, on: (n: number | null) => void, dataFeld?: string) => (
     <div className="relative min-w-0 flex-1">
       <Input
         data-feld={dataFeld}
-        value={zeige(wert)}
-        onChange={(e) => on(lies(e.target.value))}
-        placeholder={platz}
-        inputMode="numeric"
+        value={roh[seite] ?? zeige(wert)}
+        onFocus={() => setRoh((r) => ({ ...r, [seite]: zeige(wert) }))}
+        onChange={(e) => { setRoh((r) => ({ ...r, [seite]: e.target.value })); on(euroAusText(e.target.value).wert); }}
+        onBlur={(e) => {
+          const { wert: n, alsTausend } = euroAusText(e.target.value, jahr);
+          on(n);
+          setRoh((r) => ({ ...r, [seite]: null }));
+          if (alsTausend && n) setVerstanden(true);
+        }}
+        placeholder={t('profile.beispiel', { wert: beispiel[seite === 'von' ? 0 : 1].toLocaleString(locale) })}
+        inputMode="decimal"
         className="h-8 pr-6 text-xs"
       />
       <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">€</span>
     </div>
   );
   return (
-    <div className="flex items-center gap-2">
-      {euro(von, onVon, t('profile.from'), feld)}
-      <span className="text-xs text-muted-foreground">{t('profile.to')}</span>
-      {euro(bis, onBis, t('profile.to'))}
-      <span className="shrink-0 text-xs text-muted-foreground">{einheit}</span>
+    <div>
+      <div className="flex items-center gap-2">
+        {euro('von', von, onVon, feld)}
+        <span className="text-xs text-muted-foreground">{t('profile.to')}</span>
+        {euro('bis', bis, onBis)}
+        <span className="shrink-0 text-xs text-muted-foreground">{einheit}</span>
+      </div>
+      {verstanden && (von || bis) && (
+        <p className="mt-1.5 text-xs text-muted-foreground" role="status">
+          {t('profile.alsTausend', { wert: [von, bis].filter(Boolean).map((n) => `${n!.toLocaleString(locale)} €`).join(' – ') })}
+        </p>
+      )}
     </div>
   );
 }

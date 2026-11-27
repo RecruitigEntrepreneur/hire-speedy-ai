@@ -1,0 +1,133 @@
+/* Kunden-Aufnahme im Stil M3 (26.11.2026). Gilt nur unter .mk3 (Gast-Aufnahme),
+   die Aufnahme im Dashboard nutzt dieselben Bausteine ohne diese Regeln.
+   Hell: hellgrauer Grund, weißes Blatt. Dunkel: schwarzer Grund, Blatt in Kartengrau. */
+.mk3 {
+  background: hsl(var(--background));
+}
+.mk3 .mk3-blatt {
+  background: hsl(var(--card));
+}
+.light .mk3 {
+  background: hsl(var(--card));
+}
+.light .mk3 .mk3-blatt {
+  background: hsl(var(--background));
+  box-shadow: 0 1px 3px hsl(var(--foreground) / 0.04);
+}
+/* Gewählt = Blattfarbe: im Dunkeln schwarz auf kartengrauem Blatt */
+.mk3 .mk3-zeile.bg-background {
+  background: hsl(var(--background));
+}
+
+/* Felder grau ohne Rahmen */
+.mk3 .mk3-blatt input:not([type=checkbox]):not([type=radio]):not([type=file]),
+.mk3 .mk3-blatt textarea,
+.mk3 .mk3-blatt select,
+.mk3 .mk3-blatt button[role=combobox] {
+  background-color: hsl(var(--secondary));
+  border-color: transparent;
+  border-radius: 12px;
+  box-shadow: none;
+}
+.mk3 .mk3-blatt input:not([type=checkbox]):not([type=radio]):focus,
+.mk3 .mk3-blatt textarea:focus {
+  border-color: hsl(var(--foreground) / 0.6);
+}
+/* Fokus auf Knöpfen und Chips: eigener ruhiger Rand statt der Systemfarbe
+   (auf manchen Macs orange, Durchklick 27.11.2026). */
+.mk3 button:focus-visible {
+  outline: 2px solid hsl(var(--foreground) / 0.45);
+  outline-offset: 2px;
+}
+/* Bausteinfeld: der Rahmen um Bausteine und Text wird zur grauen Fläche */
+.mk3 .mk3-blatt .rounded-md.border.border-input.bg-background {
+  background: hsl(var(--secondary));
+  border-color: transparent;
+  border-radius: 12px;
+}
+.mk3 .mk3-blatt .rounded-md.border.border-input.bg-background textarea {
+  background: transparent;
+}
+
+/* Chips: grau gefüllt, gewählt dunkel; Vorschläge gestrichelt */
+.mk3 .mk3-blatt button.rounded-full.border {
+  background: hsl(var(--secondary));
+  border-color: transparent;
+  color: hsl(var(--foreground));
+  box-shadow: none;
+  padding: 5px 12px;
+  font-size: 13px;
+  line-height: 1.25;
+}
+.mk3 .mk3-blatt button.rounded-full.border:hover {
+  border-color: hsl(var(--foreground) / 0.25);
+}
+.mk3 .mk3-blatt button.rounded-full.border.border-dashed {
+  background: transparent;
+  border-color: hsl(var(--foreground) / 0.25);
+  border-style: dashed;
+}
+.mk3 .mk3-blatt button.rounded-full.border.border-primary,
+.mk3 .mk3-blatt span.rounded-full.border.border-primary,
+.mk3 .mk3-blatt span.rounded-full.border.border-foreground {
+  background: hsl(var(--foreground));
+  border-color: hsl(var(--foreground));
+  border-style: solid;
+  color: hsl(var(--background));
+  box-shadow: none;
+  font-weight: 500;
+}
+.mk3 .mk3-blatt span.rounded-full.border.border-primary,
+.mk3 .mk3-blatt span.rounded-full.border.border-foreground {
+  padding: 5px 12px;
+  font-size: 13px;
+}
+
+/* Kästen innerhalb des Blatts (Firmenblock, Prüfen, Pakete, Kriterien): grau statt umrandet */
+.mk3 .mk3-blatt .rounded-xl.border.bg-card,
+.mk3 .mk3-blatt .rounded-lg.border.bg-card {
+  background: hsl(var(--secondary));
+  border-color: transparent;
+  border-radius: 14px;
+}
+
+/* Meldungen ruhig: grau, dunkle Schrift, keine Ampel */
+.mk3 [role=alert] {
+  background: hsl(var(--secondary));
+  border-color: transparent;
+  border-radius: 14px;
+  color: hsl(var(--foreground));
+}
+.mk3 [role=alert] svg {
+  color: hsl(var(--foreground));
+}
+.mk3 .mk3-blatt .text-destructive {
+  color: hsl(var(--foreground));
+}
+.mk3 .mk3-blatt .border-destructive {
+  border-color: transparent;
+}
+
+/* Code-Kästchen grau */
+.mk3 .mk3-blatt [data-input-otp-container] > div > div,
+.mk3 .mk3-blatt div.relative.flex.items-center.justify-center.border-y {
+  background: hsl(var(--secondary));
+  border-color: transparent;
+  border-radius: 10px;
+  margin: 0 3px;
+}
+/* Felder auf grauem Kasten: Blattfarbe, damit sie sich abheben */
+.mk3 .mk3-blatt input.mk3-feld-hell:not([type=checkbox]):not([type=radio]):not([type=file]) {
+  background-color: hsl(var(--background));
+}
+
+/* Zähler (Airbnb-Stil, 27.11.2026): weiße Kreise auf dem grauen Streifen -- die
+   Chip-Regel oben würde sie grau auf grau machen. */
+.mk3 .mk3-blatt button.rounded-full.border.mk3-zaehler-knopf {
+  background: hsl(var(--background));
+  border-color: hsl(var(--foreground) / 0.2);
+  padding: 0;
+}
+.mk3 .mk3-blatt button.rounded-full.border.mk3-zaehler-knopf:not(:disabled):hover {
+  border-color: hsl(var(--foreground));
+}

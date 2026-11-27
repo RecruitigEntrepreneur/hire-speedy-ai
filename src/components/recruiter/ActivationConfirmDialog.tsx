@@ -189,7 +189,7 @@ export function ActivationConfirmDialog({
   return (
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
       {/* Die Kundenfrage kommt direkt nach „Ich suche“ und wird beantwortet, nicht weggedrückt. */}
-      <AlertDialogContent className="max-w-md" onEscapeKeyDown={(e) => { if (step === 'question') e.preventDefault(); }}>
+      <AlertDialogContent className="max-w-md" data-tour="activation.window" onEscapeKeyDown={(e) => { if (step === 'question') e.preventDefault(); }}>
         {step === 'confirm' && (
           <>
             <AlertDialogHeader>
@@ -253,7 +253,7 @@ export function ActivationConfirmDialog({
                   </div>
 
                   <label className="flex items-start gap-2.5 cursor-pointer">
-                    <Checkbox checked={confirmed} onCheckedChange={(v) => setConfirmed(v === true)} className="mt-0.5" />
+                    <Checkbox checked={confirmed} onCheckedChange={(v) => setConfirmed(v === true)} className="mt-0.5" data-tour="activation.check" />
                     <span className="text-xs text-muted-foreground leading-relaxed">
                       {t('activation.confirmCheck')}
                     </span>
@@ -266,7 +266,7 @@ export function ActivationConfirmDialog({
 
             <AlertDialogFooter>
               <AlertDialogCancel disabled={loading}>{t('activation.cancel')}</AlertDialogCancel>
-              <Button onClick={handleConfirm} disabled={!confirmed || loading} className="gap-1.5">
+              <Button onClick={handleConfirm} disabled={!confirmed || loading} className="gap-1.5" data-tour="activation.confirm">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <>{t('activation.confirmButton')}</>}
               </Button>
             </AlertDialogFooter>

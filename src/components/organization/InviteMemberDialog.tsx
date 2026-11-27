@@ -32,6 +32,8 @@ interface InviteMemberDialogProps {
   /** Von außen gesteuert (ohne Trigger), z. B. aus „Kollegen fragen“, damit kein Fenster über einem anderen liegt. */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** Beim ersten Anzeigen schon offen (Rundgang: „Holen Sie Ihr Team dazu“). */
+  defaultOpen?: boolean;
 }
 
 // Nur Schlüssel; die Texte kommen beim Anzeigen aus clientTeam:dialog.roles / dialog.choices.
@@ -58,12 +60,13 @@ export function InviteMemberDialog({
   onSuccess,
   open: openProp,
   onOpenChange: onOpenChangeProp,
+  defaultOpen = false,
 }: InviteMemberDialogProps) {
   const { t } = useTranslation();
   const { t: tt } = useTranslation('clientTeam');
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [openState, setOpenState] = useState(false);
+  const [openState, setOpenState] = useState(defaultOpen);
   const controlled = openProp !== undefined;
   const open = controlled ? openProp : openState;
   const setOpen = (v: boolean) => (controlled ? onOpenChangeProp?.(v) : setOpenState(v));

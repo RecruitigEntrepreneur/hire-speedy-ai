@@ -21,6 +21,7 @@ import CandidateDetail from "./pages/dashboard/CandidateDetail";
 import ClientBewerberPage from "./pages/dashboard/ClientBewerberPage";
 import ClientAufgaben from "./pages/dashboard/ClientAufgaben";
 import ClientTour from "./pages/dashboard/ClientTour";
+import RecruiterTour from "./pages/recruiter/RecruiterTour";
 import ClientBesetzungen from "./pages/dashboard/ClientBesetzungen";
 import ClientMessages from "./pages/dashboard/ClientMessages";
 import ClientSettings from "./pages/dashboard/ClientSettings";
@@ -414,6 +415,12 @@ function AppRoutes() {
       <Route path="/recruiter/settings" element={
         <ProtectedRoute allowedRoles={['recruiter']}>
           <RecruiterSettings />
+        </ProtectedRoute>
+      } />
+      {/* Beispiel-Bühne des Headhunter-Rundgangs (lib/recruiterTour.ts): nichts wird gespeichert. */}
+      <Route path="/recruiter/rundgang" element={
+        <ProtectedRoute allowedRoles={['recruiter']}>
+          <RecruiterTour />
         </ProtectedRoute>
       } />
       <Route path="/recruiter/influence" element={

@@ -89,7 +89,7 @@ export function RecommendationDialog({ submissionId, onClose, onDone, onNachgesp
   });
   return (
     <Dialog open={!!submissionId} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl" data-tour="recommend.window">
         {ctx.isLoading || !ctx.data ? (
           <>
             <DialogHeader><DialogTitle>{t('rec.title')}</DialogTitle><DialogDescription>{t('common.loading')}</DialogDescription></DialogHeader>
@@ -180,7 +180,7 @@ function RecommendationForm({ c, onClose, onDone, onNachgespraech }: { c: Recrui
               <Checkbox id={`rec-${r.key}`} checked={r.on} onCheckedChange={(v) => set(r.key, { on: v === true })} disabled={!r.value.trim()} />
               <label htmlFor={`rec-${r.key}`} className="w-32 shrink-0 text-sm font-medium">{r.label}</label>
               <Input value={r.value} onChange={(e) => set(r.key, { value: e.target.value, on: e.target.value.trim() ? (r.value.trim() ? r.on : true) : false })}
-                placeholder={r.placeholder} className="h-8 text-sm" aria-label={r.label} />
+                placeholder={r.placeholder} className="h-8 text-sm" aria-label={r.label} data-rec={r.key} />
             </div>
             {r.privateHint && <p className="ml-6 mt-1 text-xs text-muted-foreground">{r.privateHint}</p>}
           </div>
@@ -189,7 +189,7 @@ function RecommendationForm({ c, onClose, onDone, onNachgespraech }: { c: Recrui
 
       <div className="flex flex-wrap justify-end gap-2 border-t pt-3">
         <Button variant="ghost" onClick={onClose}>{t('common.cancel')}</Button>
-        <Button disabled={busy || chosen.length === 0} title={chosen.length === 0 ? t('rec.checkOne') : undefined} onClick={send}>
+        <Button data-tour="recommend.send" disabled={busy || chosen.length === 0} title={chosen.length === 0 ? t('rec.checkOne') : undefined} onClick={send}>
           {busy && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}{t('rec.send')}
         </Button>
       </div>

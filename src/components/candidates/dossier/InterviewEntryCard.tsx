@@ -251,7 +251,7 @@ export function InterviewEntryCard({
   const laedt = !completed && !hasInterview && (einladungLaedt || termineLaden);
 
   return (
-    <Card ref={karte} className={cn('relative transition-[box-shadow,border-color] duration-300', zeigen && 'border-foreground/60 ring-4 ring-foreground/10')}>
+    <Card ref={karte} data-tour="dossier.interview" className={cn('relative transition-[box-shadow,border-color] duration-300', zeigen && 'border-foreground/60 ring-4 ring-foreground/10')}>
       {zeigen && (
         <span className="absolute -top-3 left-4 z-10 rounded-full bg-foreground px-2.5 py-0.5 text-xs font-medium text-background shadow-sm">
           {schritt === 0 ? t('card.highlightInvite', { name: vorname }) : t('card.highlightContinue', { name: vorname })}

@@ -1,3 +1,4 @@
+import type { Op } from '../../supabase/functions/_shared/aufnahme-ops';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import i18n, { currentLanguage } from '@/i18n';
@@ -226,6 +227,19 @@ const writeStored = (key: string, value: string) => {
   try { localStorage.setItem(key, value); } catch { /* privates Fenster */ }
 };
 
+/** Mitarbeit an einer Aufnahme (26.11.2026): wer bin ich, wen habe ich eingeladen, der Echtzeit-Kanal. */
+export interface Mitarbeit {
+  ich: { rolle: 'voll' | 'beschreiben'; name: string | null; email: string | null; kuerzel: string; bestaetigt: boolean; zurueckgegeben: boolean };
+  helfer: { id: string; name: string; email: string; kuerzel: string; eingeladen_am: string; bestaetigt: boolean; zurueckgegeben_am: string | null; zuletzt: string | null }[];
+  einladender: { name: string | null; kuerzel: string } | null;
+  live: string;
+}
+
+/** Liefert beim Speichern die Änderungen je Antwort (gleichzeitiges Arbeiten). */
+export type OpsQuelle = () => { ops: Op[] };
+/** Bekommt den Serverstand nach dem Speichern oder Neuladen, samt der eigenen gesendeten Änderungen. */
+export type NachStand = (draft: GuestDraft, eigeneOps: Op[]) => void;
+
 export interface GuestIntakeState {
   status: 'loading' | 'ready' | 'failed';
   failure: IntakeFailure | null;
@@ -238,6 +252,7 @@ export interface GuestIntakeState {
   saving: boolean;
   saveError: string | null;
   lastSavedAt: Date | null;
+  mitarbeit: Mitarbeit | null;
 }
 
 /**
@@ -248,7 +263,7 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
   const [state, setState] = useState<GuestIntakeState>({
     status: 'loading', failure: null, link: null, packages: null,
     draft: null, draftToken: null, locked: false,
-    saving: false, saveError: null, lastSavedAt: null,
+    saving: false, saveError: null, lastSavedAt: null, mitarbeit: null,
   });
 
   const tokenRef = useRef<string | null>(null);
@@ -270,7 +285,7 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
       const existing = resumeToken ?? (linkToken ? readStored(tokenKey(linkToken)) : null);
 
       if (existing) {
-        const res = await call<{ draft: GuestDraft; link: IntakeLinkInfo | null; packages: PackageSummary[] | null; locked: boolean }>(
+        const res = await call<{ draft: GuestDraft; link: IntakeLinkInfo | null; packages: PackageSummary[] | null; locked: boolean; mitarbeit?: Mitarbeit }>(
           'intake-draft', { draft_token: existing, action: 'get' },
         );
         if (!isFailure(res)) {
@@ -279,6 +294,7 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
           setState((s) => ({
             ...s, status: 'ready', failure: null,
             draft: res.draft, link: res.link, packages: res.packages, draftToken: existing, locked: res.locked,
+            mitarbeit: res.mitarbeit ?? null,
           }));
           return;
         }
@@ -320,18 +336,40 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
   const pending = useRef<Record<string, unknown>>({});
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inFlight = useRef(false);
+  // Gleichzeitiges Arbeiten (26.11.2026): Die Stelle geht als Änderungen je Antwort raus.
+  const opsQuelle = useRef<OpsQuelle | null>(null);
+  const nachStand = useRef<NachStand | null>(null);
+  const opsOffen = useRef(false);
+  const nachholen = useRef(false);
+  const verbinde = useCallback((quelle: OpsQuelle | null, nach: NachStand | null) => {
+    opsQuelle.current = quelle;
+    nachStand.current = nach;
+  }, []);
+
+  const holeStand = useCallback(async () => {
+    if (!tokenRef.current) return;
+    if (inFlight.current) { nachholen.current = true; return; }
+    const res = await call<{ draft: GuestDraft; locked: boolean; mitarbeit?: Mitarbeit }>(
+      'intake-draft', { draft_token: tokenRef.current, action: 'get' });
+    if (isFailure(res)) return;
+    if (inFlight.current) { nachholen.current = true; return; }
+    nachStand.current?.(res.draft, []);
+    setState((s) => ({ ...s, draft: res.draft, locked: res.locked, mitarbeit: res.mitarbeit ?? s.mitarbeit }));
+  }, []);
 
   const flush = useCallback(async () => {
     if (!tokenRef.current || inFlight.current) return;
     const patch = pending.current;
-    if (Object.keys(patch).length === 0) return;
+    const ops = opsOffen.current && opsQuelle.current ? opsQuelle.current().ops : [];
+    if (Object.keys(patch).length === 0 && ops.length === 0) { opsOffen.current = false; return; }
 
     pending.current = {};
+    opsOffen.current = false;
     inFlight.current = true;
     setState((s) => ({ ...s, saving: true }));
 
-    const res = await call<{ draft: GuestDraft; packages: PackageSummary[] | null; locked: boolean }>(
-      'intake-draft', { draft_token: tokenRef.current, action: 'patch', patch },
+    const res = await call<{ draft: GuestDraft; packages: PackageSummary[] | null; locked: boolean; mitarbeit?: Mitarbeit }>(
+      'intake-draft', { draft_token: tokenRef.current, action: 'patch', patch, ...(ops.length ? { ops } : {}) },
     );
     inFlight.current = false;
 
@@ -340,20 +378,26 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
       // Die Eingaben bleiben in der Warteschlange und gehen beim nächsten
       // Versuch mit.
       pending.current = { ...patch, ...pending.current };
+      if (ops.length) opsOffen.current = true;
       setState((s) => ({ ...s, saving: false, saveError: res.message }));
       return;
     }
 
+    nachStand.current?.(res.draft, ops);
     setState((s) => ({
       ...s, saving: false, saveError: null, lastSavedAt: new Date(),
       draft: res.draft, packages: res.packages ?? s.packages, locked: res.locked,
+      mitarbeit: res.mitarbeit ?? s.mitarbeit,
     }));
-  }, []);
+    if (nachholen.current) { nachholen.current = false; void holeStand(); }
+    if (Object.keys(pending.current).length || opsOffen.current) void flush();
+  }, [holeStand]);
 
   /** Sammelt Änderungen und schreibt sie gebündelt — 1,2 s nach der letzten
    *  Eingabe. Sofort schreiben hieße ein Aufruf je Tastenanschlag. */
-  const save = useCallback((patch: Record<string, unknown>, immediate = false) => {
+  const save = useCallback((patch: Record<string, unknown>, immediate = false, mitOps = false) => {
     pending.current = { ...pending.current, ...patch };
+    if (mitOps) opsOffen.current = true;
     if (timer.current) clearTimeout(timer.current);
     if (immediate) void flush();
     else timer.current = setTimeout(() => { void flush(); }, 1200);
@@ -381,9 +425,9 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
 
   const confirmCode = useCallback(
     async (code: string) => {
-      const res = await withToken<{ verified: boolean; known_company: { name: string } | null; draft: GuestDraft | null; session_ticket?: string | null }>(
+      const res = await withToken<{ verified: boolean; known_company: { name: string } | null; draft: GuestDraft | null; session_ticket?: string | null; mitarbeit?: Mitarbeit | null }>(
         'intake-verify-email', { action: 'confirm', code });
-      if (!isFailure(res) && res.draft) setState((s) => ({ ...s, draft: res.draft! }));
+      if (!isFailure(res) && res.draft) setState((s) => ({ ...s, draft: res.draft!, mitarbeit: res.mitarbeit ?? s.mitarbeit }));
       if (!isFailure(res) && res.session_ticket) {
         try { localStorage.setItem(ticketKey(tokenRef.current), res.session_ticket); } catch { /* dann geht der Zugang per Mail */ }
       }
@@ -510,12 +554,30 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
   );
 
   const forward = useCallback(
-    (toEmail: string, toName: string, message: string) =>
-      withToken<{ ok: boolean; message: string }>('intake-forward', {
-        to_email: toEmail, to_name: toName, message,
-      }),
+    async (toEmail: string, toName: string, message: string, rolle?: 'beschreiben') => {
+      const res = await withToken<{ ok: boolean; message: string; mitarbeit?: Mitarbeit }>('intake-forward', {
+        to_email: toEmail, to_name: toName, message, ...(rolle ? { rolle } : {}),
+      });
+      if (!isFailure(res) && res.mitarbeit) setState((s) => ({ ...s, mitarbeit: res.mitarbeit! }));
+      return res;
+    },
     [],
   );
+
+  /** Einladung an eine Kollegin zurückziehen (nur wer die Aufnahme verantwortet). */
+  const zurueckziehen = useCallback(async (tokenId: string) => {
+    const res = await withToken<{ ok: boolean; mitarbeit?: Mitarbeit }>('intake-forward', { action: 'zurueckziehen', token_id: tokenId });
+    if (!isFailure(res) && res.mitarbeit) setState((s) => ({ ...s, mitarbeit: res.mitarbeit! }));
+    return res;
+  }, []);
+
+  /** Die eingeladene Kollegin ist fertig: zurück an den Einladenden. */
+  const zurueckgeben = useCallback(async () => {
+    await flush();
+    const res = await withToken<{ ok: boolean; mitarbeit?: Mitarbeit }>('intake-forward', { action: 'zurueckgeben' });
+    if (!isFailure(res) && res.mitarbeit) setState((s) => ({ ...s, mitarbeit: res.mitarbeit! }));
+    return res;
+  }, [flush]);
 
   const askAi = useCallback(
     async (payload: Record<string, unknown>) => {
@@ -632,7 +694,7 @@ export function useGuestIntake(linkToken?: string, resumeToken?: string) {
     return res;
   }, []);
 
-  return { state, save, flush, sendCode, confirmCode, openSession, loadPackages, selectPackage, sendContract, checkSignature, submit, forward, askAi, parseText, parseUrl, parsePdf, enrichCompany, recheckCompany, refreshDraft };
+  return { state, save, flush, sendCode, confirmCode, openSession, loadPackages, selectPackage, sendContract, checkSignature, submit, forward, askAi, parseText, parseUrl, parsePdf, enrichCompany, recheckCompany, refreshDraft, verbinde, holeStand, zurueckziehen, zurueckgeben };
 }
 
 /** „Später fortsetzen" per Mail — braucht keinen Entwurfs-Token. */

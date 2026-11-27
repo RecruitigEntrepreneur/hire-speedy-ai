@@ -72,6 +72,7 @@ export function CandidateActionBar({
           {/* Context-dependent primary action */}
           {(currentStatus === 'new' || currentStatus === 'contacted') && (
             <Button
+              data-tour="dossier.submit"
               onClick={onSubmitToJob}
               size="sm"
               variant={submitQuiet ? 'outline' : 'default'}

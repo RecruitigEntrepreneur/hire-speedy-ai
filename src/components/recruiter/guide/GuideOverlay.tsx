@@ -4,8 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ChevronRight, Compass, Eye, Hand, MousePointer2, MousePointerClick, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { guideChapters, placeCard, type CardPlacement, type GuideStep, type TourRect } from '@/lib/recruiterGuide';
-import { GuideExampleView } from './GuideExamples';
+import { placeCard, type CardPlacement, type GuideStep, type TourRect } from '@/lib/recruiterGuide';
 import type { GuideTarget } from './useGuideTarget';
 import { guideDemo, motionAllowed, POINTER_MS, useGuideDemo, type DemoPhase } from './guideDemo';
 
@@ -42,6 +41,17 @@ const GLIDE = `all ${GLIDE_MS}ms cubic-bezier(0.2, 0.8, 0.2, 1)`;
 /** Die Karte gleitet nur mit ihrer Lage. Ihre Breite wechselt sofort, damit sie gleich richtig vermessen ist
  *  (Marko 17.11.: „bewegt sich im Zickzack“ -- sonst sprang sie nach dem Gleiten noch einmal). */
 const CARD_GLIDE = `left ${GLIDE_MS}ms cubic-bezier(0.2, 0.8, 0.2, 1), top ${GLIDE_MS}ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 200ms`;
+
+/** Platz, den ein Menü beim Aufgehen unter seinem Knopf braucht (Neue Stelle, Glocke, Kandidat anlegen). */
+const MENU_ROOM = { width: 336, height: 260 };
+
+/** Steht die Karte hier ganz im Bild und neben (nicht über) dem Bereich? */
+function fitsBeside(at: CardPlacement, size: { width: number; height: number }, area: TourRect, viewport: { width: number; height: number }) {
+  const right = at.left + size.width;
+  const bottom = at.top + size.height;
+  if (at.left < 8 || at.top < 8 || right > viewport.width - 8 || bottom > viewport.height - 8) return false;
+  return right <= area.left || at.left >= area.left + area.width || bottom <= area.top || at.top >= area.top + area.height;
+}
 
 /** Dunkelt alles außer dem Ziel ab. Klicks daneben tun nichts; auf das Ziel nur in Klick-Schritten. */
 /**
@@ -115,7 +125,7 @@ export interface GuideOverlayProps {
   /** Der Hauptknopf im letzten Schritt. */
   onOpenJobs: () => void;
   /** Kapitelnamen in der aktuellen Sprache. */
-  chapters?: () => readonly string[];
+  chapters: () => readonly string[];
   texts?: GuideTextsKey;
   /**
    * Fortschritt je Kapitel (0 bis 1). Mit Angabe zeigt die Karte statt eines
@@ -138,7 +148,7 @@ export interface GuideOverlayProps {
   onSkipDemo?: () => void;
 }
 
-export function GuideOverlay({ step, stepNumber, stepCount, firstName, target, clickable, onNext, onBack, onClose, onAct, onOpenJobs, chapters: chapterNames = guideChapters, texts = 'texts', segments, onJump, onPostpone, extra, finalLabel, targetKey = step.id, demoPhase = 'done', onSkipDemo }: GuideOverlayProps) {
+export function GuideOverlay({ step, stepNumber, stepCount, firstName, target, clickable, onNext, onBack, onClose, onAct, onOpenJobs, chapters: chapterNames, texts = 'texts', segments, onJump, onPostpone, extra, finalLabel, targetKey = step.id, demoPhase = 'done', onSkipDemo }: GuideOverlayProps) {
   const { t } = useTranslation('recruiterGuide');
   const chapters = chapterNames();
   const viewport = useViewport();
@@ -149,8 +159,6 @@ export function GuideOverlay({ step, stepNumber, stepCount, firstName, target, c
   const hasExtra = !!extra;
   const first = stepNumber === 1;
   const last = stepNumber === stepCount;
-  const missing = !!step.target && !target.el && !target.waiting;
-  const showExample = !!step.example && (!step.exampleWhenMissing || missing);
   const body = step.click && !clickable ? step.narrowBody ?? step.body : step.body;
   const title = first && firstName ? t(`${texts}.welcomeNamed`, { title: step.title, name: firstName }) : step.title;
 
@@ -167,7 +175,7 @@ export function GuideOverlay({ step, stepNumber, stepCount, firstName, target, c
   // Ebenso ein offenes Menü (Neue Stelle, Glocke): Die Karte steht neben dem ganzen Menü, nicht über seinem Rest.
   // Ein Fenster über fast die ganze Breite (Aufnahme) ist kein Rahmen: Daneben wäre kein Platz,
   // die Karte steht dann am Ziel selbst, im freien Teil des Fensters.
-  const frameRaw = ready ? target.el?.closest<HTMLElement>('[role="dialog"]') ?? target.el?.closest<HTMLElement>('[role="menu"]') ?? null : null;
+  const frameRaw = ready ? target.el?.closest<HTMLElement>('[role="dialog"], [role="alertdialog"]') ?? target.el?.closest<HTMLElement>('[role="menu"]') ?? null : null;
   const frameEl = frameRaw && frameRaw.getBoundingClientRect().width < viewport.width * 0.8 ? frameRaw : null;
   const frame = frameEl?.getBoundingClientRect() ?? null;
   const liveHole = frame ? toHole(frame) : rect && toHole(rect);
@@ -177,18 +185,37 @@ export function GuideOverlay({ step, stepNumber, stepCount, firstName, target, c
   // Neben einem Fenster wird die Karte schmal und darf dessen Rand (Innenabstand) überdecken,
   // damit sie neben statt über dem Fenster steht.
   // Im breiten Fenster (Aufnahme) ebenfalls schmal: So passt sie in den freien Rand neben dem Inhalt.
-  const compact = !!frame || (!!frameRaw && !frameEl);
-  const placeHole = compact && liveHole ? { ...liveHole, left: liveHole.left + 24, width: Math.max(liveHole.width - 48, 0) } : liveHole;
+  // Öffnet die Vorführung erst ein Menü (`cardAtTarget`), ist die Karte schon am Knopf so schmal wie
+  // danach neben dem Menü und lässt ihm Platz; geht es auf, bleibt sie stehen (Marko 17.11.:
+  // „leichter Slide, aber nicht die Form ändern“).
+  const menuAhead = !!step.cardAtTarget && targetKey !== step.id;
+  const compact = !!frame || (!!frameRaw && !frameEl) || menuAhead;
+  const areaHole = menuAhead && liveHole
+    ? { top: liveHole.top, height: liveHole.height + MENU_ROOM.height,
+      left: Math.min(liveHole.left, liveHole.left + liveHole.width - MENU_ROOM.width), width: Math.max(liveHole.width, MENU_ROOM.width) }
+    : liveHole;
+  const placeHole = compact && areaHole ? { ...areaHole, left: areaHole.left + 24, width: Math.max(areaHole.width - 48, 0) } : areaHole;
   // Gemerkt wird die Seite je Ziel UND Kartengröße: Mit der Größe des vorigen Schritts gewählt, wäre sie oft die falsche.
   const sideKey = `${targetKey}|${Math.round(cardSize.width)}x${Math.round(cardSize.height)}`;
-  const placed = placeCard(placeHole, cardSize, viewport, side.current?.key === sideKey ? side.current.side : step.side);
+  const placed = step.bare
+    // Ohne Abdunkeln: oben rechts unter der Kopfzeile, die Seite bleibt frei (Übersicht).
+    ? { side: 'right' as const, top: 80, left: Math.max(16, viewport.width - cardSize.width - 16) }
+    : placeCard(placeHole, cardSize, viewport, side.current?.key === sideKey ? side.current.side : step.side);
   // Neben einem Fenster nie in die Mitte (dort stünde die Karte über dem Fenster): dann an den rechten Rand.
   const livePosition: CardPlacement = compact && placeHole && placed.side === 'center'
     ? { side: 'right', left: Math.max(16, viewport.width - cardSize.width - 16), top: Math.min(Math.max(16, placeHole.top + placeHole.height / 2 - cardSize.height / 2), Math.max(16, viewport.height - cardSize.height - 16)) }
     : placed;
   if (ready && liveHole && side.current?.key !== sideKey) side.current = { key: sideKey, side: livePosition.side };
   const shown = useRef<{ key: string; hole: TourRect | null; ring: TourRect | null; compact: boolean; position: CardPlacement } | null>(null);
-  const live = ready ? { key: targetKey, hole: liveHole, ring: liveRing, compact, position: livePosition } : null;
+  // Menü offen: Die Karte bleibt, wo sie am Knopf stand, solange sie das Menü nicht verdeckt.
+  const heldMenu = useRef<{ key: string; position: CardPlacement } | null>(null);
+  if (heldMenu.current && heldMenu.current.key !== targetKey) heldMenu.current = null;
+  if (ready && step.cardAtTarget && targetKey === step.id && !heldMenu.current && shown.current?.key === `${step.id}:area`) {
+    heldMenu.current = { key: targetKey, position: shown.current.position };
+  }
+  const avoid = frame ?? rect;
+  const keep = heldMenu.current && avoid && fitsBeside(heldMenu.current.position, cardSize, avoid, viewport) ? heldMenu.current.position : null;
+  const live = ready ? { key: targetKey, hole: liveHole, ring: liveRing, compact, position: keep ?? livePosition } : null;
   const glideFor = useRef<{ key: string; until: number } | null>(null);
   if (live && shown.current && shown.current.key !== live.key && glideFor.current?.key !== live.key) {
     glideFor.current = { key: live.key, until: performance.now() + GLIDE_MS + 40 };
@@ -198,7 +225,8 @@ export function GuideOverlay({ step, stepNumber, stepCount, firstName, target, c
   const display = live ?? shown.current;
   const hole = display?.hole ?? null;
   const ring = display?.ring ?? null;
-  const narrow = display?.compact ?? compact;
+  // Menü-Schritt: schon beim Klick schmal, damit sich beim Gleiten die Form nicht mehr ändert.
+  const narrow = (!ready && !!step.cardAtTarget) || (display?.compact ?? compact);
   const position = display?.position ?? livePosition;
   useEffect(() => { if (live) shown.current = live; });
 
@@ -206,7 +234,7 @@ export function GuideOverlay({ step, stepNumber, stepCount, firstName, target, c
   // dass das Ziel oben steht und die Karte darunter passt. Sonst läge sie über dem Ziel.
   const madeRoom = useRef<string | null>(null);
   useEffect(() => {
-    if (!live || compact || !liveHole || !target.el || madeRoom.current === targetKey) return;
+    if (!live || compact || step.bare || !liveHole || !target.el || madeRoom.current === targetKey) return;
     madeRoom.current = targetKey;
     if (live.position.side === 'right' || live.position.side === 'bottom') return;
     // Unter Kopfzeile (64 px) und mitlaufender Leiste im Bewerberprofil (52 px), nicht dahinter.
@@ -239,7 +267,8 @@ export function GuideOverlay({ step, stepNumber, stepCount, firstName, target, c
   // Zeiger: von der Karte zum Ziel, einmal antippen, verschwinden. Dann ist der Nutzer dran.
   // Schilder: der Zeiger fährt Stelle für Stelle an, das Schild sagt, was dort steht.
   useEffect(() => {
-    if (demoPhase !== 'pointing' || !ready || !target.el || targetKey !== step.id || !step.points?.length) return;
+    // Mit `pointArea` leuchtet beim Zeigen der Bereich (Schlüssel `<id>:area`), sonst das Ziel.
+    if (demoPhase !== 'pointing' || !ready || !target.el || targetKey !== (step.pointArea ? `${step.id}:area` : step.id) || !step.points?.length) return;
     const t = guideDemo.token();
     let stopped = false;
     const points = step.points;
@@ -352,7 +381,7 @@ export function GuideOverlay({ step, stepNumber, stepCount, firstName, target, c
   // warteten. Jetzt bleibt der alte Schritt stehen, bis das neue Ziel bereit ist; die Knöpfe ruhen
   // so lange. Wechselt dabei die Seite, erlischt das alte Licht, statt auf der neuen Seite an der
   // falschen Stelle zu stehen.
-  const cur = { step, stepNumber, title, body, extra, clickable, showing, lookOnly, first, last, showExample, page: window.location.pathname + window.location.search };
+  const cur = { step, stepNumber, title, body, extra, clickable, showing, lookOnly, first, last, page: window.location.pathname + window.location.search };
   const held = useRef<typeof cur | null>(null);
   const pending = !ready && !!held.current && held.current.step.id !== step.id;
   const v = pending ? held.current! : cur;
@@ -374,7 +403,7 @@ export function GuideOverlay({ step, stepNumber, stepCount, firstName, target, c
   }, [step.click, last, onNext, onBack, onClose]);
 
   return createPortal(<>
-    <Backdrop hole={staleHole ? null : hole} ring={staleHole ? null : ring} clickable={clickable && !showing && !pending} blocked={showing || !clickable || pending} glide={gliding} scroller={frameEl} />
+    {!step.bare && <Backdrop hole={staleHole ? null : hole} ring={staleHole ? null : ring} clickable={clickable && !showing && !pending} blocked={showing || !clickable || pending} glide={gliding} scroller={frameEl} />}
     <GuidePointer />
     <div
       ref={cardRef}
@@ -412,7 +441,6 @@ export function GuideOverlay({ step, stepNumber, stepCount, firstName, target, c
       <h2 id="guide-title" className="mt-4 text-lg font-semibold leading-snug tracking-tight">{v.title}</h2>
       <p id="guide-body" className="mt-2 text-sm leading-relaxed text-muted-foreground">{v.body}</p>
       {v.extra}
-      {v.showExample && <GuideExampleView kind={v.step.example!} />}
       {v.showing
         ? <p className="mt-3 flex items-center gap-2 text-sm font-medium text-muted-foreground"><Hand className="h-4 w-4 text-klick" />{t(`${texts}.showing`)}</p>
         // „Sie sind dran“ hervorgehoben (Marko 17.11.), seit 23.11. ohne hellblaue Fläche: grauer
@@ -444,7 +472,7 @@ export function GuideOverlay({ step, stepNumber, stepCount, firstName, target, c
         {!v.first && <span className="mr-auto whitespace-nowrap text-xs tabular-nums text-muted-foreground">{onJump ? '· ' : ''}{narrow ? `${v.stepNumber}/${stepCount}` : t('ui.step', { current: v.stepNumber, total: stepCount })}</span>}
         {v.first ? <>
           <Button variant="ghost" size="sm" onClick={onPostpone ?? onClose}>{t(onPostpone ? `${texts}.later` : `${texts}.skip`)}</Button>
-          <Button ref={primaryRef} size="sm" disabled={pending} onClick={onNext}>{t(`${texts}.start`)}</Button>
+          <Button ref={primaryRef} size="sm" disabled={pending} onClick={onNext}>{v.step.nextLabel ?? t(`${texts}.start`)}</Button>
         </> : <>
           {onBack && !v.last && <Button variant="secondary" size="sm" disabled={pending} className={cn('rounded-full', narrow ? 'px-3' : 'px-4')} onClick={onBack}>{t('ui.back')}</Button>}
           {v.last
@@ -454,7 +482,7 @@ export function GuideOverlay({ step, stepNumber, stepCount, firstName, target, c
             </>
             : v.step.click
               ? <Button ref={primaryRef} size="sm" disabled={pending} onClick={showing && onSkipDemo ? onSkipDemo : onAct}>{v.step.click.label}</Button>
-              : <Button ref={primaryRef} size="sm" disabled={pending} onClick={onNext}>{t('ui.next')}</Button>}
+              : <Button ref={primaryRef} size="sm" disabled={pending} onClick={onNext}>{v.step.nextLabel ?? t('ui.next')}</Button>}
         </>}
       </div>
     </div>

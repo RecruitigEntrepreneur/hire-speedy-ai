@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
@@ -33,6 +34,8 @@ interface AuditEntry {
 
 export default function TeamManagement() {
   const { t } = useTranslation();
+  // Rundgang: „Team einladen“ zeigt das Fenster gleich offen (state.open, wie im Profil).
+  const openInvite = (useLocation().state as { open?: string } | null)?.open === 'invite';
   const { t: tt } = useTranslation('clientTeam');
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -171,7 +174,7 @@ export default function TeamManagement() {
             )}
           </div>
 
-          {isAdmin && <InviteMemberDialog organizationId={organization.id} />}
+          {isAdmin && <InviteMemberDialog organizationId={organization.id} defaultOpen={openInvite} />}
         </div>
 
         <Tabs defaultValue="members">

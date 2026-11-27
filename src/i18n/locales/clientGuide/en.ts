@@ -51,7 +51,11 @@ const en: Messages<typeof de> = {
     'c-myJob': {
       title: 'Your position is already here',
       body: 'You have already submitted your first position. We are reviewing it and will then pass it to our headhunters, without your company name.',
-      bodyLive: 'You have already submitted your first position, and it is live. The card shows where the search stands; one click opens the position page.',
+      bodyLive: 'Your position is live. At a glance, the card shows how far the search is, who is new and how many headhunters are searching. The candidates and headhunters here are examples.',
+      p1: 'How far the search is',
+      p2: 'Who is in the running, blue is new',
+      p3: 'What happened last',
+      p4: 'How many headhunters search',
     },
     'c-jobsExample': {
       title: 'This is how your position looks once it is running',
@@ -209,6 +213,7 @@ const en: Messages<typeof de> = {
       concerns: 'Getting to know our systems. Could he start earlier?',
       colleagueName: 'Anna Weber',
       colleagueEmail: 'anna.weber@example.com',
+      colleagueMessage: 'About {{job}}: please share quick feedback after the interviews, then we decide together.',
     },
     data: {
       yourCompany: 'Example Company Ltd',

@@ -1,11 +1,11 @@
-import type { ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LanguageMenu } from '@/components/language/LanguageMenu';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { LanguageHint } from '@/components/language/LanguageHint';
-import { MatchuntWordmark } from '@/components/ui/MatchuntWordmark';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { Check, CloudOff, Loader2, TriangleAlert } from 'lucide-react';
+import { Check, ChevronLeft, CloudOff, Loader2, TriangleAlert } from 'lucide-react';
+import { Kuerzel } from './mitarbeit';
+import { M3Blatt, M3Fuss, M3Logo, M3Punkte, M3Provider, M3Seite, ZurueckProvider } from './m3';
 import type { PackageSummary } from '@/hooks/useGuestIntake';
 
 /**
@@ -40,123 +40,82 @@ interface Props {
   saveError?: string | null;
   lastSavedAt?: Date | null;
   onResumeLater?: () => void;
+  /** „‹ Zurück“ oben links, solange keine innere Seite eine eigene Handlung anmeldet. */
+  onBack?: () => void;
+  /** Gleichzeitiges Arbeiten: Kürzel aller, die gerade in der Aufnahme sind (ich zuerst). */
+  anwesend?: { kuerzel: string; name: string | null; ich?: boolean }[];
+  /** Zeilen oben im Blatt: wer ist wo, fremde Änderungen, Einladungen. */
+  oben?: ReactNode;
   children: ReactNode;
 }
 
 export function IntakeShell({
   steps, activeStep, reachable, onStep, packages, contracting, ownerName,
-  saving, saveError, lastSavedAt, onResumeLater, children,
+  saving, saveError, lastSavedAt, onResumeLater, onBack, anwesend, oben, children,
 }: Props) {
   const { t } = useTranslation('clientFunnel');
-  const activeIndex = Math.max(0, steps.findIndex((s) => s.key === activeStep));
+  // „‹ Zurück“: eine innere Seite (Etappen, Einfügen) meldet ihre eigene Handlung an,
+  // sonst gilt die des Schritts (onBack aus GuestIntake).
+  const innen = useRef<(() => void) | null>(null);
+  const [hatInnen, setHatInnen] = useState(false);
+  const setzeInnen = useRef((f: (() => void) | null) => { innen.current = f; setHatInnen(!!f); }).current;
+  const zurueck = hatInnen ? () => innen.current?.() : onBack;
+
+  // Die Kondition steht ab der ersten Sekunde da -- AGB § 9 sagt genau das zu.
+  // Im neuen Look klein unter dem Logo, auch auf dem Handy.
+  const kondition = contracting
+    ? t('shell.contractingBadge')
+    : packages && packages.length > 0
+      ? t('shell.feeBadge', { percent: Math.min(...packages.map((p) => p.fee_percent)) })
+      : null;
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* ---- Kopf: Marke, Konditionen, Speicherstand --------------------- */}
-      <header className="sticky top-0 z-30 border-b border-border/60 bg-background/95 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-3 px-4 py-3 md:px-6">
-          <MatchuntWordmark size="sm" />
+    <M3Provider value>
+      <ZurueckProvider value={setzeInnen}>
+        <div className="mk3 min-h-screen text-foreground">
+          {/* ---- Kopf: Zurück, Logo mit Kondition, Speicherstand und Sprache ---- */}
+          <header className="mx-auto grid max-w-5xl grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 py-4 md:px-6">
+            <div>
+              {zurueck && (
+                <button type="button" onClick={zurueck} className="inline-flex items-center gap-0.5 text-sm font-medium text-klick hover:underline">
+                  <ChevronLeft className="h-4 w-4" />{t('common.back')}
+                </button>
+              )}
+            </div>
+            <M3Logo unterzeile={kondition && <>{kondition}<span className="hidden sm:inline"> {t('shell.noFixedCosts')}</span></>} />
+            <div className="flex items-center justify-end gap-2 sm:gap-3">
+              {anwesend && anwesend.length > 1 && (
+                /* Auf dem Handy reicht die Zeile im Blatt; oben wäre kein Platz neben dem Logo. */
+                <span className="hidden -space-x-1.5 sm:flex" aria-label={anwesend.map((a) => a.name ?? a.kuerzel).join(', ')}>
+                  {anwesend.map((a, i) => <Kuerzel key={i} k={a.kuerzel} ich={a.ich} className="ring-2 ring-background" />)}
+                </span>
+              )}
+              <SaveState saving={saving} error={saveError} at={lastSavedAt} />
+              {onResumeLater && (
+                <button type="button" onClick={onResumeLater} className="hidden text-sm font-medium text-klick hover:underline sm:inline">
+                  {t('shell.resumeLater')}
+                </button>
+              )}
+              <LanguageMenu />
+              <ThemeToggle standard="light" />
+            </div>
+          </header>
+          {/* Der Link startet in einer anderen Sprache als der Browser: einmalige Hinweiszeile. */}
+          <LanguageHint className="border-b-0" />
 
-          {/* Die Kondition steht ab der ersten Sekunde hier — nicht als
-              Überraschung am Ende. AGB § 9 sagt genau das zu, und die gelockte
-              Spezifikation verlangt sie ausdrücklich ab der ersten Sekunde.
-              Deshalb auch auf dem Handy sichtbar, dort nur kürzer: der Zusatz
-              „keine Fixkosten" weicht, die Zahl bleibt. */}
-          {contracting ? (
-            <span className="whitespace-nowrap text-xs text-muted-foreground">
-              {/* Keine Prozentzahl hier: „78 %“ allein liest sich wie eine Gebühr.
-                  Die Aufteilung steht mit Erklärung auf der Seite „Anfragen“. */}
-              {t('shell.contractingBadge')}
-              <span className="hidden sm:inline"> {t('shell.noFixedCosts')}</span>
-            </span>
-          ) : packages && packages.length > 0 && (
-            <span className="whitespace-nowrap text-xs text-muted-foreground">
-              {t('shell.feeBadge', { percent: Math.min(...packages.map((p) => p.fee_percent)) })}
-              <span className="hidden sm:inline"> {t('shell.noFixedCosts')}</span>
-            </span>
-          )}
-
-          <div className="ml-auto flex items-center gap-3">
-            <SaveState saving={saving} error={saveError} at={lastSavedAt} />
+          <main className="px-3 md:px-6">
+            <M3Blatt>{oben}{children}</M3Blatt>
+            <M3Punkte schritte={steps} aktiv={activeStep} erreichbar={reachable} onSchritt={onStep} />
             {onResumeLater && (
-              <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={onResumeLater}>
-                {t('shell.resumeLater')}
-              </Button>
+              <p className="mt-3 text-center text-xs sm:hidden">
+                <button type="button" onClick={onResumeLater} className="font-medium text-klick hover:underline">{t('shell.resumeLater')}</button>
+              </p>
             )}
-            <LanguageMenu />
-          </div>
+          </main>
+          <M3Fuss ownerName={ownerName} />
         </div>
-
-        {/* ---- Schritte ------------------------------------------------- */}
-        <div className="mx-auto max-w-5xl px-4 pb-3 md:px-6">
-          <ol className="flex flex-wrap items-center gap-x-1 gap-y-2 text-xs">
-            {steps.map((step, i) => {
-              const done = i < activeIndex;
-              const active = step.key === activeStep;
-              const canGo = reachable.includes(step.key);
-              return (
-                <li key={step.key} className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    disabled={!canGo}
-                    onClick={() => canGo && onStep(step.key)}
-                    className={cn(
-                      'flex items-center gap-1.5 rounded-full px-2.5 py-1 transition-colors',
-                      active && 'bg-muted font-medium text-foreground',
-                      !active && done && 'text-foreground hover:bg-muted',
-                      !active && !done && 'text-muted-foreground',
-                      canGo && !active && 'cursor-pointer',
-                      !canGo && 'cursor-default',
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        'flex h-4 w-4 items-center justify-center rounded-full border text-[10px]',
-                        active && 'border-foreground/30',
-                        done && !active && 'border-transparent text-muted-foreground',
-                      )}
-                    >
-                      {done ? <Check className="h-2.5 w-2.5" /> : i + 1}
-                    </span>
-                    {step.label}
-                  </button>
-                  {i < steps.length - 1 && <span className="text-border">·</span>}
-                </li>
-              );
-            })}
-          </ol>
-          {/* Blauer Fortschritt wie in der Aufnahme im Dashboard (23.11.2026). */}
-          <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-muted" aria-hidden>
-            <div className="h-full rounded-full bg-klick transition-all" style={{ width: `${((activeIndex + 1) / Math.max(steps.length, 1)) * 100}%` }} />
-          </div>
-        </div>
-
-        {/* Der Link startet in einer anderen Sprache als der Browser: einmalige Hinweiszeile. */}
-        <LanguageHint className="border-b-0 border-t" />
-      </header>
-
-      <main className="mx-auto max-w-5xl px-4 py-6 md:px-6 md:py-8">{children}</main>
-
-      <footer className="mx-auto max-w-5xl px-4 pb-10 md:px-6">
-        <div className="border-t border-border/60 pt-4 text-xs text-muted-foreground">
-          {ownerName && <p className="mb-1">{t('shell.contactPerson', { name: ownerName })}</p>}
-          <p>
-            {t('shell.footerNote')}{' '}
-            <a href="/datenschutz" className="text-klick hover:underline" target="_blank" rel="noreferrer">
-              {t('shell.privacy')}
-            </a>
-            {' · '}
-            <a href="/agb" className="text-klick hover:underline" target="_blank" rel="noreferrer">
-              {t('shell.terms')}
-            </a>
-            {' · '}
-            <a href="/impressum" className="text-klick hover:underline" target="_blank" rel="noreferrer">
-              {t('shell.imprint')}
-            </a>
-          </p>
-        </div>
-      </footer>
-    </div>
+      </ZurueckProvider>
+    </M3Provider>
   );
 }
 
@@ -172,7 +131,7 @@ function SaveState({ saving, error, at }: { saving?: boolean; error?: string | n
   const { t } = useTranslation('clientFunnel');
   if (error) {
     return (
-      <span className="flex items-center gap-1.5 text-xs text-destructive" role="status">
+      <span className="flex items-center gap-1.5 text-xs font-medium text-foreground" role="status">
         <CloudOff className="h-3.5 w-3.5" /> {t('shell.notSaved')}
       </span>
     );
@@ -208,17 +167,15 @@ export function IntakeFailurePage({
   title, message, action,
 }: { title: string; message: string; action?: ReactNode }) {
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-background px-4 text-foreground">
-      <PageLanguageMenu />
-      <div className="w-full max-w-md text-center">
-        <MatchuntWordmark size="sm" className="mb-8 justify-center" />
-        <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-muted">
-          <TriangleAlert className="h-5 w-5 text-muted-foreground" />
-        </div>
-        <h1 className="mb-2 text-xl font-semibold tracking-tight">{title}</h1>
-        <p className="mb-6 text-sm text-muted-foreground">{message}</p>
-        {action}
+    <M3Seite>
+      <div className="flex flex-col items-center text-center">
+        <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-secondary">
+          <TriangleAlert className="h-[22px] w-[22px] text-foreground" />
+        </span>
+        <h1 className="text-[22px] font-semibold leading-tight tracking-tight">{title}</h1>
+        <p className="mt-2 max-w-md text-sm text-muted-foreground">{message}</p>
+        {action && <div className="mt-6 w-full [&>*]:w-full">{action}</div>}
       </div>
-    </div>
+    </M3Seite>
   );
 }

@@ -126,11 +126,13 @@ export async function issueDraftToken(
     note?: string | null;
     createdBy?: string | null;
     days?: number;
+    /** 'beschreiben': eingeladene Kollegin, nur die Stelle (Migration 20261126140000). */
+    rolle?: 'voll' | 'beschreiben';
   },
-): Promise<{ token: string } | { error: string }> {
+): Promise<{ token: string; id?: string } | { error: string }> {
   const { generateToken } = await import('./tokens.ts');
   const token = generateToken();
-  const { error } = await supabase.from('intake_draft_tokens').insert({
+  const { data, error } = await supabase.from('intake_draft_tokens').insert({
     draft_id: args.draftId,
     token_hash: await hashToken(token),
     origin: args.origin,
@@ -139,12 +141,13 @@ export async function issueDraftToken(
     note: args.note ?? null,
     created_by: args.createdBy ?? null,
     expires_at: inDays(args.days ?? TOKEN_DAYS),
-  });
+    ...(args.rolle === 'beschreiben' ? { rolle: 'beschreiben' } : {}),
+  }).select('id').maybeSingle();
   if (error) {
     console.error('[intake-core] Token nicht ausgegeben:', error.message);
     return { error: error.message };
   }
-  return { token };
+  return { token, id: data?.id };
 }
 
 /**

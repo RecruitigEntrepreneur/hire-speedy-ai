@@ -411,6 +411,64 @@ export function forwardMailTexts(lang: Lang | null | undefined) {
   };
 }
 
+/** Kollegin einladen, die Stelle zu beschreiben (Rolle „beschreiben“, 26.11.2026). */
+export function helferMailTexts(lang: Lang | null | undefined) {
+  const t = texter(lang);
+  return {
+    senderFallback: t({ de: 'Ein Kollege', en: 'A colleague', sv: 'En kollega', nb: 'En kollega' }),
+    positionFallback: t({ de: 'eine offene Stelle', en: 'an open position', sv: 'en ledig tjänst', nb: 'en ledig stilling' }),
+    subject: (sender: string) => t({
+      de: '{sender} bittet Sie, eine Stelle zu beschreiben',
+      en: '{sender} asks you to describe a position',
+      sv: '{sender} ber dig beskriva en tjänst',
+      nb: '{sender} ber deg beskrive en stilling',
+    }, { sender }),
+    preheader: t({ de: 'Meist 5 bis 15 Minuten.', en: 'Usually 5 to 15 minutes.', sv: 'Oftast 5 till 15 minuter.', nb: 'Vanligvis 5 til 15 minutter.' }),
+    heading: t({ de: 'Bitte die Stelle beschreiben', en: 'Please describe the position', sv: 'Beskriv tjänsten', nb: 'Beskriv stillingen' }),
+    hello: helloText(lang),
+    /** `sender` und `position` sind HTML (escaped). */
+    lead: (sender: string, position: string) => t({
+      de: '{sender} sucht über Matchunt jemanden für {position} und bittet Sie, die Stelle zu beschreiben. Das dauert meist 5 bis 15 Minuten.',
+      en: '{sender} is looking for someone for {position} via Matchunt and asks you to describe the position. This usually takes 5 to 15 minutes.',
+      sv: '{sender} söker någon till {position} via Matchunt och ber dig beskriva tjänsten. Det tar oftast 5 till 15 minuter.',
+      nb: '{sender} søker noen til {position} via Matchunt og ber deg beskrive stillingen. Det tar vanligvis 5 til 15 minutter.',
+    }, { sender, position }),
+    link: (sender: string) => t({
+      de: 'Paket, Anfrage und Vertrag bleiben bei {sender}. Sie beschreiben nur die Stelle.',
+      en: 'Package, request and contract stay with {sender}. You only describe the position.',
+      sv: 'Paket, förfrågan och avtal ligger kvar hos {sender}. Du beskriver bara tjänsten.',
+      nb: 'Pakke, forespørsel og avtale blir hos {sender}. Du beskriver bare stillingen.',
+    }, { sender }),
+    cta: t({ de: 'Stelle beschreiben', en: 'Describe the position', sv: 'Beskriv tjänsten', nb: 'Beskriv stillingen' }),
+    footnote: t({
+      de: 'Dieser Zugang gilt 14 Tage und ist ausschließlich für Sie bestimmt. Bitte leiten Sie ihn nicht weiter.',
+      en: 'This access is valid for 14 days and is intended for you only. Please do not forward it.',
+      sv: 'Den här åtkomsten gäller i 14 dagar och är endast avsedd för dig. Vidarebefordra den inte.',
+      nb: 'Denne tilgangen er gyldig i 14 dager og er bare ment for deg. Ikke videresend den.',
+    }),
+  };
+}
+
+/** Die Kollegin ist fertig: Rückmeldung an den Einladenden. */
+export function zurueckMailTexts(lang: Lang | null | undefined) {
+  const t = texter(lang);
+  return {
+    helferFallback: t({ de: 'Ihre Kollegin oder Ihr Kollege', en: 'Your colleague', sv: 'Din kollega', nb: 'Kollegaen din' }),
+    subject: t({ de: 'Die Stelle ist beschrieben', en: 'The position has been described', sv: 'Tjänsten är beskriven', nb: 'Stillingen er beskrevet' }),
+    preheader: t({ de: 'Prüfen und anfragen.', en: 'Review and request.', sv: 'Granska och skicka förfrågan.', nb: 'Gå gjennom og send forespørsel.' }),
+    heading: t({ de: 'Die Stelle ist beschrieben', en: 'The position has been described', sv: 'Tjänsten är beskriven', nb: 'Stillingen er beskrevet' }),
+    hello: helloText(lang),
+    /** `helfer` und `position` sind HTML (escaped). */
+    lead: (helfer: string, position: string) => t({
+      de: '{helfer} hat {position} beschrieben. Prüfen Sie die Angaben und fragen Sie an.',
+      en: '{helfer} has described {position}. Review the details and send your request.',
+      sv: '{helfer} har beskrivit {position}. Granska uppgifterna och skicka förfrågan.',
+      nb: '{helfer} har beskrevet {position}. Gå gjennom opplysningene og send forespørselen.',
+    }, { helfer, position }),
+    cta: t({ de: 'Zur Aufnahme', en: 'Open request', sv: 'Till förfrågan', nb: 'Til forespørselen' }),
+  };
+}
+
 /** Rückfrage mit engem Antwortlink (intake-clarify, Aktion ask). */
 export function clarifyMailTexts(lang: Lang | null | undefined, input: { days: number }) {
   const t = texter(lang);

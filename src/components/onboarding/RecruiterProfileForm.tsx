@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ArrowRight, Check, Save, Building2, Loader2, PenLine, ShieldCheck, Briefcase, Globe, FileText, MessageSquare } from 'lucide-react';
+import { ArrowRight, Check, Building2, Loader2, PenLine, ShieldCheck, Briefcase, Globe, FileText, MessageSquare, Euro, Laptop, TrendingUp, Cog, Users, Truck, Scale, Stethoscope, Home, ListChecks, MapPin, Clock, Compass, type LucideIcon } from 'lucide-react';
+import { useOnboardingNav } from './OnboardingFrame';
+import { Flag } from '@/components/language/Flag';
 import { profileLabels, type RecruiterProfile } from '@/lib/recruiterOnboardingApi';
 import { cleanContractDetails, contractDataIssues, type ContractDetails } from '../../../supabase/functions/_shared/recruiter-contract-data';
 import { EXPERTISE_AREAS, EXPERTISE_LEVELS, COMPANY_TYPES, REGIONS, LANGUAGES, METHODS, EXPERIENCE_BANDS, PLACEMENT_BANDS, PARALLEL_BANDS, cleanExpertise, expertiseIssues, expertiseFromText, type RecruiterExpertise } from '../../../supabase/functions/_shared/recruiter-expertise';
@@ -59,6 +61,25 @@ function Chips({ options, value, onToggle, label }: { options: readonly string[]
   return <div className="mh-chips">{options.map(o => <button key={o} type="button" className="mh-chip" aria-pressed={value.includes(o)} onClick={() => onToggle(o)}>{label ? label(o) : o}</button>)}</div>;
 }
 const toggleIn = (list: string[], v: string) => list.includes(v) ? list.filter(i => i !== v) : [...list, v];
+
+/** Große Kacheln für die Pflichtfragen (Airbnb-Prinzip, 26.11.2026); gewählt = dunkler Rand. */
+function Kacheln({ options, value, onToggle, label, marks }: { options: readonly string[]; value: string[]; onToggle: (v: string) => void; label?: (v: string) => string; marks?: Record<string, ReactNode> }) {
+  return <div className="mh-tiles">{options.map(o => <button key={o} type="button" className="mh-tile" aria-pressed={value.includes(o)} onClick={() => onToggle(o)}>{marks?.[o]}<span>{label ? label(o) : o}</span></button>)}</div>;
+}
+/** Große Auswahlzeilen für eine Antwort aus mehreren (Erfahrung). */
+function Zeilen({ options, value, onPick, label }: { options: readonly string[]; value: string; onPick: (v: string) => void; label?: (v: string) => string }) {
+  return <div className="mh-rows" role="radiogroup">{options.map(o => <button key={o} type="button" role="radio" aria-checked={value === o} className="mh-row" onClick={() => onPick(o)}><span>{label ? label(o) : o}</span><i aria-hidden="true"/></button>)}</div>;
+}
+const symbol = (I: LucideIcon) => <I size={20} aria-hidden="true"/>;
+const AREA_MARKS: Record<string, ReactNode> = {
+  'Finance & Controlling': symbol(Euro), 'IT & Software': symbol(Laptop), 'Sales & Marketing': symbol(TrendingUp), 'Engineering & Technik': symbol(Cog),
+  'HR & Recruiting': symbol(Users), 'Operations & Logistik': symbol(Truck), 'Legal & Compliance': symbol(Scale), 'Healthcare & Pharma': symbol(Stethoscope), 'Executive / C-Level': symbol(Briefcase),
+};
+// Fahnen als Bild (Windows zeigt Emoji-Fahnen nur als Buchstaben); EU und Remote mit Symbol.
+const REGION_MARKS: Record<string, ReactNode> = {
+  Deutschland: <Flag code="de" className="h-4 w-6"/>, 'Österreich': <Flag code="at" className="h-4 w-6"/>, Schweiz: <Flag code="ch" className="h-4 w-6"/>,
+  Schweden: <Flag code="se" className="h-4 w-6"/>, Norwegen: <Flag code="no" className="h-4 w-6"/>, EU: symbol(Globe), Remote: symbol(Home),
+};
 
 export default function RecruiterProfileForm({ profile, kind, busy, email, onChange, onSave, onSubmit, onEnrich }: {
   profile: RecruiterProfile; kind: string; busy: boolean; email: string;
@@ -155,6 +176,17 @@ export default function RecruiterProfileForm({ profile, kind, busy, email, onCha
     if (empty && (profile.specialty || profile.region)) update({ ...profile, expertise: expertiseFromText(profile.specialty, profile.region) });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const confirmExpertise = () => { const missing = expertiseIssues(x).map(sharedIssue); if (missing.length) { setIssues(missing); return; } move(2); };
+  // „Was du besetzt“ als fünf kurze Bildschirme (Mix aus Airbnb-Prinzip und Gruppen, Marko 26.11.2026):
+  // Pflichtfragen (Bereich, Region, Erfahrung) groß, Freiwilliges gebündelt, dort „Überspringen“.
+  const [teil, setTeil] = useState(0);
+  const TEILE = 5;
+  const PFLICHT = [true, false, true, true, false];
+  const teilFehlt = (i: number) => i === 0 && !x.areas.length && !x.extras.length ? t('form.issues.area')
+    : i === 2 && !x.regions.length ? t('form.issues.region')
+    : i === 3 && !x.experience ? t('form.issues.experience') : '';
+  const zuTeil = (i: number) => { setIssues([]); setTeil(i); requestAnimationFrame(() => heading.current?.focus()); };
+  const teilWeiter = () => { const f = teilFehlt(teil); if (f) { setIssues([f]); return; } if (teil < TEILE - 1) zuTeil(teil + 1); else confirmExpertise(); };
+  const teilUeberspringen = () => { if (teil < TEILE - 1) zuTeil(teil + 1); else confirmExpertise(); };
 
   // Karte 3: Unterschrift, vorbelegt mit der Person selbst.
   const ceoMatch = personMatches(d.responsiblePerson, profile.name);
@@ -222,7 +254,17 @@ export default function RecruiterProfileForm({ profile, kind, busy, email, onCha
     t('form.lead.summary'),
   ][step];
   const icons = [Building2, Briefcase, PenLine, MessageSquare, FileText];
-  const Icon = icons[step];
+  const MIX_ICONS = [Briefcase, ListChecks, MapPin, Clock, Compass];
+  const KopfIcon = step === 1 ? MIX_ICONS[teil] : icons[step];
+  // „‹ Zurück“ oben links: im Mix eine Frage zurück, sonst ein Unterschritt; „Später weiter“ speichert den Entwurf.
+  const zurueck = step === 0 ? null : () => {
+    setIssues([]);
+    if (step === 1 && teil > 0) { zuTeil(teil - 1); return; }
+    if (step === 2) setTeil(TEILE - 1);
+    setStep(step - 1);
+    requestAnimationFrame(() => heading.current?.focus());
+  };
+  useOnboardingNav(busy ? null : zurueck, busy ? null : () => void onSave());
   // Vorbelegte Antworten erscheinen in der gewählten Sprache; eigene Antworten so, wie sie eingegeben wurden.
   const answer = (q: typeof QUESTIONS[number]) => d[q.key] !== q.def(profile) ? d[q.key] : q.key === 'accessCountries' ? opt(d[q.key]) : t(`form.questions.${q.key}.answer`);
   const summaryRows: [string, string, number][] = [
@@ -233,17 +275,14 @@ export default function RecruiterProfileForm({ profile, kind, busy, email, onCha
     [t('form.summary.dataAccess'), answer(QUESTIONS[0]), 3], [t('form.summary.permits'), answer(QUESTIONS[1]), 3], [t('form.summary.income'), answer(QUESTIONS[2]), 3], [t('form.summary.holdings'), answer(QUESTIONS[3]), 3],
     [t('form.summary.privacy'), d.privacyContact, 3], [t('form.summary.billing'), d.creditNoteConsent ? t('form.summary.creditNote') : t('form.summary.ownInvoice'), 3],
   ];
-  const doneRows: [number, string][] = [
-    [0, [profile.company, profile.address?.split(',').pop()?.trim()].filter(Boolean).join(' · ')],
-    [1, list([...x.areas, ...x.extras].slice(0, 3)) + (x.regions.length ? ' · ' + list(x.regions) : '')],
-    [2, signSelf ? t('form.done.selfSigns') : t('form.done.otherSigns', { name: profile.signer })],
-    [3, t('form.done.questions')],
-  ];
 
   return <section className="mh-panel">
-    <div className="mh-panel-head"><Icon size={22}/><div><h2 ref={heading} tabIndex={-1}>{stepTitle}</h2><p>{stepLead}</p></div></div>
-    <nav className="mh-substeps" aria-label={t('form.substepsAria')}>{STEP_KEYS.map((key, i) => <button key={key} type="button" disabled={busy || i > reached} aria-current={i === step ? 'step' : undefined} onClick={() => { setStep(i); setIssues([]); }}>{i < step ? '✓' : i + 1} · {t(`form.steps.${key}`)}</button>)}</nav>
-    {step > 0 && step < 4 && <ul className="mh-done-list">{doneRows.filter(([i]) => i < step).map(([i, text]) => <li key={i}><Check size={14}/><span>{text || t(`form.steps.${STEP_KEYS[i]}`)}</span><button type="button" className="mh-link" disabled={busy} onClick={() => { setStep(i); setIssues([]); }}>{t('common.change')}</button></li>)}</ul>}
+    {/* M3 (26.11.2026): Symbol, Ortszeile, Titel und Satz mittig; keine Unterschritt-Pillen, keine Erledigt-Zeilen */}
+    <div className="mh-panel-head"><KopfIcon size={22}/><div>
+      <p className="mh-ort">{step === 1 ? <>{t('form.mix.where', { n: 2 })} · {t('form.mix.count', { n: teil + 1, total: TEILE })}{!PFLICHT[teil] && <> · {t('form.mix.optional')}</>}</> : t('form.mix.where', { n: step + 1 })}</p>
+      <h2 ref={heading} tabIndex={-1}>{step === 1 ? t(`form.mix.q${teil + 1}`) : stepTitle}</h2>
+      {(step !== 1 || teil === 0 || teil === 1 || teil === 4) && <p>{step !== 1 ? stepLead : t(teil === 0 ? 'form.mix.multi' : teil === 1 ? 'form.mix.hint2' : 'form.mix.hint5')}</p>}
+    </div></div>
     {issues.length > 0 && <div role="alert" className="mh-alert mh-error"><strong>{t('form.issuesTitle')}</strong><ul>{issues.map(issue => <li key={issue}>{issue}</li>)}</ul></div>}
     <fieldset disabled={busy} className="mh-form-fields">
 
@@ -283,21 +322,31 @@ export default function RecruiterProfileForm({ profile, kind, busy, email, onCha
       </div>}
 
       {step === 1 && <div className="mh-stack">
-        <div className="mh-field"><span>{t('form.expertise.areas')}</span><Chips options={EXPERTISE_AREAS.map(a => a.label)} label={opt} value={x.areas} onToggle={v => patchExpertise({ areas: toggleIn(x.areas, v) })}/>
+        {teil === 0 && <>
+          <Kacheln options={EXPERTISE_AREAS.map(a => a.label)} marks={AREA_MARKS} label={opt} value={x.areas} onToggle={v => patchExpertise({ areas: toggleIn(x.areas, v) })}/>
           {x.extras.length > 0 && <Chips options={x.extras} value={x.extras} onToggle={v => patchExpertise({ extras: toggleIn(x.extras, v) })}/>}
+        </>}
+        {teil === 1 && <>
+          {EXPERTISE_AREAS.filter(a => x.areas.includes(a.label)).map(a => <div className="mh-field" key={a.key}><span>{opt(a.label)}</span><Chips options={a.sub} label={opt} value={x.subareas} onToggle={v => patchExpertise({ subareas: toggleIn(x.subareas, v) })}/></div>)}
+          <div className="mh-field"><span>{t('form.expertise.level')}</span><Chips options={EXPERTISE_LEVELS} label={opt} value={x.levels} onToggle={v => patchExpertise({ levels: toggleIn(x.levels, v) })}/></div>
+        </>}
+        {teil === 2 && <>
+          <Kacheln options={REGIONS} marks={REGION_MARKS} label={opt} value={x.regions} onToggle={v => patchExpertise({ regions: toggleIn(x.regions, v) })}/>
+          <div className="mh-divider"/>
+          <div className="mh-field"><span>{t('form.mix.companies')} <small>· {t('form.mix.optional')}</small></span><Chips options={COMPANY_TYPES} label={opt} value={x.companyTypes} onToggle={v => patchExpertise({ companyTypes: toggleIn(x.companyTypes, v) })}/></div>
+          <div className="mh-field"><span>{t('form.mix.languages')} <small>· {t('form.mix.optional')}</small></span><Chips options={LANGUAGES} label={opt} value={x.languages} onToggle={v => patchExpertise({ languages: toggleIn(x.languages, v) })}/></div>
+        </>}
+        {teil === 3 && <Zeilen options={EXPERIENCE_BANDS} label={opt} value={x.experience} onPick={v => patchExpertise({ experience: v })}/>}
+        {teil === 4 && <>
+          <div className="mh-field"><span>{t('form.mix.methods')}</span><Chips options={METHODS} label={opt} value={x.methods} onToggle={v => patchExpertise({ methods: toggleIn(x.methods, v) })}/></div>
+          <div className="mh-field"><span>{t('form.expertise.placements')}</span><Chips options={PLACEMENT_BANDS} label={opt} value={[x.placements]} onToggle={v => patchExpertise({ placements: x.placements === v ? '' : v })}/></div>
+          <div className="mh-field"><span>{t('form.mix.parallel')}</span><Chips options={PARALLEL_BANDS} label={opt} value={[x.parallel]} onToggle={v => patchExpertise({ parallel: x.parallel === v ? '' : v })}/></div>
+          <label className="mh-field">{t('form.mix.linkedin')}<input type="url" placeholder={t('form.expertise.linkedinPlaceholder')} value={x.linkedin} onChange={e => patchExpertise({ linkedin: e.target.value })}/><small>{t('form.expertise.linkedinHint')}</small></label>
+        </>}
+        <div className="mh-actions">
+          <button type="button" className="mh-button mh-primary" onClick={teilWeiter}>{teil === TEILE - 1 ? t('form.mix.toSigner') : t('common.next')}<ArrowRight size={16}/></button>
+          {!PFLICHT[teil] && <button type="button" className="mh-button" onClick={teilUeberspringen}>{t('form.mix.skip')}</button>}
         </div>
-        {EXPERTISE_AREAS.filter(a => x.areas.includes(a.label)).map(a => <div className="mh-field mh-sub" key={a.key}><span>↳ {opt(a.label)}</span><Chips options={a.sub} label={opt} value={x.subareas} onToggle={v => patchExpertise({ subareas: toggleIn(x.subareas, v) })}/></div>)}
-        <div className="mh-field"><span>{t('form.expertise.level')}</span><Chips options={EXPERTISE_LEVELS} label={opt} value={x.levels} onToggle={v => patchExpertise({ levels: toggleIn(x.levels, v) })}/></div>
-        <div className="mh-field"><span>{t('form.expertise.companies')}</span><Chips options={COMPANY_TYPES} label={opt} value={x.companyTypes} onToggle={v => patchExpertise({ companyTypes: toggleIn(x.companyTypes, v) })}/></div>
-        <div className="mh-field"><span>{t('form.expertise.regions')}</span><Chips options={REGIONS} label={opt} value={x.regions} onToggle={v => patchExpertise({ regions: toggleIn(x.regions, v) })}/></div>
-        <div className="mh-field"><span>{t('form.expertise.languages')}</span><Chips options={LANGUAGES} label={opt} value={x.languages} onToggle={v => patchExpertise({ languages: toggleIn(x.languages, v) })}/></div>
-        <div className="mh-divider"/><h3>{t('form.expertise.howTitle')}</h3>
-        <div className="mh-field"><span>{t('form.expertise.methods')}</span><Chips options={METHODS} label={opt} value={x.methods} onToggle={v => patchExpertise({ methods: toggleIn(x.methods, v) })}/></div>
-        <div className="mh-field"><span>{t('form.expertise.experience')}</span><Chips options={EXPERIENCE_BANDS} label={opt} value={[x.experience]} onToggle={v => patchExpertise({ experience: v })}/></div>
-        <div className="mh-field"><span>{t('form.expertise.placements')}</span><Chips options={PLACEMENT_BANDS} label={opt} value={[x.placements]} onToggle={v => patchExpertise({ placements: v })}/></div>
-        <div className="mh-field"><span>{t('form.expertise.parallel')}</span><Chips options={PARALLEL_BANDS} label={opt} value={[x.parallel]} onToggle={v => patchExpertise({ parallel: v })}/></div>
-        <label className="mh-field">{t('form.expertise.linkedin')}<input type="url" placeholder={t('form.expertise.linkedinPlaceholder')} value={x.linkedin} onChange={e => patchExpertise({ linkedin: e.target.value })}/><small>{t('form.expertise.linkedinHint')}</small></label>
-        <div className="mh-actions"><button type="button" className="mh-button mh-primary" onClick={confirmExpertise}>{t('common.next')}<ArrowRight size={16}/></button></div>
       </div>}
 
       {step === 2 && <div className="mh-stack">
@@ -338,12 +387,11 @@ export default function RecruiterProfileForm({ profile, kind, busy, email, onCha
       </div>}
 
       {step === 4 && <div className="mh-stack">
-        <dl className="mh-facts mh-summary">{summaryRows.map(([label, value, target]) => <div key={label}><dt>{label}</dt><dd>{value || '—'}<button type="button" className="mh-link" aria-label={t('form.summary.editAria', { label })} onClick={() => { setStep(target); setIssues([]); }}><PenLine size={13}/></button></dd></div>)}</dl>
+        <dl className="mh-facts mh-summary">{summaryRows.map(([label, value, target]) => <div key={label}><dt>{label}</dt><dd>{value || '—'}<button type="button" className="mh-link" aria-label={t('form.summary.editAria', { label })} onClick={() => { if (target === 1) setTeil(0); setStep(target); setIssues([]); }}><PenLine size={13}/></button></dd></div>)}</dl>
         <div className="mh-note"><ShieldCheck size={20}/><p>{t('form.summary.note')}</p></div>
         <div className="mh-actions"><button type="button" className="mh-button mh-primary" onClick={finish}><Check size={16}/>{t('form.summary.confirm')}</button></div>
       </div>}
 
     </fieldset>
-    <button className="mh-link" type="button" disabled={busy} onClick={() => void onSave()}><Save size={14}/>{t('form.saveDraft')}</button>
   </section>;
 }

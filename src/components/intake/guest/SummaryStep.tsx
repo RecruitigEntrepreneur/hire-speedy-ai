@@ -5,9 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { CircleCheck, FileText, Loader2, Send, ShieldCheck, TriangleAlert, Users } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { M3Hinweis, M3Kopf, M3Liste, M3Zeile } from './m3';
+import { CircleCheck, CircleHelp, ClipboardCheck, FileText, Loader2, TriangleAlert } from 'lucide-react';
 import { isFailure, type GuestDraft, type PackageSummary } from '@/hooks/useGuestIntake';
 import { fehlendeFirmenangaben, firmierungAus } from '../../../../supabase/functions/_shared/firma-pflicht';
 import {
@@ -122,111 +122,81 @@ export function SummaryStep({ draft, packages, framework, contracting, summary, 
   const andererOk = selbst || !fragtUnterzeichner || (andererName.trim().length >= 3 && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(andereMail.trim()));
   const canSubmit = consent && signer.trim().length >= 3 && andererOk && !busy && !firmaOffen && !firmaLaeuft;
 
+  // Stil M3 (26.11.2026): Kopf mittig, graue Liste, graue Hinweise, Wahl als graue Zeilen,
+  // „Beauftragung anfragen“ blau über die volle Breite, Weiterleiten als Link darunter.
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
-      <div>
-        <h2 className="text-2xl font-semibold tracking-tight">{contracting ? t('summary.titleRequest') : t('summary.titleOrder')}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t('summary.lead')}
-        </p>
-      </div>
+    <div className="space-y-5">
+      <M3Kopf icon={ClipboardCheck} titel={contracting ? t('summary.titleRequest') : t('summary.titleOrder')} lead={t('summary.lead')} />
 
-      <Card>
-        <CardContent className="p-5">
-          <dl className="space-y-2.5 text-sm">
-            {summary.map((row) => (
-              <div key={row.label} className="flex flex-col gap-0.5 sm:flex-row sm:gap-3">
-                <dt className="w-44 shrink-0 text-muted-foreground">{row.label}</dt>
-                <dd className="font-medium">{row.value}</dd>
-              </div>
-            ))}
-          </dl>
-        </CardContent>
-      </Card>
+      <M3Liste zeilen={summary.map((row) => [row.label, <span className="font-medium">{row.value}</span>])} />
 
       {firmaLaeuft && !firmaOffen && (
-        <Alert>
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <AlertDescription className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-            {t('summary.companyChecking')}
-            {versuche.current >= 15 && onRecheckCompany && (
-              <button type="button" onClick={neuPruefen} className="underline underline-offset-2">{t('summary.checkNow')}</button>
-            )}
-          </AlertDescription>
-        </Alert>
+        <M3Hinweis icon={Dreht}>
+          {t('summary.companyChecking')}
+          {versuche.current >= 15 && onRecheckCompany && (
+            <> <button type="button" onClick={neuPruefen} className="font-medium text-klick hover:underline">{t('summary.checkNow')}</button></>
+          )}
+        </M3Hinweis>
       )}
 
       {firmaOffen && (
-        <Card>
-          <CardContent className="space-y-3 p-5">
-            <div>
-              <p className="text-sm font-semibold">{t('summary.companyMissingTitle')}</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {t('summary.companyMissingText')}
-              </p>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {([
-                ['company_legal_name', t('contact.legalName'), true],
-                ['company_street', t('contact.street'), true],
-                ['company_postal_code', t('contact.postalCode'), false],
-                ['company_city', t('contact.city'), false],
-              ] as const).map(([key, label, span]) => (
-                <div key={key} className={span ? 'sm:col-span-2' : undefined}>
-                  <Label htmlFor={`firma-${key}`} className="text-xs text-muted-foreground">
-                    {label} <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id={`firma-${key}`}
-                    value={firma[key]}
-                    onChange={(e) => setFirma((f) => ({ ...f, [key]: e.target.value }))}
-                    aria-invalid={(!firma[key].trim() || kritisch.includes(key)) || undefined}
-                    className="mt-1 bg-background"
-                  />
-                </div>
-              ))}
-              <div className="sm:col-span-2">
-                <Label htmlFor="firma-company_vat_id" className="text-xs text-muted-foreground">{t('summary.vatOptional')}</Label>
+        <div className="space-y-3 rounded-[14px] bg-secondary p-4">
+          <div>
+            <p className="text-sm font-semibold">{t('summary.companyMissingTitle')}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t('summary.companyMissingText')}</p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {([
+              ['company_legal_name', t('contact.legalName'), true],
+              ['company_street', t('contact.street'), true],
+              ['company_postal_code', t('contact.postalCode'), false],
+              ['company_city', t('contact.city'), false],
+            ] as const).map(([key, label, span]) => (
+              <div key={key} className={span ? 'sm:col-span-2' : undefined}>
+                <Label htmlFor={`firma-${key}`} className="text-xs text-muted-foreground">
+                  {label} <span className="text-muted-foreground">*</span>
+                </Label>
                 <Input
-                  id="firma-company_vat_id"
-                  value={firma.company_vat_id}
-                  onChange={(e) => setFirma((f) => ({ ...f, company_vat_id: e.target.value }))}
-                  aria-invalid={ustFalsch || undefined}
-                  placeholder={t('summary.vatPlaceholder')}
-                  className="mt-1 bg-background"
+                  id={`firma-${key}`}
+                  value={firma[key]}
+                  onChange={(e) => setFirma((f) => ({ ...f, [key]: e.target.value }))}
+                  aria-invalid={(!firma[key].trim() || kritisch.includes(key)) || undefined}
+                  className="mk3-feld-hell mt-1.5 h-11"
                 />
-                {ustFalsch && (
-                  <p className="mt-1 text-[11px] text-destructive">
-                    {t('summary.vatInvalid')}
-                  </p>
-                )}
               </div>
+            ))}
+            <div className="sm:col-span-2">
+              <Label htmlFor="firma-company_vat_id" className="text-xs text-muted-foreground">{t('summary.vatOptional')}</Label>
+              <Input
+                id="firma-company_vat_id"
+                value={firma.company_vat_id}
+                onChange={(e) => setFirma((f) => ({ ...f, company_vat_id: e.target.value }))}
+                aria-invalid={ustFalsch || undefined}
+                placeholder={t('summary.vatPlaceholder')}
+                className="mk3-feld-hell mt-1.5 h-11"
+              />
+              {ustFalsch && <p className="mt-1 text-[11px] font-medium">{t('summary.vatInvalid')}</p>}
             </div>
-            {kritisch.filter((k) => k !== 'company_vat_id').length > 0 && (
-              <p className="text-xs text-destructive">
-                {t('common.missing', {
-                  fields: kritisch.filter((k) => k !== 'company_vat_id').map((k) => t(`fieldLabel.${k}`, { defaultValue: k })).join(', '),
-                })}
-              </p>
-            )}
-            {firmaFehler && <p className="text-xs text-destructive">{firmaFehler}</p>}
-            <Button onClick={neuPruefen} disabled={pruefe || !onRecheckCompany} className="gap-2">
-              {pruefe && <Loader2 className="h-4 w-4 animate-spin" />} {t('summary.saveAndRecheck')}
-            </Button>
-          </CardContent>
-        </Card>
+          </div>
+          {kritisch.filter((k) => k !== 'company_vat_id').length > 0 && (
+            <p className="text-xs font-medium">
+              {t('common.missing', {
+                fields: kritisch.filter((k) => k !== 'company_vat_id').map((k) => t(`fieldLabel.${k}`, { defaultValue: k })).join(', '),
+              })}
+            </p>
+          )}
+          {firmaFehler && <p className="text-xs font-medium">{firmaFehler}</p>}
+          <Button size="lg" onClick={neuPruefen} disabled={pruefe || !onRecheckCompany} className="w-full gap-2 rounded-full">
+            {pruefe && <Loader2 className="h-4 w-4 animate-spin" />} {t('summary.saveAndRecheck')}
+          </Button>
+        </div>
       )}
 
       {openQuestions > 0 && (
-        <Alert>
-          <TriangleAlert className="h-4 w-4" />
-          <AlertDescription className="text-xs">
-            {t('summary.openQuestions', { count: openQuestions })}{' '}
-            <button type="button" onClick={onBack} className="underline underline-offset-2">
-              {t('summary.backToCapture')}
-            </button>
-          </AlertDescription>
-        </Alert>
+        <M3Hinweis icon={CircleHelp}>
+          {t('summary.openQuestions', { count: openQuestions })}{' '}
+          <button type="button" onClick={onBack} className="font-medium text-klick hover:underline">{t('summary.backToCapture')}</button>
+        </M3Hinweis>
       )}
 
       {/* Das gewaehlte Paket, nicht die ganze Liste: hier steht, was der Kunde
@@ -234,117 +204,108 @@ export function SummaryStep({ draft, packages, framework, contracting, summary, 
       {contracting && <ContractingKarte budget={contracting} />}
 
       {!contracting && chosenPackage && (
-        <Card>
-          <CardContent className="p-4 text-sm">
-            <p className="font-medium">{t('summary.packageBadge', { name: chosenPackage.name, percent: chosenPackage.fee_percent })}</p>
-            <span className="text-muted-foreground">
-              {chosenPackage.continuity_days
-                ? t('summary.packageTermsContinuity', { days: chosenPackage.payment_terms_days, continuity: chosenPackage.continuity_days })
-                : t('summary.packageTerms', { days: chosenPackage.payment_terms_days })}
-            </span>
-          </CardContent>
-        </Card>
+        <div className="rounded-[14px] bg-secondary p-4 text-sm">
+          <p className="font-medium">{t('summary.packageBadge', { name: chosenPackage.name, percent: chosenPackage.fee_percent })}</p>
+          <span className="text-muted-foreground">
+            {chosenPackage.continuity_days
+              ? t('summary.packageTermsContinuity', { days: chosenPackage.payment_terms_days, continuity: chosenPackage.continuity_days })
+              : t('summary.packageTerms', { days: chosenPackage.payment_terms_days })}
+          </span>
+        </div>
       )}
 
-      <Card>
-        <CardContent className="space-y-4 p-5">
-          <div>
-            <Label htmlFor="signer" className="text-xs text-muted-foreground">
-              {t('summary.signerLabel')} <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="signer"
-              value={signer}
-              onChange={(e) => setSigner(e.target.value)}
-              placeholder={t('common.namePlaceholder')}
-              className="mt-1"
+      <div className="space-y-4 border-t pt-5">
+        <div>
+          <Label htmlFor="signer" className="text-xs text-muted-foreground">
+            {t('summary.signerLabel')} <span className="text-muted-foreground">*</span>
+          </Label>
+          <Input
+            id="signer"
+            value={signer}
+            onChange={(e) => setSigner(e.target.value)}
+            placeholder={t('common.namePlaceholder')}
+            className="mt-1.5 h-11"
+          />
+          <p className="mt-1.5 text-[11px] text-muted-foreground">{t('summary.signerHint')}</p>
+        </div>
+
+        <label className="flex cursor-pointer items-start gap-3 rounded-[14px] bg-secondary p-4">
+          <Checkbox
+            checked={consent}
+            onCheckedChange={(v) => setConsent(v === true)}
+            className="mt-0.5"
+            aria-describedby="consent-text"
+          />
+          <span id="consent-text" className="space-y-1.5 text-xs leading-relaxed text-foreground/90">
+            {contracting
+              ? <span className="block">{CONTRACTING_ZUSTIMMUNG}</span>
+              : consentLines.map((line) => <span key={line} className="block">{line}</span>)}
+          </span>
+        </label>
+
+        {fragtUnterzeichner && (
+          <fieldset className="space-y-2.5">
+            <legend className="mb-2 text-sm font-medium">{t('signerChoice.question')}</legend>
+            <M3Zeile
+              gewaehlt={selbst}
+              onClick={() => setSelbst(true)}
+              titel={signer.trim() ? t('signerChoice.selfName', { name: signer.trim() }) : t('signerChoice.self')}
+              text={t('signerChoice.selfText')}
             />
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              {t('summary.signerHint')}
-            </p>
-          </div>
-
-          <div className="rounded-xl border bg-card p-4">
-            <label className="flex cursor-pointer items-start gap-3">
-              <Checkbox
-                checked={consent}
-                onCheckedChange={(v) => setConsent(v === true)}
-                className="mt-0.5"
-                aria-describedby="consent-text"
-              />
-              <span id="consent-text" className="space-y-1.5 text-xs leading-relaxed text-foreground/90">
-                {contracting
-                  ? <span className="block">{CONTRACTING_ZUSTIMMUNG}</span>
-                  : consentLines.map((line) => <span key={line} className="block">{line}</span>)}
-              </span>
-            </label>
-          </div>
-
-          {fragtUnterzeichner && (
-            <fieldset className="space-y-2">
-              <legend className="text-sm font-medium">{t('signerChoice.question')}</legend>
-              <label className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 ${selbst ? 'border-foreground' : ''}`}>
-                <input type="radio" name="unterzeichner" className="mt-1" checked={selbst} onChange={() => setSelbst(true)} />
-                <span className="text-sm">
-                  <span className="block font-medium">{signer.trim() ? t('signerChoice.selfName', { name: signer.trim() }) : t('signerChoice.self')}</span>
-                  <span className="block text-xs text-muted-foreground">{t('signerChoice.selfText')}</span>
-                </span>
-              </label>
-              <label className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 ${selbst ? '' : 'border-foreground'}`}>
-                <input type="radio" name="unterzeichner" className="mt-1" checked={!selbst} onChange={() => setSelbst(false)} />
-                <span className="text-sm">
-                  <span className="block font-medium">{t('signerChoice.other')}</span>
-                  <span className="block text-xs text-muted-foreground">{t('signerChoice.otherText')}</span>
-                </span>
-              </label>
-              {!selbst && (
-                <div className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2">
-                  <div>
-                    <Label htmlFor="anderer-name" className="text-xs text-muted-foreground">{t('signerChoice.name')}</Label>
-                    <Input id="anderer-name" value={andererName} onChange={(e) => setAndererName(e.target.value)} placeholder={t('signerChoice.namePlaceholder')} className="mt-1" />
-                  </div>
-                  <div>
-                    <Label htmlFor="andere-mail" className="text-xs text-muted-foreground">{t('signerChoice.email')}</Label>
-                    <Input id="andere-mail" type="email" value={andereMail} onChange={(e) => setAndereMail(e.target.value)} placeholder={t('signerChoice.emailPlaceholder')} className="mt-1" />
-                  </div>
+            <M3Zeile
+              gewaehlt={!selbst}
+              onClick={() => setSelbst(false)}
+              titel={t('signerChoice.other')}
+              text={t('signerChoice.otherText')}
+            />
+            {!selbst && (
+              <div className="grid gap-3 pt-1 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="anderer-name" className="text-xs text-muted-foreground">{t('signerChoice.name')}</Label>
+                  <Input id="anderer-name" value={andererName} onChange={(e) => setAndererName(e.target.value)} placeholder={t('signerChoice.namePlaceholder')} className="mt-1.5 h-11" />
                 </div>
-              )}
-            </fieldset>
-          )}
+                <div>
+                  <Label htmlFor="andere-mail" className="text-xs text-muted-foreground">{t('signerChoice.email')}</Label>
+                  <Input id="andere-mail" type="email" value={andereMail} onChange={(e) => setAndereMail(e.target.value)} placeholder={t('signerChoice.emailPlaceholder')} className="mt-1.5 h-11" />
+                </div>
+              </div>
+            )}
+          </fieldset>
+        )}
 
-          {error && (
-            <Alert variant="destructive">
-              <TriangleAlert className="h-4 w-4" />
-              <AlertDescription className="text-xs">
-                {error}
-                {missing.length > 0 && (
-                  <ul className="mt-1.5 list-inside list-disc">
-                    {missing.map((m) => <li key={m}>{m}</li>)}
-                  </ul>
-                )}
-              </AlertDescription>
-            </Alert>
-          )}
+        {error && (
+          <M3Hinweis icon={TriangleAlert}>
+            {error}
+            {missing.length > 0 && (
+              <ul className="mt-1.5 list-inside list-disc">
+                {missing.map((m) => <li key={m}>{m}</li>)}
+              </ul>
+            )}
+          </M3Hinweis>
+        )}
 
-          <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 border-t pt-4">
-            <button type="button" onClick={onForward} className="text-sm text-klick hover:underline">{t('summary.forward')} ›</button>
-            <Button onClick={submit} disabled={!canSubmit} className="gap-2">
-              {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-              {framework && !contracting ? t('summary.order') : t('summary.request')}
-            </Button>
-          </div>
-
-          <p className="text-[11px] text-muted-foreground">
+        <div className="space-y-3 pt-1 text-center">
+          <Button size="lg" onClick={submit} disabled={!canSubmit} className="w-full gap-2 rounded-full">
+            {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+            {framework && !contracting ? t('summary.order') : t('summary.request')}
+          </Button>
+          <button type="button" onClick={onForward} className="text-sm font-medium text-klick hover:underline">{t('summary.forward')}</button>
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
             {contracting
               ? t('summary.noteContracting')
               : framework
               ? t('summary.noteFramework', { number: framework.agreement_number, percent: framework.fee_percent })
               : t('summary.noteRequest')}
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
+}
+
+/** Drehendes Symbol, solange die Firmenprüfung läuft. */
+function Dreht({ className }: { className?: string }) {
+  return <Loader2 className={cn(className, 'animate-spin')} />;
 }
 
 /** Die Konditionen für Contracting. Der Text lebt in _shared/contracting-konditionen.ts,

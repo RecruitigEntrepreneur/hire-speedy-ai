@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Loader2, RotateCcw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
@@ -51,6 +51,9 @@ export default function JobDetail() {
   const forCtx = useCandidateForJob(fuer, id, revision);
   const forCandidate = forCtx.usable ? forCtx.candidate : null;
   const jobPaused = !!job?.paused_at;
+  // Rundgang (19.11.2026): Die Bühne zeigt „Ich suche aktiv“ gleich offen, sobald die Stelle geladen ist.
+  const tourOpen = (useLocation().state as { tour?: string } | null)?.tour;
+  useEffect(() => { if (tourOpen === 'activate' && job) setActivateMode('search'); }, [tourOpen, job?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // Einreichen nur mit laufender Suche, nicht während einer Pause und erst nach der Kundenfrage
   const openSubmit = useCallback(() => {
     if (pending) { toast({ title: pendingText('notYet'), description: pendingText('hint') }); return; }

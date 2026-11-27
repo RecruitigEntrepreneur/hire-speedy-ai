@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Briefcase, Clock, Info, UserCheck } from 'lucide-react';
+import { M3Kopf, M3Zeile, useIntakeM3 } from './m3';
 
 /**
  * Die erste Frage: worum geht es ueberhaupt?
@@ -55,6 +56,26 @@ const KARTEN: {
 
 export function ContractKindStep({ onChoose, onDecline, onBack }: Props) {
   const { t } = useTranslation('clientFunnel');
+  // Stil M3 (Gast-Aufnahme): drei graue Zeilen untereinander; Zurück steht oben links im Kopf.
+  if (useIntakeM3()) {
+    return (
+      <div>
+        <M3Kopf icon={Briefcase} titel={t('kind.title')} lead={t('kind.lead')} />
+        <div className="space-y-2.5">
+          {KARTEN.map(({ kind, icon, text }) => (
+            <M3Zeile
+              key={kind}
+              icon={icon}
+              data-kind={kind}
+              onClick={() => (kind === 'anue' ? onDecline() : onChoose(kind))}
+              titel={t(`kind.${text}Title`)}
+              text={<>{t(`kind.${text}Line`)}<span className="mt-0.5 block text-muted-foreground/80">{t(`kind.${text}Hint`)}</span></>}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="mx-auto max-w-3xl">
       <h2 className="text-2xl font-semibold tracking-tight">{t('kind.title')}</h2>
@@ -110,6 +131,19 @@ export function ContractKindDeclined({
   onBack: () => void;
 }) {
   const { t } = useTranslation('clientFunnel');
+  if (useIntakeM3()) {
+    return (
+      <div>
+        <M3Kopf icon={Info} titel={t('kind.declinedTitle')} lead={t('kind.declinedText')} />
+        <div className="rounded-[14px] bg-secondary p-4 text-center">
+          <p className="text-sm font-medium">{t('kind.temporaryTitle')}</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{t('kind.temporaryText')}</p>
+        </div>
+        <Button size="lg" className="mt-5 w-full rounded-full" onClick={onContracting}>{t('kind.viewContracting')}</Button>
+        <button type="button" className="mx-auto mt-3 block text-sm font-medium text-klick hover:underline" onClick={onBack}>{t('kind.backToChoice')}</button>
+      </div>
+    );
+  }
   return (
     <div className="mx-auto max-w-2xl">
       <div className="rounded-xl border bg-card p-5">

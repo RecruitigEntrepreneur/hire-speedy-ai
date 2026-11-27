@@ -7,7 +7,8 @@ import { serviceClient, resolveDraft, touchDraft, logEvent, issueDraftToken } fr
 import { sendIntakeMail, layout, esc } from '../_shared/intake-mail.ts';
 import { intakeResumeUrl } from '../_shared/app-url.ts';
 import { callLanguage, customerMailLanguage, rememberDraftLanguage, withIntakeLang } from '../_shared/intake-language.ts';
-import { forwardMailTexts } from '../_shared/intake-i18n.ts';
+import { forwardMailTexts, helferMailTexts, zurueckMailTexts } from '../_shared/intake-i18n.ts';
+import { ichVon, mitarbeitInfo, rolleVon } from '../_shared/aufnahme-mitarbeit.ts';
 
 /**
  * intake-forward — "an einen anderen Entscheider weiterleiten". Ohne Login.
@@ -19,6 +20,11 @@ import { forwardMailTexts } from '../_shared/intake-i18n.ts';
  * einzeln widerrufbar; mit einem eigenen Token ist beides gegeben.
  *
  * Der Zugang des Absenders bleibt bestehen — er hat die Arbeit gemacht.
+ *
+ * Seit 26.11.2026 außerdem „Kollegen bitten“ (rolle: 'beschreiben'): Die eingeladene
+ * Person beschreibt nur die Stelle. Dazu die Aktionen 'zurueckziehen' (Einladender
+ * nimmt eine Einladung zurück) und 'zurueckgeben' (die Kollegin ist fertig; der
+ * Einladende bekommt eine Mail mit frischem Link).
  */
 serve(withIntakeLang(async (req) => {
   const pre = preflight(req);
@@ -39,6 +45,65 @@ serve(withIntakeLang(async (req) => {
 
     if (['accepted', 'rejected'].includes(draft.review_state)) {
       return fail('conflict', 'Dieser Vorgang ist abgeschlossen.');
+    }
+
+    const rolle = rolleVon(found.token);
+    const action = String(body?.action ?? 'invite');
+    const mailLangFrueh = await customerMailLanguage(supabase, draft, lang);
+
+    // ---- Einladung zurückziehen (nur wer die Aufnahme verantwortet) --------------
+    if (action === 'zurueckziehen') {
+      if (rolle !== 'voll') return fail('not_allowed', 'Diese Aktion ist der einladenden Person vorbehalten.');
+      const id = String(body?.token_id ?? '');
+      const { error } = await supabase
+        .from('intake_draft_tokens')
+        .update({ revoked_at: new Date().toISOString() })
+        .eq('id', id)
+        .eq('draft_id', draft.id)
+        .eq('rolle', 'beschreiben');
+      if (error) return fail('internal_error', 'Die Einladung konnte nicht zurückgezogen werden.');
+      return json({ ok: true, mitarbeit: await mitarbeitInfo(supabase, draft, found.token) });
+    }
+
+    // ---- Kollegin ist fertig: zurück an den Einladenden ----------------------------
+    if (action === 'zurueckgeben') {
+      if (rolle !== 'beschreiben') return fail('not_allowed', 'Nur eine eingeladene Person kann zurückgeben.');
+      const ich = ichVon(draft, found.token);
+      if (!ich.bestaetigt) return fail('not_allowed', 'Bitte bestätigen Sie zuerst Ihre E-Mail-Adresse.');
+      await supabase.from('intake_draft_tokens').update({ zurueckgegeben_am: new Date().toISOString() }).eq('id', found.token!.id);
+      const an = String(draft.contact_email ?? '').trim();
+      if (an) {
+        // Frischer Zugang für den Einladenden, damit der Link in der Mail sicher funktioniert.
+        const zugang = await issueDraftToken(supabase, { draftId: draft.id, origin: 'resume', recipientEmail: an, recipientName: draft.contact_name ?? null });
+        if (!('error' in zugang)) {
+          const tx = zurueckMailTexts(mailLangFrueh);
+          const position = (draft.built as any)?.title ?? draft.title ?? '';
+          const helfer = esc(ich.name ?? tx.helferFallback);
+          const html = layout({
+            lang: mailLangFrueh,
+            preheader: tx.preheader,
+            heading: tx.heading,
+            body: `
+              <p style="margin:0 0 16px 0;">${tx.hello}${draft.contact_name ? ' ' + esc(draft.contact_name) : ''},</p>
+              <p style="margin:0 0 16px 0;">${tx.lead(helfer, `<strong>${esc(position)}</strong>`)}</p>`,
+            cta: { label: tx.cta, url: intakeResumeUrl(zugang.token) },
+          });
+          await sendIntakeMail(supabase, {
+            to: an, subject: tx.subject, html, template: 'intake_helfer_zurueck',
+            meta: { draft_id: draft.id, helfer: ich.email },
+          });
+        }
+      }
+      await touchDraft(supabase, draft.id, {}, found.token?.id ?? null);
+      const { data: tok } = await supabase.from('intake_draft_tokens').select('*').eq('id', found.token!.id).single();
+      return json({ ok: true, mitarbeit: await mitarbeitInfo(supabase, draft, tok ?? found.token) });
+    }
+
+    // Einladen geht nur aus einem vollen Zugang -- eine Kollegin lädt nicht weiter ein.
+    if (rolle !== 'voll') return fail('not_allowed', 'Diese Aktion ist der einladenden Person vorbehalten.');
+    const helferEinladen = body?.rolle === 'beschreiben';
+    if (helferEinladen && draft.identity_state !== 'email_verified') {
+      return fail('not_allowed', 'Bitte bestätigen Sie zuerst Ihre E-Mail-Adresse.');
     }
 
     const toEmail = String(body?.to_email ?? '').trim().toLowerCase();
@@ -67,12 +132,52 @@ serve(withIntakeLang(async (req) => {
       recipientEmail: toEmail,
       recipientName: toName,
       note: message || null,
+      rolle: helferEinladen ? 'beschreiben' : 'voll',
     });
     if ('error' in issued) return fail('internal_error', 'Der Zugang konnte nicht erzeugt werden.');
 
     const url = intakeResumeUrl(issued.token);
     // In der Sprache des Entwurfs, sonst des Links, sonst des Aufrufs.
-    const mailLang = await customerMailLanguage(supabase, draft, lang);
+    const mailLang = mailLangFrueh;
+
+    if (helferEinladen) {
+      const hx = helferMailTexts(mailLang);
+      const position = (draft.built as any)?.title ?? draft.title ?? hx.positionFallback;
+      // Der Name des Einladenden kommt im Einladen-Blatt mit; sonst wenigstens seine Adresse.
+      const senderRoh = draft.contact_name ?? draft.contact_email ?? hx.senderFallback;
+      const senderH = esc(senderRoh);
+      const htmlH = layout({
+        lang: mailLang,
+        preheader: hx.preheader,
+        heading: hx.heading,
+        body: `
+          <p style="margin:0 0 16px 0;">${hx.hello}${toName ? ' ' + esc(toName) : ''},</p>
+          <p style="margin:0 0 16px 0;">${hx.lead(`${senderH}${draft.company_name ? ` (${esc(draft.company_name)})` : ''}`, `<strong>${esc(position)}</strong>`)}</p>
+          ${message ? `<div style="margin:0 0 16px 0;padding:14px 16px;background:#f9fafb;border-left:3px solid #d1d5db;font-style:italic;">${esc(message)}</div>` : ''}
+          <p style="margin:0 0 16px 0;">${hx.link(senderH)}</p>`,
+        cta: { label: hx.cta, url },
+        footnote: hx.footnote,
+      });
+      const mailH = await sendIntakeMail(supabase, {
+        to: toEmail,
+        subject: hx.subject(senderRoh),
+        html: htmlH,
+        template: 'intake_helfer',
+        replyTo: draft.contact_email ?? undefined,
+        meta: { draft_id: draft.id, from: draft.contact_email },
+      });
+      if (!mailH.sent) {
+        if (issued.id) await supabase.from('intake_draft_tokens').update({ revoked_at: new Date().toISOString() }).eq('id', issued.id);
+        return fail('upstream_error', 'Die Einladung konnte nicht versendet werden. Bitte versuchen Sie es erneut.');
+      }
+      await touchDraft(supabase, draft.id, {}, found.token?.id ?? null);
+      await logEvent(supabase, {
+        type: 'forwarded', linkId: draft.link_id, draftId: draft.id, ipHash,
+        meta: { to_domain: toEmail.split('@').pop(), rolle: 'beschreiben' },
+      });
+      return json({ ok: true, message: `Einladung an ${toEmail} versendet.`, mitarbeit: await mitarbeitInfo(supabase, draft, found.token) });
+    }
+
     const text = forwardMailTexts(mailLang);
     const position = (draft.built as any)?.title ?? draft.title ?? text.positionFallback;
     const sender = esc(draft.contact_name ?? text.senderFallback);

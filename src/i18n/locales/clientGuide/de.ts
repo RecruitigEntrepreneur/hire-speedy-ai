@@ -50,7 +50,11 @@ const de = {
     'c-myJob': {
       title: 'Ihre Stelle steht schon hier',
       body: 'Ihre erste Stelle haben Sie bereits aufgenommen. Wir prüfen sie gerade und geben sie dann an unsere Headhunter, ohne Ihren Firmennamen.',
-      bodyLive: 'Ihre erste Stelle haben Sie bereits aufgenommen, sie ist live. Die Karte zeigt, wo die Suche steht; ein Klick öffnet die Stellenseite.',
+      bodyLive: 'Ihre Stelle ist live. Die Karte zeigt auf einen Blick, wie weit die Suche ist, wer neu dazukam und wie viele Headhunter suchen. Kandidaten und Headhunter hier sind Beispiele.',
+      p1: 'Wie weit die Suche ist',
+      p2: 'Wer im Rennen ist, blau ist neu',
+      p3: 'Was zuletzt passiert ist',
+      p4: 'Wie viele Headhunter suchen',
     },
     'c-jobsExample': {
       title: 'So sieht Ihre Stelle aus, sobald sie läuft',
@@ -208,6 +212,7 @@ const de = {
       concerns: 'Einarbeitung in unsere Systeme. Start eventuell früher möglich?',
       colleagueName: 'Anna Weber',
       colleagueEmail: 'anna.weber@beispiel.de',
+      colleagueMessage: 'Zur Stelle {{job}}: bitte nach den Interviews kurz Feedback geben, dann entscheiden wir gemeinsam.',
     },
     data: {
       yourCompany: 'Beispielfirma GmbH',

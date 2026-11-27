@@ -70,27 +70,45 @@ const ANGELEGT_SICHTBAR_MS = 12 * 60 * 60 * 1000;
 
 let userId: string | null = null;
 let zustand: Zustand = { eintraege: [], wartenAufZustimmung: [] };
+
+/**
+ * Beispiel im Headhunter-Rundgang (19.11.2026): Solange die Bühne offen ist, zeigt die Ablage
+ * nur das Beispiel. Der echte Stand ruht in `echt` und kommt danach unverändert zurück. Im
+ * Beispiel wird nichts hochgeladen, gelesen, gespeichert oder verschickt: „Hochladen“ spielt
+ * die Zustände nur vor (liest, legt an, angelegt) und landet beim Beispielkandidaten.
+ */
+export interface AblageBeispiel { kandidatId: string; name: string; kurz?: string; datei: string }
+let beispiel: AblageBeispiel | null = null;
+let echt: Zustand | null = null;
+const beispielTimer = new Set<number>();
+const leer = (): Zustand => ({ eintraege: [], wartenAufZustimmung: [] });
 const dateien = new Map<string, File>();
 const hoerer = new Set<() => void>();
 let laufend = 0;
 
 const schluessel = (uid: string) => `matchunt.ablage.${uid}`;
 
-function speichern() {
+function speichern(z: Zustand = zustand) {
   if (!userId) return;
   try {
-    const behalten = zustand.eintraege.filter((e) => e.status !== 'angelegt' || Date.now() - (e.angelegtAm ?? 0) < ANGELEGT_SICHTBAR_MS);
+    const behalten = z.eintraege.filter((e) => e.status !== 'angelegt' || Date.now() - (e.angelegtAm ?? 0) < ANGELEGT_SICHTBAR_MS);
     localStorage.setItem(schluessel(userId), JSON.stringify(behalten));
   } catch { /* Speicher voll oder gesperrt: Ablage gilt dann nur bis zum Neuladen */ }
 }
 
 function setzen(next: Partial<Zustand>) {
   zustand = { ...zustand, ...next };
-  speichern();
+  if (!echt) speichern();
   hoerer.forEach((h) => h());
 }
 
 function aendern(id: string, patch: Partial<AblageEintrag>) {
+  // Läuft ein echter Lebenslauf noch, während das Beispiel zu sehen ist: Er bekommt seinen Stand trotzdem.
+  if (echt && !zustand.eintraege.some((e) => e.id === id)) {
+    echt = { ...echt, eintraege: echt.eintraege.map((e) => (e.id === id ? { ...e, ...patch } : e)) };
+    speichern(echt);
+    return;
+  }
   setzen({ eintraege: zustand.eintraege.map((e) => (e.id === id ? { ...e, ...patch } : e)) });
 }
 
@@ -112,8 +130,62 @@ export function ablageStarten(uid: string) {
       : e))
     // Neu geladen, bevor der Hinweis bestätigt war: lieber selbst Bescheid geben.
     .map((e) => (e.hinweis === 'laeuft' ? { ...e, hinweis: 'fehler' as const, hinweisFehler: ta('err.noticeUnsure') } : e));
+  if (echt) { echt = { eintraege: geladen, wartenAufZustimmung: [] }; return; }
   zustand = { eintraege: geladen, wartenAufZustimmung: [] };
   hoerer.forEach((h) => h());
+}
+
+/** Bühne des Rundgangs auf (mit Beispiel) oder zu (null): echten Stand beiseitelegen bzw. zurückholen. */
+export function ablageBeispiel(b: AblageBeispiel | null) {
+  beispielTimer.forEach((t) => window.clearTimeout(t));
+  beispielTimer.clear();
+  if (b) {
+    if (!echt) { echt = zustand; zustand = leer(); }
+    beispiel = b;
+  } else {
+    beispiel = null;
+    if (!echt) return;
+    zustand = echt;
+    echt = null;
+  }
+  hoerer.forEach((h) => h());
+  // Zurück im Echten: Lebensläufe, die während des Beispiels warteten, laufen jetzt weiter.
+  if (!b) weiter();
+}
+
+/**
+ * Stand des Beispiels je Schritt: leer, das Fenster mit dem Beispiel-Lebenslauf offen, oder der
+ * Kandidat angelegt. „angelegt“ lässt einen laufenden Durchgang (liest …) in Ruhe.
+ */
+export function ablageBeispielStand(stand: 'leer' | 'fenster' | 'angelegt') {
+  if (!beispiel || !echt) return;
+  const b = beispiel;
+  // Schon ein Eintrag da (etwa noch „liest …“ nach „Hochladen“): weiterlaufen lassen.
+  if (stand === 'angelegt' && zustand.eintraege.length) return;
+  if (stand === 'fenster' && !zustand.eintraege.length && zustand.wartenAufZustimmung[0]?.name === b.datei) return;
+  beispielTimer.forEach((t) => window.clearTimeout(t));
+  beispielTimer.clear();
+  if (stand === 'leer') zustand = leer();
+  if (stand === 'fenster') {
+    // Etwa so groß wie ein echter Lebenslauf; der Inhalt wird nie gelesen.
+    zustand = { eintraege: [], wartenAufZustimmung: [new File([new Uint8Array(186_000)], b.datei, { type: 'application/pdf' })] };
+  }
+  if (stand === 'angelegt') {
+    zustand = { eintraege: [{ id: crypto.randomUUID(), dateiname: b.datei, status: 'angelegt', erstellt: Date.now(), name: b.name, kurz: b.kurz,
+      kandidatId: b.kandidatId, ergaenzt: false, angelegtAm: Date.now(), hinweisWahl: 'matchunt' }], wartenAufZustimmung: [] };
+  }
+  hoerer.forEach((h) => h());
+}
+
+/** „Hochladen“ im Beispiel: Zustände nur vorspielen, nichts geht ins Netz. */
+function beispielVerarbeiten(id: string, b: AblageBeispiel) {
+  const spaeter = (ms: number, patch: Partial<AblageEintrag>) => {
+    const t = window.setTimeout(() => { beispielTimer.delete(t); aendern(id, patch); }, ms);
+    beispielTimer.add(t);
+  };
+  aendern(id, { status: 'liest' });
+  spaeter(1500, { status: 'legtAn', name: b.name, kurz: b.kurz });
+  spaeter(2100, { status: 'angelegt', kandidatId: b.kandidatId, name: b.name, ergaenzt: false, angelegtAm: Date.now() });
 }
 
 /** Abgelegte oder gewählte Dateien: falsche aussortieren, Rest wartet auf die Datenschutz-Frage. */
@@ -133,8 +205,13 @@ export function ablageZustimmen(o: { hinweis: boolean }) {
   const [f, ...rest] = zustand.wartenAufZustimmung;
   if (!f) return;
   const id = crypto.randomUUID();
-  dateien.set(id, f);
   const neu: AblageEintrag = { id, dateiname: f.name, status: 'wartet', erstellt: Date.now(), hinweisWahl: o.hinweis ? 'matchunt' : 'selbst', bestaetigtAm: Date.now() };
+  if (beispiel && echt) {
+    setzen({ eintraege: [neu, ...zustand.eintraege], wartenAufZustimmung: rest });
+    beispielVerarbeiten(id, beispiel);
+    return;
+  }
+  dateien.set(id, f);
   setzen({ eintraege: [neu, ...zustand.eintraege], wartenAufZustimmung: rest });
   weiter();
 }
@@ -158,6 +235,7 @@ export function ablageEntfernen(id: string) {
 }
 
 export function ablageNochmal(id: string) {
+  if (echt) return;
   const e = zustand.eintraege.find((x) => x.id === id);
   if (!e) return;
   if (!e.pdfPath && !e.text && !dateien.has(id)) { aendern(id, { status: 'fehler', fehler: ta('err.fileGone') }); return; }
@@ -169,7 +247,7 @@ export function ablageAngelegt(id: string, kandidatId: string, name?: string, er
   const e = zustand.eintraege.find((x) => x.id === id);
   aendern(id, { status: 'angelegt', kandidatId, name: name ?? e?.name, ergaenzt, angelegtAm: Date.now(), cv: null, text: undefined, ...(ergaenzt ? { abweichungen: 0 } : {}) });
   // Von Hand angelegt (Name nicht erkannt): Nachweis und Hinweis wie beim automatischen Anlegen.
-  if (e && !ergaenzt && !e.hinweis) void nachweisUndHinweis(e, kandidatId);
+  if (e && !ergaenzt && !e.hinweis && !echt) void nachweisUndHinweis(e, kandidatId);
 }
 
 const kurzVon = (cv: CvExtraction) => {
@@ -277,6 +355,7 @@ export function ablageEmailErgaenzt(id: string) {
 }
 
 function weiter() {
+  if (echt) return;
   while (laufend < GLEICHZEITIG) {
     const naechster = [...zustand.eintraege].reverse().find((e) => e.status === 'wartet');
     if (!naechster) return;

@@ -50,7 +50,7 @@ export interface ClientTourScene {
   /** Suchteil der Seite, etwa der Reiter „In Prüfung“. */
   search?: string;
   /** Fenster im Profil, das der Schritt offen zeigt (CandidateDetail liest `state.open`). */
-  open?: 'interview' | 'offer' | 'contract';
+  open?: 'interview' | 'offer' | 'contract' | 'invite';
   /** Feedback-Fenster über die Aufgabe (`?aufgabe=feedback:…`). */
   feedbackTask?: boolean;
   /** So füllt der Kunde das Fenster aus (components/client/tour/demoAutofill.ts). */
@@ -92,7 +92,8 @@ export const CLIENT_TOUR_SCENES: Record<string, ClientTourScene> = {
   vertrag: { phase: 'accepted', page: 'profile', open: 'contract', fill: 'contract' },
   besetzung: { phase: 'signed', page: 'placements', moment: 'hired' },
   // Marko 17.11.: „Holen Sie Ihr Team dazu“ zeigen statt nur sagen -- der Zeiger lädt eine Kollegin ein (nichts wird verschickt).
-  team: { phase: 'signed', page: 'team', fill: 'invite' },
+  // Marko 18.11.: „wieso ist alles ausgegraut? lass es direkt normal“ -- das Fenster ist gleich offen und im Licht.
+  team: { phase: 'signed', page: 'team', open: 'invite', fill: 'invite' },
 };
 
 /** Kapitel als Schlüssel; bei Contracting heißt Kapitel 4 „Der Einsatz“. */
@@ -161,15 +162,20 @@ export function clientGuideSteps(ctx: ClientGuideContext): GuideStep[] {
     // „danach geht es mit der Stelle weiter, die der Kunde schon aufgenommen hat“).
     step({ id: 'c-welcome', chapter: 1, route: '/dashboard', body: real ? 'body' : 'bodyExample' }),
     // Der Zeiger öffnet „Neue Stelle“ und zeigt auf „Neue Stelle anlegen“; geklickt wird selbst.
-    stage({ id: 'c-jobsNew', chapter: 1, scene: 'stellenNeu', target: at('jobs.newBlank'), fillArea: at('jobs.new'), click: {}, show: true, side: 'left',
+    stage({ id: 'c-jobsNew', chapter: 1, scene: 'stellenNeu', target: at('jobs.newBlank'), fillArea: at('jobs.new'), cardAtTarget: true, click: {}, show: true, side: 'left',
       body: ctx.waiting ? 'bodyWaiting' : 'body' }),
     stage({ id: 'c-intakeKind', chapter: 1, scene: 'aufnahmeArt', target: `[data-kind="${ctx.contracting ? 'freelance' : 'full-time'}"]`,
       click: { labelKey: ctx.contracting ? 'actionContracting' : 'action' }, show: true, side: 'bottom' }),
     stage({ id: 'c-intakeWays', chapter: 1, scene: 'aufnahmeWege', target: at('intake.ways'), points: ['[data-intake-way="paste"] [data-intake-action]'] }),
     ...(real
       ? [
-        step({ id: 'c-myJob', chapter: 1, route: '/dashboard/jobs', path: live ? '/dashboard/jobs' : '/dashboard/jobs?tab=review',
-          target: `[data-tour-job="${ctx.jobId}"]`, body: lage }),
+        // Live: die eigene Stelle oben auf der Bühne, mit Beispielkandidaten und -Headhuntern (Marko 17.11.:
+        // „wieso so weit unten? wir wollen da auch Beispielkandidaten und Headhunter direkt dabei haben“).
+        // In der Prüfung: die echte Liste, Reiter „In Prüfung“.
+        live
+          ? liveCard('c-myJob', ctx.jobId!, lage)
+          : step({ id: 'c-myJob', chapter: 1, route: '/dashboard/jobs', path: '/dashboard/jobs?tab=review',
+            target: `[data-tour-job="${ctx.jobId}"]`, body: lage }),
         live
           ? step({ id: 'c-jobPage', chapter: 1, route: `/dashboard/jobs/${ctx.jobId}`, target: at('job.tabs') })
           // In der Prüfung zeigt die echte Stellenseite die Angaben aus der Aufnahme und den Stand der Prüfung.
@@ -195,7 +201,7 @@ export function clientGuideSteps(ctx: ClientGuideContext): GuideStep[] {
     // 3 · Interview und Entscheidung
     stage({ id: 'c-agenda', chapter: 3, scene: 'interviews', target: at('interviews.next') }),
     // Marko 17.11.: vor dem Feedback die Meldung, dass dem Kandidaten das Gespräch gefallen hat.
-    stage({ id: 'c-impression', chapter: 3, scene: 'eindruck', target: at('bell.menu'), fillArea: at('header.bell'), side: 'left' }),
+    stage({ id: 'c-impression', chapter: 3, scene: 'eindruck', target: at('bell.menu'), fillArea: at('header.bell'), cardAtTarget: true, side: 'left' }),
     ...(ctx.contracting
       ? [
         stage({ id: 'c-feedback', chapter: 3, scene: 'feedback', target: at('feedback.ways'), fillArea: at('feedback.window'), body: 'bodyContracting' }),
@@ -209,7 +215,7 @@ export function clientGuideSteps(ctx: ClientGuideContext): GuideStep[] {
         stage({ id: 'c-offer', chapter: 4, scene: 'angebot', target: at('offer.next'), fillArea: at('offer.window'), click: {}, show: true }),
         stage({ id: 'c-offerSend', chapter: 4, scene: 'angebotSenden', target: at('offer.send'), click: { delay: 1800 }, show: true }),
         // Glückwunsch (Marko 16.11.: „sonst merkt man kaum, dass er zugesagt hat“): Meldung und Glocke.
-        stage({ id: 'c-accepted', chapter: 4, scene: 'angenommen', target: at('bell.menu'), fillArea: at('header.bell'), side: 'left' }),
+        stage({ id: 'c-accepted', chapter: 4, scene: 'angenommen', target: at('bell.menu'), fillArea: at('header.bell'), cardAtTarget: true, side: 'left' }),
         // Marko 17.11.: „wir schicken ihn selbst zu, dann ist es einfacher“ -- der Zeiger wählt
         // „Selbst verschicken“, gespeichert wird selbst; hochgeladen wird im Rundgang nichts.
         stage({ id: 'c-contract', chapter: 4, scene: 'vertrag', target: at('contract.saveSelf'), fillArea: at('contract.window'), click: {}, show: true }),
@@ -218,7 +224,7 @@ export function clientGuideSteps(ctx: ClientGuideContext): GuideStep[] {
 
     // 5 · Ihr Konto -- wieder echt
     // „Aufgaben“ zeigt der Rundgang im Ablauf (Kandidat prüfen, Feedback, Vertrag); im neuen Konto wäre die Seite hier leer.
-    stage({ id: 'c-team', chapter: 5, scene: 'team', target: at('team.inviteWindow'), fillArea: at('team.invite') }),
+    stage({ id: 'c-team', chapter: 5, scene: 'team', target: at('team.inviteWindow'), fillArea: at('team.inviteWindow') }),
     step({ id: 'c-notify', chapter: 5, route: '/dashboard', target: at('header.notify') }),
     // Neue Positionen: der Einstieg auf dem Dashboard, mit den Entwürfen (im Wartezustand gibt es ihn nicht).
     ...(ctx.waiting ? [] : [step({ id: 'c-positionEntry', chapter: 5, route: '/dashboard', target: at('client.entry') })]),

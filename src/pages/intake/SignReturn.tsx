@@ -61,15 +61,17 @@ export default function SignReturn({ du = false }: { du?: boolean }) {
   const text = t(`${gruppe}.${TEXTE[ausgang]}Text`);
   const Symbol = ausgang === 'unterschrieben' ? CheckCircle2
                : ausgang === 'abgelehnt' ? XCircle : TriangleAlert;
-  const farbe = ausgang === 'unterschrieben' ? 'text-emerald-600'
-              : ausgang === 'abgelehnt' ? 'text-destructive' : 'text-amber-600';
+  // Grün nur, wenn wirklich unterschrieben ist; Ablehnung und Abbruch ruhig grau (26.11.2026).
+  const farbe = ausgang === 'unterschrieben' ? 'text-emerald-600' : 'text-foreground';
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-sm text-center">
-        <Symbol className={`mx-auto mb-3 h-8 w-8 ${farbe}`} />
-        <h1 className="text-lg font-semibold">{titel}</h1>
-        <p className="mt-2 text-sm text-muted-foreground">{text}</p>
+        <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-secondary">
+          <Symbol className={`h-[22px] w-[22px] ${farbe}`} />
+        </span>
+        <h1 className="text-[22px] font-semibold leading-tight tracking-tight">{titel}</h1>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{text}</p>
       </div>
     </div>
   );

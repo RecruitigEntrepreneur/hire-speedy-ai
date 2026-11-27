@@ -313,6 +313,8 @@ serve(withIntakeLang(async (req) => {
     const found = await resolveDraft(supabase, body?.draft_token);
     if (!found.ok) return fail(found.reason!, found.message!);
     const draft = found.draft!;
+    // Eingeladene Kollegin (Rolle „beschreiben“, 26.11.2026): nur die Stelle, nicht das hier.
+    if (found.token?.rolle === 'beschreiben') return fail('not_allowed', 'Diese Aktion ist der einladenden Person vorbehalten.');
     // Der Kunde hat im Menü eine Sprache gewählt: am Entwurf merken. In dieser
     // Sprache geht die Eingangsbestätigung raus (sonst Link, sonst Aufruf).
     const lang = callLanguage(body);

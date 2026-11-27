@@ -4,7 +4,12 @@ import type { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import i18n from '@/i18n';
 import { useAuth } from '@/lib/auth';
-import { atStep, concretePath, guideChapters, GUIDE_STATE_KEY, GUIDE_STEPS, matchRoute, nearestStepAt, readGuideState, TOUR_SEEN_KEY, tourSeen, tourStorageKey, type GuideState, type GuideStep } from '@/lib/recruiterGuide';
+import {
+  atStep, concretePath, GUIDE_STATE_KEY, matchRoute, nearestStepAt, readGuideState, TOUR_POSTPONED_KEY, TOUR_SEEN_KEY,
+  tourPostponedStorageKey, tourSettled, tourStorageKey, type GuideState, type GuideStep,
+} from '@/lib/recruiterGuide';
+import { recruiterGuideChapters, recruiterGuideSteps } from '@/lib/recruiterTour';
+import { useRecruiterAccess } from '@/components/verification/RecruiterAccessGate';
 import {
   clientGuideChapters, clientGuideSteps, CLIENT_GUIDE_STATE_KEY, CLIENT_TOUR_POSTPONED_KEY, CLIENT_TOUR_SEEN_KEY,
   clientTourPostponedStorageKey, clientTourSettled, clientTourStorageKey, type ClientGuideContext,
@@ -16,6 +21,7 @@ import { TourWelcome } from '@/components/client/tour/TourWelcome';
 import { GuideOverlay, GuidePausePill, type GuideTextsKey } from './GuideOverlay';
 import { useGuideTarget } from './useGuideTarget';
 import { guideDemo, useGuideDemo } from './guideDemo';
+import { useCookieBannerOpen } from '@/lib/cookieBanner';
 
 export interface GuideIdentity { userId: string; firstName?: string }
 interface GuideApi {
@@ -69,14 +75,15 @@ const persist = (key: string, state: GuideState | null) => {
 const isDynamic = (route: string) => route.includes(':');
 
 export const RECRUITER_GUIDE: GuideConfig = {
-  steps: GUIDE_STEPS,
-  chapters: guideChapters,
+  steps: recruiterGuideSteps(),
+  chapters: recruiterGuideChapters,
   stateKey: GUIDE_STATE_KEY,
   /** Nur im Arbeitsbereich; Onboarding und Einladung bleiben frei. */
   inWorkspace: (path) => path.startsWith('/recruiter') && !/^\/recruiter\/(onboarding|invitation)/.test(path),
   texts: 'texts',
   finalTo: '/recruiter/jobs',
   context: GuideContext,
+  chapterNav: true,
 };
 
 export const CLIENT_GUIDE: GuideConfig = {
@@ -206,16 +213,19 @@ export function GuideProvider({ config, identity, isSeen, onFinished, onPostpone
   }, [location.pathname, location.search, location.state, navigationType, state, step, index, steps, update, finish]);
 
   const active = !!state && !!identity && !!step && inWorkspace(location.pathname);
-  const showing = active && !state!.paused;
+  // Erst die Cookie-Frage, dann der Rundgang: Der Hinweis liegt unten über der Seite (lib/cookieBanner.ts).
+  const cookieBannerOpen = useCookieBannerOpen();
+  const showing = active && !state!.paused && !cookieBannerOpen;
   // Vorführung (guideDemo.ts): Beim Ausfüllen leuchtet der Bereich, danach das Ziel.
   const demo = useGuideDemo();
   useEffect(() => {
     if (showing && step) guideDemo.enter(step.id, { fill: !!step.fillArea, point: (!!step.show && !!step.click && !step.click.to) || !!step.points?.length });
   }, [showing, step]);
   const demoPhase = step && demo.stepId === step.id ? demo.phase : 'done';
-  const onArea = !!step?.fillArea && (demoPhase === 'wait' || demoPhase === 'filling');
+  const onArea = (!!step?.fillArea && (demoPhase === 'wait' || demoPhase === 'filling'))
+    || (!!step?.pointArea && (demoPhase === 'wait' || demoPhase === 'pointing'));
   const targetKey = `${step?.id ?? ''}${onArea ? ':area' : ''}`;
-  const target = useGuideTarget(showing ? (onArea ? step!.fillArea : step!.target) : undefined, targetKey);
+  const target = useGuideTarget(showing ? (onArea ? step!.fillArea ?? step!.pointArea : step!.target) : undefined, targetKey);
   const clickable = showing && demoPhase === 'done' && !onArea && !!step!.click && !step!.lockTarget && !!target.el && width >= (step!.click!.minWidth ?? 0);
   const missing = !!step?.target && !target.el && !target.waiting;
   /* Warte-Schritte: bis das Ziel entsteht, keine Karte, nur ein Hinweis.
@@ -347,25 +357,35 @@ const firstNameOf = (user: User) => {
   return name && !name.includes('@') ? name.split(/\s+/)[0] : undefined;
 };
 
-/** Anbindung an die Anmeldung: nur für Headhunter; „gesehen“ steht im Konto und im Browser. */
+/**
+ * Anbindung an die Anmeldung: nur für Headhunter; „gesehen“ steht im Konto und im Browser.
+ * Rundgang an echten Seiten (17.11.2026, lib/recruiterTour.ts): startet einmal von selbst,
+ * „Später“ verschiebt nur. Im Wartezustand sagt die Begrüßung, was bis zur Gegenzeichnung geht.
+ */
 export function AppRecruiterGuide({ children }: { children: ReactNode }) {
   const { user, role } = useAuth();
+  const isRecruiter = !!user && role === 'recruiter';
+  const access = useRecruiterAccess(isRecruiter);
+  const waiting = isRecruiter && access.data?.pending === true;
   const fullName = user?.user_metadata?.full_name;
-  const identity = useMemo(() => (user && role === 'recruiter' ? { userId: user.id, firstName: firstNameOf(user) } : null),
+  const identity = useMemo(() => (isRecruiter ? { userId: user!.id, firstName: firstNameOf(user!) } : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- neu nur bei anderem Konto oder Namen, nicht bei jedem Token-Refresh
-    [user?.id, role, fullName]);
-  const isSeen = useCallback(() => tourSeen(user, browserStorage()), [user]);
-  const onFinished = useCallback(() => {
+    [user?.id, isRecruiter, fullName]);
+  const config = useMemo<GuideConfig>(() => ({ ...RECRUITER_GUIDE, steps: recruiterGuideSteps({ waiting }) }), [waiting]);
+  const isSeen = useCallback(() => tourSettled(user, browserStorage()), [user]);
+  const remember = useCallback((metaKey: string, storageKey: string) => {
     if (!user) return;
     const at = new Date().toISOString();
-    try { browserStorage()?.setItem(tourStorageKey(user.id), at); } catch { /* Rückfallebene, nur Komfort */ }
-    if (!user.user_metadata?.[TOUR_SEEN_KEY]) {
-      void supabase.auth.updateUser({ data: { [TOUR_SEEN_KEY]: at } }).then(({ error }) => {
+    try { browserStorage()?.setItem(storageKey, at); } catch { /* Rückfallebene, nur Komfort */ }
+    if (!user.user_metadata?.[metaKey]) {
+      void supabase.auth.updateUser({ data: { [metaKey]: at } }).then(({ error }) => {
         if (error) console.warn('[recruiter-guide] Merker im Konto nicht gespeichert', error.message);
       });
     }
   }, [user]);
-  return <RecruiterGuideProvider identity={identity} isSeen={isSeen} onFinished={onFinished}>{children}</RecruiterGuideProvider>;
+  const onFinished = useCallback(() => { if (user) remember(TOUR_SEEN_KEY, tourStorageKey(user.id)); }, [user, remember]);
+  const onPostpone = useCallback(() => { if (user) remember(TOUR_POSTPONED_KEY, tourPostponedStorageKey(user.id)); }, [user, remember]);
+  return <GuideProvider config={config} identity={identity} isSeen={isSeen} onFinished={onFinished} onPostpone={onPostpone}>{children}</GuideProvider>;
 }
 
 /**

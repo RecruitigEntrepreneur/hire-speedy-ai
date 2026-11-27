@@ -10,6 +10,7 @@ import { sendIntakeMail, layout, esc } from '../_shared/intake-mail.ts';
 import { callLanguage, customerMailLanguage, rememberDraftLanguage, withIntakeLang } from '../_shared/intake-language.ts';
 import { verifyCodeMailTexts } from '../_shared/intake-i18n.ts';
 import { issueSessionTicket } from '../_shared/client-session-ticket.ts';
+import { mitarbeitInfo, rolleVon } from '../_shared/aufnahme-mitarbeit.ts';
 
 /**
  * intake-verify-email — Nachweis der Geschaefts-E-Mail. Ohne Login.
@@ -54,8 +55,12 @@ serve(withIntakeLang(async (req) => {
     }
 
     // ------------------------------------------------------------------ send
+    // Eingeladene Kollegin (Rolle „beschreiben“): Code an die Adresse ihres Zugangs,
+    // gebunden an diesen Zugang. Ändert den Ansprechpartner der Aufnahme nicht.
+    const helferToken = rolleVon(found.token) === 'beschreiben' ? found.token! : null;
+
     if (action === 'send') {
-      const email = String(body?.email ?? draft.contact_email ?? '').trim().toLowerCase();
+      const email = String(helferToken ? helferToken.recipient_email ?? '' : body?.email ?? draft.contact_email ?? '').trim().toLowerCase();
       if (!isPlausibleEmail(email)) {
         return fail('invalid_request', 'Bitte geben Sie eine gültige E-Mail-Adresse an.');
       }
@@ -113,13 +118,17 @@ serve(withIntakeLang(async (req) => {
       const codeHash = await hashCode(draft.id, code);
 
       // Aeltere offene Codes entwerten: sonst waeren mehrere gleichzeitig gueltig.
-      await supabase
+      // Je Zugang getrennt: der Code der Kollegin entwertet nicht den des Ansprechpartners.
+      let alt = supabase
         .from('intake_email_verifications')
         .update({ consumed: true })
         .eq('draft_id', draft.id)
         .eq('consumed', false);
+      alt = helferToken ? alt.eq('token_id', helferToken.id) : alt.is('token_id', null);
+      await alt;
 
       const { error: insErr } = await supabase.from('intake_email_verifications').insert({
+        token_id: helferToken?.id ?? null,
         draft_id: draft.id,
         email,
         code_hash: codeHash,
@@ -162,7 +171,8 @@ serve(withIntakeLang(async (req) => {
           'Die Bestätigungsmail konnte nicht versendet werden. Bitte versuchen Sie es in einigen Minuten erneut.');
       }
 
-      await touchDraft(supabase, draft.id, {
+      // Die Adresse der eingeladenen Kollegin wird NICHT Ansprechpartner der Aufnahme.
+      await touchDraft(supabase, draft.id, helferToken ? {} : {
         contact_email: email,
         is_freemail: isFreemailAddress(email),
         ...(draft.identity_state === 'anonymous' && draft.contact_name
@@ -192,11 +202,13 @@ serve(withIntakeLang(async (req) => {
           : 'Zu viele Eingaben. Bitte in einigen Minuten erneut probieren — Ihre Angaben sind gespeichert.');
     }
 
-    const { data: row } = await supabase
+    let offen = supabase
       .from('intake_email_verifications')
       .select('*')
       .eq('draft_id', draft.id)
-      .eq('consumed', false)
+      .eq('consumed', false);
+    offen = helferToken ? offen.eq('token_id', helferToken.id) : offen.is('token_id', null);
+    const { data: row } = await offen
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -226,6 +238,35 @@ serve(withIntakeLang(async (req) => {
       .from('intake_email_verifications')
       .update({ verified_at: new Date().toISOString(), consumed: true, attempts: (row.attempts ?? 0) + 1 })
       .eq('id', row.id);
+
+    // ---- Eingeladene Kollegin: bestätigt ist ihr Zugang, nicht der Ansprechpartner ----
+    if (helferToken) {
+      await supabase
+        .from('intake_draft_tokens')
+        .update({ bestaetigt_am: new Date().toISOString(), bestaetigt_email: row.email })
+        .eq('id', helferToken.id);
+      const { error: consentErrH } = await supabase.from('consents').insert({
+        subject_type: 'intake_draft',
+        subject_id: draft.id,
+        consent_type: 'email_verification',
+        version: '2026-09-v1',
+        granted: true,
+        ip_address: ipHash,
+        user_agent: ua,
+        granted_at: new Date().toISOString(),
+      });
+      if (consentErrH) console.warn('[intake-verify-email] consents:', consentErrH.message);
+      await touchDraft(supabase, draft.id, {}, tokenId);
+      const { data: frisch } = await supabase.from('intake_drafts').select('*').eq('id', draft.id).single();
+      const { data: tok } = await supabase.from('intake_draft_tokens').select('*').eq('id', helferToken.id).single();
+      return json({
+        verified: true,
+        session_ticket: null,
+        known_company: null,
+        draft: frisch ? publicDraft(frisch) : null,
+        mitarbeit: frisch ? await mitarbeitInfo(supabase, frisch, tok ?? helferToken) : null,
+      });
+    }
 
     // ---- Bestandskunden erkennen -- als Hinweis, nicht als Zuordnung -------
     const domain = normalizeDomain(draft.company_website) ?? domainFromEmail(row.email);
@@ -316,6 +357,7 @@ serve(withIntakeLang(async (req) => {
       // Akquise-Bestand liegt. Das ist Innensicht.
       known_company: knownCompany ? { name: knownCompany.name } : null,
       draft: fresh ? publicDraft(fresh) : null,
+      mitarbeit: fresh ? await mitarbeitInfo(supabase, fresh, found.token) : null,
     });
   } catch (e) {
     console.error('[intake-verify-email]', e);

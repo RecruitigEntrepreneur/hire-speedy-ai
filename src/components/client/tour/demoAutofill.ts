@@ -45,8 +45,8 @@ type Pass = (root: HTMLElement, texts: DemoFillTexts, values: DemoFillValues) =>
 
 export interface DemoFillTexts {
   impression: string; strengths: string; concerns: string;
-  /** Beispiel-Kollegin für „Team einladen“. */
-  colleagueName: string; colleagueEmail: string;
+  /** Beispiel-Kollegin für „Team einladen“: Adresse mit der Firmen-Domain des Kunden, Nachricht zu seiner Stelle. */
+  colleagueName: string; colleagueEmail: string; colleagueMessage: string;
   /** Meldung bei der Zusage, wie sie live als Hinweis oben einblendet. */
   notifyTitle: string; notifyBody: string;
 }
@@ -129,7 +129,7 @@ const PASSES: Record<DemoFill, Pass[]> = {
       return true;
     },
   ],
-  /** Team: Einladen öffnen, Beispiel-Kollegin eintragen, „Entscheidet mit“ für die Stelle. Verschickt wird nichts. */
+  /** Team: Einladen öffnen (die Bühne zeigt es schon offen), Beispiel-Kollegin eintragen, „Entscheidet mit“ für die Stelle. Verschickt wird nichts. */
   invite: [
     () => {
       if (document.querySelector('[data-tour="team.inviteWindow"]')) return true;
@@ -156,6 +156,12 @@ const PASSES: Record<DemoFill, Pass[]> = {
       const box = inviteJobBox(values);
       if (!box) return false;
       if (!box.checked) box.click();
+      return true;
+    },
+    (_root, texts) => {
+      const note = document.querySelector<HTMLTextAreaElement>('#invite-message');
+      if (!note) return false;
+      if (!note.value) type(note, texts.colleagueMessage);
       return true;
     },
   ],
@@ -359,15 +365,17 @@ SHOWS.contract = async (_texts, _values, show) => {
   return show.alive();
 };
 
-/** Team: Der Zeiger klickt „Einladen“, tippt die Beispiel-Kollegin ein, wählt Rolle und Stelle. */
+/**
+ * Team: Das Fenster steht schon offen und im Licht (Marko 18.11.: „wieso ist alles ausgegraut? lass es
+ * direkt normal“). Der Zeiger tippt die Kollegin ein, wählt Rolle und Stelle und schreibt eine kurze Nachricht.
+ */
 SHOWS.invite = async (texts, values, show) => {
-  const open = await waitFor(() => document.querySelector<HTMLButtonElement>('[data-tour="team.invite"]'), show);
-  if (!open) return show.alive();
-  await show.sleep(300);
-  await show.pointerTo(open);
-  await show.tap();
-  if (!show.alive()) return false;
-  open.click();
+  if (!document.querySelector('[data-tour="team.inviteWindow"]')) {
+    // Ohne offenes Fenster (alter Stand der Seite): selbst öffnen, ohne Umweg über den Knopf.
+    const open = await waitFor(() => document.querySelector<HTMLButtonElement>('[data-tour="team.invite"]'), show);
+    if (!open) return show.alive();
+    open.click();
+  }
   const name = await waitFor(() => document.querySelector<HTMLInputElement>('#invite-name'), show, 2000);
   const email = document.querySelector<HTMLInputElement>('#invite-email');
   if (!name || !email) return show.alive();
@@ -390,6 +398,13 @@ SHOWS.invite = async (texts, values, show) => {
     await show.tap();
     if (!show.alive()) return false;
     if (!box.checked) box.click();
+  }
+  const note = document.querySelector<HTMLTextAreaElement>('#invite-message');
+  if (note && !note.value) {
+    await show.pointerTo(note);
+    const value = texts.colleagueMessage;
+    for (let i = 3; i <= value.length && show.alive(); i += 3) { type(note, value.slice(0, i)); await show.sleep(25); }
+    type(note, value);
   }
   show.hidePointer();
   await show.sleep(250);
