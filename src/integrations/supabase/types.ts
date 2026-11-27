@@ -6115,6 +6115,8 @@ export type Database = {
       }
       intake_draft_tokens: {
         Row: {
+          bestaetigt_am: string | null
+          bestaetigt_email: string | null
           created_at: string
           created_by: string | null
           draft_id: string
@@ -6126,10 +6128,14 @@ export type Database = {
           recipient_email: string | null
           recipient_name: string | null
           revoked_at: string | null
+          rolle: string
           token_hash: string
           use_count: number
+          zurueckgegeben_am: string | null
         }
         Insert: {
+          bestaetigt_am?: string | null
+          bestaetigt_email?: string | null
           created_at?: string
           created_by?: string | null
           draft_id: string
@@ -6141,10 +6147,14 @@ export type Database = {
           recipient_email?: string | null
           recipient_name?: string | null
           revoked_at?: string | null
+          rolle?: string
           token_hash: string
           use_count?: number
+          zurueckgegeben_am?: string | null
         }
         Update: {
+          bestaetigt_am?: string | null
+          bestaetigt_email?: string | null
           created_at?: string
           created_by?: string | null
           draft_id?: string
@@ -6156,8 +6166,10 @@ export type Database = {
           recipient_email?: string | null
           recipient_name?: string | null
           revoked_at?: string | null
+          rolle?: string
           token_hash?: string
           use_count?: number
+          zurueckgegeben_am?: string | null
         }
         Relationships: [
           {
@@ -6455,6 +6467,7 @@ export type Database = {
           id: string
           ip_hash: string | null
           max_attempts: number
+          token_id: string | null
           verified_at: string | null
         }
         Insert: {
@@ -6468,6 +6481,7 @@ export type Database = {
           id?: string
           ip_hash?: string | null
           max_attempts?: number
+          token_id?: string | null
           verified_at?: string | null
         }
         Update: {
@@ -6481,6 +6495,7 @@ export type Database = {
           id?: string
           ip_hash?: string | null
           max_attempts?: number
+          token_id?: string | null
           verified_at?: string | null
         }
         Relationships: [
@@ -6489,6 +6504,13 @@ export type Database = {
             columns: ["draft_id"]
             isOneToOne: false
             referencedRelation: "intake_drafts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intake_email_verifications_token_id_fkey"
+            columns: ["token_id"]
+            isOneToOne: false
+            referencedRelation: "intake_draft_tokens"
             referencedColumns: ["id"]
           },
         ]
