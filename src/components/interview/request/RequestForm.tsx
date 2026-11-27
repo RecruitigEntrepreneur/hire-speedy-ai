@@ -18,7 +18,7 @@ import {
   weekStartOf,
   type AttendeeDraft,
   type MailPreview,
-  type MeetingFormat,
+  type MeetingFormat, type MeetingChoice, type VideoTool, VIDEO_TOOL_NAME, toolText,
   type RequestContext,
   type SendInput,
   type SendResult,
@@ -32,6 +32,7 @@ import {
 } from '@/lib/interviewRequestUtils';
 import { ParticipantsSection } from './ParticipantsSection';
 import { ProposalGrid } from './ProposalGrid';
+import { KalenderAnbieter } from './kalenderText';
 import { useProposalWeek, useSkipEmptyWeek } from './useProposalWeek';
 import { AlternativeSection } from './AlternativeSection';
 import { MailPreviewDialog } from './MailPreviewDialog';
@@ -101,7 +102,14 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
   const maxWeek = weekStartOf(nowIso, MAX_WEEKS_AHEAD);
 
   // Ab Runde 2 meist ein Treffen vor Ort mit dem Team (ohne hinterlegte Anschrift fragt das Formular danach)
-  const [format, setFormat] = useState<MeetingFormat>(ctx.round >= 2 ? 'onsite' : 'teams');
+  // Variante B (26.11.2026): Video-Werkzeuge direkt wählbar; nur, was verbunden ist (Teams immer)
+  const videoTools = ctx.videoTools ?? [{ tool: 'teams' as VideoTool, link: ctx.teamsLink ?? 'auto' }];
+  const [choice, setChoice] = useState<MeetingChoice>(ctx.round >= 2 ? 'onsite' : (ctx.preferredVideoTool ?? 'teams'));
+  const format: MeetingFormat = choice === 'phone' || choice === 'onsite' ? choice : 'teams';
+  const tool: VideoTool | null = format === 'teams' ? (choice as VideoTool) : null;
+  const toolLink = videoTools.find((v) => v.tool === tool)?.link ?? 'auto';
+  const setFormat = (f: MeetingChoice) => setChoice(f);
+  const tt = (text: string) => toolText(text, tool, ctx.calendar.state === 'connected' ? ctx.calendar.provider : null);
   const [onsiteAddress, setOnsiteAddress] = useState(ctx.onsiteDefault ?? '');
   const [locationNote, setLocationNote] = useState(ctx.locationNoteDefault ?? '');
   const [contactName, setContactName] = useState(ctx.onsiteContactDefault?.name ?? '');
@@ -155,7 +163,7 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
 
   const buildInput = (): SendInput => ({
     submissionId: ctx.submissionId,
-    meetingFormat: format,
+    meetingFormat: choice,
     onsiteAddress: format === 'onsite' ? onsiteAddress.trim() : null,
     locationNote: format === 'onsite' ? locationNote.trim() || null : null,
     onsiteContactName: format === 'onsite' ? contactName.trim() || null : null,
@@ -205,7 +213,7 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
   const inviteNames = joinNames(attendees.map((a) => (isMe(a) ? t('request.you') : a.name)));
 
   return (
-    <>
+    <KalenderAnbieter.Provider value={ctx.calendar.state === 'connected' || ctx.calendar.state === 'expired' ? ctx.calendar.provider : null}>
       <DialogHeader className="space-y-1 border-b px-4 py-4 pr-12 text-left sm:px-6">
         <DialogTitle>{roundTitle(ctx.round)}</DialogTitle>
         {/* Apple-Stil (22.11.2026): Kandidat als ruhige Zeile, keine Schreibmaschinen-Schrift, kein Schloss */}
@@ -234,9 +242,11 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
         <div className="grid gap-5 sm:grid-cols-2">
           <Section title={t('request.format')}>
             <div className="flex flex-wrap gap-2">
-              <Chip active={format === 'teams'} onClick={() => setFormat('teams')}>
-                <Video className="h-3.5 w-3.5" /> Microsoft Teams
-              </Chip>
+              {videoTools.map((v) => (
+                <Chip key={v.tool} active={choice === v.tool} onClick={() => setFormat(v.tool)}>
+                  <Video className="h-3.5 w-3.5" /> {VIDEO_TOOL_NAME[v.tool]}
+                </Chip>
+              ))}
               <Chip active={format === 'phone'} onClick={() => setFormat('phone')}>
                 <Phone className="h-3.5 w-3.5" /> {t('interviews:meeting.phone')}
               </Chip>
@@ -245,9 +255,10 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
               </Chip>
             </div>
             <p className="mt-1.5 text-xs text-muted-foreground">
-              {format === 'teams' && (ctx.teamsLink === 'manual'
+              {format === 'teams' && (toolLink === 'manual'
                 ? t('request.teamsManual')
-                : t('request.teamsAuto'))}
+                : tt(t('request.teamsAuto')))}
+              {format === 'teams' && ctx.videoTools && !videoTools.some((v) => v.tool !== 'teams') && <> {t('request.moreTools')}</>}
               {format === 'phone' && t('request.phoneHint')}
               {format === 'onsite' && t('request.onsiteHint')}
             </p>
@@ -372,8 +383,8 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
             recruiter ? t('request.step1Named', { name: recruiter }) : t('request.step1'),
             calendarConnected
               // Mit Outlook legt Matchunt den Termin im Kalender des Organisators an; Kollegen lädt Outlook ein
-              ? t(attendees.length > 1 ? `request.step3Outlook.${format}Team` : `request.step3Outlook.${format}`)
-              : t(`request.step3Mail.${format}`, { names: inviteNames }),
+              ? tt(t(attendees.length > 1 ? `request.step3Outlook.${format}Team` : `request.step3Outlook.${format}`))
+              : tt(t(`request.step3Mail.${format}`, { names: inviteNames })),
           ].map((x) => x.replace(/[.\s]+$/, '')).join('. ')}.
         </p>
       </div>
@@ -411,6 +422,6 @@ export function RequestForm({ ctx, replacesInterviewId, onClose, onSent }: Props
       </div>
 
       <MailPreviewDialog preview={preview} open={!!preview} onOpenChange={(o) => !o && setPreview(null)} />
-    </>
+    </KalenderAnbieter.Provider>
   );
 }

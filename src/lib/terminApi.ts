@@ -1,3 +1,4 @@
+import type { VideoTool } from '@/lib/interviewScheduling';
 import { supabase } from '@/integrations/supabase/client';
 import i18n, { currentLanguage } from '@/i18n';
 import type { InterviewHoursRules } from '@/lib/interviewScheduling';
@@ -39,20 +40,24 @@ export interface TerminTag { tag: string; zeiten: string[] }
 export interface SeitenDaten {
   headhunter: HeadhunterOeffentlich; stelle: Steckbrief | null; stelle_gefunden: boolean; offen: boolean; pausiert: boolean;
   kalender: boolean; dauer: number; arten: Gespraechsart[]; tage: TerminTag[];
+  /** Video-Werkzeug des Headhunters ('teams' = Gesprächsart Video) */
+  werkzeug?: VideoTool;
+  /** Headhunter ohne verbundenen Kalender (nur seine Buchungszeiten) */
+  ohne_kalender?: boolean;
 }
 export interface BuchungsDaten {
   start: string; mode: Gespraechsart; first_name: string; last_name: string; email: string; phone?: string; linkedin_url?: string;
   note?: string; consent: boolean; upload_id?: string | null; website?: string;
 }
 export interface TerminAnsicht {
-  status: 'booked' | 'cancelled' | 'vorbei'; start: string; ende: string; mode: Gespraechsart; join_url: string | null; vorname: string;
+  status: 'booked' | 'cancelled' | 'vorbei'; start: string; ende: string; mode: Gespraechsart; werkzeug?: VideoTool; join_url: string | null; vorname: string;
   headhunter: HeadhunterOeffentlich; stelle: string | null; dauer: number; tage: TerminTag[];
 }
 
 /** Persönliche Einladung /t/einladung/<token> aus Sicht des Kandidaten. */
 export interface EinladungsDaten {
   stand: 'offen' | 'gebucht' | 'abgelaufen' | 'zurueckgezogen'; offen: boolean; pausiert: boolean; kalender: boolean; tage: TerminTag[];
-  dauer: number; arten: Gespraechsart[]; headhunter: HeadhunterOeffentlich; vorname: string; email_maskiert: string | null; telefon_bekannt: boolean;
+  dauer: number; arten: Gespraechsart[]; werkzeug?: VideoTool; headhunter: HeadhunterOeffentlich; vorname: string; email_maskiert: string | null; telefon_bekannt: boolean;
   /** 'angefragt': Der Headhunter bittet um den Lebenslauf und es liegt noch keiner vor (05.11.2026). */
   lebenslauf?: 'angefragt' | null;
   /** Bei „gebucht“: der Termin, für die Seite „Du hast schon einen Termin“. */
@@ -146,6 +151,8 @@ export type { AnonymFund };
 export interface TerminseiteZeile {
   recruiter_id: string; slug: string; active: boolean; rules: InterviewHoursRules | Record<string, never>;
   duration_minutes: number; allow_teams: boolean; allow_phone: boolean;
+  /** Video-Werkzeug der Seite (26.11.2026); fehlt, solange die Migration nicht live ist */
+  video_tool?: 'teams' | 'meet' | 'zoom';
 }
 
 const tabelle = () => (supabase as unknown as { from: (t: string) => any }).from('recruiter_booking_pages'); // eslint-disable-line @typescript-eslint/no-explicit-any

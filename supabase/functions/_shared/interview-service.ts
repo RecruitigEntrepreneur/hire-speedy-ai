@@ -28,10 +28,13 @@ import * as mails from './interview-mails.ts';
 import { normLang, tr, type Lang } from './i18n.ts';
 import { candidateLanguage, languageOfEmail, languageOfUser, recruiterLanguage } from './recipient-language.ts';
 import { viaMatchunt } from './mail-i18n.ts';
+import { createMatchuntMeeting, deleteMatchuntMeeting, msConfig, type MsConfig } from './msgraph-calendar.ts';
+import { googleConfig, type GoogleConfig } from './google-calendar.ts';
+import { zoomConfig, type ZoomConfig } from './zoom-meetings.ts';
 import {
-  cancelEvent, createMatchuntMeeting, createTeamsEvent, deleteMatchuntMeeting, getBusy, msConfig,
-  userAccessToken, type MsConfig,
-} from './msgraph-calendar.ts';
+  calBusy, calCancel, calCreate, calendarAddresses, isVideoTool, toolOfCalendar, TOOL_NAME, userCalendar, zoomCreateMeeting, zoomDeleteMeeting, zoomToken,
+  type CalProvider, type HubConfig, type UserCalendar, type VideoTool,
+} from './calendar-hub.ts';
 
 // ---------------------------------------------------------------------------
 // Fehler
@@ -66,6 +69,9 @@ export interface ServiceCtx {
   now: () => number;
   appUrl: () => string;
   ms: MsConfig | null;
+  /** Google Kalender und Zoom (26.11.2026); fehlen sie, gibt es nur Outlook/Teams */
+  google?: GoogleConfig | null;
+  zoom?: ZoomConfig | null;
   fromEmail: string;
   mail: (mail: InterviewMail, log: { template: string; meta: Record<string, unknown> }) => Promise<MailResult>;
   /** KI für den Leitfaden; fehlt sie, entsteht er aus den Muss-Kriterien */
@@ -81,6 +87,8 @@ export function defaultCtx(db: SupabaseClient): ServiceCtx {
     now: () => Date.now(),
     appUrl: getPublicAppUrl,
     ms: msConfig(),
+    google: googleConfig(),
+    zoom: zoomConfig(),
     fromEmail,
     ai: aiChat,
     mailCancel: (id) => cancelScheduledMail(id),
@@ -118,7 +126,9 @@ export interface AttendeeDraft {
 export type FunctionKey = 'fachbereich' | 'fuehrungskraft' | 'geschaeftsfuehrung' | 'hr' | 'andere';
 export const FUNCTION_LABELS: Record<FunctionKey, string> = { fachbereich: 'Fachbereich', fuehrungskraft: 'Führungskraft', geschaeftsfuehrung: 'Geschäftsführung', hr: 'HR', andere: 'Andere' };
 const FUNCTION_KEYS = Object.keys(FUNCTION_LABELS) as FunctionKey[];
+/** 'teams' heißt hier „per Video“; welches Werkzeug, steht in toolOf (meeting_format 'teams' | 'meet' | 'zoom'). */
 export type MeetingFormat = 'teams' | 'phone' | 'onsite';
+export const hubOf = (ctx: ServiceCtx): HubConfig => ({ ms: ctx.ms, google: ctx.google ?? null, zoom: ctx.zoom ?? null });
 /** Erlaubte Dauern in Minuten; 3 und 4 Stunden für Gespräche vor Ort mit dem Team. */
 export const DURATIONS = [30, 45, 60, 90, 120, 180, 240];
 
@@ -227,14 +237,9 @@ async function hoursOf(db: SupabaseClient, userId: string): Promise<InterviewHou
   return normalizeRules(data?.rules);
 }
 
-async function organizerToken(ctx: ServiceCtx, userId: string | null | undefined): Promise<string | null> {
-  if (!ctx.ms || !userId) return null;
-  try {
-    return await userAccessToken(ctx.db, ctx.ms, userId);
-  } catch (e) {
-    console.warn('[interview] Outlook-Token nicht verfügbar', e instanceof Error ? e.message : e);
-    return null;
-  }
+/** Kalender des Organisators (Outlook oder Google); prefer = der Kalender, in dem der Termin steht. */
+async function organizerCalendar(ctx: ServiceCtx, userId: string | null | undefined, prefer?: CalProvider | null): Promise<UserCalendar | null> {
+  return userCalendar(ctx.db, hubOf(ctx), userId, prefer);
 }
 
 // ---------------------------------------------------------------------------
@@ -266,30 +271,18 @@ async function matchuntBooked(db: SupabaseClient, userIds: string[], fromMs: num
 
 interface PeopleQuery { organizerId: string; organizer: { email: string; name: string }; attendees: AttendeeDraft[]; fromMs: number; toMs: number; excludeInterviewId?: string | null }
 
-/**
- * Outlook-Adresse je Matchunt-Nutzer mit verbundenem Kalender. Die Login-Adresse
- * kann eine andere sein (z. B. Gmail-Login, Outlook in der Firma); Microsoft
- * kennt nur die Outlook-Adresse.
- */
-async function outlookAddresses(db: SupabaseClient, userIds: string[]): Promise<Map<string, string>> {
-  const out = new Map<string, string>();
-  if (!userIds.length) return out;
-  const { data } = await db.from('calendar_connections').select('user_id, account_email')
-    .in('user_id', userIds).eq('provider', 'microsoft').eq('status', 'connected');
-  for (const row of (data ?? []) as any[]) if (row.account_email) out.set(row.user_id, String(row.account_email).toLowerCase());
-  return out;
-}
-
 async function participantsFor(ctx: ServiceCtx, q: PeopleQuery): Promise<{ connected: boolean; participants: (ScheduleParticipant & { visible: boolean })[] }> {
   const others = q.attendees.filter((a) => a.email.toLowerCase() !== q.organizer.email.toLowerCase());
-  const token = await organizerToken(ctx, q.organizerId);
+  const cal = await organizerCalendar(ctx, q.organizerId);
+  const token = cal?.token ?? null;
   const internalIds = [q.organizerId, ...others.map((a) => a.userId).filter(Boolean) as string[]];
-  const outlook = token ? await outlookAddresses(ctx.db, internalIds) : new Map<string, string>();
+  // Kalender-Adresse je Nutzer: die Login-Adresse kann eine andere sein (z. B. Gmail-Login, Outlook in der Firma)
+  const outlook = cal ? await calendarAddresses(ctx.db, internalIds, cal.provider) : new Map<string, string>();
   const scheduleOf = (email: string, userId?: string | null) => ((userId && outlook.get(userId)) || email).toLowerCase();
   let busy: Record<string, Interval[] | null> = {};
-  if (token) {
+  if (cal) {
     try {
-      busy = await getBusy(token, [scheduleOf(q.organizer.email, q.organizerId), ...others.map((a) => scheduleOf(a.email, a.userId))].filter(Boolean), q.fromMs, q.toMs);
+      busy = await calBusy(cal, [scheduleOf(q.organizer.email, q.organizerId), ...others.map((a) => scheduleOf(a.email, a.userId))].filter(Boolean), q.fromMs, q.toMs);
     } catch (e) {
       console.warn('[interview] frei/belegt nicht abrufbar', e instanceof Error ? e.message : e);
     }
@@ -362,14 +355,48 @@ async function previousAttendees(db: SupabaseClient, submissionId: string): Prom
   return (rows ?? []).filter((r: any) => !r.is_organizer).map((r: any) => ({ userId: r.user_id, email: r.email, name: r.name, title: r.title, required: r.required, kind: r.kind, decisionMaker: !!r.is_decision_maker, functionKey: r.function_key ?? null }));
 }
 
+/**
+ * Stand der Verbindungen: ein Kalender (Outlook oder Google) und Zoom.
+ * providers = welche Anbieter Matchunt eingerichtet hat (Secrets vorhanden).
+ */
 export async function calendarStatusFor(ctx: ServiceCtx, userId: string) {
-  if (!ctx.ms) return { state: 'not_configured', provider: null, accountEmail: null, itRequest: null };
-  const { data: conn } = await ctx.db.from('calendar_connections').select('status, account_email').eq('user_id', userId).eq('provider', 'microsoft').maybeSingle();
-  const { data: it } = await ctx.db.from('calendar_it_requests').select('it_email, sent_at, status').eq('requested_by', userId).order('sent_at', { ascending: false }).limit(1).maybeSingle();
+  const hub = hubOf(ctx);
+  // matchuntTeams: Teams-Link ohne eigenen Kalender über das Matchunt-Konto möglich
+  const providers = { microsoft: !!hub.ms, google: !!hub.google, zoom: !!hub.zoom, matchuntTeams: !!(hub.ms?.appTenantId && hub.ms?.organizerUserId) };
+  const { data } = await ctx.db.from('calendar_connections').select('provider, status, account_email, connected_at').eq('user_id', userId).order('connected_at', { ascending: false });
+  const rows = (data ?? []) as any[];
+  const zoomRow = rows.find((r) => r.provider === 'zoom');
+  const zoom = !hub.zoom ? { state: 'not_configured', accountEmail: null }
+    : zoomRow?.status === 'connected' ? { state: 'connected', accountEmail: zoomRow.account_email ?? null }
+    : zoomRow && zoomRow.status !== 'revoked' ? { state: 'expired', accountEmail: zoomRow.account_email ?? null }
+    : { state: 'not_connected', accountEmail: null };
+  if (!hub.ms && !hub.google) return { state: 'not_configured', provider: null, accountEmail: null, itRequest: null, providers, zoom };
+  const cals = rows.filter((r) => (r.provider === 'microsoft' && hub.ms) || (r.provider === 'google' && hub.google));
+  const conn = cals.find((r) => r.status === 'connected') ?? cals.find((r) => r.status === 'expired' || r.status === 'error');
+  const { data: it } = hub.ms ? await ctx.db.from('calendar_it_requests').select('it_email, sent_at, status').eq('requested_by', userId).order('sent_at', { ascending: false }).limit(1).maybeSingle() : { data: null };
   const itRequest = it && it.status === 'sent' ? { itEmail: it.it_email, sentAt: it.sent_at } : null;
-  if (conn?.status === 'connected') return { state: 'connected', provider: 'microsoft', accountEmail: conn.account_email, itRequest: null };
-  if (conn && (conn.status === 'expired' || conn.status === 'error')) return { state: 'expired', provider: 'microsoft', accountEmail: conn.account_email, itRequest };
-  return { state: itRequest ? 'it_pending' : 'not_connected', provider: null, accountEmail: null, itRequest };
+  if (conn?.status === 'connected') return { state: 'connected', provider: conn.provider as CalProvider, accountEmail: conn.account_email, itRequest: null, providers, zoom };
+  if (conn) return { state: 'expired', provider: conn.provider as CalProvider, accountEmail: conn.account_email, itRequest: conn.provider === 'microsoft' ? itRequest : null, providers, zoom };
+  return { state: itRequest ? 'it_pending' : 'not_connected', provider: null, accountEmail: null, itRequest, providers, zoom };
+}
+
+/**
+ * Welche Video-Werkzeuge der Kunde beim Anfragen wählen kann (Variante B, 26.11.2026):
+ * Teams immer (am Outlook-Termin, über das Matchunt-Konto oder mit eigenem Link),
+ * Google Meet nur mit verbundenem Google-Kalender, Zoom nur mit verbundenem Zoom.
+ */
+export function videoToolsFor(ctx: ServiceCtx, calendar: Awaited<ReturnType<typeof calendarStatusFor>>) {
+  const matchuntTeams = !!(ctx.ms?.appTenantId && ctx.ms?.organizerUserId);
+  const outlook = calendar.state === 'connected' && calendar.provider === 'microsoft';
+  const google = calendar.state === 'connected' && calendar.provider === 'google';
+  const tools: { tool: VideoTool; link: 'auto' | 'manual' }[] = [
+    { tool: 'teams', link: outlook || matchuntTeams ? 'auto' : 'manual' },
+  ];
+  if (google) tools.push({ tool: 'meet', link: 'auto' });
+  if (calendar.zoom.state === 'connected') tools.push({ tool: 'zoom', link: 'auto' });
+  // Vorauswahl: das Werkzeug des eigenen Kalenders, sonst Zoom, sonst Teams
+  const preferred: VideoTool = google ? 'meet' : outlook ? 'teams' : calendar.zoom.state === 'connected' ? 'zoom' : 'teams';
+  return { tools, preferred };
 }
 
 const DEFAULT_MESSAGE = 'Vielen Dank für Ihr Interesse an der Stelle. Wir freuen uns auf ein erstes Kennenlernen und darauf, mehr über Ihre Erfahrungen zu hören.';
@@ -392,8 +419,9 @@ export async function requestContext(ctx: ServiceCtx, user: User, submissionId: 
       .eq('submission_id', submissionId).eq('meeting_format', 'onsite').order('created_at', { ascending: false }).limit(1).maybeSingle()
       .then((r: any) => r.data ?? null),
   ]);
-  // Entsteht beim Buchen ein Teams-Link? Mit verbundenem Outlook oder über das Matchunt-Konto.
-  const teamsLink: 'auto' | 'manual' = calendar.state === 'connected' || !!(ctx.ms?.appTenantId && ctx.ms?.organizerUserId) ? 'auto' : 'manual';
+  // Entsteht beim Buchen ein Link? Je Werkzeug: am Kalendertermin, über das Matchunt-Teams-Konto oder Zoom.
+  const video = videoToolsFor(ctx, calendar);
+  const teamsLink = video.tools.find((t) => t.tool === 'teams')!.link;
   return {
     submissionId,
     jobId: bundle.job.id,
@@ -420,6 +448,8 @@ export async function requestContext(ctx: ServiceCtx, user: User, submissionId: 
     },
     locationNoteDefault: lastOnsite?.location_note ?? null,
     teamsLink,
+    videoTools: video.tools,
+    preferredVideoTool: video.preferred,
     invite,
   };
 }
@@ -539,6 +569,8 @@ export async function checkTime(ctx: ServiceCtx, user: User, body: any) {
 
 interface SendDraft {
   meetingFormat: MeetingFormat;
+  /** Bei Video: Teams, Google Meet oder Zoom */
+  videoTool: VideoTool;
   onsiteAddress: string | null;
   locationNote: string | null;
   onsiteContactName: string | null;
@@ -566,7 +598,9 @@ function validateDraft(ctx: ServiceCtx, body: any, me: TeamPerson, team: TeamPer
     return new Date(t).toISOString();
   }).sort();
   const message = typeof body.message === 'string' ? body.message.trim().slice(0, 2000) : '';
-  const meetingFormat: MeetingFormat = ['teams', 'phone', 'onsite'].includes(body.meetingFormat) ? body.meetingFormat : 'teams';
+  // Video kommt als Werkzeug ('teams' | 'meet' | 'zoom'), sonst 'phone' | 'onsite'
+  const meetingFormat: MeetingFormat = ['phone', 'onsite'].includes(body.meetingFormat) ? body.meetingFormat : 'teams';
+  const videoTool: VideoTool = isVideoTool(body.meetingFormat) ? body.meetingFormat : 'teams';
   const onsiteAddress = typeof body.onsiteAddress === 'string' ? body.onsiteAddress.trim().slice(0, 300) : '';
   const locationNote = typeof body.locationNote === 'string' ? body.locationNote.trim().slice(0, 300) : '';
   if (meetingFormat === 'onsite') must(onsiteAddress.length >= 5, 'Bitte die Adresse für das Gespräch vor Ort angeben.');
@@ -575,6 +609,7 @@ function validateDraft(ctx: ServiceCtx, body: any, me: TeamPerson, team: TeamPer
   if (meetingFormat === 'onsite' && contactPhone) must(/^[+\d][\d\s/()-]{5,}$/.test(contactPhone), 'Bitte eine gültige Telefonnummer für den Ansprechpartner angeben.');
   return {
     meetingFormat,
+    videoTool,
     onsiteAddress: meetingFormat === 'onsite' ? onsiteAddress : null,
     locationNote: meetingFormat === 'onsite' && locationNote ? locationNote : null,
     onsiteContactName: meetingFormat === 'onsite' && contactName ? contactName : null,
@@ -596,7 +631,7 @@ function interviewerRefs(me: TeamPerson, attendees: AttendeeDraft[]) {
 }
 
 const draftMeeting = (draft: SendDraft, companyName: string): mails.MeetingInfo =>
-  ({ format: draft.meetingFormat, companyName, address: draft.onsiteAddress, note: draft.locationNote, contactName: draft.onsiteContactName, contactPhone: draft.onsiteContactPhone });
+  ({ format: draft.meetingFormat, tool: draft.videoTool, companyName, address: draft.onsiteAddress, note: draft.locationNote, contactName: draft.onsiteContactName, contactPhone: draft.onsiteContactPhone });
 
 export async function preview(ctx: ServiceCtx, user: User, body: any) {
   const bundle = await requireClient(ctx, user, body.submissionId);
@@ -657,8 +692,8 @@ export async function send(ctx: ServiceCtx, user: User, body: any) {
     status: 'pending_response',
     proposed_slots: draft.slots.map((datetime) => ({ datetime, status: 'available' })),
     duration_minutes: draft.durationMinutes,
-    meeting_format: draft.meetingFormat,
-    meeting_type: draft.meetingFormat,
+    meeting_format: draft.meetingFormat === 'teams' ? draft.videoTool : draft.meetingFormat,
+    meeting_type: draft.meetingFormat === 'teams' ? draft.videoTool : draft.meetingFormat,
     onsite_address: draft.onsiteAddress,
     location_note: draft.locationNote,
     onsite_contact_name: draft.onsiteContactName,
@@ -738,6 +773,7 @@ export async function send(ctx: ServiceCtx, user: User, body: any) {
       round,
       detailUrl: `${ctx.appUrl()}/recruiter/submissions/${bundle.submission.id}`,
       format: draft.meetingFormat,
+      tool: draft.videoTool,
       previousStart: moving ? open!.scheduled_at : null,
       meeting: draft.meetingFormat === 'onsite' ? draftMeeting(draft, recruiterCompanyLabel(bundle)) : null,
     });
@@ -772,7 +808,7 @@ export async function reschedule(ctx: ServiceCtx, user: User, body: any) {
   }));
   return await send(ctx, user, {
     submissionId: b.submission.id,
-    meetingFormat: formatOf(iv),
+    meetingFormat: formatOf(iv) === 'teams' ? toolOf(iv) : formatOf(iv),
     onsiteAddress: iv.onsite_address ?? null,
     locationNote: iv.location_note ?? null,
     onsiteContactName: iv.onsite_contact_name ?? null,
@@ -924,6 +960,10 @@ function stateOf(b: InterviewBundle, now: number): string {
 }
 
 const formatOf = (iv: any): MeetingFormat => (iv.meeting_format === 'phone' || iv.meeting_format === 'onsite' ? iv.meeting_format : 'teams');
+/** Name des Kalenders, in dem der Termin steht (für „steht in Ihrem …“). */
+const calendarNameOf = (iv: any): string => (iv.calendar_provider === 'google' ? 'Google Kalender' : 'Outlook');
+/** Video-Werkzeug des Gesprächs (ältere Gespräche: Teams). */
+const toolOf = (iv: any): VideoTool => (iv.meeting_format === 'meet' || iv.meeting_format === 'zoom' ? iv.meeting_format : 'teams');
 const maskPhone = (phone: string | null | undefined) => {
   const digits = String(phone ?? '').replace(/\D/g, '');
   return digits.length >= 4 ? `··· ${digits.slice(-2)}` : null;
@@ -933,7 +973,7 @@ const maskPhone = (phone: string | null | undefined) => {
 function meetingOf(b: InterviewBundle): mails.MeetingInfo {
   const iv = b.interview;
   return {
-    format: formatOf(iv), companyName: b.job.company_name, joinUrl: iv.teams_join_url ?? iv.meeting_link ?? null,
+    format: formatOf(iv), tool: toolOf(iv), companyName: b.job.company_name, joinUrl: iv.teams_join_url ?? iv.meeting_link ?? null,
     address: iv.onsite_address ?? null, note: iv.location_note ?? null, callPhone: iv.call_phone ?? null,
     contactName: iv.onsite_contact_name ?? null, contactPhone: iv.onsite_contact_phone ?? null,
   };
@@ -942,7 +982,8 @@ function meetingOf(b: InterviewBundle): mails.MeetingInfo {
 function icsLocation(m: mails.MeetingInfo, lang?: Lang | null): string {
   if (m.format === 'phone') return T(lang, 'Telefon: {co} ruft an', 'Phone: {co} will call', 'Telefon: {co} ringer', 'Telefon: {co} ringer', { co: m.companyName });
   if (m.format === 'onsite') return (m.address ?? mails.formatLabel('onsite', lang)).replace(/\s*\n\s*/g, ', ');
-  return T(lang, 'Microsoft Teams-Besprechung', 'Microsoft Teams meeting', 'Microsoft Teams-möte', 'Microsoft Teams-møte');
+  const name = TOOL_NAME[m.tool ?? 'teams'];
+  return T(lang, '{n}-Besprechung', '{n} meeting', '{n}-möte', '{n}-møte', { n: name });
 }
 
 /** Telefon-Interview: Nummer des Kandidaten (neu angegeben oder hinterlegt). */
@@ -984,6 +1025,7 @@ export async function candidateView(ctx: ServiceCtx, b: InterviewBundle) {
     jobTitle: b.job.title,
     durationMinutes: iv.duration_minutes ?? 60,
     format: formatOf(iv),
+    tool: toolOf(iv),
     onsite: formatOf(iv) === 'onsite' && iv.onsite_address ? { address: iv.onsite_address, note: iv.location_note ?? null, mapsUrl: mails.mapsUrl(iv.onsite_address), contact: mails.contactLine(meetingOf(b)) || null } : null,
     phoneOnFile: formatOf(iv) === 'phone' ? maskPhone(b.candidate.phone) : null,
     callPhone: formatOf(iv) === 'phone' ? maskPhone(iv.call_phone) : null,
@@ -1222,47 +1264,84 @@ export async function finalizeBooking(ctx: ServiceCtx, b: InterviewBundle, start
   }
   b.submission.identity_unlocked = b.submission.identity_unlocked || !!consentAt;
 
-  // Termin im Kalender des Kunden bzw. Teams-Link
+  // Termin im Kalender des Kunden (Outlook oder Google) und der Link zum Gespräch (Teams, Meet, Zoom)
   const format = formatOf(b.interview);
+  const tool = toolOf(b.interview);
+  const video = format === 'teams';
   const meeting = meetingOf(b);
   const subject = `Interview: ${b.candidate.full_name} · ${b.job.title}`;
   const appLink = `${ctx.appUrl()}/dashboard/interviews?interview=${iv.id}`;
+  const endMs = startMs + duration * 60000;
   let provider: 'client_calendar' | 'matchunt_teams' | 'none' = 'none';
   let joinUrl: string | null = null;
   const patch: Record<string, unknown> = {};
-  const token = await organizerToken(ctx, organizerId);
-  if (token) {
+  const cal = await organizerCalendar(ctx, organizerId);
+  // Teams am Outlook-Termin, Meet am Google-Termin; sonst entsteht der Link vorher
+  const calMakesLink = video && !!cal && toolOfCalendar(cal.provider) === tool;
+  const matchuntTeams = async () => {
+    if (!ctx.ms) return;
     try {
-      const phoneLine = format === 'phone' && meeting.callPhone ? `<p><strong>Bitte anrufen:</strong> ${meeting.callPhone}</p>` : '';
-      const ev = await createTeamsEvent(token, {
-        subject,
-        bodyHtml: `<p>Interview über Matchunt mit ${b.candidate.full_name} für ${b.job.title}.</p>${phoneLine}<p>Lebenslauf, Leitfaden und Umbuchen: <a href="${appLink}">${appLink}</a></p>`,
-        startMs, endMs: startMs + duration * 60000,
-        attendees: b.attendees.filter((a: any) => !a.is_organizer).map((a: any) => ({ email: a.email, name: a.name, required: a.required })),
-        transactionId: `matchunt-${iv.id}`,
-        online: format === 'teams',
-        location: format === 'teams' ? undefined : icsLocation(meeting),
-      });
-      provider = 'client_calendar';
-      joinUrl = format === 'teams' ? ev.joinUrl : null;
-      Object.assign(patch, { outlook_event_id: ev.eventId, calendar_event_id: ev.eventId, ...(format === 'teams' ? { teams_join_url: ev.joinUrl } : {}) });
-    } catch (e) {
-      console.warn('[interview] Termin im Outlook des Kunden nicht angelegt', e instanceof Error ? e.message : e);
-    }
-  }
-  if (provider === 'none' && format === 'teams' && ctx.ms) {
-    try {
-      const meeting = await createMatchuntMeeting(ctx.ms, subject, startMs, startMs + duration * 60000);
-      if (meeting) {
-        provider = 'matchunt_teams';
-        joinUrl = meeting.joinUrl;
-        Object.assign(patch, { teams_meeting_id: meeting.meetingId, teams_join_url: meeting.joinUrl });
+      const m = await createMatchuntMeeting(ctx.ms, subject, startMs, endMs);
+      if (m) {
+        joinUrl = m.joinUrl;
+        Object.assign(patch, { teams_meeting_id: m.meetingId, teams_join_url: m.joinUrl, meeting_link: m.joinUrl });
       }
     } catch (e) {
       console.warn('[interview] Matchunt-Teams-Besprechung nicht angelegt', e instanceof Error ? e.message : e);
     }
+  };
+  if (video && !calMakesLink) {
+    if (tool === 'zoom') {
+      const zt = await zoomToken(ctx.db, hubOf(ctx), organizerId);
+      if (zt) {
+        try {
+          const z = await zoomCreateMeeting(zt, { topic: subject, startMs, endMs });
+          joinUrl = z.joinUrl;
+          Object.assign(patch, { zoom_meeting_id: z.meetingId, teams_join_url: z.joinUrl, meeting_link: z.joinUrl });
+        } catch (e) {
+          console.warn('[interview] Zoom-Besprechung nicht angelegt', e instanceof Error ? e.message : e);
+        }
+      }
+    } else if (tool === 'teams') {
+      await matchuntTeams();
+    }
   }
-  await ctx.db.from('interviews').update({ ...patch, meeting_provider: provider }).eq('id', iv.id);
+  if (cal) {
+    try {
+      const phoneLine = format === 'phone' && meeting.callPhone ? `<p><strong>Bitte anrufen:</strong> ${meeting.callPhone}</p>` : '';
+      const linkLine = video && !calMakesLink && joinUrl ? `<p>${TOOL_NAME[tool]}: <a href="${joinUrl}">${joinUrl}</a></p>` : '';
+      const ev = await calCreate(cal, {
+        subject,
+        bodyHtml: `<p>Interview über Matchunt mit ${b.candidate.full_name} für ${b.job.title}.</p>${phoneLine}${linkLine}<p>Lebenslauf, Leitfaden und Umbuchen: <a href="${appLink}">${appLink}</a></p>`,
+        startMs, endMs,
+        attendees: b.attendees.filter((a: any) => !a.is_organizer).map((a: any) => ({ email: a.email, name: a.name, required: a.required })),
+        key: `matchunt-${iv.id}`,
+        withMeeting: calMakesLink,
+        location: calMakesLink ? undefined : video ? (joinUrl ?? TOOL_NAME[tool]) : icsLocation(meeting),
+      });
+      provider = 'client_calendar';
+      if (calMakesLink) {
+        joinUrl = ev.joinUrl;
+        if (ev.joinUrl) Object.assign(patch, { teams_join_url: ev.joinUrl, meeting_link: ev.joinUrl });
+      }
+      Object.assign(patch, { calendar_event_id: ev.eventId, calendar_provider: cal.provider, ...(cal.provider === 'microsoft' ? { outlook_event_id: ev.eventId } : {}) });
+    } catch (e) {
+      console.warn('[interview] Termin im Kalender des Kunden nicht angelegt', cal.provider, e instanceof Error ? e.message : e);
+    }
+  }
+  // Teams gewählt, aber am Outlook-Termin kein Link entstanden (oder kein Kalender): Matchunt-Konto
+  if (video && tool === 'teams' && !joinUrl && !patch.teams_meeting_id) {
+    await matchuntTeams();
+    if (patch.teams_meeting_id && provider === 'none') provider = 'matchunt_teams';
+  } else if (patch.teams_meeting_id && provider === 'none') {
+    provider = 'matchunt_teams';
+  }
+  const { error: patchErr } = await ctx.db.from('interviews').update({ ...patch, meeting_provider: provider }).eq('id', iv.id);
+  if (patchErr && /calendar_provider|zoom_meeting_id/.test(patchErr.message)) {
+    // Migration 20261126100000 noch nicht live: ohne die neuen Spalten speichern
+    const { calendar_provider: _c, zoom_meeting_id: _z, ...rest } = patch;
+    await ctx.db.from('interviews').update({ ...rest, meeting_provider: provider }).eq('id', iv.id);
+  }
   b.interview = { ...b.interview, ...patch, meeting_provider: provider };
 
   await sendBookingMails(ctx, b, startMs, joinUrl, provider);
@@ -1282,7 +1361,9 @@ function inviteDescription(m: mails.MeetingInfo, extra: string, lang?: Lang | nu
         mails.contactLine(m) ? `${T(lang, 'Ansprechpartner vor Ort', 'Contact on site', 'Kontaktperson på plats', 'Kontaktperson på stedet')}: ${mails.contactLine(m)}` : null,
         m.address ? `${T(lang, 'Karte', 'Map', 'Karta', 'Kart')}: ${mails.mapsUrl(m.address)}` : null].filter(Boolean).join('\n')
       : m.joinUrl
-        ? [`Microsoft Teams: ${m.joinUrl}`, T(lang, 'Teilnahme mit Teams-App oder im Browser, kein Konto nötig.', 'Join with the Teams app or in your browser, no account needed.', 'Delta via Teams-appen eller i webbläsaren, inget konto behövs.', 'Delta med Teams-appen eller i nettleseren, ingen konto nødvendig.')].join('\n\n')
+        ? [`${TOOL_NAME[m.tool ?? 'teams']}: ${m.joinUrl}`, (m.tool ?? 'teams') === 'meet'
+          ? T(lang, 'Teilnahme im Browser oder mit der Google-Meet-App, kein Konto nötig.', 'Join in your browser or with the Google Meet app, no account needed.', 'Delta i webbläsaren eller via Google Meet-appen, inget konto behövs.', 'Delta i nettleseren eller med Google Meet-appen, ingen konto nødvendig.')
+          : T(lang, 'Teilnahme mit der {n}-App oder im Browser, kein Konto nötig.', 'Join with the {n} app or in your browser, no account needed.', 'Delta via {n}-appen eller i webbläsaren, inget konto behövs.', 'Delta med {n}-appen eller i nettleseren, ingen konto nødvendig.', { n: (m.tool ?? 'teams') === 'zoom' ? 'Zoom' : 'Teams' })].join('\n\n')
         : T(lang, 'Den Link zum Gespräch bekommen Sie per Mail, sobald er feststeht.', 'You will receive the link to the interview by email as soon as it is available.', 'Länken till intervjun får du via mejl så snart den är klar.', 'Lenken til intervjuet får du på e-post så snart den er klar.');
   return [how, extra].filter(Boolean).join('\n\n');
 }
@@ -1339,7 +1420,7 @@ async function sendBookingMails(ctx: ServiceCtx, b: InterviewBundle, startMs: nu
   if (b.recruiter?.email) {
     const recLang = await langOfRecruiter(ctx, b);
     await sendInvite(ctx, b, { key: 'recruiter', email: b.recruiter.email, name: b.recruiter.name, lang: recLang }, 'REQUEST',
-      mails.recruiterUpdate({ kind: 'booked', candidateName, companyName: recruiterCompanyLabel(b), jobTitle: b.job.title, startIso, durationMinutes: duration, detailUrl: `${ctx.appUrl()}/recruiter/submissions/${b.submission.id}`, format: meeting.format, lang: recLang }),
+      mails.recruiterUpdate({ kind: 'booked', candidateName, companyName: recruiterCompanyLabel(b), jobTitle: b.job.title, startIso, durationMinutes: duration, detailUrl: `${ctx.appUrl()}/recruiter/submissions/${b.submission.id}`, format: meeting.format, tool: meeting.tool, lang: recLang }),
       { summary: icsText.recruiterSummary(b, recLang), description: inviteDescription(meeting, icsText.recruiterExtra(b, recLang), recLang), startMs },
       'interview_booked_recruiter');
   }
@@ -1349,7 +1430,7 @@ async function sendBookingMails(ctx: ServiceCtx, b: InterviewBundle, startMs: nu
   for (const a of clientSide) {
     const aLang = await langOfClient(ctx, a, organizerIdOf(b));
     if (a.is_organizer) {
-      const content = mails.clientBooked({ candidateName, jobTitle: b.job.title, startIso, durationMinutes: duration, inOutlook: provider === 'client_calendar', profileUrl: `${ctx.appUrl()}/dashboard/candidates/${b.submission.id}`, meeting, round: iv.round ?? 1, lang: aLang });
+      const content = mails.clientBooked({ candidateName, jobTitle: b.job.title, startIso, durationMinutes: duration, inOutlook: provider === 'client_calendar', calendarName: calendarNameOf(b.interview), profileUrl: `${ctx.appUrl()}/dashboard/candidates/${b.submission.id}`, meeting, round: iv.round ?? 1, lang: aLang });
       if (provider === 'client_calendar') {
         await ctx.mail({ fromEmail: ctx.fromEmail, fromName: 'Matchunt', to: a.email, ...content }, { template: 'interview_booked_client', meta: { interview_id: iv.id } });
       } else {
@@ -1373,13 +1454,21 @@ async function cancelBookedMeeting(ctx: ServiceCtx, iv: any, comment: string | (
   const b = await loadInterview(ctx.db, { id: iv.id });
   if (!b) return;
   const commentIn = (l: Lang) => (typeof comment === 'function' ? comment(l) : comment);
-  if (iv.meeting_provider === 'client_calendar' && iv.outlook_event_id) {
-    const token = await organizerToken(ctx, iv.organizer_user_id);
+  const eventId = iv.calendar_event_id ?? iv.outlook_event_id;
+  if (iv.meeting_provider === 'client_calendar' && eventId) {
+    // Ältere Termine ohne calendar_provider stehen im Outlook
+    const cal = await organizerCalendar(ctx, iv.organizer_user_id, (iv.calendar_provider as CalProvider | null) ?? 'microsoft');
     const orgLang = await langOfClient(ctx, { user_id: iv.organizer_user_id ?? null });
-    if (token) await cancelEvent(token, iv.outlook_event_id, commentIn(orgLang)).catch((e) => console.warn('[interview] Outlook-Absage gescheitert', e?.message));
+    if (cal && cal.provider === ((iv.calendar_provider as CalProvider | null) ?? 'microsoft')) {
+      await calCancel(cal, eventId, commentIn(orgLang)).catch((e) => console.warn('[interview] Kalender-Absage gescheitert', cal.provider, e?.message));
+    }
   }
-  if (iv.meeting_provider === 'matchunt_teams' && iv.teams_meeting_id && ctx.ms) {
+  if (iv.teams_meeting_id && ctx.ms) {
     await deleteMatchuntMeeting(ctx.ms, iv.teams_meeting_id).catch((e) => console.warn('[interview] Besprechung nicht gelöscht', e?.message));
+  }
+  if (iv.zoom_meeting_id) {
+    const zt = await zoomToken(ctx.db, hubOf(ctx), iv.organizer_user_id);
+    if (zt) await zoomDeleteMeeting(zt, iv.zoom_meeting_id).catch((e) => console.warn('[interview] Zoom-Besprechung nicht gelöscht', e?.message));
   }
   const { data: invites } = await ctx.db.from('interview_invites').select('recipient_key, email').eq('interview_id', iv.id).eq('last_method', 'REQUEST');
   const startMs = Date.parse(iv.scheduled_at);
@@ -1639,12 +1728,14 @@ export async function interviewDetails(ctx: ServiceCtx, user: User, body: any) {
     scheduledAt: iv.scheduled_at ?? null,
     durationMinutes: iv.duration_minutes ?? 60,
     format: formatOf(iv),
+    tool: toolOf(iv),
     joinUrl: meeting.joinUrl ?? null,
     onsite: meeting.address ? { address: meeting.address, note: meeting.note ?? null, mapsUrl: mails.mapsUrl(meeting.address), contactName: meeting.contactName ?? null, contactPhone: meeting.contactPhone ?? null } : null,
     callPhone: iv.call_phone ?? null,
     feedback: iv.feedback ?? null,
     questionAnswer,
     inOutlook: iv.meeting_provider === 'client_calendar',
+    calendarName: calendarNameOf(iv),
     proposedSlots: slots(iv.proposed_slots),
     counterSlot: slots(iv.counter_slots)[0] ?? null,
     candidateMessage: iv.candidate_message ?? null,

@@ -222,7 +222,7 @@ export function bildMasse(b: Uint8Array, typ: Typ): { w: number; h: number } | n
 }
 
 async function inflate(data: Uint8Array): Promise<Uint8Array> {
-  const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate'));
+  const stream = new Blob([data as BlobPart]).stream().pipeThrough(new DecompressionStream('deflate'));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 

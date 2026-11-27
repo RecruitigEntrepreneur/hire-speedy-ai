@@ -10,6 +10,7 @@ const de = {
     video: 'Video-Call',
     teams: 'Teams',
     meet: 'Google Meet',
+    zoom: 'Zoom',
     phone: 'Telefon',
     onsite: 'Vor Ort',
     fallback: 'Interview',
@@ -68,6 +69,9 @@ const de = {
   calendar: {
     connected: 'Outlook ist verbunden.',
     connectFailed: 'Outlook konnte nicht verbunden werden. Bitte versuchen Sie es noch einmal.',
+    connectedTool: '{{name}} ist verbunden.',
+    connectFailedTool: '{{name}} konnte nicht verbunden werden. Bitte versuchen Sie es noch einmal.',
+    rightsMissing: 'Google hat nicht alle Kalender-Rechte freigegeben. Bitte beim Verbinden alle Häkchen setzen.',
   },
   error: {
     generic: 'Das hat nicht geklappt. Bitte erneut versuchen.',

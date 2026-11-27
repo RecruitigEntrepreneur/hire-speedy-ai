@@ -99,7 +99,9 @@ serve(async (req) => {
       pages: seiten,
     });
   } catch (e) {
-    console.error('[generate-mandate-pdf]', e);
+    // Die Ursache gehoert ins Log, nicht zum Kunden -- aber sie gehoert INS Log,
+    // mit Meldung, sonst steht dort nur "[object Object]".
+    console.error('[generate-mandate-pdf]', e instanceof Error ? `${e.name}: ${e.message}` : e);
     return fail('internal_error', 'Das Dokument konnte nicht erzeugt werden.');
   }
 });

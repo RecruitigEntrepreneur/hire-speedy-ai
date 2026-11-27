@@ -8,14 +8,14 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
-import { GoogleKalenderIcon, OutlookKalenderIcon } from '@/components/brand/MarkenLogos';
+import { GoogleKalenderIcon, OutlookKalenderIcon, ZoomIcon } from '@/components/brand/MarkenLogos';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
-import type { CalendarStatus } from '@/lib/interviewScheduling';
+import { toolText, type CalendarProvider, type CalendarStatus, type ConnectProvider } from '@/lib/interviewScheduling';
 import { CALENDAR_CARD_HIDDEN_KEY, sentAgo, useCalendarReturn, useCalendarStatus } from './useCalendarStatus';
 
 type Variant = 'settings' | 'dashboard' | 'checklist';
@@ -167,7 +167,34 @@ function OutlookKnopf({ cal, returnPath, label }: { cal: Calendar; returnPath: s
   );
 }
 
-/** Google Kalender: schon zu sehen, aber noch nicht klickbar. */
+/** Ist Google Kalender bzw. Zoom bei Matchunt eingerichtet? (ältere Functions: nein) */
+const googleBereit = (status: CalendarStatus | null) => !!status?.providers?.google;
+const zoomBereit = (status: CalendarStatus | null) => !!status?.providers?.zoom && status?.zoom?.state !== 'not_configured';
+
+/** Anmeldung bei Google oder Zoom starten (Rücksprung auf returnPath). */
+function useConnectTo(cal: Calendar) {
+  const { t } = useKalT();
+  const go = (provider: ConnectProvider, returnPath: string) => cal.connectTo.mutate({ provider, returnPath }, { onError: (e) => toast.error(errorText(e)) });
+  const busy = (provider: ConnectProvider) => (cal.connectTo.isPending || cal.connectTo.isSuccess) && cal.connectTo.variables?.provider === provider;
+  const busyLabel = (provider: ConnectProvider) => (provider === 'zoom' ? t('calendar.toZoom') : t('calendar.toGoogle'));
+  return { go, busy, busyLabel };
+}
+
+/** Kleiner Google-Knopf mit App-Symbol (Leiste in der Übersicht, Checkliste). */
+function GoogleKnopf({ cal, returnPath, label }: { cal: Calendar; returnPath: string; label: string }) {
+  const { t } = useKalT();
+  const c = useConnectTo(cal);
+  const busy = c.busy('google');
+  return (
+    <button type="button" className={cn(ANBIETER_KNOPF, busy && 'pointer-events-none opacity-70')} disabled={busy}
+            onClick={() => c.go('google', returnPath)}>
+      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleKalenderIcon className="h-4 w-4" />}
+      {busy ? t('calendar.toGoogle') : label}
+    </button>
+  );
+}
+
+/** Google Kalender: schon zu sehen, aber noch nicht klickbar (solange Matchunt Google nicht eingerichtet hat). */
 function GoogleBaldKnopf() {
   const { t } = useKalT();
   return (
@@ -186,9 +213,10 @@ function AppKachel({ icon, name, zeile, rechts, aus = false }: {
 }) {
   return (
     <div aria-disabled={aus || undefined}
-         className={cn('flex flex-wrap items-center gap-3 rounded-lg border border-border/60 bg-card px-3 py-2.5 sm:flex-nowrap', aus && 'opacity-60')}>
+         className={cn('flex flex-wrap items-center gap-3 rounded-lg border border-border/60 bg-card px-3 py-2.5', aus && 'opacity-60')}>
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-muted">{icon}</span>
-      <div className="min-w-0 flex-1">
+      {/* Mindestbreite: in schmalen Spalten rutscht der Knopf unter den Text, statt ihn zu quetschen */}
+      <div className="min-w-0 flex-1 basis-44">
         <p className="text-sm font-medium">{name}</p>
         <p className="break-words text-xs text-muted-foreground">{zeile}</p>
       </div>
@@ -205,54 +233,117 @@ function GoogleKachel() {
   );
 }
 
-/** Hinten (Einstellungen › Kalender, Terminseite): Outlook und Google als App-Kacheln untereinander. */
-function KalenderKacheln({ cal, status, returnPath }: { cal: Calendar; status: CalendarStatus; returnPath: string }) {
+const kalenderName = (p: CalendarProvider, t: KalT) => (p === 'google' ? t('calendar.googleCalendar') : 'Outlook');
+
+/** Kachel eines Kalenders (Outlook oder Google) im Stand dieser Person. Je Person ein Kalender. */
+function KalenderKachel({ cal, status, returnPath, provider }: { cal: Calendar; status: CalendarStatus; returnPath: string; provider: CalendarProvider }) {
   const { t } = useKalT();
-  const mail = status.accountEmail;
+  const c = useConnectTo(cal);
+  const mine = status.provider === provider;
+  const other = status.provider && status.provider !== provider && (status.state === 'connected' || status.state === 'expired') ? status.provider : null;
+  const icon = provider === 'google' ? <GoogleKalenderIcon className="h-6 w-6" /> : <OutlookKalenderIcon className="h-6 w-6" />;
+  const name = provider === 'google' ? t('calendar.googleCalendar') : t('calendar.outlookCalendar');
+  const account = provider === 'google' ? t('calendar.googleAccount') : t('calendar.outlookAccount');
+  const knopf = (label: string, variant: 'default' | 'outline' = 'default') => (provider === 'microsoft'
+    ? <ConnectButton cal={cal} returnPath={returnPath} label={label} size="sm" variant={variant} />
+    : (
+      <Button type="button" size="sm" variant={variant} disabled={c.busy('google')} onClick={() => c.go('google', returnPath)}>
+        {c.busy('google') && <Loader2 className="h-4 w-4 animate-spin" />}
+        {c.busy('google') ? t('calendar.toGoogle') : label}
+      </Button>
+    ));
   let zeile: ReactNode;
   let rechts: ReactNode;
-  if (status.state === 'connected') {
+  const mail = status.accountEmail;
+  if (mine && status.state === 'connected') {
     zeile = <span className="inline-flex items-center gap-1"><Check className="h-3.5 w-3.5 shrink-0" />{mail ? t('calendar.connectedAs', { email: mail }) : t('calendar.connectedShort')}</span>;
-    rechts = <DisconnectButton cal={cal} />;
-  } else if (status.state === 'expired') {
+    rechts = <DisconnectButton cal={cal} name={kalenderName(provider, t)} />;
+  } else if (mine && status.state === 'expired') {
     zeile = mail ? `${t('calendar.expiredTile')} · ${mail}` : t('calendar.expiredTile');
-    rechts = <ConnectButton cal={cal} returnPath={returnPath} label={t('calendar.reconnect')} size="sm" />;
-  } else if (status.state === 'it_pending') {
+    rechts = knopf(t('calendar.reconnect'));
+  } else if (provider === 'microsoft' && status.state === 'it_pending') {
     zeile = t('calendar.waitingItLine', { line: pendingLine(status, t) });
-    rechts = <><ResendButton cal={cal} status={status} /><ConnectButton cal={cal} returnPath={returnPath} label={t('calendar.connectNow')} size="sm" variant="outline" /></>;
+    rechts = <><ResendButton cal={cal} status={status} />{knopf(t('calendar.connectNow'), 'outline')}</>;
+  } else if (other) {
+    // Der andere Kalender ist verbunden: wechseln ist möglich, ersetzt ihn aber
+    zeile = `${account} · ${t('calendar.replaces', { name: kalenderName(other, t) })}`;
+    rechts = knopf(t('calendar.switchTo'), 'outline');
   } else {
-    zeile = t('calendar.outlookAccount');
-    rechts = <ConnectButton cal={cal} returnPath={returnPath} label={t('calendar.connect')} size="sm" />;
+    zeile = account;
+    rechts = knopf(t('calendar.connect'));
   }
+  return <AppKachel icon={icon} name={name} zeile={zeile} rechts={rechts} />;
+}
+
+/** Zoom: eigenes Gesprächswerkzeug, jeder Nutzer verbindet sein Konto (26.11.2026). */
+function ZoomKachel({ cal, status, returnPath }: { cal: Calendar; status: CalendarStatus; returnPath: string }) {
+  const { t } = useKalT();
+  const c = useConnectTo(cal);
+  const z = status.zoom;
+  if (!zoomBereit(status)) {
+    return <AppKachel aus icon={<ZoomIcon className="h-6 w-6" />} name="Zoom" zeile={t('calendar.zoomAccount')}
+                      rechts={<Badge variant="secondary" className="font-normal">{t('calendar.soon')}</Badge>} />;
+  }
+  const busy = c.busy('zoom');
+  const verbinden = (label: string) => (
+    <Button type="button" size="sm" disabled={busy} onClick={() => c.go('zoom', returnPath)}>
+      {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+      {busy ? t('calendar.toZoom') : label}
+    </Button>
+  );
+  const zeile = z?.state === 'connected'
+    ? <span className="inline-flex items-center gap-1"><Check className="h-3.5 w-3.5 shrink-0" />{z.accountEmail ? t('calendar.connectedAs', { email: z.accountEmail }) : t('calendar.connectedShort')}</span>
+    : z?.state === 'expired' ? (z.accountEmail ? `${t('calendar.expiredTile')} · ${z.accountEmail}` : t('calendar.expiredTile'))
+    : t('calendar.zoomAccount');
+  const rechts = z?.state === 'connected' ? <DisconnectButton cal={cal} name="Zoom" provider="zoom" />
+    : verbinden(z?.state === 'expired' ? t('calendar.reconnect') : t('calendar.connect'));
+  return <AppKachel icon={<ZoomIcon className="h-6 w-6" />} name="Zoom" zeile={zeile} rechts={rechts} />;
+}
+
+/** Hinten (Einstellungen › Kalender, Terminseite): Outlook und Google als App-Kacheln, darunter Zoom. */
+function KalenderKacheln({ cal, status, returnPath, zwischen }: { cal: Calendar; status: CalendarStatus; returnPath: string; zwischen?: ReactNode }) {
+  const { t } = useKalT();
   return (
-    <div className="space-y-2">
-      <AppKachel icon={<OutlookKalenderIcon className="h-6 w-6" />} name={t('calendar.outlookCalendar')} zeile={zeile} rechts={rechts} />
-      <GoogleKachel />
+    <div className="space-y-4">
+      <div className="space-y-2">
+        {status.state !== 'not_configured' && <KalenderKachel cal={cal} status={status} returnPath={returnPath} provider="microsoft" />}
+        {googleBereit(status) ? <KalenderKachel cal={cal} status={status} returnPath={returnPath} provider="google" /> : <GoogleKachel />}
+      </div>
+      {/* „Wir lesen / Wir schreiben“ gehört zum Kalender, deshalb vor dem Gesprächswerkzeug */}
+      {zwischen}
+      <div className="space-y-2">
+        <div>
+          <p className="text-sm font-medium">{t('calendar.toolTitle')}</p>
+          <p className="text-xs text-muted-foreground">{t('calendar.toolLead')}</p>
+        </div>
+        <ZoomKachel cal={cal} status={status} returnPath={returnPath} />
+      </div>
     </div>
   );
 }
 
-function DisconnectButton({ cal }: { cal: Calendar }) {
+function DisconnectButton({ cal, name = 'Outlook', provider }: { cal: Calendar; name?: string; provider?: ConnectProvider }) {
   const { t } = useKalT();
+  const pending = cal.disconnect.isPending && cal.disconnect.variables === provider;
   return (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button type="button" size="sm" variant="outline" disabled={cal.disconnect.isPending}>
-          {cal.disconnect.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+        <Button type="button" size="sm" variant="outline" disabled={pending}>
+          {pending && <Loader2 className="h-4 w-4 animate-spin" />}
           {t('calendar.disconnect')}
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{t('calendar.disconnectTitle')}</AlertDialogTitle>
+          <AlertDialogTitle>{name === 'Outlook' ? t('calendar.disconnectTitle') : t('calendar.disconnectTitleTool', { name })}</AlertDialogTitle>
           <AlertDialogDescription>
-            {t('calendar.disconnectLead')}
+            {provider === 'zoom' ? t('calendar.disconnectLeadZoom') : t('calendar.disconnectLead')}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-          <AlertDialogAction onClick={() => cal.disconnect.mutate(undefined, {
-            onSuccess: () => toast.success(t('calendar.disconnected')),
+          <AlertDialogAction onClick={() => cal.disconnect.mutate(provider, {
+            onSuccess: () => toast.success(name === 'Outlook' ? t('calendar.disconnected') : t('calendar.disconnectedTool', { name })),
             onError: (e) => toast.error(errorText(e)),
           })}>
             {t('calendar.disconnect')}
@@ -301,8 +392,8 @@ function SettingsBody({ cal, itFlow, closeIt, ohneTitel = false, ruecksprung }: 
       </div>
     );
   }
-  // Ohne Microsoft-App gibt es für den Kunden nichts zu verbinden: nichts anzeigen.
-  if (status.state === 'not_configured') return null;
+  // Ohne eingerichteten Anbieter gibt es nichts zu verbinden: nichts anzeigen.
+  if (status.state === 'not_configured' && !zoomBereit(status)) return null;
   if (itFlow && status.state !== 'connected') return <ItPanel cal={cal} onClose={closeIt} />;
 
   // App-Kacheln (16.11.2026, Marko: „Hinten nehmen wir die App-Kacheln“), in jedem Stand dieselbe Form.
@@ -316,8 +407,7 @@ function SettingsBody({ cal, itFlow, closeIt, ohneTitel = false, ruecksprung }: 
         {!ohneTitel && <h3 className="text-base font-semibold">{t('calendar.connectTitle')}</h3>}
         <p className="text-sm text-muted-foreground">{lead}</p>
       </div>
-      <KalenderKacheln cal={cal} status={status} returnPath={returnPath} />
-      {status.state === 'not_connected' && (
+      <KalenderKacheln cal={cal} status={status} returnPath={returnPath} zwischen={status.state === 'not_connected' && (
         <div className="grid gap-3 text-sm sm:grid-cols-2">
           <div className="flex gap-2.5 rounded-lg bg-muted/50 px-3 py-2.5">
             <Eye className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
@@ -328,7 +418,7 @@ function SettingsBody({ cal, itFlow, closeIt, ohneTitel = false, ruecksprung }: 
             <p><strong className="font-medium">{t('calendar.weWrite')}</strong> {t('calendar.weWriteText')}</p>
           </div>
         </div>
-      )}
+      )} />
       {status.state === 'it_pending' && <DatenblattLink />}
     </div>
   );
@@ -366,7 +456,7 @@ function DashboardRow({ cal, itFlow, closeIt, className }: { cal: Calendar; itFl
   if (!showIt && (!relevant || hidden)) return null;
 
   const title = status.state === 'expired'
-    ? t('calendar.expiredShort')
+    ? toolText(t('calendar.expiredShort'), null, status.provider)
     : t('calendar.dashTitle');
   const stand = status.state === 'it_pending'
     ? t('calendar.waitingItLine', { line: pendingLine(status, t) })
@@ -387,9 +477,13 @@ function DashboardRow({ cal, itFlow, closeIt, className }: { cal: Calendar; itFl
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {status.state === 'it_pending' && <ResendButton cal={cal} status={status} />}
-          <OutlookKnopf cal={cal} returnPath={returnPath}
-                        label={status.state === 'expired' ? t('calendar.reconnect') : status.state === 'it_pending' ? t('calendar.connectNow') : t('calendar.outlookCalendar')} />
-          {status.state === 'not_connected' && <GoogleBaldKnopf />}
+          {status.state === 'expired' && status.provider === 'google'
+            ? <GoogleKnopf cal={cal} returnPath={returnPath} label={t('calendar.reconnect')} />
+            : <OutlookKnopf cal={cal} returnPath={returnPath}
+                            label={status.state === 'expired' ? t('calendar.reconnect') : status.state === 'it_pending' ? t('calendar.connectNow') : t('calendar.outlookCalendar')} />}
+          {status.state === 'not_connected' && (googleBereit(status)
+            ? <GoogleKnopf cal={cal} returnPath={returnPath} label={t('calendar.googleCalendar')} />
+            : <GoogleBaldKnopf />)}
         </div>
         <button type="button" onClick={hide} aria-label={t('calendar.hide')}
                 className="rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground">
@@ -419,20 +513,25 @@ function ChecklistLine({ cal, itFlow, closeIt, className }: { cal: Calendar; itF
   }
 
   const text = status.state === 'connected'
-    ? `${t('calendar.connected')}${status.accountEmail ? ` · ${status.accountEmail}` : ''}`
+    ? `${status.provider === 'google' ? t('calendar.connectedTool', { name: t('calendar.googleCalendar') }) : t('calendar.connected')}${status.accountEmail ? ` · ${status.accountEmail}` : ''}`
     : status.state === 'it_pending'
     ? t('calendar.waitingItLine', { line: pendingLine(status, t) })
     : status.state === 'expired'
-    ? t('calendar.expired')
+    ? toolText(t('calendar.expired'), null, status.provider)
     : t('calendar.checklistOpen');
 
   return (
     <div className={cn('flex flex-wrap items-center gap-2 text-sm', className)}>
       <span className="flex-1 text-muted-foreground">{text}</span>
       {status.state === 'it_pending' && <ResendButton cal={cal} status={status} />}
-      {(status.state === 'not_connected' || status.state === 'expired' || status.state === 'it_pending') && (
-        <OutlookKnopf cal={cal} returnPath={returnPath}
-                      label={status.state === 'expired' ? t('calendar.reconnect') : status.state === 'it_pending' ? t('calendar.connectNow') : t('calendar.connectOutlook')} />
+      {status.state === 'expired' && status.provider === 'google'
+        ? <GoogleKnopf cal={cal} returnPath={returnPath} label={t('calendar.reconnect')} />
+        : (status.state === 'not_connected' || status.state === 'expired' || status.state === 'it_pending') && (
+          <OutlookKnopf cal={cal} returnPath={returnPath}
+                        label={status.state === 'expired' ? t('calendar.reconnect') : status.state === 'it_pending' ? t('calendar.connectNow') : t('calendar.connectOutlook')} />
+        )}
+      {status.state === 'not_connected' && googleBereit(status) && (
+        <GoogleKnopf cal={cal} returnPath={returnPath} label={t('calendar.googleCalendar')} />
       )}
     </div>
   );
@@ -454,6 +553,8 @@ function KachelnBald() {
       <AppKachel aus icon={<OutlookKalenderIcon className="h-6 w-6" />} name={t('calendar.outlookCalendar')} zeile={t('calendar.outlookAccount')}
                  rechts={<Badge variant="secondary" className="font-normal">{t('calendar.soon')}</Badge>} />
       <GoogleKachel />
+      <AppKachel aus icon={<ZoomIcon className="h-6 w-6" />} name="Zoom" zeile={t('calendar.zoomAccount')}
+                 rechts={<Badge variant="secondary" className="font-normal">{t('calendar.soon')}</Badge>} />
     </div>
   );
 }

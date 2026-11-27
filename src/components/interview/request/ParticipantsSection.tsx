@@ -1,5 +1,5 @@
+import { useKalenderT } from './kalenderText';
 import { useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { AlertTriangle, Gavel, Loader2, Mail, Plus, UserPlus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,7 +32,7 @@ interface Props {
 
 /** „Ihr Name für die Einladung“, wenn im Konto nur die Firma steht. */
 function OwnNameField({ onSave }: { onSave: (name: string) => Promise<void> }) {
-  const { t } = useTranslation('clientInterviews');
+  const { t } = useKalenderT('clientInterviews');
   const [value, setValue] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -91,7 +91,7 @@ function OutlookMark({ className }: { className?: string }) {
 }
 
 function RequiredToggle({ value, onChange, disabled }: { value: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
-  const { t } = useTranslation('clientInterviews');
+  const { t } = useKalenderT('clientInterviews');
   return (
     <div className="inline-flex shrink-0 rounded-full border p-0.5 text-[11px]" role="group" aria-label={t('people.participation')}>
       {[
@@ -125,7 +125,7 @@ function ExternalPersonForm({ existing, onAdd, open, setOpen, initial }: {
   setOpen: (o: boolean) => void;
   initial: string;
 }) {
-  const { t } = useTranslation('clientInterviews');
+  const { t } = useKalenderT('clientInterviews');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   useEffect(() => {
@@ -193,7 +193,7 @@ function ExternalPersonForm({ existing, onAdd, open, setOpen, initial }: {
 }
 
 export function ParticipantsSection({ submissionId, jobTitle, invite, me, team, attendees, onChange, people, calendarConnected, needsName, onSaveName }: Props) {
-  const { t } = useTranslation('clientInterviews');
+  const { t } = useKalenderT('clientInterviews');
   const [teamOpen, setTeamOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [inviteOpen, setInviteOpen] = useState(false);

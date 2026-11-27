@@ -31,7 +31,11 @@ import { serviceClient } from '../_shared/intake-core.ts';
 import { checkLimits, LIMITS } from '../_shared/intake-limits.ts';
 import { generateToken, hashToken } from '../_shared/tokens.ts';
 import { getPublicAppUrl } from '../_shared/app-url.ts';
-import { createTeamsEvent, deleteEvent, getBusy, loadConnection, msConfig, userAccessToken } from '../_shared/msgraph-calendar.ts';
+import { createMatchuntMeeting } from '../_shared/msgraph-calendar.ts';
+import {
+  calBusy, calCreate, calDelete, hubConfig, TOOL_NAME, toolOfCalendar, userCalendar, zoomCreateMeeting, zoomDeleteMeeting, zoomToken,
+  type CalProvider, type UserCalendar, type VideoTool,
+} from '../_shared/calendar-hub.ts';
 import type { Interval } from '../_shared/interview-availability.ts';
 import { buildIcs } from '../_shared/interview-ics.ts';
 import { sendInterviewMail } from '../_shared/interview-mailer.ts';
@@ -107,23 +111,28 @@ async function gehaltZeigen(db: SupabaseClient, recruiterId: string, jobId: stri
   return data?.[0]?.show_salary ?? true;
 }
 
-/** Outlook des Headhunters: Token und belegte Zeiten. null = nicht verbunden oder nicht lesbar. */
-async function kalender(db: SupabaseClient, recruiterId: string, fromMs: number, toMs: number): Promise<{ token: string; busy: Interval[] } | null> {
-  // Nur für lokale Tests (TERMIN_TEST_KALENDER=1): morgen 10–11 Uhr belegt, kein Outlook. In Lovable nie setzen.
+interface KalenderStand { cal: UserCalendar | null; busy: Interval[]; test?: boolean }
+
+/**
+ * Kalender des Headhunters (Outlook oder Google): Zugang und belegte Zeiten.
+ * Ohne Kalender (26.11.2026, Marko: „Variante B“): keine belegten Zeiten, die Seite zeigt
+ * seine Buchungszeiten minus gebuchte Matchunt-Gespräche; Doppelbelegung ist möglich,
+ * darauf weist die Einstellung beim Freischalten hin.
+ * null = Kalender verbunden, aber gerade nicht lesbar.
+ */
+async function kalender(db: SupabaseClient, recruiterId: string, fromMs: number, toMs: number, prefer?: CalProvider | null): Promise<KalenderStand | null> {
+  // Nur für lokale Tests (TERMIN_TEST_KALENDER=1): morgen 10–11 Uhr belegt, kein echter Kalender. In Lovable nie setzen.
   if (Deno.env.get('TERMIN_TEST_KALENDER') === '1') {
     const morgen = new Date(Date.now() + 86400000);
     const zehn = Date.parse(`${morgen.toISOString().slice(0, 10)}T08:00:00Z`);
-    return { token: '', busy: [{ start: zehn, end: zehn + 3600000 }] };
+    return { cal: null, busy: [{ start: zehn, end: zehn + 3600000 }], test: true };
   }
-  const cfg = msConfig();
-  if (!cfg) return null;
-  const conn = await loadConnection(db, recruiterId);
-  const adresse = (conn as any)?.account_email ? String((conn as any).account_email).toLowerCase() : null;
-  if (!adresse) return null;
-  const token = await userAccessToken(db, cfg, recruiterId).catch(() => null);
-  if (!token) return null;
-  const busy = await getBusy(token, [adresse], fromMs, toMs).then((r) => r[adresse] ?? null).catch(() => null);
-  return busy ? { token, busy } : null;
+  const cal = await userCalendar(db, hubConfig(), recruiterId, prefer);
+  // Kein (oder abgelaufener) Kalender: nur die eigenen Buchungszeiten
+  if (!cal?.accountEmail) return { cal: null, busy: [] };
+  const adresse = cal.accountEmail;
+  const busy = await calBusy(cal, [adresse], fromMs, toMs).then((r) => r[adresse] ?? null).catch(() => null);
+  return busy ? { cal, busy } : null;
 }
 
 async function gebuchteZeiten(db: SupabaseClient, recruiterId: string, fromMs: number, toMs: number, ohne?: string): Promise<Interval[]> {
@@ -132,13 +141,14 @@ async function gebuchteZeiten(db: SupabaseClient, recruiterId: string, fromMs: n
   return (data ?? []).filter((b: any) => b.id !== ohne).map((b: any) => ({ start: Date.parse(b.starts_at), end: Date.parse(b.ends_at) }));
 }
 
-async function zeitenFuer(db: SupabaseClient, seite: Seite, ohne?: string): Promise<{ verbunden: boolean; tage: { tag: string; zeiten: string[] }[] }> {
+async function zeitenFuer(db: SupabaseClient, seite: Seite, ohne?: string): Promise<{ verbunden: boolean; ohneKalender?: boolean; tage: { tag: string; zeiten: string[] }[] }> {
   const jetzt = Date.now();
   const bis = jetzt + seite.e.rules.horizonDays * 86400000;
   const k = await kalender(db, seite.recruiter_id, jetzt, bis);
   if (!k) return { verbunden: false, tage: [] };
   const gebucht = await gebuchteZeiten(db, seite.recruiter_id, jetzt, bis, ohne);
-  return { verbunden: true, tage: nachTagen(freieZeiten(seite.e, jetzt, k.busy, gebucht)) };
+  // ohneKalender: Der Kandidat liest dann nicht „belegte Zeiten aus dem Kalender sind ausgeblendet“
+  return { verbunden: true, ohneKalender: !k.cal && !k.test, tage: nachTagen(freieZeiten(seite.e, jetzt, k.busy, gebucht)) };
 }
 
 const headhunterOeffentlich = (s: Seite) => ({ name: s.name, initialen: initialen(s.name), titel: s.titel, linkedin: s.linkedin });
@@ -158,8 +168,10 @@ async function seiteZeigen(db: SupabaseClient, body: any) {
     offen: buchbar,
     pausiert: !seite.active,
     kalender: z.verbunden,
+    ohne_kalender: !!z.ohneKalender,
     dauer: seite.e.dauer,
     arten: seite.e.arten,
+    werkzeug: seite.e.videoTool,
     tage: z.tage,
   });
 }
@@ -204,7 +216,7 @@ async function einladungZeigen(db: SupabaseClient, body: any) {
   const buchbar = stand === 'offen' && seite.active;
   const z = buchbar ? await zeitenFuer(db, seite) : { verbunden: true, tage: [] };
   return json({
-    stand, offen: buchbar, pausiert: !seite.active, kalender: z.verbunden, tage: z.tage, dauer: seite.e.dauer, arten: inv.arten,
+    stand, offen: buchbar, pausiert: !seite.active, kalender: z.verbunden, tage: z.tage, dauer: seite.e.dauer, arten: inv.arten, werkzeug: seite.e.videoTool,
     headhunter: headhunterOeffentlich(seite), vorname: zerlegeName(kand.full_name ?? '').first_name,
     email_maskiert: maskiert(kand.email), telefon_bekannt: (String(kand.phone ?? '').match(/\d/g) ?? []).length >= 6,
     lebenslauf: await lebenslaufStand(db, kand.id),
@@ -462,16 +474,16 @@ async function akteVorbefuellen(db: SupabaseClient, candidateId: string, roh: st
   if (!sp && cv.languages.length) await db.from('candidate_languages').insert(cv.languages.map((l) => ({ candidate_id: candidateId, language: l.language, proficiency: l.level || null })));
 }
 
-function icsFuer(o: { bookingId: string; sequence: number; method: 'REQUEST' | 'CANCEL'; startIso: string; dauer: number; seite: Seite; stelle: string | null; mode: Gespraechsart; joinUrl: string | null; email: string; name: string; verwaltenUrl: string; lang?: Lang | null }) {
+function icsFuer(o: { bookingId: string; sequence: number; method: 'REQUEST' | 'CANCEL'; startIso: string; dauer: number; seite: Seite; stelle: string | null; mode: Gespraechsart; tool?: VideoTool; joinUrl: string | null; email: string; name: string; verwaltenUrl: string; lang?: Lang | null }) {
   // Kalendertext in der Sprache des Kandidaten (ohne Angabe Deutsch wie bisher)
   const verwaltenUrl = withLang(o.verwaltenUrl, o.lang);
   return buildIcs({
     method: o.method, uid: `termin-${o.bookingId}@matchunt.ai`, sequence: o.sequence, startIso: o.startIso, durationMinutes: o.dauer, lang: o.lang,
     summary: `${tr(o.lang, { de: 'Gespräch mit {name}', en: 'Call with {name}', sv: 'Samtal med {name}', nb: 'Samtale med {name}' }, { name: o.seite.name })}${o.stelle ? ` · ${o.stelle}` : ''}`,
     description: `${o.mode === 'teams'
-      ? `Microsoft Teams: ${o.joinUrl ?? tr(o.lang, { de: 'Link folgt per Mail', en: 'Link to follow by email', sv: 'Länken kommer via mejl', nb: 'Lenken kommer på e-post' })}`
+      ? `${TOOL_NAME[o.tool ?? 'teams']}: ${o.joinUrl ?? tr(o.lang, { de: 'Link folgt per Mail', en: 'Link to follow by email', sv: 'Länken kommer via mejl', nb: 'Lenken kommer på e-post' })}`
       : tr(o.lang, { de: '{name} ruft dich an.', en: '{name} will call you.', sv: '{name} ringer dig.', nb: '{name} ringer deg.' }, { name: o.seite.vorname })}\n${tr(o.lang, { de: 'Verschieben oder absagen', en: 'Reschedule or cancel', sv: 'Flytta eller avboka', nb: 'Flytt eller avlys' })}: ${verwaltenUrl}`,
-    location: o.mode === 'teams' ? 'Microsoft Teams' : tr(o.lang, { de: 'Telefon', en: 'Phone', sv: 'Telefon', nb: 'Telefon' }), url: verwaltenUrl,
+    location: o.mode === 'teams' ? TOOL_NAME[o.tool ?? 'teams'] : tr(o.lang, { de: 'Telefon', en: 'Phone', sv: 'Telefon', nb: 'Telefon' }), url: verwaltenUrl,
     organizerEmail: FROM_EMAIL(), organizerName: `${o.seite.name} über Matchunt`, attendeeEmail: o.email, attendeeName: o.name,
   });
 }
@@ -480,14 +492,90 @@ function icsFuer(o: { bookingId: string; sequence: number; method: 'REQUEST' | '
 const kandidatSprache = async (db: SupabaseClient, body: any, recruiterId: string): Promise<Lang> =>
   normLang(body?.lang) ?? await candidateLanguage(db, recruiterId);
 
-async function ereignisAnlegen(token: string, o: { bookingId: string; startMs: number; endMs: number; name: string; stelle: string | null; mode: Gespraechsart; phone: string | null; akteUrl: string; herkunft: string }) {
-  if (!token) return { eventId: null as unknown as string, joinUrl: o.mode === 'teams' ? 'https://teams.microsoft.com/l/meetup-join/test-matchunt' : null }; // Testkalender
-  return createTeamsEvent(token, {
-    subject: `Erstgespräch ${o.name}${o.stelle ? ` · ${o.stelle}` : ''} (Matchunt)`,
-    bodyHtml: `<p>${o.mode === 'phone' ? `Telefon: ${o.phone ?? ''} · du rufst an` : 'Microsoft Teams'}</p><p>Akte: <a href="${o.akteUrl}">${o.akteUrl}</a></p><p>Gebucht über ${o.herkunft === 'linkedin_beitrag' ? 'deinen LinkedIn-Beitrag' : 'deine Terminseite'}.</p>`,
-    startMs: o.startMs, endMs: o.endMs, attendees: [], transactionId: `termin-${o.bookingId}-${o.startMs}`,
-    online: o.mode === 'teams', location: o.mode === 'phone' ? `Telefon ${o.phone ?? ''}` : undefined,
-  });
+interface Ereignis { eventId: string | null; joinUrl: string | null; zoomMeetingId: string | null; calendarProvider: CalProvider | null }
+
+/**
+ * Termin im Kalender des Headhunters und der Link zum Gespräch:
+ * Teams am Outlook-Termin, Meet am Google-Termin, Zoom als eigene Besprechung.
+ * Ein Teil darf scheitern; was entstanden ist, kommt zurück.
+ */
+async function ereignisAnlegen(db: SupabaseClient, recruiterId: string, k: KalenderStand, o: { bookingId: string; startMs: number; endMs: number; name: string; stelle: string | null; mode: Gespraechsart; tool: VideoTool; phone: string | null; akteUrl: string; herkunft: string }): Promise<Ereignis> {
+  const video = o.mode === 'teams';
+  if (k.test) return { eventId: null, joinUrl: video ? `https://example.test/${o.tool}-test-matchunt` : null, zoomMeetingId: null, calendarProvider: null }; // Testkalender
+  const cal = k.cal;
+  const subject = `Erstgespräch ${o.name}${o.stelle ? ` · ${o.stelle}` : ''} (Matchunt)`;
+  const out: Ereignis = { eventId: null, joinUrl: null, zoomMeetingId: null, calendarProvider: null };
+  const amTermin = video && !!cal && toolOfCalendar(cal.provider) === o.tool;
+  if (video && !amTermin) {
+    try {
+      if (o.tool === 'zoom') {
+        const zt = await zoomToken(db, hubConfig(), recruiterId);
+        if (zt) {
+          const z = await zoomCreateMeeting(zt, { topic: subject, startMs: o.startMs, endMs: o.endMs });
+          out.joinUrl = z.joinUrl; out.zoomMeetingId = z.meetingId;
+        }
+      } else if (o.tool === 'teams') {
+        // Teams ohne Outlook (Google oder gar kein Kalender): Besprechung über das Matchunt-Konto
+        const cfg = hubConfig().ms;
+        const m = cfg ? await createMatchuntMeeting(cfg, subject, o.startMs, o.endMs) : null;
+        if (m) out.joinUrl = m.joinUrl;
+      }
+    } catch (e) {
+      console.error('termin-seite link', o.tool, e instanceof Error ? e.message : e);
+    }
+  }
+  // Ohne Kalender: kein Termin bei ihm, er bekommt die Kalenderdatei per Mail (kalenderDateiFuerHH)
+  if (!cal) return out;
+  const wie = o.mode === 'phone' ? `Telefon: ${o.phone ?? ''} · du rufst an` : `${TOOL_NAME[o.tool]}${out.joinUrl ? `: <a href="${out.joinUrl}">${out.joinUrl}</a>` : ''}`;
+  try {
+    const ev = await calCreate(cal, {
+      subject,
+      bodyHtml: `<p>${wie}</p><p>Akte: <a href="${o.akteUrl}">${o.akteUrl}</a></p><p>Gebucht über ${o.herkunft === 'linkedin_beitrag' ? 'deinen LinkedIn-Beitrag' : 'deine Terminseite'}.</p>`,
+      startMs: o.startMs, endMs: o.endMs, attendees: [], key: `termin-${o.bookingId}-${o.startMs}`,
+      withMeeting: amTermin, location: o.mode === 'phone' ? `Telefon ${o.phone ?? ''}` : amTermin ? undefined : (out.joinUrl ?? TOOL_NAME[o.tool]),
+    });
+    out.eventId = ev.eventId;
+    out.calendarProvider = cal.provider;
+    if (amTermin) out.joinUrl = ev.joinUrl;
+  } catch (e) {
+    console.error('termin-seite kalender', cal.provider, e instanceof Error ? e.message : e);
+  }
+  return out;
+}
+
+/**
+ * Kalenderdatei für den Headhunter, wenn der Termin nicht in seinem Kalender steht
+ * (kein Kalender verbunden oder Eintrag gescheitert). Eigene UID, damit Verschieben
+ * und Absagen denselben Eintrag bei ihm ändern.
+ */
+function kalenderDateiFuerHH(o: { bookingId: string; method: 'REQUEST' | 'CANCEL'; startIso: string; dauer: number; name: string; stelle: string | null; mode: Gespraechsart; tool: VideoTool; joinUrl: string | null; phone: string | null; akteUrl: string; hhEmail: string; hhName: string; lang?: Lang | null }) {
+  const wie = o.mode === 'teams'
+    ? `${TOOL_NAME[o.tool]}: ${o.joinUrl ?? tr(o.lang, { de: 'kein Link entstanden, bitte selbst schicken', en: 'no link created, please send your own', sv: 'ingen länk skapades, skicka din egen', nb: 'ingen lenke ble opprettet, send din egen' })}`
+    : tr(o.lang, { de: 'Telefon: {p} · du rufst an', en: 'Phone: {p} · you call', sv: 'Telefon: {p} · du ringer', nb: 'Telefon: {p} · du ringer' }, { p: o.phone ?? '' });
+  return {
+    method: o.method,
+    content: buildIcs({
+      method: o.method, uid: `termin-hh-${o.bookingId}@matchunt.ai`, sequence: Math.floor(Date.now() / 1000), startIso: o.startIso, durationMinutes: o.dauer, lang: o.lang,
+      summary: `${tr(o.lang, { de: 'Erstgespräch', en: 'Intro call', sv: 'Första samtal', nb: 'Første samtale' })} ${o.name}${o.stelle ? ` · ${o.stelle}` : ''}`,
+      description: `${wie}\n${tr(o.lang, { de: 'Akte', en: 'Profile', sv: 'Profil', nb: 'Profil' })}: ${o.akteUrl}`,
+      location: o.mode === 'teams' ? (o.joinUrl ?? TOOL_NAME[o.tool]) : `${tr(o.lang, { de: 'Telefon', en: 'Phone', sv: 'Telefon', nb: 'Telefon' })} ${o.phone ?? ''}`.trim(),
+      url: o.joinUrl ?? undefined,
+      organizerEmail: FROM_EMAIL(), organizerName: 'Matchunt', attendeeEmail: o.hhEmail, attendeeName: o.hhName,
+    }),
+  };
+}
+
+/** Termin und Zoom-Besprechung einer Buchung entfernen (Verschieben, Absagen). */
+async function ereignisEntfernen(db: SupabaseClient, t: any, cal?: UserCalendar | null) {
+  const provider = (t.calendar_provider as CalProvider | null) ?? 'microsoft';
+  if (t.outlook_event_id) {
+    const c = cal && cal.provider === provider ? cal : await userCalendar(db, hubConfig(), t.recruiter_id, provider);
+    if (c && c.provider === provider) await calDelete(c, t.outlook_event_id).catch((e) => console.error('termin-seite kalender löschen', e));
+  }
+  if (t.zoom_meeting_id) {
+    const zt = await zoomToken(db, hubConfig(), t.recruiter_id);
+    if (zt) await zoomDeleteMeeting(zt, t.zoom_meeting_id).catch((e) => console.error('termin-seite zoom löschen', e));
+  }
 }
 
 async function buchen(db: SupabaseClient, body: any, ip: string | null) {
@@ -558,34 +646,36 @@ async function buchen(db: SupabaseClient, body: any, ip: string | null) {
   const name = `${b.first_name} ${b.last_name}`.trim();
   const stellenTitel = stelle?.job.title ?? null;
 
-  let joinUrl: string | null = null;
-  let eventId: string | null = null;
-  try {
-    const ev = await ereignisAnlegen(k.token, { bookingId: row.id, startMs, endMs, name, stelle: stellenTitel, mode: b.mode, phone: b.phone, akteUrl, herkunft });
-    eventId = ev.eventId;
-    joinUrl = ev.joinUrl;
-  } catch (e) {
-    console.error('termin-seite outlook', e instanceof Error ? e.message : e);
-  }
-  await db.from('recruiter_bookings').update({ candidate_id: kandidat.id, outlook_event_id: eventId, join_url: joinUrl }).eq('id', row.id);
+  const tool: VideoTool = seite.e.videoTool;
+  const ev = await ereignisAnlegen(db, seite.recruiter_id, k, { bookingId: row.id, startMs, endMs, name, stelle: stellenTitel, mode: b.mode, tool, phone: b.phone, akteUrl, herkunft });
+  const joinUrl = ev.joinUrl;
+  const eventId = ev.eventId;
+  const basis = { candidate_id: kandidat.id, outlook_event_id: eventId, join_url: joinUrl };
+  const { error: neuErr } = await db.from('recruiter_bookings').update({
+    ...basis, ...(b.mode === 'teams' ? { video_tool: tool } : {}), calendar_provider: ev.calendarProvider, zoom_meeting_id: ev.zoomMeetingId,
+  }).eq('id', row.id);
+  // Migration 20261126100000 noch nicht live: ohne die neuen Spalten speichern
+  if (neuErr) await db.from('recruiter_bookings').update(basis).eq('id', row.id);
 
   // Mit der Einladung angefragt: Lebenslauf oder LinkedIn erledigen die Anfrage, sonst Link zum Nachreichen in der Mail.
   if (einl && (upload || b.linkedin_url)) await lebenslaufEingegangen(db, { recruiterId: seite.recruiter_id, candidateId: kandidat.id, name, upload: upload && b.upload_id ? { id: b.upload_id, raw_text: upload.raw_text, hints: upload.hints } : null, linkedin: upload ? null : b.linkedin_url, vorbefuellen: false });
   const nachreichen = einl && !upload && (await lebenslaufStand(db, kandidat.id)) === 'angefragt' ? `${app}/t/einladung/${body.einladung}` : null;
   const kLang = await kandidatSprache(db, body, seite.recruiter_id);
   const hhLang = await recruiterLanguage(db, seite.recruiter_id);
-  const anKandidat = kandidatBestaetigt({ vorname: b.first_name, hhName: seite.name, stelle: stellenTitel, startIso: b.start, dauer: seite.e.dauer, mode: b.mode, joinUrl, verwaltenUrl, mitLebenslauf: !!upload, lebenslaufUrl: nachreichen, lang: kLang });
+  const anKandidat = kandidatBestaetigt({ vorname: b.first_name, hhName: seite.name, stelle: stellenTitel, startIso: b.start, dauer: seite.e.dauer, mode: b.mode, tool, joinUrl, verwaltenUrl, mitLebenslauf: !!upload, lebenslaufUrl: nachreichen, lang: kLang });
   await sendInterviewMail({
     fromEmail: FROM_EMAIL(), fromName: viaMatchunt(seite.name, kLang), to: b.email, subject: anKandidat.subject, html: anKandidat.html, text: anKandidat.text,
     replyTo: seite.email ?? undefined,
-    ics: { method: 'REQUEST', content: icsFuer({ bookingId: row.id, sequence: 0, method: 'REQUEST', startIso: b.start, dauer: seite.e.dauer, seite, stelle: stellenTitel, mode: b.mode, joinUrl, email: b.email, name, verwaltenUrl, lang: kLang }) },
+    ics: { method: 'REQUEST', content: icsFuer({ bookingId: row.id, sequence: 0, method: 'REQUEST', startIso: b.start, dauer: seite.e.dauer, seite, stelle: stellenTitel, mode: b.mode, tool, joinUrl, email: b.email, name, verwaltenUrl, lang: kLang }) },
   }).catch((e) => console.error('termin-seite mail kandidat', e));
   if (seite.email) {
     const anHH = headhunterNeu({
       hhVorname: seite.vorname, kandidat: { name, email: b.email, phone: b.phone, linkedin: b.linkedin_url, note: b.note }, stelle: stellenTitel,
-      startIso: b.start, dauer: seite.e.dauer, mode: b.mode, joinUrl, imOutlook: !!eventId, akteUrl, herkunft, lebenslauf: !!upload, lang: hhLang,
+      startIso: b.start, dauer: seite.e.dauer, mode: b.mode, tool, joinUrl, imOutlook: !!eventId, kalenderName: ev.calendarProvider === 'google' ? 'Google Kalender' : 'Outlook', akteUrl, herkunft, lebenslauf: !!upload, lang: hhLang,
     });
-    await sendInterviewMail({ fromEmail: FROM_EMAIL(), fromName: 'Matchunt', to: seite.email, subject: anHH.subject, html: anHH.html, text: anHH.text, replyTo: b.email })
+    // Ohne Termin in seinem Kalender: Kalenderdatei an die Mail (26.11.2026)
+    const hhIcs = eventId ? undefined : kalenderDateiFuerHH({ bookingId: row.id, method: 'REQUEST', startIso: b.start, dauer: seite.e.dauer, name, stelle: stellenTitel, mode: b.mode, tool, joinUrl, phone: b.phone, akteUrl, hhEmail: seite.email, hhName: seite.name, lang: hhLang });
+    await sendInterviewMail({ fromEmail: FROM_EMAIL(), fromName: 'Matchunt', to: seite.email, subject: anHH.subject, html: anHH.html, text: anHH.text, replyTo: b.email, ...(hhIcs ? { ics: hhIcs } : {}) })
       .catch((e) => console.error('termin-seite mail headhunter', e));
   }
   await db.from('notifications').insert({
@@ -599,7 +689,7 @@ async function buchen(db: SupabaseClient, body: any, ip: string | null) {
   }).then(() => undefined, () => undefined);
   if (upload?.raw_text) imHintergrund(akteVorbefuellen(db, kandidat.id, upload.raw_text, upload.hints));
 
-  return json({ ok: true, termin: { start: b.start, ende: new Date(endMs).toISOString(), mode: b.mode, join_url: joinUrl, headhunter: seite.name }, verwalten_url: verwaltenUrl });
+  return json({ ok: true, termin: { start: b.start, ende: new Date(endMs).toISOString(), mode: b.mode, werkzeug: tool, join_url: joinUrl, headhunter: seite.name }, verwalten_url: verwaltenUrl });
 }
 
 async function ladeTermin(db: SupabaseClient, token: unknown) {
@@ -618,7 +708,7 @@ async function terminZeigen(db: SupabaseClient, body: any) {
   const vorbei = Date.parse(t.starts_at) < Date.now();
   const z = t.status === 'booked' && !vorbei ? await zeitenFuer(db, seite, t.id) : { verbunden: true, tage: [] };
   return json({
-    status: vorbei && t.status === 'booked' ? 'vorbei' : t.status, start: t.starts_at, ende: t.ends_at, mode: t.mode, join_url: t.join_url,
+    status: vorbei && t.status === 'booked' ? 'vorbei' : t.status, start: t.starts_at, ende: t.ends_at, mode: t.mode, werkzeug: t.video_tool ?? 'teams', join_url: t.join_url,
     vorname: t.first_name, headhunter: headhunterOeffentlich(seite), stelle, dauer: seite.e.dauer, tage: z.tage,
   });
 }
@@ -640,29 +730,30 @@ async function verschieben(db: SupabaseClient, body: any) {
   const app = getPublicAppUrl();
   const akteUrl = t.candidate_id ? `${app}/recruiter/candidates/${t.candidate_id}` : `${app}/recruiter/interviews`;
   const name = `${t.first_name} ${t.last_name}`;
-  if (t.outlook_event_id && k.token) await deleteEvent(k.token, t.outlook_event_id).catch((e) => console.error('termin-seite outlook löschen', e));
-  let joinUrl: string | null = null;
-  let eventId: string | null = null;
-  try {
-    const ev = await ereignisAnlegen(k.token, { bookingId: t.id, startMs, endMs, name, stelle, mode: t.mode, phone: t.phone, akteUrl, herkunft: t.source });
-    eventId = ev.eventId; joinUrl = ev.joinUrl;
-  } catch (e) { console.error('termin-seite outlook', e instanceof Error ? e.message : e); }
-  const { error } = await db.from('recruiter_bookings').update({ starts_at: start, ends_at: new Date(endMs).toISOString(), outlook_event_id: eventId, join_url: joinUrl }).eq('id', t.id);
+  await ereignisEntfernen(db, t, k.cal);
+  const tool: VideoTool = (t.video_tool as VideoTool | null) ?? 'teams';
+  const ev = await ereignisAnlegen(db, seite.recruiter_id, k, { bookingId: t.id, startMs, endMs, name, stelle, mode: t.mode, tool, phone: t.phone, akteUrl, herkunft: t.source });
+  const joinUrl = ev.joinUrl;
+  const eventId = ev.eventId;
+  const zeit = { starts_at: start, ends_at: new Date(endMs).toISOString(), outlook_event_id: eventId, join_url: joinUrl };
+  let { error } = await db.from('recruiter_bookings').update({ ...zeit, calendar_provider: ev.calendarProvider, zoom_meeting_id: ev.zoomMeetingId }).eq('id', t.id);
+  if (error && /calendar_provider|zoom_meeting_id/.test(error.message)) ({ error } = await db.from('recruiter_bookings').update(zeit).eq('id', t.id));
   muss(!error, error?.code === '23505' ? 'conflict' : 'internal_error', error?.code === '23505' ? 'Diese Zeit wurde eben vergeben.' : 'Der Termin konnte nicht verschoben werden.');
   const verwaltenUrl = `${app}/t/termin/${body.token}`;
   const kLang = await kandidatSprache(db, body, seite.recruiter_id);
-  const anKandidat = kandidatBestaetigt({ vorname: t.first_name, hhName: seite.name, stelle, startIso: start, dauer: seite.e.dauer, mode: t.mode, joinUrl, verwaltenUrl, mitLebenslauf: false, verschoben: true, lang: kLang });
+  const anKandidat = kandidatBestaetigt({ vorname: t.first_name, hhName: seite.name, stelle, startIso: start, dauer: seite.e.dauer, mode: t.mode, tool, joinUrl, verwaltenUrl, mitLebenslauf: false, verschoben: true, lang: kLang });
   await sendInterviewMail({
     fromEmail: FROM_EMAIL(), fromName: viaMatchunt(seite.name, kLang), to: t.email, subject: anKandidat.subject, html: anKandidat.html, text: anKandidat.text, replyTo: seite.email ?? undefined,
-    ics: { method: 'REQUEST', content: icsFuer({ bookingId: t.id, sequence: Math.floor(Date.now() / 1000), method: 'REQUEST', startIso: start, dauer: seite.e.dauer, seite, stelle, mode: t.mode, joinUrl, email: t.email, name, verwaltenUrl, lang: kLang }) },
+    ics: { method: 'REQUEST', content: icsFuer({ bookingId: t.id, sequence: Math.floor(Date.now() / 1000), method: 'REQUEST', startIso: start, dauer: seite.e.dauer, seite, stelle, mode: t.mode, tool, joinUrl, email: t.email, name, verwaltenUrl, lang: kLang }) },
   }).catch((e) => console.error('termin-seite mail kandidat', e));
   if (seite.email) {
     const anHH = headhunterNeu({
       hhVorname: seite.vorname, kandidat: { name, email: t.email, phone: t.phone, linkedin: t.linkedin_url, note: null }, stelle, startIso: start, dauer: seite.e.dauer,
-      mode: t.mode, joinUrl, imOutlook: !!eventId, akteUrl, herkunft: t.source, lebenslauf: false, verschoben: { vonIso: t.starts_at },
+      mode: t.mode, tool, joinUrl, imOutlook: !!eventId, kalenderName: ev.calendarProvider === 'google' ? 'Google Kalender' : 'Outlook', akteUrl, herkunft: t.source, lebenslauf: false, verschoben: { vonIso: t.starts_at },
       lang: await recruiterLanguage(db, seite.recruiter_id),
     });
-    await sendInterviewMail({ fromEmail: FROM_EMAIL(), fromName: 'Matchunt', to: seite.email, subject: anHH.subject, html: anHH.html, text: anHH.text, replyTo: t.email }).catch(() => undefined);
+    const hhIcs = eventId ? undefined : kalenderDateiFuerHH({ bookingId: t.id, method: 'REQUEST', startIso: start, dauer: seite.e.dauer, name, stelle, mode: t.mode, tool, joinUrl, phone: t.phone, akteUrl, hhEmail: seite.email, hhName: seite.name, lang: await recruiterLanguage(db, seite.recruiter_id) });
+    await sendInterviewMail({ fromEmail: FROM_EMAIL(), fromName: 'Matchunt', to: seite.email, subject: anHH.subject, html: anHH.html, text: anHH.text, replyTo: t.email, ...(hhIcs ? { ics: hhIcs } : {}) }).catch(() => undefined);
   }
   await db.from('notifications').insert({ user_id: seite.recruiter_id, type: 'booking_moved', title: `Verschoben: ${name}`, message: `von ${terminText(t.starts_at)} auf ${terminText(start)}`, related_type: 'candidate', related_id: t.candidate_id });
   return json({ ok: true, start, join_url: joinUrl });
@@ -673,11 +764,7 @@ async function absagen(db: SupabaseClient, body: any) {
   muss(t.status === 'booked' && Date.parse(t.starts_at) > Date.now(), 'not_allowed', 'Dieser Termin lässt sich nicht mehr absagen.');
   const grund = typeof body.grund === 'string' ? body.grund.trim().slice(0, 500) || null : null;
   await db.from('recruiter_bookings').update({ status: 'cancelled', cancelled_at: new Date().toISOString(), cancelled_by: 'candidate', cancel_reason: grund }).eq('id', t.id);
-  if (t.outlook_event_id) {
-    const cfg = msConfig();
-    const token = cfg ? await userAccessToken(db, cfg, t.recruiter_id).catch(() => null) : null;
-    if (token) await deleteEvent(token, t.outlook_event_id).catch((e) => console.error('termin-seite outlook löschen', e));
-  }
+  await ereignisEntfernen(db, t);
   const app = getPublicAppUrl();
   const { data: job } = t.job_id ? await db.from('jobs').select('id, title').eq('id', t.job_id).maybeSingle() : { data: null };
   const neu = `${app}/t/${seite.slug}${job ? `/${jobTeil(job)}` : ''}`;
@@ -686,11 +773,15 @@ async function absagen(db: SupabaseClient, body: any) {
   const anKandidat = kandidatAbgesagt({ vorname: t.first_name, hhName: seite.name, startIso: t.starts_at, dauer: seite.e.dauer, neuBuchenUrl: seite.active ? neu : null, lang: kLang });
   await sendInterviewMail({
     fromEmail: FROM_EMAIL(), fromName: viaMatchunt(seite.name, kLang), to: t.email, subject: anKandidat.subject, html: anKandidat.html, text: anKandidat.text,
-    ics: { method: 'CANCEL', content: icsFuer({ bookingId: t.id, sequence: Math.floor(Date.now() / 1000), method: 'CANCEL', startIso: t.starts_at, dauer: seite.e.dauer, seite, stelle, mode: t.mode, joinUrl: t.join_url, email: t.email, name, verwaltenUrl: `${app}/t/termin/${body.token}`, lang: kLang }) },
+    ics: { method: 'CANCEL', content: icsFuer({ bookingId: t.id, sequence: Math.floor(Date.now() / 1000), method: 'CANCEL', startIso: t.starts_at, dauer: seite.e.dauer, seite, stelle, mode: t.mode, tool: (t.video_tool as VideoTool | null) ?? 'teams', joinUrl: t.join_url, email: t.email, name, verwaltenUrl: `${app}/t/termin/${body.token}`, lang: kLang }) },
   }).catch(() => undefined);
   if (seite.email) {
-    const anHH = headhunterAbgesagt({ hhVorname: seite.vorname, kandidat: name, stelle, startIso: t.starts_at, dauer: seite.e.dauer, grund, akteUrl: t.candidate_id ? `${app}/recruiter/candidates/${t.candidate_id}` : `${app}/recruiter/interviews`, lang: await recruiterLanguage(db, seite.recruiter_id) });
-    await sendInterviewMail({ fromEmail: FROM_EMAIL(), fromName: 'Matchunt', to: seite.email, subject: anHH.subject, html: anHH.html, text: anHH.text }).catch(() => undefined);
+    const hhLang = await recruiterLanguage(db, seite.recruiter_id);
+    const akte = t.candidate_id ? `${app}/recruiter/candidates/${t.candidate_id}` : `${app}/recruiter/interviews`;
+    const anHH = headhunterAbgesagt({ hhVorname: seite.vorname, kandidat: name, stelle, startIso: t.starts_at, dauer: seite.e.dauer, grund, akteUrl: akte, lang: hhLang });
+    // Stand der Termin nur per Kalenderdatei bei ihm: Absage als Kalenderdatei, damit er verschwindet
+    const hhIcs = t.outlook_event_id ? undefined : kalenderDateiFuerHH({ bookingId: t.id, method: 'CANCEL', startIso: t.starts_at, dauer: seite.e.dauer, name, stelle, mode: t.mode, tool: (t.video_tool as VideoTool | null) ?? 'teams', joinUrl: t.join_url, phone: t.phone, akteUrl: akte, hhEmail: seite.email, hhName: seite.name, lang: hhLang });
+    await sendInterviewMail({ fromEmail: FROM_EMAIL(), fromName: 'Matchunt', to: seite.email, subject: anHH.subject, html: anHH.html, text: anHH.text, ...(hhIcs ? { ics: hhIcs } : {}) }).catch(() => undefined);
   }
   await db.from('notifications').insert({ user_id: seite.recruiter_id, type: 'booking_cancelled', title: `Abgesagt: ${name}`, message: `${terminText(t.starts_at)} ist wieder frei · ${grund ? `„${grund}“` : 'ohne Grund'}`, related_type: 'candidate', related_id: t.candidate_id });
   return json({ ok: true });

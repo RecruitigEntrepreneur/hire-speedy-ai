@@ -1,5 +1,5 @@
+import { useKalenderT } from './kalenderText';
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { describeHours, type InterviewHoursRules } from '@/lib/interviewScheduling';
@@ -15,7 +15,7 @@ interface Props {
 }
 
 export function AlternativeSection({ allow, onAllowChange, rules, onRulesChange, defaultRules }: Props) {
-  const { t } = useTranslation('clientInterviews');
+  const { t } = useKalenderT('clientInterviews');
   const [editing, setEditing] = useState(false);
   const changed = JSON.stringify(rules) !== JSON.stringify(defaultRules);
 

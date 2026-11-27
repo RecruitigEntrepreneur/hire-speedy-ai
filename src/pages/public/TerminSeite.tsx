@@ -1,3 +1,4 @@
+import { toolText } from '@/lib/interviewScheduling';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -155,18 +156,18 @@ export default function TerminSeite() {
   const hh = daten.headhunter;
   const art = form.mode;
   const hhVorname = hh.name.split(' ')[0];
-  const artName = (m: Gespraechsart) => (m === 'teams' ? t('common.teams') : t('common.phone'));
+  const artName = (m: Gespraechsart) => (m === 'teams' ? toolText(t('common.teams'), daten?.werkzeug) : t('common.phone'));
 
   let rechts: React.ReactNode;
   if (schritt === 'fertig' && ergebnis) {
     rechts = <div className="space-y-4">
       <CheckCircle2 className="h-8 w-8 text-emerald-600"/>
       <div><h2 className="text-xl font-semibold">{t('common.doneHeading')}</h2><p className="mt-1 text-sm">{tagLang(ergebnis.start)} · {uhrzeit(ergebnis.start)}–{uhrzeit(ergebnis.ende)} · {artName(ergebnis.mode)}</p><p className="text-sm text-muted-foreground">{t('common.with', { name: hh.name })}{daten.stelle ? ` · ${daten.stelle.titel}` : ''}</p></div>
-      <Button variant="outline" onClick={() => downloadIcs(t('common.icsFile'), buildIcs({ title: t('common.icsTitle', { name: hh.name }), start: new Date(ergebnis.start), durationMinutes: daten.dauer, description: ergebnis.join_url ? t('common.icsTeams', { url: ergebnis.join_url }) : t('common.icsCallsYou', { name: hhVorname }), location: ergebnis.mode === 'teams' ? 'Microsoft Teams' : t('common.phone'), url: ergebnis.join_url ?? undefined }))}>
+      <Button variant="outline" onClick={() => downloadIcs(t('common.icsFile'), buildIcs({ title: t('common.icsTitle', { name: hh.name }), start: new Date(ergebnis.start), durationMinutes: daten.dauer, description: ergebnis.join_url ? toolText(t('common.icsTeams', { url: ergebnis.join_url }), daten?.werkzeug) : t('common.icsCallsYou', { name: hhVorname }), location: ergebnis.mode === 'teams' ? toolText('Microsoft Teams', daten?.werkzeug) : t('common.phone'), url: ergebnis.join_url ?? undefined }))}>
         <CalendarPlus className="mr-2 h-4 w-4"/>{t('common.addToCalendar')}
       </Button>
       <div className="rounded-lg bg-muted/50 p-4 text-sm"><p className="mb-1.5 font-medium">{t('seite.nextSteps')}</p><ol className="list-decimal space-y-1 pl-4 text-muted-foreground">
-        <li>{ergebnis.mode === 'teams' ? t('seite.mailComingTeams') : t('seite.mailComing')}</li>
+        <li>{ergebnis.mode === 'teams' ? toolText(t('seite.mailComingTeams'), daten?.werkzeug) : t('seite.mailComing')}</li>
         {cv?.id && <li>{t('seite.seesCv', { name: hhVorname })}</li>}
         <li>{daten.stelle ? t('seite.companyInCall') : t('seite.getsInTouch', { name: hhVorname })}</li>
       </ol></div>
@@ -180,12 +181,12 @@ export default function TerminSeite() {
   } else if (schritt === 'zeit') {
     rechts = <div className="space-y-4">
       <div><h2 className="text-base font-semibold">{t('common.minutesConfidential', { count: daten.dauer })}</h2>
-        <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">{daten.arten.includes('teams') && <span className="inline-flex items-center gap-1"><Video className="h-3.5 w-3.5"/>{t('common.teams')}</span>}{daten.arten.includes('phone') && <span className="inline-flex items-center gap-1"><Phone className="h-3.5 w-3.5"/>{t('common.phone')}</span>}<span>{t('seite.timezone')}</span></p></div>
+        <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">{daten.arten.includes('teams') && <span className="inline-flex items-center gap-1"><Video className="h-3.5 w-3.5"/>{toolText(t('common.teams'), daten?.werkzeug)}</span>}{daten.arten.includes('phone') && <span className="inline-flex items-center gap-1"><Phone className="h-3.5 w-3.5"/>{t('common.phone')}</span>}<span>{t('seite.timezone')}</span></p></div>
       {hinweis && <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{hinweis}</p>}
       {daten.tage.length ? <>
         <Zeitwahl tage={daten.tage} gewaehlt={zeit} onWahl={z => { setZeit(z); setHinweis(''); }}/>
         <Button className="w-full" disabled={!zeit} onClick={() => setSchritt('angaben')}>{zeit ? t('seite.continueWith', { time: uhrzeit(zeit) }) : t('common.chooseTime')}</Button>
-        <p className="text-xs text-muted-foreground">{t('seite.busyHidden', { name: hhVorname })}</p>
+        {!daten.ohne_kalender && <p className="text-xs text-muted-foreground">{t('seite.busyHidden', { name: hhVorname })}</p>}
       </> : <div className="space-y-2 rounded-lg bg-muted/50 p-5">
         <p className="font-medium">{daten.kalender ? t('common.fullyBooked', { name: hhVorname }) : t('common.noTimes')}</p>
         <p className="text-sm text-muted-foreground">{hh.linkedin ? t('seite.comeBackLinkedin') : t('seite.comeBack')}</p>
@@ -222,7 +223,7 @@ export default function TerminSeite() {
         <div className="grid grid-cols-2 gap-2">
           {(['teams', 'phone'] as const).map(m => <label key={m} className={cn('flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm', art === m ? 'border-foreground' : 'border-border')}>
             <input type="radio" name="art" className="sr-only" checked={art === m} onChange={() => setze('mode', m)}/>
-            {m === 'teams' ? <Video className="h-4 w-4"/> : <Phone className="h-4 w-4"/>}{m === 'teams' ? t('common.teams') : t('common.phoneCalls', { name: hhVorname })}
+            {m === 'teams' ? <Video className="h-4 w-4"/> : <Phone className="h-4 w-4"/>}{m === 'teams' ? toolText(t('common.teams'), daten?.werkzeug) : t('common.phoneCalls', { name: hhVorname })}
           </label>)}
         </div>{fehlerBei('mode')}
       </fieldset>}

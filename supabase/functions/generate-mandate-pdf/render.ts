@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts, rgb } from 'https://esm.sh/pdf-lib@1.17.1';
 import { getPublicAppUrl } from '../_shared/app-url.ts';
+import { pdfSicher } from '../_shared/pdf-zeichensatz.ts';
 
 /**
  * Das Vertragsdokument zeichnen -- ohne Datenbank, ohne Ablage.
@@ -81,6 +82,12 @@ export async function renderVertragsdokument(
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
 
+  // Alles, was gezeichnet wird, geht vorher durch t(): pdf-lib wirft sonst bei
+  // jedem Zeichen ausserhalb des Zeichensatzes -- und damit das ganze Dokument.
+  // Helvetica und Helvetica-Bold haben denselben Zeichensatz.
+  const zeichensatz = new Set(font.getCharacterSet());
+  const t = (text: unknown) => pdfSicher(text, (cp) => zeichensatz.has(cp));
+
   let page = pdf.addPage(A4);
   let y = A4[1] - MARGIN;
 
@@ -92,7 +99,7 @@ export async function renderVertragsdokument(
     const f = opts.bold ? bold : font;
     const maxWidth = A4[0] - 2 * MARGIN - (opts.indent ?? 0);
     // Zeilenumbruch von Hand: pdf-lib bricht nicht selbst um.
-    for (const paragraph of String(text).split('\n')) {
+    for (const paragraph of t(text).split('\n')) {
       const words = paragraph.split(/\s+/).filter(Boolean);
       if (words.length === 0) { space(LINE); y -= LINE * 0.6; continue; }
       let line = '';
@@ -119,9 +126,9 @@ export async function renderVertragsdokument(
 
   const row = (label: string, value: string) => {
     space(LINE);
-    page.drawText(label, { x: MARGIN, y, size: 10, font, color: rgb(0.42, 0.45, 0.5) });
+    page.drawText(t(label), { x: MARGIN, y, size: 10, font, color: rgb(0.42, 0.45, 0.5) });
     const maxWidth = A4[0] - 2 * MARGIN - 175;
-    const words = String(value || '—').split(/\s+/);
+    const words = t(value || '—').split(/\s+/);
     let line = '';
     let first = true;
     for (const word of words) {
@@ -351,8 +358,9 @@ export async function renderVertragsdokument(
     page.drawText(anker, { x, y: sigY, size: 9, font, color: rgb(1, 1, 1) });
     page.drawLine({ start: { x, y: sigY - 4 }, end: { x: x + 200, y: sigY - 4 },
       thickness: 0.8, color: rgb(0.6, 0.62, 0.65) });
-    page.drawText(rolle, { x, y: sigY - 18, size: 9, font, color: rgb(0.42, 0.45, 0.5) });
-    page.drawText(partei, { x, y: sigY - 30, size: 9, font, color: rgb(0.42, 0.45, 0.5) });
+    page.drawText(t(rolle), { x, y: sigY - 18, size: 9, font, color: rgb(0.42, 0.45, 0.5) });
+    // Einzeilig: ein Zeilenumbruch in der Firmierung liefe sonst in den Seitenrand.
+    page.drawText(t(partei).replace(/\s+/g, ' ').trim(), { x, y: sigY - 30, size: 9, font, color: rgb(0.42, 0.45, 0.5) });
   };
 
   unterschriftsfeld(MARGIN, '/sig1/', 'Auftraggeber',
@@ -367,7 +375,7 @@ export async function renderVertragsdokument(
   // Fusszeile auf jeder Seite
   const pages = pdf.getPages();
   pages.forEach((p, i) => {
-    p.drawText(`${nummer} · Seite ${i + 1} von ${pages.length}`, {
+    p.drawText(t(`${nummer} · Seite ${i + 1} von ${pages.length}`), {
       x: MARGIN, y: 32, size: 8, font, color: rgb(0.6, 0.62, 0.65),
     });
   });

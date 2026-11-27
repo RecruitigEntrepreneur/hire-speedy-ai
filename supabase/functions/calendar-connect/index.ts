@@ -16,7 +16,7 @@ serve(async (req) => {
     switch (body.action) {
       case 'status': return json(await status(ctx, user));
       case 'connect': return json(await connect(ctx, user, body));
-      case 'disconnect': return json(await disconnect(ctx, user));
+      case 'disconnect': return json(await disconnect(ctx, user, body));
       case 'it_request': return json(await itRequest(ctx, user, body));
       default: must(false, 'Unbekannte Aktion.');
     }

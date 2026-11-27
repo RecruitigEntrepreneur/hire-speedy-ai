@@ -1886,6 +1886,33 @@ Tabelle, keine neuen Secrets.
 
 ---
 
+## 65 — Google Kalender, Google Meet und Zoom für Kunden und Headhunter (26.11.2026)
+
+Commit siehe `git log` („Google Kalender, Google Meet und Zoom verbinden“). Nach Nr. 64.
+Kunden und Headhunter können statt Outlook ihren Google Kalender verbinden (freie Zeiten lesen, Termin mit
+Google-Meet-Link eintragen) und zusätzlich ihr eigenes Zoom-Konto (Zoom-Link beim Buchen). Beim Interview
+anfragen wählt der Kunde direkt Teams, Google Meet oder Zoom (nur, was verbunden ist; Teams immer).
+Ohne die neuen Secrets bleiben Google und Zoom in der App als „Bald“ sichtbar, es ändert sich nichts.
+Außerdem: Die Terminseite des Headhunters lässt sich auch ohne Kalender freischalten (nach einer Rückfrage,
+Doppelbelegung möglich); der Headhunter bekommt dann jede Buchung mit Kalenderdatei per Mail.
+
+> 1. Aktuellen Stand von `main` übernehmen.
+> 2. Migration `supabase/migrations/20261126100000_google_zoom_verbinden.sql` ausführen. Sie erweitert nur
+>    Prüfregeln und fügt Spalten hinzu (calendar_connections: Anbieter 'zoom' zulassen; interviews:
+>    calendar_provider, zoom_meeting_id; recruiter_booking_pages: video_tool; recruiter_bookings: video_tool,
+>    calendar_provider, zoom_meeting_id). Keine neue Tabelle, keine Daten.
+>    Falls die Prüfregel `calendar_connections_provider_check` live anders heißt, bitte melden statt raten.
+> 3. Diese Edge Functions deployen (in dieser Reihenfolge egal): calendar-connect, calendar-oauth-callback,
+>    interview-request, get-interview-by-token, interview-client-link, process-interview-response,
+>    interview-reminders, termin-seite, termin-einladung.
+>    `calendar-oauth-callback` bleibt mit verify_jwt = false (Google und Zoom rufen ohne Anmeldung zurück).
+> 4. Keine Secrets anlegen oder ändern. (Die neuen Secrets GOOGLE_CALENDAR_CLIENT_ID,
+>    GOOGLE_CALENDAR_CLIENT_SECRET, ZOOM_CLIENT_ID, ZOOM_CLIENT_SECRET trägt Marko selbst ein.)
+> 5. Publish.
+> 6. Am Code nichts ändern. Am Ende melden: Migration gelaufen (Journal-Eintrag), welche Functions deployt, Publish durch.
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über

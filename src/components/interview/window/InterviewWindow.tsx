@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils';
 import type { AgendaInterview } from '@/hooks/useClientInterviewAgenda';
 import { useInterviewSession } from '@/hooks/useInterviewSession';
 import { useLiveInterviewNotes } from '@/hooks/useLiveInterviewNotes';
-import { fmtDayLong, fmtDayShort, fmtRange, fmtTime, interviewApi, type InterviewDetails } from '@/lib/interviewScheduling';
+import { fmtDayLong, fmtDayShort, fmtRange, fmtTime, interviewApi, toolText, type InterviewDetails, type VideoTool } from '@/lib/interviewScheduling';
 import { relativeDay } from '@/lib/interviewRequestUtils';
 import { InterviewTimer } from '../InterviewTimer';
 import { meetingTypeLabel } from '../agenda/meetingType';
@@ -223,7 +223,7 @@ function WindowBody({
         </div>
 
         {/* Status, der eine Handlung braucht */}
-        {booked && !started && format === 'teams' && !joinUrl && d && <MissingLink interviewId={iv.id} onSaved={refresh} />}
+        {booked && !started && format === 'teams' && !joinUrl && d && <MissingLink interviewId={iv.id} onSaved={refresh} tool={d.tool} />}
         {d?.reschedule && (
           <Banner tone="info">
             <span className="flex-1">
@@ -356,7 +356,7 @@ function WindowBody({
 }
 
 /** Beim Buchen ist kein Teams-Link entstanden: eigenen Link eintragen, alle bekommen ihn per Mail. */
-function MissingLink({ interviewId, onSaved }: { interviewId: string; onSaved: () => void }) {
+function MissingLink({ interviewId, onSaved, tool }: { interviewId: string; onSaved: () => void; tool?: VideoTool }) {
   const { t } = useTranslation(['clientInterviews', 'interviews']);
   const [url, setUrl] = useState('');
   const [busy, setBusy] = useState(false);
@@ -375,8 +375,8 @@ function MissingLink({ interviewId, onSaved }: { interviewId: string; onSaved: (
   };
   return (
     <Banner tone="warn">
-      <span className="w-full">{t('window.noLink')}</span>
-      <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://teams.microsoft.com/…" className="h-8 flex-1 bg-background text-sm" aria-label={t('window.linkAria')} />
+      <span className="w-full">{toolText(t('window.noLink'), tool)}</span>
+      <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder={tool === 'zoom' ? 'https://zoom.us/j/…' : tool === 'meet' ? 'https://meet.google.com/…' : 'https://teams.microsoft.com/…'} className="h-8 flex-1 bg-background text-sm" aria-label={t('window.linkAria')} />
       <Button size="sm" className="h-8" disabled={busy || !/^https:\/\/\S{8,}$/.test(url.trim())} onClick={save}>
         {busy && <Loader2 className="mr-1 h-3 w-3 animate-spin" />} {t('window.saveLink')}
       </Button>
@@ -420,7 +420,7 @@ function Overview({ d, name, formatLabel, candidateFirst }: { d: InterviewDetail
         )}
         <p className="text-sm">
           {formatLabel}
-          {d.inOutlook && d.scheduledAt ? <span className="text-muted-foreground">{t('window.inOutlook')}</span> : ''}
+          {d.inOutlook && d.scheduledAt ? <span className="text-muted-foreground">{toolText(t('window.inOutlook'), null, d.calendarName === 'Google Kalender' ? 'google' : null)}</span> : ''}
         </p>
         {d.format === 'teams' && d.joinUrl && <p className="truncate text-xs text-muted-foreground">{d.joinUrl}</p>}
         {d.format === 'phone' && d.callPhone && <p className="text-sm">{t('window.youCall')} <a className="text-klick hover:underline" href={`tel:${d.callPhone}`}>{d.callPhone}</a></p>}

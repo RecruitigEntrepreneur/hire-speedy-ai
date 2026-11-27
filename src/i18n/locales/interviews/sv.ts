@@ -10,6 +10,7 @@ const sv: Messages<typeof de> = {
     video: 'Videosamtal',
     teams: 'Teams',
     meet: 'Google Meet',
+    zoom: 'Zoom',
     phone: 'Telefon',
     onsite: 'På plats',
     fallback: 'Intervju',
@@ -68,6 +69,9 @@ const sv: Messages<typeof de> = {
   calendar: {
     connected: 'Outlook är anslutet.',
     connectFailed: 'Outlook kunde inte anslutas. Försök igen.',
+    connectedTool: '{{name}} är anslutet.',
+    connectFailedTool: '{{name}} kunde inte anslutas. Försök igen.',
+    rightsMissing: 'Google gav inte alla kalenderbehörigheter. Markera alla rutor när du ansluter.',
   },
   error: {
     generic: 'Det gick inte. Försök igen.',
