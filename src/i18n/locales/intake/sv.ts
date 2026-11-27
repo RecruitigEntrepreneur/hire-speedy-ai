@@ -678,7 +678,7 @@ const sv: Messages<typeof de> = {
       company_website: 'https://…',
       company_street: 'Gata och nummer',
       company_postal_code: '80337',
-      company_city: 'München',
+      company_city: 'Stockholm',
       company_registration_number: 't.ex. HRB 288632',
       company_vat_id: 't.ex. DE123456789',
     },

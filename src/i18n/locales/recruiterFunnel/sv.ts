@@ -363,6 +363,10 @@ const sv: Messages<typeof de> = {
       questions: 'Fyra frågor besvarade',
     },
     summary: {
+      selfEmployedAs: 'Egenföretagare som {{form}}',
+      commercialRegister: 'Handelsregister {{nr}}',
+      vatIdNr: 'Momsreg.nr {{nr}}',
+      taxNrUid: 'Skattenummer / UID {{nr}}',
       partner: 'Avtalspart',
       address: 'Adress',
       register: 'Register',

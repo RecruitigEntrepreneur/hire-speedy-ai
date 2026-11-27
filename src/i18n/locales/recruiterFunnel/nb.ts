@@ -363,6 +363,10 @@ const nb: Messages<typeof de> = {
       questions: 'Fire spørsmål besvart',
     },
     summary: {
+      selfEmployedAs: 'Selvstendig næringsdrivende som {{form}}',
+      commercialRegister: 'Handelsregister {{nr}}',
+      vatIdNr: 'MVA-nr. {{nr}}',
+      taxNrUid: 'Skattenummer / UID {{nr}}',
       partner: 'Avtalepart',
       address: 'Adresse',
       register: 'Register',

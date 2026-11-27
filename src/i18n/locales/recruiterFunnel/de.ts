@@ -361,6 +361,10 @@ const de = {
       questions: 'Vier Fragen beantwortet',
     },
     summary: {
+      selfEmployedAs: 'Selbstständige Tätigkeit als {{form}}',
+      commercialRegister: 'Handelsregister {{nr}}',
+      vatIdNr: 'USt-IdNr. {{nr}}',
+      taxNrUid: 'Steuernummer / UID {{nr}}',
       partner: 'Vertragspartner',
       address: 'Anschrift',
       register: 'Register',

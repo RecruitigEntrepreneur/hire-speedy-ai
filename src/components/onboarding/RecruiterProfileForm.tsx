@@ -100,6 +100,21 @@ export default function RecruiterProfileForm({ profile, kind, busy, email, onCha
   const roleLabel = (v: string) => roles[v] ?? v;
   const list = (values: string[]) => values.map(opt).join(', ');
   const taxLabel = (status: string) => status in taxLabels ? t(`form.tax.${status}`) : '';
+  // Gespeichert wird der deutsche Vertragswortlaut („Selbstständige Tätigkeit als …“, „USt-IdNr. …“); angezeigt wird
+  // er in der Sprache der Person (27.11.2026). Der Hinweis „Kleinunternehmer nach § 19 UStG“ steckt schon im Steuerstatus.
+  const vertragsWert = (roh: string) => {
+    const v = stripSource(roh);
+    if (v === SMALL_BUSINESS_TAX) return '';
+    const m = v.match(/^Selbstständige Tätigkeit als (.+)$/) ;
+    if (m) return t('form.summary.selfEmployedAs', { form: opt(m[1]) });
+    const hr = v.match(/^Handelsregister (.+)$/);
+    if (hr) return t('form.summary.commercialRegister', { nr: hr[1] });
+    const ust = v.match(/^USt-IdNr\. (.+)$/);
+    if (ust) return t('form.summary.vatIdNr', { nr: ust[1] });
+    const uid = v.match(/^Steuernummer \/ UID (.+)$/);
+    if (uid) return t('form.summary.taxNrUid', { nr: uid[1] });
+    return v;
+  };
   const sharedIssue = (issue: string) => SHARED_ISSUES[issue] ? t(SHARED_ISSUES[issue]) : issue;
   const d = cleanContractDetails(profile.contractDetails);
   const x = cleanExpertise(profile.expertise);
@@ -280,7 +295,7 @@ export default function RecruiterProfileForm({ profile, kind, busy, email, onCha
   const answer = (q: typeof QUESTIONS[number]) => d[q.key] !== q.def(profile) ? d[q.key] : q.key === 'accessCountries' ? opt(d[q.key]) : t(`form.questions.${q.key}.answer`);
   const summaryRows: [string, string, number][] = [
     [t('form.summary.partner'), [profile.company, opt(profile.legalForm)].filter(Boolean).join(' · '), 0], [t('form.summary.address'), [profile.address, opt(profile.country)].filter(Boolean).join(', '), 0],
-    [t('form.summary.register'), stripSource(d.businessEvidence), 0], [t('form.summary.tax'), [taxLabel(profile.taxStatus), stripSource(d.taxNumber)].filter(Boolean).join(' · '), 0],
+    [t('form.summary.register'), vertragsWert(d.businessEvidence), 0], [t('form.summary.tax'), [taxLabel(profile.taxStatus), vertragsWert(d.taxNumber)].filter(Boolean).join(' · '), 0],
     [t('form.summary.focus'), list([...x.areas, ...x.subareas, ...x.extras]) || profile.specialty, 1], [t('form.summary.regions'), list(x.regions) || profile.region, 1], [t('form.summary.experience'), [opt(x.experience), x.placements && t('form.summary.placementsPerYear', { band: opt(x.placements) })].filter(Boolean).join(' · '), 1],
     [t('form.summary.signature'), [profile.signer, roleLabel(profile.signerRole)].filter(Boolean).join(', '), 2],
     [t('form.summary.dataAccess'), answer(QUESTIONS[0]), 3], [t('form.summary.permits'), answer(QUESTIONS[1]), 3], [t('form.summary.income'), answer(QUESTIONS[2]), 3], [t('form.summary.holdings'), answer(QUESTIONS[3]), 3],
@@ -309,8 +324,8 @@ export default function RecruiterProfileForm({ profile, kind, busy, email, onCha
           <dl className="mh-facts">
             <div><dt>{t('form.company.name')}</dt><dd>{profile.company || '—'}{profile.legalForm && <span className="mh-tag">{opt(profile.legalForm)}</span>}</dd></div>
             <div><dt>{t('form.company.address')}</dt><dd>{[profile.address, opt(profile.country)].filter(Boolean).join(', ') || '—'}</dd></div>
-            <div><dt>{t('form.company.register')}</dt><dd>{stripSource(d.businessEvidence) || '—'}</dd></div>
-            <div><dt>{t('form.company.tax')}</dt><dd>{[taxLabel(profile.taxStatus), stripSource(d.taxNumber)].filter(Boolean).join(' · ') || '—'}</dd></div>
+            <div><dt>{t('form.company.register')}</dt><dd>{vertragsWert(d.businessEvidence) || '—'}</dd></div>
+            <div><dt>{t('form.company.tax')}</dt><dd>{[taxLabel(profile.taxStatus), vertragsWert(d.taxNumber)].filter(Boolean).join(' · ') || '—'}</dd></div>
             <div><dt>{t('form.company.representedBy')}</dt><dd>{d.responsiblePerson || '—'}</dd></div>
           </dl>
           {fromImpressum && <p className="mh-muted mh-verify-hint">{t('form.company.fromImprint')}</p>}

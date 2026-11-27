@@ -678,7 +678,7 @@ const nb: Messages<typeof de> = {
       company_website: 'https://…',
       company_street: 'Gate og nummer',
       company_postal_code: '80337',
-      company_city: 'München',
+      company_city: 'Oslo',
       company_registration_number: 'f.eks. HRB 288632',
       company_vat_id: 'f.eks. DE123456789',
     },

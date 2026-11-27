@@ -363,6 +363,10 @@ const en: Messages<typeof de> = {
       questions: 'Four questions answered',
     },
     summary: {
+      selfEmployedAs: 'Self-employed as {{form}}',
+      commercialRegister: 'Commercial register {{nr}}',
+      vatIdNr: 'VAT ID {{nr}}',
+      taxNrUid: 'Tax number / UID {{nr}}',
       partner: 'Contracting party',
       address: 'Address',
       register: 'Register',
