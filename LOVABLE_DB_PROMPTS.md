@@ -1913,6 +1913,37 @@ Doppelbelegung möglich); der Headhunter bekommt dann jede Buchung mit Kalenderd
 
 ---
 
+## 66 — Kunden-Aufnahme im neuen Look mit „Kollegin einladen“; Headhunter-Onboarding und -Rundgang (27.11.2026)
+
+Commit siehe `git log` („Apple-Stil: Kunden-Aufnahme M3, Kollegin einladen, Headhunter-Onboarding und -Rundgang“).
+**Nach Nr. 65** (dessen Migration `20261126100000_google_zoom_verbinden` muss vorher laufen).
+Wichtig: Zwischen dem Push dieses Stands und Schritt 4 unten darf kein Publish laufen (auch keiner aus einem
+anderen Auftrag) – sonst ist die neue Aufnahme-Seite live, bevor die neue intake-draft deployt ist.
+Die Aufnahme über den öffentlichen Link (/start) im neuen Look: Art der Besetzung, „Gibt es schon eine
+Stellenanzeige?“ mit einem Feld zum Ablegen, Einfügen oder Verlinken, E-Mail-Bestätigung vor den Fragen,
+vorausgeladene Antwortvorschläge, Kacheln und Zähler, Gehaltsfeld mit Beispiel. Neu: Eine Kollegin kann eingeladen
+werden, die nur die Stelle beschreibt; beide arbeiten gleichzeitig, gespeichert wird je Antwort.
+Headhunter: Onboarding im neuen Look, Regionen Schweden und Norwegen, Rundgang mit Bewegung.
+
+> 1. Aktuellen Stand von `main` übernehmen.
+> 2. Falls Nr. 65 noch nicht gelaufen ist: zuerst Nr. 65 vollständig ausführen.
+> 3. Migration `supabase/migrations/20261126140000_aufnahme_mitarbeit.sql` ausführen. Sie fügt nur Spalten,
+>    eine Prüfregel und zwei Indizes hinzu: `intake_draft_tokens` bekommt `rolle` (text, Standard 'voll', erlaubt
+>    'voll' und 'beschreiben'), `bestaetigt_am`, `bestaetigt_email`, `zurueckgegeben_am`;
+>    `intake_email_verifications` bekommt `token_id` (uuid, Verweis auf `intake_draft_tokens`, beim Löschen null).
+>    Keine neue Tabelle, keine Daten, keine Rechte-Änderung.
+> 4. ERST NACH der Migration diese Edge Functions deployen (sie lesen die neuen Spalten):
+>    intake-draft, intake-verify-email, intake-forward, intake-submit, intake-packages, docusign-send,
+>    recruiter-onboarding, recruiter-onboarding-admin, partner-check, linkedin.
+>    Einstellungen (verify_jwt) unverändert lassen.
+> 5. Keine Secrets anlegen oder ändern.
+> 6. Publish (erst nach Schritt 3 und 4: die neue Seite speichert die Stelle je Antwort, das kann nur die neue
+>    intake-draft).
+> 7. Am Code nichts ändern. Am Ende melden: Migration gelaufen (Journal-Eintrag), welche Functions deployt,
+>    Publish durch.
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über
