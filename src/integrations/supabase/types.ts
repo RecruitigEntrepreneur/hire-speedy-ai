@@ -7556,6 +7556,7 @@ export type Database = {
           allow_alternative: boolean
           alternative_rules: Json | null
           calendar_event_id: string | null
+          calendar_provider: string | null
           call_phone: string | null
           cancellation_reason: string | null
           cancelled_at: string | null
@@ -7617,11 +7618,13 @@ export type Database = {
           teams_join_url: string | null
           teams_meeting_id: string | null
           updated_at: string
+          zoom_meeting_id: string | null
         }
         Insert: {
           allow_alternative?: boolean
           alternative_rules?: Json | null
           calendar_event_id?: string | null
+          calendar_provider?: string | null
           call_phone?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
@@ -7683,11 +7686,13 @@ export type Database = {
           teams_join_url?: string | null
           teams_meeting_id?: string | null
           updated_at?: string
+          zoom_meeting_id?: string | null
         }
         Update: {
           allow_alternative?: boolean
           alternative_rules?: Json | null
           calendar_event_id?: string | null
+          calendar_provider?: string | null
           call_phone?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
@@ -7749,6 +7754,7 @@ export type Database = {
           teams_join_url?: string | null
           teams_meeting_id?: string | null
           updated_at?: string
+          zoom_meeting_id?: string | null
         }
         Relationships: [
           {
@@ -12824,6 +12830,7 @@ export type Database = {
           rules: Json
           slug: string
           updated_at: string
+          video_tool: string
         }
         Insert: {
           active?: boolean
@@ -12835,6 +12842,7 @@ export type Database = {
           rules?: Json
           slug: string
           updated_at?: string
+          video_tool?: string
         }
         Update: {
           active?: boolean
@@ -12846,11 +12854,13 @@ export type Database = {
           rules?: Json
           slug?: string
           updated_at?: string
+          video_tool?: string
         }
         Relationships: []
       }
       recruiter_bookings: {
         Row: {
+          calendar_provider: string | null
           cancel_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
@@ -12875,8 +12885,11 @@ export type Database = {
           source: string
           starts_at: string
           status: string
+          video_tool: string | null
+          zoom_meeting_id: string | null
         }
         Insert: {
+          calendar_provider?: string | null
           cancel_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
@@ -12901,8 +12914,11 @@ export type Database = {
           source?: string
           starts_at: string
           status?: string
+          video_tool?: string | null
+          zoom_meeting_id?: string | null
         }
         Update: {
+          calendar_provider?: string | null
           cancel_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
@@ -12927,6 +12943,8 @@ export type Database = {
           source?: string
           starts_at?: string
           status?: string
+          video_tool?: string | null
+          zoom_meeting_id?: string | null
         }
         Relationships: [
           {
