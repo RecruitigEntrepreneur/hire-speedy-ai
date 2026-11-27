@@ -45,6 +45,11 @@ const de = {
     },
   },
   invitation: {
+    // Offene Anmeldung: erst die Art, dann E-Mail und Code (27.11.2026).
+    vorab: {
+      artText: 'Als Nächstes bestätigst du deine E-Mail-Adresse – mit einem Code, ohne Passwort.',
+      weiterMitEmail: 'Schon angefangen? Mit deiner E-Mail weitermachen',
+    },
     loadFailed: 'Einladung konnte nicht geladen werden.',
     eventReturn: 'Willkommen zurück. Wir warten auf die bestätigte Rückmeldung von DocuSign. Deine Rückkehr allein bestätigt noch keine Unterschrift.',
     remoteRequested: 'Der persönliche DocuSign-Zugang wurde für die benannte Person angefordert.',

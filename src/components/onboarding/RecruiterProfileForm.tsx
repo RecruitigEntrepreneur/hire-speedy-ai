@@ -81,12 +81,15 @@ const REGION_MARKS: Record<string, ReactNode> = {
   Schweden: <Flag code="se" className="h-4 w-6"/>, Norwegen: <Flag code="no" className="h-4 w-6"/>, EU: symbol(Globe), Remote: symbol(Home),
 };
 
-export default function RecruiterProfileForm({ profile, kind, busy, email, onChange, onSave, onSubmit, onEnrich }: {
+export default function RecruiterProfileForm({ profile, kind, busy, email, onChange, onSave, onSubmit, onEnrich, besetzenZuerst = false }: {
   profile: RecruiterProfile; kind: string; busy: boolean; email: string;
   onChange: (p: RecruiterProfile) => void;
   onSave: (silent?: boolean, snapshot?: RecruiterProfile) => Promise<void>;
   onSubmit: () => Promise<void>;
   onEnrich: (website?: string) => Promise<CompanySuggestion>;
+  /** Offene Anmeldung (27.11.2026, Marko): erst „Was du besetzt“, dann die Firma – die Vertragsschritte
+   *  (Firma, Unterschrift, Fragen, Vertrag) stehen so zusammen. Einladungen behalten Firma zuerst. */
+  besetzenZuerst?: boolean;
 }) {
   const { t } = useTranslation(NS);
   // Anzeige der antippbaren Werte in der gewählten Sprache; fehlt ein Eintrag, steht der gespeicherte Wert.
@@ -101,8 +104,11 @@ export default function RecruiterProfileForm({ profile, kind, busy, email, onCha
   const d = cleanContractDetails(profile.contractDetails);
   const x = cleanExpertise(profile.expertise);
   const agency = kind === 'agency';
-  const [step, setStep] = useState(0);
-  const [reached, setReached] = useState(0);
+  // Reihenfolge der fünf Karten (0 Firma, 1 Was du besetzt, 2 Unterschrift, 3 Fragen, 4 Vertrag).
+  const REIHE = besetzenZuerst ? [1, 0, 2, 3, 4] : [0, 1, 2, 3, 4];
+  const platz = (s: number) => REIHE.indexOf(s);
+  const [step, setStep] = useState(REIHE[0]);
+  const [reached, setReached] = useState(REIHE[0]);
   const [issues, setIssues] = useState<string[]>([]);
   const heading = useRef<HTMLHeadingElement>(null);
   // Asynchrone Schritte (Impressum lesen) dürfen nicht mit einem veralteten Profil weiterarbeiten,
@@ -114,9 +120,9 @@ export default function RecruiterProfileForm({ profile, kind, busy, email, onCha
   const patchDetails = (dd: Partial<ContractDetails>) => update({ ...profile, contractDetails: { ...d, ...dd } });
   const patchExpertise = (e: Partial<RecruiterExpertise>) => update({ ...profile, expertise: { ...x, ...e } });
   const move = (next: number, snapshot?: RecruiterProfile) => {
-    setStep(next); setReached(r => Math.max(r, next)); setIssues([]);
+    setStep(next); setReached(r => platz(next) > platz(r) ? next : r); setIssues([]);
     requestAnimationFrame(() => heading.current?.focus());
-    if (next > step) void onSave(true, snapshot ?? profile);
+    if (platz(next) > platz(step)) void onSave(true, snapshot ?? profile);
   };
 
   // Karte 1: Firma. Erst automatisch aus der geschäftlichen Adresse, sonst Website, sonst selbst.
@@ -142,6 +148,7 @@ export default function RecruiterProfileForm({ profile, kind, busy, email, onCha
       if (!/Website deines Unternehmens|your company website|ditt företags webbplats|nettstedet til firmaet ditt/.test(message)) setEnrichError(message || t('form.company.readFailed'));
     } finally { setEnriching(false); }
   };
+  // Liest schon beim Öffnen; kommt „Was du besetzt“ zuerst, liegt das Ergebnis bereit, wenn die Firma drankommt.
   useEffect(() => { if (companyMode === 'auto') void readImpressum(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const openManual = () => {
     setManual({ vat: d.taxNumber.match(/[A-Z]{2}[A-Z0-9]{6,}/)?.[0] ?? '', register: stripSource(d.businessEvidence).replace(/^Handelsregister /, ''), ceo: d.responsiblePerson || profile.name });
@@ -167,7 +174,7 @@ export default function RecruiterProfileForm({ profile, kind, busy, email, onCha
       if (!next.contractDetails?.businessEvidence) { setIssues([t('form.issues.register')]); return; }
       if (!next.contractDetails?.taxNumber) { setIssues([t(profile.country === 'Deutschland' ? 'form.issues.vatId' : 'form.issues.taxNumber')]); return; }
     }
-    move(1, next);
+    move(REIHE[platz(0) + 1], next);
   };
 
   // Karte 2: Chips. Freitext aus der Einladung wird einmal auf Chips abgebildet.
@@ -175,7 +182,10 @@ export default function RecruiterProfileForm({ profile, kind, busy, email, onCha
     const empty = !x.areas.length && !x.regions.length && !x.extras.length && !x.experience;
     if (empty && (profile.specialty || profile.region)) update({ ...profile, expertise: expertiseFromText(profile.specialty, profile.region) });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const confirmExpertise = () => { const missing = expertiseIssues(x).map(sharedIssue); if (missing.length) { setIssues(missing); return; } move(2); };
+  const confirmExpertise = () => {
+    const missing = expertiseIssues(x).map(sharedIssue); if (missing.length) { setIssues(missing); return; }
+    move(REIHE[platz(1) + 1]);
+  };
   // „Was du besetzt“ als fünf kurze Bildschirme (Mix aus Airbnb-Prinzip und Gruppen, Marko 26.11.2026):
   // Pflichtfragen (Bereich, Region, Erfahrung) groß, Freiwilliges gebündelt, dort „Überspringen“.
   const [teil, setTeil] = useState(0);
@@ -257,11 +267,12 @@ export default function RecruiterProfileForm({ profile, kind, busy, email, onCha
   const MIX_ICONS = [Briefcase, ListChecks, MapPin, Clock, Compass];
   const KopfIcon = step === 1 ? MIX_ICONS[teil] : icons[step];
   // „‹ Zurück“ oben links: im Mix eine Frage zurück, sonst ein Unterschritt; „Später weiter“ speichert den Entwurf.
-  const zurueck = step === 0 ? null : () => {
+  const vorher = REIHE[platz(step) - 1];
+  const zurueck = vorher === undefined && !(step === 1 && teil > 0) ? null : () => {
     setIssues([]);
     if (step === 1 && teil > 0) { zuTeil(teil - 1); return; }
-    if (step === 2) setTeil(TEILE - 1);
-    setStep(step - 1);
+    if (vorher === 1) setTeil(TEILE - 1);
+    setStep(vorher);
     requestAnimationFrame(() => heading.current?.focus());
   };
   useOnboardingNav(busy ? null : zurueck, busy ? null : () => void onSave());
@@ -279,7 +290,7 @@ export default function RecruiterProfileForm({ profile, kind, busy, email, onCha
   return <section className="mh-panel">
     {/* M3 (26.11.2026): Symbol, Ortszeile, Titel und Satz mittig; keine Unterschritt-Pillen, keine Erledigt-Zeilen */}
     <div className="mh-panel-head"><KopfIcon size={22}/><div>
-      <p className="mh-ort">{step === 1 ? <>{t('form.mix.where', { n: 2 })} · {t('form.mix.count', { n: teil + 1, total: TEILE })}{!PFLICHT[teil] && <> · {t('form.mix.optional')}</>}</> : t('form.mix.where', { n: step + 1 })}</p>
+      <p className="mh-ort">{step === 1 ? <>{t('form.mix.where', { n: platz(1) + 1 })} · {t('form.mix.count', { n: teil + 1, total: TEILE })}{!PFLICHT[teil] && <> · {t('form.mix.optional')}</>}</> : t('form.mix.where', { n: platz(step) + 1 })}</p>
       <h2 ref={heading} tabIndex={-1}>{step === 1 ? t(`form.mix.q${teil + 1}`) : stepTitle}</h2>
       {(step !== 1 || teil === 0 || teil === 1 || teil === 4) && <p>{step !== 1 ? stepLead : t(teil === 0 ? 'form.mix.multi' : teil === 1 ? 'form.mix.hint2' : 'form.mix.hint5')}</p>}
     </div></div>
@@ -344,7 +355,7 @@ export default function RecruiterProfileForm({ profile, kind, busy, email, onCha
           <label className="mh-field">{t('form.mix.linkedin')}<input type="url" placeholder={t('form.expertise.linkedinPlaceholder')} value={x.linkedin} onChange={e => patchExpertise({ linkedin: e.target.value })}/><small>{t('form.expertise.linkedinHint')}</small></label>
         </>}
         <div className="mh-actions">
-          <button type="button" className="mh-button mh-primary" onClick={teilWeiter}>{teil === TEILE - 1 ? t('form.mix.toSigner') : t('common.next')}<ArrowRight size={16}/></button>
+          <button type="button" className="mh-button mh-primary" onClick={teilWeiter}>{teil === TEILE - 1 && REIHE[platz(1) + 1] === 2 ? t('form.mix.toSigner') : t('common.next')}<ArrowRight size={16}/></button>
           {!PFLICHT[teil] && <button type="button" className="mh-button" onClick={teilUeberspringen}>{t('form.mix.skip')}</button>}
         </div>
       </div>}

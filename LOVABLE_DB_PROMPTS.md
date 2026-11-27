@@ -1953,6 +1953,13 @@ Fuß), `/w/<sprache>` dieselbe Seite in einer bestimmten Sprache. Die eingetippt
 `public/fonts/startseite` (kein Google-Abruf), Bilder unter `public/headhunter` und `public/logos`.
 Die alte Startseite (`src/pages/Index.tsx`) ist nicht mehr verlinkt.
 
+**Nachtrag 27.11. abends (gleicher Auftrag, deckt den späteren Push mit ab):** feste Kopfzeile mit „Anmelden ▾“
+und Handy-Menü, Abschluss-Aufruf und Fuß mit Spalten; Impressum, Datenschutz und AGB im neuen Rahmen (Text
+unverändert); `/headhunter` und `/karriere` neu, alte Seiten (/about, /contact, /blog …) leiten um; Startseite in
+Englisch, Schwedisch und Norwegisch übersetzt; Headhunter-Anmeldung in neuer Reihenfolge (Art → E-Mail → Was du
+besetzt → Firma); die Website läuft als eigenes, leichtes Bündel (`src/WebsiteApp.tsx`); `robots.txt` und
+`sitemap.xml`. Weiterhin keine Migration und keine Edge Function.
+
 > 1. Aktuellen Stand von `main` übernehmen.
 > 2. Keine Migration ausführen, keine Edge Function deployen, keine Secrets ändern.
 > 3. Publish.

@@ -6,9 +6,10 @@
 // in die echte Aufnahme (START_URL).
 // Der vorgeführte Zeiger sucht sein Ziel selbst: das Element, das im aktuellen Schritt data-zeiger trägt. Ziele sind nur
 // Dinge, die man wirklich klickt oder zieht (24.11.: nicht mehr Stände, Gesichter, Glocke, Etiketten); ohne Ziel blendet er aus.
-import { createContext, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { createContext, Fragment, useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { START_URL } from "@/startseite/nachbau/basis";
 import { mitHerkunft } from "@/startseite/website/herkunft";
+import { useTx } from "@/startseite/website/uebersetzen";
 import { MatchuntLogo } from "@/startseite/seite/Logo";
 import { hhFoto } from "@/startseite/matchunt/fotos";
 import "./fenster.css";
@@ -38,9 +39,11 @@ const DATEI = "Stellenanzeige_Controlling.pdf";
 // Eigene Stelle des Besuchers (Fassung mit Suchfeld, 26.11.2026): Tippt er oben im Einstieg einen Titel, zeigt der Film
 // seine Stelle statt des Beispiels. Was am Beispiel hängt (Rolle des Kandidaten, Dateiname), wird dann neutral.
 const Eigen = createContext("");
-const Stelle = () => useContext(Eigen) || STELLE;
-const Rolle = () => (useContext(Eigen) ? "Kandidat 1" : ROLLE);
-const Datei = () => (useContext(Eigen) ? "Stellenanzeige.pdf" : DATEI);
+// Übersetzung (27.11.2026): das Beispiel wird übersetzt, die eigene Stelle des Besuchers bleibt, wie er sie getippt hat.
+const useStelle = () => { const tx = useTx(); return useContext(Eigen) || tx(STELLE); };
+const Stelle = () => useStelle();
+const Rolle = () => { const tx = useTx(); return useContext(Eigen) ? tx("Kandidat {n}", { n: 1 }) : tx(ROLLE); };
+const Datei = () => { const tx = useTx(); return useContext(Eigen) ? tx("Stellenanzeige.pdf") : tx(DATEI); };
 
 const kl = (...t: (string | false | null | undefined)[]) => t.filter(Boolean).join(" ");
 const ziel = (an: boolean) => (an ? { "data-zeiger": "" } : {});
@@ -91,12 +94,15 @@ const LISTE = [
   { titel: "Vertriebsleitung", unter: "München · seit 12 Tagen", fotos: [3, 4], hh: "2 Headhunter suchen" },
   { titel: "Bilanzbuchhaltung", unter: "Stuttgart · seit 4 Tagen", fotos: [1], hh: "1 Headhunter sucht" },
 ];
-const Reihe = ({ j, tippe, weiterZu }: { j: (typeof LISTE)[number]; tippe: Szene["tippe"]; weiterZu: Szene["weiterZu"] }) => (
-  <button type="button" className="k1f-reihe" onClick={() => tippe(() => weiterZu(1))}>
-    <span><b>{j.titel}</b><small>{j.unter}</small></span>
-    <span className="k1f-sucher"><span className="k1f-gesichter">{j.fotos.map((f) => <Person key={f} foto={f} klasse="da" />)}</span>{j.hh}</span>
-  </button>
-);
+const Reihe = ({ j, tippe, weiterZu }: { j: (typeof LISTE)[number]; tippe: Szene["tippe"]; weiterZu: Szene["weiterZu"] }) => {
+  const tx = useTx();
+  return (
+    <button type="button" className="k1f-reihe" onClick={() => tippe(() => weiterZu(1))}>
+      <span><b>{tx(j.titel)}</b><small>{tx(j.unter)}</small></span>
+      <span className="k1f-sucher"><span className="k1f-gesichter">{j.fotos.map((f) => <Person key={f} foto={f} klasse="da" />)}</span>{tx(j.hh)}</span>
+    </button>
+  );
+};
 
 /* 1 · Stelle ausschreiben: die erste Seite im Dashboard wie in der App – oben die Leiste „Neue Position aufnehmen“,
    darunter die vier Kacheln. Die Anzeige wird von außen auf die Leiste gezogen, die Leiste klappt auf (gelesen,
@@ -124,6 +130,7 @@ const Kachel = ({ sym, titel, zahl, onClick, kinder }: { sym: string; titel: str
   </button>
 );
 function Aufnahme({ s, tippe, setS, weiterZu }: Szene) {
+  const tx = useTx();
   const offen = s >= 3;
   const raffer = s >= RAFFER;
   const n = Math.max(1, Math.min(AUFNAHME.length, s - RAFFER + 1)); // so viele Schritte sind durch
@@ -131,19 +138,20 @@ function Aufnahme({ s, tippe, setS, weiterZu }: Szene) {
   const [etappe, titel, ausAnzeige] = AUFNAHME[n - 1];
   return (
     <div className="k1f-szene">
-      <span className="k1f-kopf"><b>Guten Morgen</b><span>Ihr Command Center für alle Kandidaten-Aktivitäten.</span></span>
+      <span className="k1f-kopf"><b>{tx("Guten Morgen")}</b><span>{tx("Ihr Command Center für alle Kandidaten-Aktivitäten.")}</span></span>
       {offen ? (
         <div className="k1f-leiste offen">
-          <span className="k1f-dateizeile"><Pdf /><b><Datei /></b><em key={s === 3 ? "l" : fertig ? "f" : raffer ? "r" : "g"}>{s === 3 ? "wird gelesen …" : fertig ? <><Haken />Aufnahme fertig</> : raffer ? `Zeitraffer · Schritt ${n} von ${AUFNAHME.length}` : <><Haken />gelesen</>}</em></span>
+          <span className="k1f-dateizeile"><Pdf /><b><Datei /></b><em key={s === 3 ? "l" : fertig ? "f" : raffer ? "r" : "g"}>{s === 3 ? tx("wird gelesen …") : fertig ? <><Haken />{tx("Aufnahme fertig")}</> : raffer ? tx("Zeitraffer · Schritt {n} von {gesamt}", { n, gesamt: AUFNAHME.length }) : <><Haken />{tx("gelesen")}</>}</em></span>
           {s === 3 ? (
             <span className="k1f-zeilen">{[100, 84, 93, 58].map((w, i) => <u key={i} style={{ width: `${w}%`, "--i": i } as CSSProperties} />)}</span>
           ) : (
-            <span className="k1f-kaertchen">{KAERTCHEN.map((k, i) => <span key={k} style={{ "--i": i } as CSSProperties}><Haken />{i === 0 ? <Stelle /> : k}</span>)}</span>
+            <span className="k1f-kaertchen">{KAERTCHEN.map((k, i) => <span key={k} style={{ "--i": i } as CSSProperties}><Haken />{i === 0 ? <Stelle /> : tx(k)}</span>)}</span>
           )}
           {s >= 5 && !raffer && (
             <div className="k1f-frage">
-              <span>Sie suchen eine <b><Stelle /></b> in Stuttgart, richtig?</span>
-              <button type="button" className={kl("k1f-knopf", s === 6 && "druck")} {...ziel(true)} onClick={() => tippe(() => setS(7), true)}>Ja, darum geht es</button>
+              {/* ein Satz mit Platzhalter; die Stelle steht fett an der Stelle von {stelle} */}
+              <span>{tx("Sie suchen eine {stelle} in Stuttgart, richtig?").split("{stelle}").map((teil, i) => (i === 0 ? teil : <Fragment key={i}><b><Stelle /></b>{teil}</Fragment>))}</span>
+              <button type="button" className={kl("k1f-knopf", s === 6 && "druck")} {...ziel(true)} onClick={() => tippe(() => setS(7), true)}>{tx("Ja, darum geht es")}</button>
             </div>
           )}
           {raffer && (
@@ -152,14 +160,14 @@ function Aufnahme({ s, tippe, setS, weiterZu }: Szene) {
                 {ETAPPEN.map((e, i) => {
                   const alle = AUFNAHME.filter(([et]) => et === i).length;
                   const durch = AUFNAHME.slice(0, n).filter(([et]) => et === i).length;
-                  return <span key={e} className={kl(!fertig && etappe === i && "da")}><i style={{ "--f": durch / alle } as CSSProperties} />{e}</span>;
+                  return <span key={e} className={kl(!fertig && etappe === i && "da")}><i style={{ "--f": durch / alle } as CSSProperties} />{tx(e)}</span>;
                 })}
               </span>
               <span className="k1f-raffer-zeile">
                 {fertig ? (
-                  <><b key="f">Aufnahme vollständig</b><em className="k1f-raffer-tag">an Matchunt übergeben</em></>
+                  <><b key="f">{tx("Aufnahme vollständig")}</b><em className="k1f-raffer-tag">{tx("an Matchunt übergeben")}</em></>
                 ) : (
-                  <><b key={n}>{titel}</b><em className={kl("k1f-raffer-tag", !ausAnzeige && "klick")}><Haken />{ausAnzeige ? "aus der Anzeige" : "angeklickt"}</em></>
+                  <><b key={n}>{tx(titel)}</b><em className={kl("k1f-raffer-tag", !ausAnzeige && "klick")}><Haken />{ausAnzeige ? tx("aus der Anzeige") : tx("angeklickt")}</em></>
                 )}
               </span>
             </button>
@@ -168,24 +176,24 @@ function Aufnahme({ s, tippe, setS, weiterZu }: Szene) {
       ) : (
         <div className={kl("k1f-leiste", s === 2 && "drueber")} {...ziel(s === 2)}>
           <span className="k1f-leiste-text">
-            <b>{s === 2 ? "Loslassen zum Ausschreiben" : "Neue Position aufnehmen"}</b>
-            <span>Anzeige einfügen, hochladen oder von Hand beschreiben</span>
+            <b>{s === 2 ? tx("Loslassen zum Ausschreiben") : tx("Neue Position aufnehmen")}</b>
+            <span>{tx("Anzeige einfügen, hochladen oder von Hand beschreiben")}</span>
           </span>
-          <button type="button" className="k1f-knopf k1f-plus" onClick={() => tippe(() => setS(3))}>+ Position aufnehmen</button>
+          <button type="button" className="k1f-knopf k1f-plus" onClick={() => tippe(() => setS(3))}>{tx("+ Position aufnehmen")}</button>
         </div>
       )}
       <div className="k1f-kacheln">
-        <Kachel sym="bewerber" titel="Bewerbungen" zahl={7} onClick={() => tippe(() => weiterZu(2))} kinder={
-          <span className="k1f-kachel-zeile"><span className="k1f-kandidaten"><Person klasse="neu" /><Person klasse="neu" /></span><span className="k1f-leise">2 neu</span></span>
+        <Kachel sym="bewerber" titel={tx("Bewerbungen")} zahl={7} onClick={() => tippe(() => weiterZu(2))} kinder={
+          <span className="k1f-kachel-zeile"><span className="k1f-kandidaten"><Person klasse="neu" /><Person klasse="neu" /></span><span className="k1f-leise">{tx("{k} neu", { k: 2 })}</span></span>
         } />
-        <Kachel sym="stellen" titel="Aktive Jobs" zahl={2} onClick={() => tippe(() => weiterZu(1))} kinder={
-          <span className="k1f-kachel-zeile"><span>Vertriebsleitung</span><span className="k1f-leise">2 Headhunter</span></span>
+        <Kachel sym="stellen" titel={tx("Aktive Jobs")} zahl={2} onClick={() => tippe(() => weiterZu(1))} kinder={
+          <span className="k1f-kachel-zeile"><span>{tx("Vertriebsleitung")}</span><span className="k1f-leise">{tx("2 Headhunter")}</span></span>
         } />
-        <Kachel sym="aufgaben" titel="Ihre Aufgaben" zahl={3} onClick={() => tippe(() => weiterZu(2))} kinder={
-          <span className="k1f-kachel-zeile"><span>Interview-Feedback geben</span></span>
+        <Kachel sym="aufgaben" titel={tx("Ihre Aufgaben")} zahl={3} onClick={() => tippe(() => weiterZu(2))} kinder={
+          <span className="k1f-kachel-zeile"><span>{tx("Interview-Feedback geben")}</span></span>
         } />
-        <Kachel sym="termine" titel="Anstehende Interviews" zahl={2} onClick={() => tippe(() => weiterZu(2))} kinder={
-          <span className="k1f-kachel-zeile"><span>Do, 10:00</span><span className="k1f-leise">Vertriebsleitung</span></span>
+        <Kachel sym="termine" titel={tx("Anstehende Interviews")} zahl={2} onClick={() => tippe(() => weiterZu(2))} kinder={
+          <span className="k1f-kachel-zeile"><span>{tx("Do, 10:00")}</span><span className="k1f-leise">{tx("Vertriebsleitung")}</span></span>
         } />
       </div>
       {s === 1 && <span className="k1f-zieh" {...ziel(true)}><DateiKarte /></span>}
@@ -200,6 +208,7 @@ const STATIONEN = ["Suche", "Vorschläge", "Interviews", "Angebot", "Besetzt"];
 const EINGANG = ["Leiter Controlling · 12 Jahre", "Head of Controlling · 9 Jahre", "Kaufmännische Leitung · 15 Jahre", "Senior Controller · 8 Jahre"];
 const EINGANG_NEUTRAL = ["12 Jahre Erfahrung", "9 Jahre Erfahrung", "15 Jahre Erfahrung", "8 Jahre Erfahrung"];
 function Suche({ s, tippe, setS, weiterZu }: Szene) {
+  const tx = useTx();
   const eingang = useContext(Eigen) ? EINGANG_NEUTRAL : EINGANG;
   const live = s >= 1;
   const n = Math.max(0, Math.min(3, s - 1)); // Headhunter, die suchen
@@ -207,31 +216,32 @@ function Suche({ s, tippe, setS, weiterZu }: Szene) {
   return (
     <div className="k1f-szene">
       <div className="k1f-zeile">
-        <span className="k1f-kopf"><b>Meine Stellen</b><span>3 aktive Stellen</span></span>
+        <span className="k1f-kopf"><b>{tx("Meine Stellen")}</b><span>{tx("3 aktive Stellen")}</span></span>
         <span className="k1f-glocke"><Symbol n="glocke" />{k > 0 && <i key={k}>{k}</i>}</span>
       </div>
       <button type="button" className="k1f-job" onClick={() => tippe(() => setS(Math.max(s, 5)))}>
         <span className="k1f-job-kopf">
           <span>
-            <span className="k1f-titel"><b><Stelle /></b><em key={live ? "l" : "p"} className={kl("k1f-stand", live && "live")}>{live ? "Live" : "In Prüfung"}</em></span>
-            <small>Festanstellung · Stuttgart · seit heute</small>
+            <span className="k1f-titel"><b><Stelle /></b><em key={live ? "l" : "p"} className={kl("k1f-stand", live && "live")}>{live ? tx("Live") : tx("In Prüfung")}</em></span>
+            <small>{tx("Festanstellung · Stuttgart · seit heute")}</small>
           </span>
           <span className="k1f-rennen">
             {k > 0 && <>
               <span className="k1f-kandidaten">{eingang.slice(0, k).map((e) => <Person key={e} klasse="neu" />)}</span>
-              <small><em>{k} neu</em> · {k} im Rennen</small>
+              {/* „1 neu“ eigener Schlüssel: im Schwedischen und Norwegischen steht die Einzahl anders (ny / nya, nye) */}
+              <small><em>{k === 1 ? tx("1 neu") : tx("{k} neu", { k })}</em> · {tx("{k} im Rennen", { k })}</small>
             </>}
           </span>
         </span>
         <span className="k1f-stufen">{STATIONEN.map((w, i) => <i key={w} className={kl(i <= (k > 0 ? 1 : 0) && live && "an")} />)}</span>
-        <span className="k1f-stufen-namen">{STATIONEN.map((w, i) => <span key={w} className={kl(i === (k > 0 ? 1 : 0) && "da")}>{w}</span>)}</span>
+        <span className="k1f-stufen-namen">{STATIONEN.map((w, i) => <span key={w} className={kl(i === (k > 0 ? 1 : 0) && "da")}>{tx(w)}</span>)}</span>
         <span className="k1f-job-fuss">
           <span key={`${live}${n > 0}${k}`} className="k1f-neu">
-            {k > 0 ? <><i className="k1f-punkt" /><b>Neu:</b> {eingang[k - 1]}</> : n > 0 ? "Headhunter suchen gerade." : live ? "Ihre Stelle ist jetzt für Headhunter sichtbar." : "In Prüfung bei Matchunt"}
+            {k > 0 ? <><i className="k1f-punkt" /><b>{tx("Neu:")}</b> {tx(eingang[k - 1])}</> : n > 0 ? tx("Headhunter suchen gerade.") : live ? tx("Ihre Stelle ist jetzt für Headhunter sichtbar.") : tx("In Prüfung bei Matchunt")}
           </span>
           <span className="k1f-sucher">
             <span className="k1f-gesichter">{[0, 1, 2].map((i) => <Person key={i} foto={i} klasse={kl(n > i && "da")} />)}</span>
-            {n === 0 ? "Noch sucht kein Headhunter" : n === 1 ? "1 Headhunter sucht" : `${n} Headhunter suchen`}
+            {n === 0 ? tx("Noch sucht kein Headhunter") : n === 1 ? tx("1 Headhunter sucht") : tx("{n} Headhunter suchen", { n })}
           </span>
         </span>
       </button>
@@ -240,7 +250,7 @@ function Suche({ s, tippe, setS, weiterZu }: Szene) {
         <div className="k1f-eingang">
           {eingang.slice(0, k).reverse().slice(0, 2).map((e, i) => (
             <button key={e} type="button" className={kl("k1f-meldung", i > 0 && "hinten", i === 0 && s === 10 && "druck")} onClick={() => tippe(() => weiterZu(2))}>
-              <Person klasse="neu" /><span><b>Kandidat {k - i}</b> · {e}</span><em {...ziel(i === 0 && s >= 9)}>Ansehen</em>
+              <Person klasse="neu" /><span><b>{tx("Kandidat {n}", { n: k - i })}</b> · {tx(e)}</span><em {...ziel(i === 0 && s >= 9)}>{tx("Ansehen")}</em>
             </button>
           ))}
         </div>
@@ -253,35 +263,40 @@ function Suche({ s, tippe, setS, weiterZu }: Szene) {
    Schloss und Stand, darunter Kürzel und „für: Stelle“ und der Hinweis zum anonymen Profil. Darunter die Eckdaten mit
    Symbolen und „Eingereicht von“. Kürzel und Werte sind Beispiele. */
 const ROLLE = "Leiter Controlling";
-const Antritt = () => { const eigen = useContext(Eigen); return <>{eigen ? `Ihre Stelle „${eigen}“ ist besetzt.` : `Ihr neuer ${ROLLE} fängt an.`}</>; };
+const Antritt = () => { const tx = useTx(); const eigen = useContext(Eigen); return <>{eigen ? tx("Ihre Stelle „{stelle}“ ist besetzt.", { stelle: eigen }) : tx("Ihr neuer {rolle} fängt an.", { rolle: tx(ROLLE) })}</>; };
 const KUERZEL = "PR-7F3A21";
 const FAKTEN: [string, string, string][] = [["hut", "Seniorität", "Leitung"], ["stellen", "Erfahrung", "12 Jahre"], ["geld", "Gehaltswunsch", "im Rahmen"], ["uhr", "Verfügbar", "in 3 Monaten"], ["ort", "Region", "Stuttgart"]];
-const ProfilKopf = ({ stand, fakten, von }: { stand: string; fakten?: boolean; von?: boolean }) => (
-  <div className="k1f-pkarte">
-    <div className="k1f-pkopf">
-      <span className="k1f-avatar"><Person /><i><Symbol n="schloss" /></i></span>
-      <span className="k1f-pname">
-        <span className="k1f-titel"><b><Rolle /></b><Symbol n="schloss" /><em key={stand} className="k1f-stand">{stand}</em></span>
-        <small>{KUERZEL} · für: <Stelle /></small>
-        <small className="k1f-hinweis">Anonymes Profil — Name, Kontakt und Lebenslauf nach Interview-Zusage</small>
-      </span>
+const ProfilKopf = ({ stand, fakten, von }: { stand: string; fakten?: boolean; von?: boolean }) => {
+  const tx = useTx();
+  const stelle = useStelle();
+  return (
+    <div className="k1f-pkarte">
+      <div className="k1f-pkopf">
+        <span className="k1f-avatar"><Person /><i><Symbol n="schloss" /></i></span>
+        <span className="k1f-pname">
+          <span className="k1f-titel"><b><Rolle /></b><Symbol n="schloss" /><em key={stand} className="k1f-stand">{tx(stand)}</em></span>
+          <small>{tx("{kuerzel} · für: {stelle}", { kuerzel: KUERZEL, stelle })}</small>
+          <small className="k1f-hinweis">{tx("Anonymes Profil — Name, Kontakt und Lebenslauf nach Interview-Zusage")}</small>
+        </span>
+      </div>
+      {fakten !== undefined && (
+        <div className="k1f-fakten">
+          {FAKTEN.map(([sym, n, w], i) => (
+            <span key={n} className={kl("k1f-ein", fakten && "an")} style={{ transitionDelay: `${i * 80}ms` }}><Symbol n={sym} />{tx(n)} <b>{tx(w)}</b></span>
+          ))}
+        </div>
+      )}
+      {von !== undefined && (
+        <div className={kl("k1f-eingereicht k1f-ein", von && "an")}>
+          <Person foto={0} />
+          {/* ein Satz mit Platzhalter; „Headhunter“ steht fett an der Stelle von {wer} */}
+          <span>{tx("Eingereicht von {wer} · Gold Partner").split("{wer}").map((teil, i) => (i === 0 ? teil : <Fragment key={i}><b>{tx("Headhunter")}</b>{teil}</Fragment>))}</span>
+          <span className="k1f-knopf k1f-zweit k1f-klein">{tx("Frage stellen")}</span>
+        </div>
+      )}
     </div>
-    {fakten !== undefined && (
-      <div className="k1f-fakten">
-        {FAKTEN.map(([sym, n, w], i) => (
-          <span key={n} className={kl("k1f-ein", fakten && "an")} style={{ transitionDelay: `${i * 80}ms` }}><Symbol n={sym} />{n} <b>{w}</b></span>
-        ))}
-      </div>
-    )}
-    {von !== undefined && (
-      <div className={kl("k1f-eingereicht k1f-ein", von && "an")}>
-        <Person foto={0} />
-        <span>Eingereicht von <b>Headhunter</b> · Gold Partner</span>
-        <span className="k1f-knopf k1f-zweit k1f-klein">Frage stellen</span>
-      </div>
-    )}
-  </div>
-);
+  );
+};
 
 /* 3 · Kandidaten kennenlernen: das Bewerberprofil wie in der App. „Interview anfragen“ öffnet das Fenster wie in der
    App: Zeiten aus dem eigenen Kalender vorschlagen, Anfrage senden – danach sagt der Kandidat zu.
@@ -289,33 +304,35 @@ const ProfilKopf = ({ stand, fakten, von }: { stand: string; fakten?: boolean; v
    drei Vorschlägen · 6 „Anfrage senden“ · 7 Anfrage gesendet · 8 Kandidat hat zugesagt */
 const TERMINE = [["Di", "10:00"], ["Mi", "14:30"], ["Do", "09:00"]];
 function Profil({ s, tippe, setS }: Szene) {
+  const tx = useTx();
+  // Stand bleibt deutsch (Schlüssel der Einblendung), übersetzt wird er erst in ProfilKopf
   const stand = s >= 8 ? "Interview geplant" : s >= 7 ? "Interview angefragt" : "Neu";
   return (
     <div className="k1f-szene">
       <ProfilKopf stand={stand} fakten={s >= 1} von={s >= 2} />
       <div className="k1f-knopfzeile">
         <button type="button" className={kl("k1f-knopf", s === 4 && "druck")} {...ziel(s === 3 || s === 4)} onClick={() => tippe(() => setS(5))}>
-          <Symbol n="termine" />Interview anfragen
+          <Symbol n="termine" />{tx("Interview anfragen")}
         </button>
-        <span className="k1f-knopf k1f-zweit"><Symbol n="weg" />Ablehnen</span>
-        <span className="k1f-werkzeuge"><span><Symbol n="datei" />Lebenslauf (PDF)</span><span><Symbol n="bewerber" />Kollegen fragen</span></span>
+        <span className="k1f-knopf k1f-zweit"><Symbol n="weg" />{tx("Ablehnen")}</span>
+        <span className="k1f-werkzeuge"><span><Symbol n="datei" />{tx("Lebenslauf (PDF)")}</span><span><Symbol n="bewerber" />{tx("Kollegen fragen")}</span></span>
       </div>
       {(s === 5 || s === 6) && (
         <div className="k1f-dialog-grund">
-          <div className="k1f-dialog" role="dialog" aria-label="Interview anfragen">
-            <span className="k1f-dialog-kopf"><b>Interview anfragen</b><small>Termine aus Ihrem Kalender vorschlagen</small></span>
+          <div className="k1f-dialog" role="dialog" aria-label={tx("Interview anfragen")}>
+            <span className="k1f-dialog-kopf"><b>{tx("Interview anfragen")}</b><small>{tx("Termine aus Ihrem Kalender vorschlagen")}</small></span>
             <span className="k1f-slots">
-              {TERMINE.map(([t, z], i) => <span key={t} style={{ "--i": i } as CSSProperties}><Haken /><b>{t}</b>{z} Uhr</span>)}
+              {TERMINE.map(([t, z], i) => <span key={t} style={{ "--i": i } as CSSProperties}><Haken /><b>{tx(t)}</b>{tx("{z} Uhr", { z })}</span>)}
             </span>
-            <small>Teilnehmer: Sie · Kandidat · Headhunter</small>
-            <button type="button" className={kl("k1f-knopf", s === 6 && "druck")} {...ziel(true)} onClick={() => tippe(() => setS(7))}>Anfrage senden</button>
+            <small>{tx("Teilnehmer: Sie · Kandidat · Headhunter")}</small>
+            <button type="button" className={kl("k1f-knopf", s === 6 && "druck")} {...ziel(true)} onClick={() => tippe(() => setS(7))}>{tx("Anfrage senden")}</button>
           </div>
         </div>
       )}
       {s >= 7 && (
         <div className="k1f-eingang">
           <span key={s} className="k1f-meldung">
-            <Haken />{s >= 8 ? <span><b>Kandidat hat zugesagt</b> · Mi, 14:30 Uhr</span> : <span>Anfrage gesendet. Kandidat und Headhunter sind informiert.</span>}
+            <Haken />{s >= 8 ? <span><b>{tx("Kandidat hat zugesagt")}</b> · {tx("Mi, 14:30 Uhr")}</span> : <span>{tx("Anfrage gesendet. Kandidat und Headhunter sind informiert.")}</span>}
           </span>
         </div>
       )}
@@ -331,6 +348,8 @@ function Profil({ s, tippe, setS }: Szene) {
 const BESETZUNG = ["Angebot V1", "Zusage", "Vertrag", "Unterschrift", "Start 01.03."];
 const BESETZUNG_STAND = ["", "", "Kandidat überlegt", "Angebot angenommen", "Unterschrift läuft", "unterschrieben", "unterschrieben"];
 function Angebot({ s, tippe, setS }: Szene) {
+  const tx = useTx();
+  const stelle = useStelle();
   const ansicht = s <= 1 ? "profil" : s <= 6 ? "besetzung" : "start";
   const erreicht = s - 1; // Stationen der Zeitleiste, die erreicht sind (2 → 1 … 6 → 5)
   return (
@@ -338,10 +357,10 @@ function Angebot({ s, tippe, setS }: Szene) {
       {ansicht === "profil" && (
         <div key="p" className="k1f-teil">
           <ProfilKopf stand="Interview geführt" />
-          <div className="k1f-notiz"><small>Interview am Mi, 14:30 · Ihr Eindruck</small><u /><u style={{ width: "58%" }} /></div>
+          <div className="k1f-notiz"><small>{tx("Interview am Mi, 14:30 · Ihr Eindruck")}</small><u /><u style={{ width: "58%" }} /></div>
           <div className="k1f-knopfzeile k1f-unten-links">
-            <button type="button" className={kl("k1f-knopf", s === 1 && "druck")} {...ziel(true)} onClick={() => tippe(() => setS(2))}>Angebot machen</button>
-            <span className="k1f-knopf k1f-zweit"><Symbol n="weg" />Ablehnen</span>
+            <button type="button" className={kl("k1f-knopf", s === 1 && "druck")} {...ziel(true)} onClick={() => tippe(() => setS(2))}>{tx("Angebot machen")}</button>
+            <span className="k1f-knopf k1f-zweit"><Symbol n="weg" />{tx("Ablehnen")}</span>
           </div>
         </div>
       )}
@@ -351,23 +370,23 @@ function Angebot({ s, tippe, setS }: Szene) {
             <div className="k1f-pkopf">
               <span className="k1f-avatar"><Person /></span>
               <span className="k1f-pname">
-                <span className="k1f-titel"><b><Rolle /></b><em key={BESETZUNG_STAND[s]} className="k1f-stand">{BESETZUNG_STAND[s]}</em></span>
-                <small>für: <Stelle /> · über Headhunter</small>
+                <span className="k1f-titel"><b><Rolle /></b><em key={BESETZUNG_STAND[s]} className="k1f-stand">{tx(BESETZUNG_STAND[s])}</em></span>
+                <small>{tx("für: {stelle} · über Headhunter", { stelle })}</small>
               </span>
             </div>
             <ol className="k1f-zeitleiste">
-              {BESETZUNG.map((w, i) => <li key={w} className={kl(i < erreicht && "an", i === erreicht - 1 && "jetzt")}><i />{w}</li>)}
+              {BESETZUNG.map((w, i) => <li key={w} className={kl(i < erreicht && "an", i === erreicht - 1 && "jetzt")}><i />{tx(w)}</li>)}
             </ol>
             <div className="k1f-fakten2">
-              <span className={kl(s >= 6 && "leuchtet")}><small>Start laut Angebot</small><b>01.03.2027</b></span>
+              <span className={kl(s >= 6 && "leuchtet")}><small>{tx("Start laut Angebot")}</small><b>{tx("01.03.2027")}</b></span>
               <span>
-                <small>Arbeitsvertrag</small>
+                <small>{tx("Arbeitsvertrag")}</small>
                 <svg viewBox="0 0 200 50" aria-hidden="true">
                   {s >= 4 && <path className="k1f-unterschrift" d="M10 38C16 22 22 6 30 6C38 6 30 38 38 38C45 38 44 22 51 22C57 22 53 34 60 34C66 34 66 26 72 26C77 26 78 30 86 28C96 26 104 18 116 20" pathLength={1} />}
                   <path d="M8 45H190" className="k1f-linie" />
                 </svg>
               </span>
-              <span><small>Rechnung</small><b>nach der Unterschrift</b></span>
+              <span><small>{tx("Rechnung")}</small><b>{tx("nach der Unterschrift")}</b></span>
             </div>
           </div>
         </div>
@@ -377,11 +396,11 @@ function Angebot({ s, tippe, setS }: Szene) {
           <span className="k1f-antritt-reihe">
             <Person />
             <span className="k1f-pfeil"><Symbol n="pfeil" /></span>
-            <span className="k1f-kalender"><Symbol n="termine" /><b>Mo, 01.03.</b>Erster Arbeitstag</span>
+            <span className="k1f-kalender"><Symbol n="termine" /><b>{tx("Mo, 01.03.")}</b>{tx("Erster Arbeitstag")}</span>
           </span>
           <b className="k1f-antritt-satz"><Antritt /></b>
-          <span className="k1f-antritt-klein">Honorar nur bei Einstellung, erst mit der Unterschrift.</span>
-          <a className="k1f-knopf" href={START_URL} {...ziel(true)} onClick={(e) => { e.preventDefault(); tippe(() => {}, true); }}>Stelle kostenlos ausschreiben</a>
+          <span className="k1f-antritt-klein">{tx("Honorar nur bei Einstellung, erst mit der Unterschrift.")}</span>
+          <a className="k1f-knopf" href={START_URL} {...ziel(true)} onClick={(e) => { e.preventDefault(); tippe(() => {}, true); }}>{tx("Stelle kostenlos ausschreiben")}</a>
         </div>
       )}
     </div>
@@ -391,6 +410,7 @@ function Angebot({ s, tippe, setS }: Szene) {
 const SZENE = [Aufnahme, Suche, Profil, Angebot];
 
 export function Fenster({ aktiv, ruhig, stelle = "" }: { aktiv: boolean; ruhig: boolean; stelle?: string }) {
+  const tx = useTx();
   const [szene, setSzene] = useState(0);
   const [s, setS] = useState(0);
   const [klicks, setKlicks] = useState(0);
@@ -458,11 +478,11 @@ export function Fenster({ aktiv, ruhig, stelle = "" }: { aktiv: boolean; ruhig: 
       onDragLeave={() => setZiehen(false)}
       onDrop={(e) => { e.preventDefault(); setZiehen(false); starteAufnahme(); }}
     >
-      <div className="k1f-story" role="tablist" aria-label="Die vier Schritte">
+      <div className="k1f-story" role="tablist" aria-label={tx("Die vier Schritte")}>
         {SZENEN.map((z, i) => (
           <button key={z.lang} type="button" role="tab" aria-selected={i === szene} onClick={() => waehle(i)}>
             <i style={{ "--f": i < szene ? 1 : i > szene ? 0 : (ruhig ? 1 : anteil), "--d": `${TAKTE[szene][s]}ms` } as CSSProperties} />
-            <span className="k1f-lang">{z.lang}</span><span className="k1f-kurz">{z.kurz}</span>
+            <span className="k1f-lang">{tx(z.lang)}</span><span className="k1f-kurz">{tx(z.kurz)}</span>
           </button>
         ))}
       </div>
@@ -471,15 +491,15 @@ export function Fenster({ aktiv, ruhig, stelle = "" }: { aktiv: boolean; ruhig: 
           <MatchuntLogo size={24} className="k1f-marke" />
           {["start", "stellen", "bewerber", "termine", "angebot"].map((n) => <span key={n} className={kl(NAV_AKTIV[szene] === n && "an")}><Symbol n={n} /></span>)}
         </aside>
-        <div ref={leibRef} className="k1f-leib" role="tabpanel" aria-label={SZENEN[szene].lang}>
+        <div ref={leibRef} className="k1f-leib" role="tabpanel" aria-label={tx(SZENEN[szene].lang)}>
           <Bild key={szene} s={schritt} tippe={tippe} setS={setS} weiterZu={weiterZu} />
           {zeigen && (
             <span ref={zeigerRef} className={kl("k1f-zeiger", maus && "weg", KLICK[szene].includes(s) && "klick")} aria-hidden="true">
               {szene === 0 && s === 2 && <span className="k1f-trage"><DateiKarte /></span>}
             </span>
           )}
-          {ziehen && <div className="k1f-ablage">Anzeige hier ablegen<small>Wir gehen gleich in Ihre Aufnahme.</small></div>}
-          {weiter && <div className="k1f-ablage k1f-weiter">Weiter zu Ihrer Stelle …<small>Die Aufnahme öffnet sich.</small></div>}
+          {ziehen && <div className="k1f-ablage">{tx("Anzeige hier ablegen")}<small>{tx("Wir gehen gleich in Ihre Aufnahme.")}</small></div>}
+          {weiter && <div className="k1f-ablage k1f-weiter">{tx("Weiter zu Ihrer Stelle …")}<small>{tx("Die Aufnahme öffnet sich.")}</small></div>}
         </div>
       </div>
     </div>

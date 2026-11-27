@@ -20,7 +20,12 @@
 
 @media (max-width: 899px) {
   /* die Bilderreihe macht den Text höher: Kreise tiefer und etwas kleiner, damit nichts den Text überdeckt */
-  .s63:has(.kb3-reihe) { --cy: 80%; --u: 0.17vw; }
+  .s63:has(.kb3-reihe) { --cy: 80svh; --u: 0.17vw; }
+  /* Kreise nicht abschneiden (27.11.2026, Marko): das Blau reicht unten so weit, bis der äußere Ring samt Gesichtern
+     drin ist. Die Bühne wird dafür höher als der Bildschirm; Größe und Lage der Kreise bleiben gleich (Mitte bei 80svh).
+     Den Rest unter dem Bildschirm sieht man erst, wenn die Sektion nach oben wegläuft. */
+  .s63:has(.kb3-reihe) { --unten: max(0px, calc(360 * var(--u) + 64px - 20svh)); }
+  .s63:has(.kb3-reihe) .s63-buehne { height: calc(100svh + var(--unten)); }
   .s63 .kb3-reihe { margin-top: 18px; gap: 8px 12px; }
   .s63 .kb3-gesichter i { width: 34px; height: 34px; margin-left: -9px; }
   .s63 .kb3-zahl b { font-size: 15px; }

@@ -1,0 +1,56 @@
+/* Sektion 19 „Schritte für Headhunter“: vier Kacheln mit ständig ruhig bewegten Formen. Farben nur aus stil.css. */
+.s19 { background: var(--mu-bg); color: var(--mu-tx); padding: clamp(64px, 10vh, 120px) 0; overflow: hidden; }
+.s19-kopf { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px 40px; flex-wrap: wrap; margin-bottom: clamp(32px, 5vh, 56px); }
+
+.s19-feld { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.s19-kachel { --form: var(--mu-tx); --spur: color-mix(in srgb, var(--mu-tx) 12%, transparent); position: relative; min-height: 380px; display: flex; flex-direction: column; justify-content: space-between; gap: 32px; padding: 24px; border-radius: var(--mu-r); background: var(--mu-fl); overflow: hidden;
+  transition: opacity 0.5s calc(var(--n) * 90ms), transform 0.9s var(--mu-leicht) calc(var(--n) * 90ms); }
+.s19-kachel[data-art="fl2"] { background: var(--mu-fl2); }
+.s19-kachel[data-art="feld"] { --form: var(--mu-feld-tx); --spur: color-mix(in srgb, var(--mu-feld-tx) 22%, transparent); background: var(--mu-feld); color: var(--mu-feld-tx); }
+/* Kacheln kommen einmal leicht gekippt herein (wie in der Vorlage, nur ruhiger). */
+.s19[data-da="false"] .s19-kachel { opacity: 0; transform: translateY(48px) rotate(calc((var(--n) - 1.5) * 2deg)); }
+
+.s19-nr { display: grid; place-items: center; width: 32px; height: 32px; margin-bottom: 20px; border-radius: 50%; background: color-mix(in srgb, var(--form) 10%, transparent); font-size: 15px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.s19-wort p { margin: 10px 0 0; font-size: 17px; line-height: 1.45; color: var(--mu-ls); max-width: 16em; }
+.s19-kachel[data-art="feld"] .s19-wort p { color: color-mix(in srgb, var(--mu-feld-tx) 84%, transparent); }
+
+/* Formen */
+.s19-f { display: block; height: 84px; width: auto; align-self: flex-start; overflow: visible; fill: var(--form); }
+.s19-f rect, .s19-f circle, .s19-f path { transform-box: fill-box; transform-origin: center; }
+.s19-ruhe .s19-f * { animation-play-state: paused !important; }
+
+.s19-f-bogen path { fill: none; stroke-width: 34; }
+.s19-spur { stroke: var(--spur); }
+.s19-lauf { stroke: var(--form); stroke-dasharray: 1; animation: s19-bogen 6s var(--mu-leicht) infinite; }
+@keyframes s19-bogen { 0%, 8% { stroke-dashoffset: 1; } 50%, 72% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: 1; } }
+
+.s19-knauf { fill: var(--mu-ak); animation: s19-knauf 5.4s var(--mu-leicht) infinite; }
+@keyframes s19-knauf { 0%, 18% { transform: translateX(0); } 45%, 68% { transform: translateX(84px); } 95%, 100% { transform: translateX(0); } }
+
+.s19-f-welle rect { animation: s19-welle 2.1s ease-in-out infinite; }
+@keyframes s19-welle { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
+
+.s19-h-l { animation: s19-links 5.6s var(--mu-leicht) infinite; }
+.s19-h-r { animation: s19-rechts 5.6s var(--mu-leicht) infinite; }
+@keyframes s19-links { 0%, 12% { transform: translateX(-22px); } 45%, 78% { transform: translateX(0); } 100% { transform: translateX(-22px); } }
+@keyframes s19-rechts { 0%, 12% { transform: translateX(22px); } 45%, 78% { transform: translateX(0); } 100% { transform: translateX(22px); } }
+
+@media (max-width: 1099px) {
+  .s19-feld { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .s19-kachel { min-height: 300px; }
+}
+@media (max-width: 599px) {
+  .s19-kopf { margin-bottom: 28px; }
+  .s19-feld { grid-template-columns: 1fr; gap: 12px; }
+  .s19-kachel { min-height: 0; padding: 20px; gap: 28px; }
+  .s19-nr { margin-bottom: 14px; }
+  .s19-f { height: 60px; }
+  .s19[data-da="false"] .s19-kachel { transform: translateY(28px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .s19-kachel { transition: none; }
+  .s19[data-da="false"] .s19-kachel { opacity: 1; transform: none; }
+  .s19-f * { animation: none !important; }
+  .s19-lauf { stroke-dashoffset: 0; }
+  .s19-knauf { transform: translateX(84px); }
+}

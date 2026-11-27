@@ -3,14 +3,16 @@
 // mit einem kleinen Bild aus dem Produkt. Am Handy läuft die Linie links, die Stationen stehen rechts daneben.
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { START_URL } from "@/startseite/nachbau/basis";
+import { useTx } from "@/startseite/website/uebersetzen";
 import "./s18.css";
 
 function BildAnzeige() {
+  const tx = useTx();
   return (
     <div className="s18-b s18-b-anzeige">
       <div className="s18-blatt">
-        <span className="s18-marke">Ihre Anzeige</span>
-        <b>Leitung Konstruktion (m/w/d)</b>
+        <span className="s18-marke">{tx("Ihre Anzeige")}</span>
+        <b>{tx("Leitung Konstruktion (m/w/d)")}</b>
         <i /><i /><i /><i />
       </div>
     </div>
@@ -19,34 +21,37 @@ function BildAnzeige() {
 
 const PUNKTE: [number, number][] = [[40, 34], [112, 14], [204, 30], [280, 16], [70, 132], [160, 142], [252, 128]];
 function BildHeadhunter() {
+  const tx = useTx();
   return (
     <div className="s18-b s18-b-hh">
       <svg viewBox="0 0 320 156" fill="none">
         {PUNKTE.map(([x, y], i) => <path key={i} className="s18-faden" d={`M${x} ${y}L160 78`} />)}
         {PUNKTE.map(([x, y], i) => <circle key={i} className="s18-hh" style={{ ["--n" as string]: i }} cx={x} cy={y} r="9" />)}
       </svg>
-      <span className="s18-stelle">Leitung Konstruktion</span>
+      <span className="s18-stelle">{tx("Leitung Konstruktion")}</span>
     </div>
   );
 }
 
 function BildVorstellung() {
+  const tx = useTx();
   return (
     <div className="s18-b s18-b-vor">
       <div className="s18-vor-kopf">
-        <div className="s18-kreis">K1</div>
-        <div className="s18-wer"><b>Kandidat 1</b><span className="mu-leise">für: Leitung Konstruktion</span></div>
+        <div className="s18-kreis">{tx("K{n}", { n: 1 })}</div>
+        <div className="s18-wer"><b>{tx("Kandidat {n}", { n: 1 })}</b><span className="mu-leise">{tx("für: {stelle}", { stelle: tx("Leitung Konstruktion") })}</span></div>
       </div>
-      <span className="s18-stand">Neu · heute</span>
-      <span className="s18-knopf">Interview anfragen</span>
+      <span className="s18-stand">{tx("Neu · heute")}</span>
+      <span className="s18-knopf">{tx("Interview anfragen")}</span>
     </div>
   );
 }
 
 function BildUnterschrift() {
+  const tx = useTx();
   return (
     <div className="s18-b s18-b-sign">
-      <div className="s18-sign-kopf"><span className="s18-marke">Arbeitsvertrag</span><span className="s18-stand">Vertrag unterschrieben</span></div>
+      <div className="s18-sign-kopf"><span className="s18-marke">{tx("Arbeitsvertrag")}</span><span className="s18-stand">{tx("Vertrag unterschrieben")}</span></div>
       <svg viewBox="0 0 180 44" fill="none"><path pathLength={100} d="M6 30c10-18 18-22 20-12s-6 18-2 16 12-22 18-20 0 18 6 16 10-14 16-12 2 10 8 8 12-8 22-6 20 4 40-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
     </div>
   );
@@ -72,12 +77,14 @@ function bahn(p: Punkt[]) {
 
 // bilder/saetze: Fassung 18.1 gibt eigene, bewegte Bilder und einzelne Sätze mit; ohne Angabe bleibt alles wie bisher.
 // titel/kopf/knopf/klasse: Fassung 18.3 setzt je Station einen Satzteil als Überschrift (bekommt mit, ob die Station da ist).
+// saetze und knopf kommen deutsch herein und werden hier übersetzt (tx); kopf und titel übersetzen sich selbst.
 type WegProps = { bilder?: ReactNode[]; saetze?: (string | undefined)[]; titel?: ((da: boolean) => ReactNode)[]; kopf?: ReactNode; knopf?: string; klasse?: string; spitze?: number; stufen?: boolean; vonOben?: boolean };
 // vonOben: die Linie kommt schon an der Oberkante der Sektion heraus (aus der Sektion davor) und läuft links neben der
 // Überschrift gerade herunter, dann zum ersten Knoten.
 // stufen: die Linie läuft nicht stufenlos mit, sondern schießt von Knoten zu Knoten und bleibt dort stehen.
 // spitze: auf welcher Bildschirmhöhe (0–1) die Spitze der farbigen Linie mitläuft; ohne Angabe 0,6 wie bisher.
 export function Weg({ bilder, saetze, titel, kopf, knopf, klasse, spitze = 0.6, stufen = false, vonOben = false }: WegProps = {}) {
+  const tx = useTx();
   const buehne = useRef<HTMLDivElement>(null);
   const spur = useRef<SVGPathElement>(null);
   const ende = useRef<HTMLDivElement>(null);
@@ -178,7 +185,7 @@ export function Weg({ bilder, saetze, titel, kopf, knopf, klasse, spitze = 0.6, 
   return (
     <section className={klasse ? `s18 ${klasse}` : "s18"} data-bereit={bereit}>
       <div className="mu-wrap">
-        {kopf ?? <h2 className="mu-h2 s18-h2">Ein Weg von der Stelle <span className="mu-leise">bis zur Unterschrift.</span></h2>}
+        {kopf ?? <h2 className="mu-h2 s18-h2">{tx("Ein Weg von der Stelle")} <span className="mu-leise">{tx("bis zur Unterschrift.")}</span></h2>}
 
         <div className="s18-buehne" ref={buehne}>
           <svg className="s18-linie" aria-hidden="true">
@@ -190,8 +197,8 @@ export function Weg({ bilder, saetze, titel, kopf, knopf, klasse, spitze = 0.6, 
             {STATIONEN.map((s, i) => (
               <li key={s.name} className="s18-station" data-da={i <= aktiv} data-seite={i % 2 ? "rechts" : "links"}>
                 <div className="s18-text">
-                  <h3 className="mu-h3">{titel?.[i] ? titel[i](i <= aktiv) : s.name}</h3>
-                  {(saetze?.[i] ?? s.satz) && <p>{saetze?.[i] ?? s.satz}</p>}
+                  <h3 className="mu-h3">{titel?.[i] ? titel[i](i <= aktiv) : tx(s.name)}</h3>
+                  {(saetze?.[i] ?? s.satz) && <p>{tx(saetze?.[i] ?? s.satz)}</p>}
                 </div>
                 <div className="s18-bild mu-karte" aria-hidden="true">{bilder?.[i] ?? s.bild}</div>
               </li>
@@ -203,7 +210,7 @@ export function Weg({ bilder, saetze, titel, kopf, knopf, klasse, spitze = 0.6, 
             ))}
           </div>
           <div className="s18-ende" ref={ende}>
-            <a className="mu-knopf" href={START_URL}>{knopf ?? "Stelle beschreiben"}</a>
+            <a className="mu-knopf" href={START_URL}>{tx(knopf ?? "Stelle beschreiben")}</a>
           </div>
         </div>
       </div>

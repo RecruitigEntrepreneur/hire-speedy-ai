@@ -4,8 +4,9 @@ import "./lib/feedback/install";
 import { createRoot } from "react-dom/client";
 import { Suspense, lazy } from "react";
 import "./index.css";
-import { i18nReady } from "./i18n";
+import { i18nReady, i18nTeile } from "./i18n";
 import "./i18n/profileSync";
+import { istWebsitePfad } from "./websitePfade";
 
 // Host-/Port-basierter App-Split: akademie.* (Prod) oder Dev-Port :8081 -> AcademyApp,
 // sonst Matchunt. Beide teilen Supabase, Typen & i18n. Lazy geladen -> getrennte Bundles.
@@ -15,6 +16,8 @@ const AcademyApp = lazy(() => import("./academy/AcademyApp.tsx"));
 // einer E-Mail geöffnet, oft mobil, und hat mit Dashboard, Admin und Academy
 // nichts zu tun. App.tsx importiert alle ~90 Seiten eager (> 2 MB gebaut).
 const IntakeApp = lazy(() => import("./IntakeApp.tsx"));
+// Die öffentliche Website (/, /headhunter, /karriere, Rechtstexte) ebenso: eigenes, leichtes Bündel.
+const WebsiteApp = lazy(() => import("./WebsiteApp.tsx"));
 
 // Initialize theme from localStorage before render to prevent flash
 const savedTheme = localStorage.getItem('matchunt-theme');
@@ -37,10 +40,12 @@ function isGuestIntakePath(): boolean {
   return path.startsWith("/start/") || path.startsWith("/aufnahme/");
 }
 
-const Root = isAcademyHost() ? AcademyApp : isGuestIntakePath() ? IntakeApp : App;
+const website = !isAcademyHost() && istWebsitePfad(window.location.pathname);
+const Root = isAcademyHost() ? AcademyApp : isGuestIntakePath() ? IntakeApp : website ? WebsiteApp : App;
 
-// Erst starten, wenn die Texte der gewählten Sprache da sind (siehe i18n/index.ts).
-void i18nReady.then(() => {
+// Erst starten, wenn die Texte der gewählten Sprache da sind (siehe i18n/index.ts). Die Website hat ihre
+// eigenen Texte und braucht aus der App nur den Cookie-Hinweis.
+void (website ? i18nTeile(["privacy"]) : i18nReady()).then(() => {
   createRoot(document.getElementById("root")!).render(
     <Suspense fallback={<div className="min-h-screen bg-background" />}>
       <Root />

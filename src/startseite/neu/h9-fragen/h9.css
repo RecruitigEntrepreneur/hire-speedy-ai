@@ -1,0 +1,26 @@
+/* Neue Sektion „Fragen für Headhunter“: Überschrift links, aufklappbare Fragen rechts. */
+.h9 { padding: clamp(72px, 9vw, 144px) 0; }
+.h9-raster { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); column-gap: clamp(32px, 6vw, 112px); row-gap: 36px; align-items: start; }
+.h9-liste { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--mu-ln); }
+.h9-liste li { border-bottom: 1px solid var(--mu-ln); }
+.h9-liste h3 { margin: 0; }
+.h9-liste button { display: flex; align-items: center; justify-content: space-between; gap: 20px; width: 100%; min-height: 76px; padding: 18px 0; border: 0; background: none; color: var(--mu-tx); font-family: var(--mu-fh), sans-serif; font-size: clamp(20px, 1.7vw, 26px); font-weight: var(--mu-hw); letter-spacing: -0.015em; line-height: 1.2; text-align: left; cursor: pointer; }
+.h9-liste button:focus-visible { outline: 2px solid var(--mu-tx); outline-offset: 3px; }
+.h9-liste button i { position: relative; flex: none; width: 36px; height: 36px; border-radius: 50%; background: var(--mu-fl); transition: background 0.25s, transform 0.4s var(--mu-leicht); }
+.h9-liste button i::before, .h9-liste button i::after { content: ""; position: absolute; left: 11px; top: 17px; width: 14px; height: 2px; border-radius: 1px; background: var(--mu-tx); transition: transform 0.4s var(--mu-leicht), background 0.25s; }
+.h9-liste button i::after { transform: rotate(90deg); }
+.h9-liste button:hover i { background: var(--mu-fl2); }
+.h9-liste li[data-auf="true"] button i { background: var(--mu-ak); }
+.h9-liste li[data-auf="true"] button i::before, .h9-liste li[data-auf="true"] button i::after { background: var(--mu-akt); }
+.h9-liste li[data-auf="true"] button i::after { transform: rotate(0deg); }
+.h9-antwort { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.45s var(--mu-leicht); }
+.h9-antwort > div { overflow: hidden; visibility: hidden; transition: visibility 0.45s; }
+.h9-liste li[data-auf="true"] .h9-antwort { grid-template-rows: 1fr; }
+.h9-liste li[data-auf="true"] .h9-antwort > div { visibility: visible; }
+.h9-antwort p { margin: 0; padding: 0 56px 26px 0; max-width: 34em; font-size: clamp(17px, 1.3vw, 20px); line-height: 1.5; color: var(--mu-ls); }
+
+@media (max-width: 899px) {
+  .h9-raster { grid-template-columns: minmax(0, 1fr); }
+  .h9-antwort p { padding-right: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .h9-antwort, .h9-antwort > div, .h9-liste button i, .h9-liste button i::before, .h9-liste button i::after { transition: none; } }

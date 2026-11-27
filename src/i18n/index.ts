@@ -99,7 +99,15 @@ i18n
 const allNamespaces = [...new Set(
   Object.keys(files).map((path) => path.match(/locales\/([^/]+)\//)?.[1]).filter((name): name is string => !!name),
 )];
-export const i18nReady: Promise<void> = i18n.loadNamespaces(allNamespaces).then(() => undefined, () => undefined);
+let alleNamespaces: Promise<void> | null = null;
+/** Lädt alle Texte der aktiven Sprache (einmal). App, Aufnahme und Akademie warten darauf (main.tsx). */
+export function i18nReady(): Promise<void> {
+  return (alleNamespaces ??= i18n.loadNamespaces(allNamespaces).then(() => undefined, () => undefined));
+}
+/** Nur einzelne Namespaces – die öffentliche Website braucht lediglich den Cookie-Hinweis (27.11.2026). */
+export function i18nTeile(namespaces: string[]): Promise<void> {
+  return i18n.loadNamespaces(namespaces).then(() => undefined, () => undefined);
+}
 
 // keep <html lang> in sync with the active language for SEO / a11y
 const syncHtmlLang = (lng: string) => {

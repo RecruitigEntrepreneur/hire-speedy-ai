@@ -13,6 +13,7 @@ import { TeMarke } from "@/startseite/nachbau3/te/Marke";
 import { Zeichen } from "@/startseite/matchunt/s06-zeichen/Zeichen";
 import "@/startseite/matchunt/s63-bahnen/s63.css";
 import { hhFoto } from "@/startseite/matchunt/fotos";
+import { useTx } from "@/startseite/website/uebersetzen";
 import "@/startseite/matchunt/s63-1-bahnen/s631.css";
 import "./kb3.css";
 
@@ -64,10 +65,14 @@ function LupeTinte({ lauf, hell, stand }: { lauf: boolean; hell: boolean; stand:
 }
 
 function Lage({ an, echt, lauf, lupe }: { an: number; echt: boolean; lauf: boolean; lupe: LupeStand }) {
+  const tx = useTx();
   const [ab, ak] = an < 0 ? [-1, -1] : FOLGE[an % FOLGE.length];
+  // Überschrift als ein Satz übersetzt; das letzte Wort bleibt mit der Lupe zusammen (wie bisher „Headhunter.“).
+  const satz = tx("Ihre Stelle geht an alle Headhunter.");
+  const bruch = satz.lastIndexOf(" ") + 1;
   return (
     <div className="s63-lage" aria-hidden={echt ? undefined : true}>
-      <div className="s63-netz" role={echt ? "img" : undefined} aria-label={echt ? "Kreisbahnen um Ihre Stelle. Darauf die Headhunter, die Ihre Stelle sehen und Kandidaten vorstellen." : undefined}>
+      <div className="s63-netz" role={echt ? "img" : undefined} aria-label={echt ? tx("Kreisbahnen um Ihre Stelle. Darauf die Headhunter, die Ihre Stelle sehen und Kandidaten vorstellen.") : undefined}>
         <div className="s63-halt">
           {BAHNEN.map((b, bi) => (
             <div key={b.r} className={`s63-bahn${bi % 2 ? " s63-gegenlauf" : ""}${b.klein ? " kb3-klein" : ""}`} style={{ "--r": b.r, "--t": `${b.dauer}s` } as CSSProperties}>
@@ -90,14 +95,14 @@ function Lage({ an, echt, lauf, lupe }: { an: number; echt: boolean; lauf: boole
           ))}
           <div className="s63-mitte">
             {an >= 0 && <i key={an} className="s63-welle" />}
-            <span>Ihre Stelle</span>
+            <span>{tx("Ihre Stelle")}</span>
           </div>
         </div>
       </div>
       <div className="mu-wrap s63-innen">
         <div className="s63-kopf">
-          <h2 className="mu-h2">Ihre Stelle geht an alle <span className="s631-fest">Headhunter.<LupeTinte lauf={lauf} hell={echt} stand={lupe} /></span></h2>
-          <p className="mu-text">Sie müssen keinen einzeln suchen, briefen oder verhandeln.</p>
+          <h2 className="mu-h2">{satz.slice(0, bruch)}<span className="s631-fest">{satz.slice(bruch)}<LupeTinte lauf={lauf} hell={echt} stand={lupe} /></span></h2>
+          <p className="mu-text">{tx("Sie müssen keinen einzeln suchen, briefen oder verhandeln.")}</p>
           {/* 26.11.2026 (63.3): Reihe aus Headhunter-Bildern und die Zahl in Worten */}
           <div className="kb3-reihe" data-da={lauf}>
             <span className="kb3-gesichter" aria-hidden="true">
@@ -106,7 +111,7 @@ function Lage({ an, echt, lauf, lupe }: { an: number; echt: boolean; lauf: boole
               ))}
               <i className="kb3-mehr" style={{ "--i": 8 } as CSSProperties}>+</i>
             </span>
-            <span className="kb3-zahl"><b>Hunderte geprüfte Headhunter</b><small>sehen Ihre Stelle, ohne Firmennamen.</small></span>
+            <span className="kb3-zahl"><b>{tx("Hunderte geprüfte Headhunter")}</b><small>{tx("sehen Ihre Stelle, ohne Firmennamen.")}</small></span>
           </div>
         </div>
       </div>

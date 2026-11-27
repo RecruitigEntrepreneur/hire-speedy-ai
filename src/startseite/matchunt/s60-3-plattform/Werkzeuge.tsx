@@ -1,12 +1,14 @@
 // Karte „Läuft mit Ihren Werkzeugen“ für Sektion 60.3 (26.11.2026): Matchunt in der Mitte, darüber die drei verbundenen
 // Werkzeuge mit ihren echten Logos, darunter blasser, was in Arbeit ist. Stände wie in der Sektion „Verbindungen“
 // (neu/v1): „Verbunden“ nur Outlook-Kalender, Microsoft Teams und DocuSign. Logos unverändert aus public/logos/werkzeuge.
+// 27.11.2026: Texte laufen über tx() (Wörterbuch website/uebersetzung/plattform.ts); Markennamen in KOMMT bleiben stehen.
 /* eslint-disable @next/next/no-img-element */
 import type { CSSProperties } from "react";
 import { useSichtbar } from "@/startseite/nachbau/basis";
 import { kl, useSchritte } from "@/startseite/nachbau/rampTakt";
 import { MatchuntLogo } from "@/startseite/seite/Logo";
 import { Karte } from "../s60-2-plattform/Plattform";
+import { useTx } from "@/startseite/website/uebersetzen";
 import "./s603.css";
 
 const DA: [string, string, string, boolean?][] = [["Outlook", "outlook", "Termin im Kalender"], ["Teams", "teams", "Link zum Gespräch"], ["DocuSign", "docusign", "Unterschrift", true]];
@@ -21,17 +23,18 @@ const KOMMT: [string, string, boolean?][] = [
 const TAKT = [800, 600, 600, 600, 600, 600, 800, 1200, 3600, 500] as const;
 
 export function Werkzeuge() {
+  const tx = useTx();
   const [ref, da] = useSichtbar<HTMLElement>(0.35);
   const s = useSchritte(da, TAKT, 8);
   return (
-    <Karte titel="Läuft mit Ihren Werkzeugen" innenRef={ref} weg={s === 9}>
+    <Karte titel={tx("Läuft mit Ihren Werkzeugen")} innenRef={ref} weg={s === 9}>
       <div className="s602-app s603">
-        <small className="s603-marke"><i />Verbunden</small>
+        <small className="s603-marke"><i />{tx("Verbunden")}</small>
         <ul className="s603-da">
           {DA.map(([name, logo, was, breit], i) => (
             <li key={name} className={kl(s >= i + 1 && "an")}>
               <span className="s603-kachel" data-breit={!!breit}><img src={`/logos/werkzeuge/${logo}.svg`} alt="" /></span>
-              <b>{name}</b><small>{was}</small>
+              <b>{tx(name)}</b><small>{tx(was)}</small>
               <u />
             </li>
           ))}
@@ -42,12 +45,12 @@ export function Werkzeuge() {
             <li key={name} className={kl(s >= i + 4 && "an")}>
               <u />
               <span className="s603-kachel" data-breit={!!breit}><img src={`/logos/werkzeuge/${logo}.svg`} alt="" /></span>
-              <b>{name}</b><small>{was}</small>
+              <b>{tx(name)}</b><small>{tx(was)}</small>
             </li>
           ))}
         </ul>
         <div className={kl("s603-kommt s602-ein", s >= 7 && "an")}>
-          <small className="s603-marke leise">In Arbeit</small>
+          <small className="s603-marke leise">{tx("In Arbeit")}</small>
           <ul>
             {KOMMT.map(([name, logo, breit], i) => (
               <li key={name} title={name} data-breit={!!breit} style={{ "--i": i } as CSSProperties}><img src={`/logos/werkzeuge/${logo}.svg`} alt={name} /></li>

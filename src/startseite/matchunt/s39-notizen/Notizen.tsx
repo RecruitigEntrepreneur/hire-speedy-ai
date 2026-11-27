@@ -2,6 +2,7 @@
 // Vorstellung. Daran ploppen nacheinander vier Markierungen auf; zu jeder kommt ein Notiz-Zettel mit einem Feld
 // aus dem Gespräch des Headhunters, der sich weich füllt und abhakt. Läuft einmal, sobald die Sektion im Bild ist.
 import { useEffect, useRef, useState } from "react";
+import { useTx } from "@/startseite/website/uebersetzen";
 import "./s39.css";
 
 // Balken je Zeile in Prozent; „m“ = Nummer der Markierung, die an diesem Balken aufploppt.
@@ -22,6 +23,7 @@ const ZETTEL: [string, string | null][] = [
 const reihe = (i: number) => ({ ["--i" as string]: i });
 
 export function Notizen() {
+  const tx = useTx();
   const ref = useRef<HTMLElement>(null);
   const [an, setAn] = useState(false);
 
@@ -39,10 +41,10 @@ export function Notizen() {
         <div className="s39-buehne">
           <div className="s39-blatt" aria-hidden="true">
             <div className="s39-kopf">
-              <div className="s39-kreis">K1</div>
-              <div className="s39-wer"><b>Kandidat 1</b><span className="mu-leise">für: Leitung Konstruktion</span></div>
+              <div className="s39-kreis">{tx("K1")}</div>
+              <div className="s39-wer"><b>{tx("Kandidat {n}", { n: 1 })}</b><span className="mu-leise">{tx("für: {stelle}", { stelle: tx("Leitung Konstruktion") })}</span></div>
             </div>
-            <p className="s39-marke">Lebenslauf</p>
+            <p className="s39-marke">{tx("Lebenslauf")}</p>
             <div className="s39-zeilen">
               {ZEILEN.map((z, i) => (
                 <div key={i} className="s39-zeile">
@@ -54,14 +56,14 @@ export function Notizen() {
                 </div>
               ))}
             </div>
-            <p className="s39-von"><i>H1</i><span className="mu-leise">Vorgestellt von Headhunter 1 nach einem Gespräch</span></p>
+            <p className="s39-von"><i>H1</i><span className="mu-leise">{tx("Vorgestellt von Headhunter 1 nach einem Gespräch")}</span></p>
           </div>
 
-          <ul className="s39-zettel" aria-label="Notizen aus dem Gespräch">
+          <ul className="s39-zettel" aria-label={tx("Notizen aus dem Gespräch")}>
             {ZETTEL.map(([feld, wert], i) => (
               <li key={feld} style={reihe(i)}>
-                <span className="s39-feld">{feld}</span>
-                {wert ? <span className="s39-wert">{wert}</span> : <span className="s39-grau" aria-hidden="true"><i /><i /></span>}
+                <span className="s39-feld">{tx(feld)}</span>
+                {wert ? <span className="s39-wert">{tx(wert)}</span> : <span className="s39-grau" aria-hidden="true"><i /><i /></span>}
                 <svg className="s39-haken" viewBox="0 0 28 28" aria-hidden="true" focusable="false"><circle cx="14" cy="14" r="13" /><path d="M8.5 14.5 L12.5 18.5 L20 10.5" pathLength={1} /></svg>
               </li>
             ))}
@@ -69,8 +71,8 @@ export function Notizen() {
         </div>
 
         <div className="s39-text">
-          <h2 className="mu-h2">Was in keinem Lebenslauf steht.</h2>
-          <p className="mu-text">Zu jeder Vorstellung bekommen Sie die Notizen aus dem Gespräch.</p>
+          <h2 className="mu-h2">{tx("Was in keinem Lebenslauf steht.")}</h2>
+          <p className="mu-text">{tx("Zu jeder Vorstellung bekommen Sie die Notizen aus dem Gespräch.")}</p>
         </div>
       </div>
     </section>

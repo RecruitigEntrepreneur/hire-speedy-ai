@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Website von Matchunt (27.11.2026). Startseite in sechs Sprachfassungen (/w/<sprache>), dazu die Unterseiten. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://matchunt.ai/</loc>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://matchunt.ai/"/>
+    <xhtml:link rel="alternate" hreflang="de" href="https://matchunt.ai/w/de"/>
+    <xhtml:link rel="alternate" hreflang="de-AT" href="https://matchunt.ai/w/de-at"/>
+    <xhtml:link rel="alternate" hreflang="de-CH" href="https://matchunt.ai/w/de-ch"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://matchunt.ai/w/en"/>
+    <xhtml:link rel="alternate" hreflang="sv" href="https://matchunt.ai/w/sv"/>
+    <xhtml:link rel="alternate" hreflang="nb" href="https://matchunt.ai/w/no"/>
+  </url>
+  <url><loc>https://matchunt.ai/w/de</loc></url>
+  <url><loc>https://matchunt.ai/w/de-at</loc></url>
+  <url><loc>https://matchunt.ai/w/de-ch</loc></url>
+  <url><loc>https://matchunt.ai/w/en</loc></url>
+  <url><loc>https://matchunt.ai/w/sv</loc></url>
+  <url><loc>https://matchunt.ai/w/no</loc></url>
+  <url><loc>https://matchunt.ai/headhunter</loc></url>
+  <url><loc>https://matchunt.ai/karriere</loc></url>
+  <url><loc>https://matchunt.ai/impressum</loc></url>
+  <url><loc>https://matchunt.ai/datenschutz</loc></url>
+  <url><loc>https://matchunt.ai/agb</loc></url>
+</urlset>

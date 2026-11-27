@@ -1,12 +1,21 @@
 // Texte des Website-Rahmens (Hinweisleiste, Sprachmenü, Fuß, Einwilligung) in den vier Grundsprachen.
 // Deutsch ist die Quelle. Schwedisch und Norwegisch sind nicht muttersprachlich gegengelesen.
-// Die Inhalte der Sektionen sind noch nur Deutsch – übersetzt wird nur der Rahmen.
+// Die Inhalte der Sektionen übersetzt website/uebersetzen.ts (Wörterbücher in website/uebersetzung).
 import { schweiz, sprache, type Basis, type Code } from "./sprachen";
 
 export type ZweckText = { name: string; text: string; dienst: string; zweck: string };
 export type Texte = {
   menue: string; hinweisSchliessen: string;
-  fuss: { impressum: string; datenschutz: string; agb: string; cookies: string; sprache: string };
+  /** Kopfzeile der Unterseiten (Rechtstexte, Headhunter) – dieselben Einträge wie in der Tafel der Startseite. */
+  kopf: { navigation: string; startseite: string; ablauf: string; honorar: string; headhunter: string; anmelden: string; knopf: string;
+    verdienst: string; unternehmen: string; alsUnternehmen: string; alsHeadhunter: string; bewerben: string; menueAuf: string; menueZu: string };
+  /** Blauer Abschluss-Aufruf vor dem Fuß (Startseite: Kunde, Headhunter-Seite: Headhunter). */
+  abschluss: { kunde: string; kundeKlein: string; headhunter: string; headhunterKlein: string };
+  /** Rechtstexte gibt es nur auf Deutsch; in den anderen Sprachen steht dieser Satz darüber (leer = kein Hinweis). */
+  recht: { nurDeutsch: string };
+  fuss: { impressum: string; datenschutz: string; agb: string; cookies: string; sprache: string;
+    satz: string; plattform: string; firma: string; rechtliches: string; karriere: string; anmeldenUnternehmen: string; anmeldenHeadhunter: string; kontakt: string;
+    /** {jahr} */ zeile: string };
   e1: { titel: string; text: string; ablehnen: string; einstellungen: string; akzeptieren: string };
   zentrale: {
     titel: string; intro: string; notwendig: string; notwendigText: string; immerAn: string;
@@ -21,7 +30,10 @@ export type Texte = {
 const DE: Texte = {
   menue: "Sprache wählen",
   hinweisSchliessen: "Hinweis schließen",
-  fuss: { impressum: "Impressum", datenschutz: "Datenschutz", agb: "AGB", cookies: "Cookie-Einstellungen", sprache: "Sprache" },
+  kopf: { navigation: "Hauptnavigation", startseite: "Matchunt, Startseite", ablauf: "Ablauf", honorar: "Honorar", headhunter: "Für Headhunter", anmelden: "Anmelden", knopf: "Stelle kostenlos ausschreiben", verdienst: "Verdienst", unternehmen: "Für Unternehmen", alsUnternehmen: "Als Unternehmen", alsHeadhunter: "Als Headhunter", bewerben: "Als Headhunter bewerben", menueAuf: "Menü öffnen", menueZu: "Menü schließen" },
+  recht: { nurDeutsch: "" },
+  abschluss: { kunde: "Ihre Stelle, unsere Headhunter.", kundeKlein: "Erfolgsbasiert · Sie zahlen erst bei Einstellung", headhunter: "Besetzen statt akquirieren.", headhunterKlein: "Die Kunden bringen wir." },
+  fuss: { impressum: "Impressum", datenschutz: "Datenschutz", agb: "AGB", cookies: "Cookie-Einstellungen", sprache: "Sprache", satz: "Headhunter für Ihre Stelle.", plattform: "Plattform", firma: "Unternehmen", rechtliches: "Rechtliches", karriere: "Karriere", anmeldenUnternehmen: "Anmelden als Unternehmen", anmeldenHeadhunter: "Anmelden als Headhunter", kontakt: "Kontakt", zeile: "© {jahr} Bluewater & Bridge GmbH · München" },
   e1: {
     titel: "Helfen Sie uns, Matchunt besser zu machen",
     text: "Wir möchten verstehen, wie Sie die Seite nutzen und welche Anzeigen wirken. Dafür setzen wir Dienste ein, die Daten auch außerhalb der EU verarbeiten können. Sie entscheiden – jederzeit änderbar unter „Cookie-Einstellungen“ unten auf jeder Seite.",
@@ -48,7 +60,10 @@ const DE: Texte = {
 const EN: Texte = {
   menue: "Choose language",
   hinweisSchliessen: "Close notice",
-  fuss: { impressum: "Legal notice", datenschutz: "Privacy", agb: "Terms", cookies: "Cookie settings", sprache: "Language" },
+  kopf: { navigation: "Main navigation", startseite: "Matchunt, home", ablauf: "How it works", honorar: "Fee", headhunter: "For headhunters", anmelden: "Sign in", knopf: "Post a position for free", verdienst: "Earnings", unternehmen: "For companies", alsUnternehmen: "As a company", alsHeadhunter: "As a headhunter", bewerben: "Apply as a headhunter", menueAuf: "Open menu", menueZu: "Close menu" },
+  recht: { nurDeutsch: "This page is only available in German. The German version is legally binding." },
+  abschluss: { kunde: "Your position, our headhunters.", kundeKlein: "Success-based · You only pay once someone is hired", headhunter: "Fill positions instead of chasing clients.", headhunterKlein: "We bring the clients." },
+  fuss: { impressum: "Legal notice", datenschutz: "Privacy", agb: "Terms", cookies: "Cookie settings", sprache: "Language", satz: "Headhunters for your position.", plattform: "Platform", firma: "Company", rechtliches: "Legal", karriere: "Careers", anmeldenUnternehmen: "Sign in as a company", anmeldenHeadhunter: "Sign in as a headhunter", kontakt: "Contact", zeile: "© {jahr} Bluewater & Bridge GmbH · Munich" },
   e1: {
     titel: "Help us make Matchunt better",
     text: "We'd like to understand how you use this site and which ads work. For this we use services that may also process data outside the EU. It's your choice – you can change it any time under “Cookie settings” at the bottom of every page.",
@@ -75,7 +90,10 @@ const EN: Texte = {
 const SV: Texte = {
   menue: "Välj språk",
   hinweisSchliessen: "Stäng meddelandet",
-  fuss: { impressum: "Juridisk information", datenschutz: "Integritet", agb: "Villkor", cookies: "Cookie-inställningar", sprache: "Språk" },
+  kopf: { navigation: "Huvudmeny", startseite: "Matchunt, startsida", ablauf: "Så fungerar det", honorar: "Arvode", headhunter: "För headhunters", anmelden: "Logga in", knopf: "Publicera tjänsten gratis", verdienst: "Intjäning", unternehmen: "För företag", alsUnternehmen: "Som företag", alsHeadhunter: "Som headhunter", bewerben: "Ansök som headhunter", menueAuf: "Öppna menyn", menueZu: "Stäng menyn" },
+  recht: { nurDeutsch: "Den här sidan finns bara på tyska. Den tyska versionen är juridiskt bindande." },
+  abschluss: { kunde: "Din tjänst, våra headhunters.", kundeKlein: "Resultatbaserat · Du betalar först vid anställning", headhunter: "Tillsätt tjänster i stället för att jaga kunder.", headhunterKlein: "Kunderna står vi för." },
+  fuss: { impressum: "Juridisk information", datenschutz: "Integritet", agb: "Villkor", cookies: "Cookie-inställningar", sprache: "Språk", satz: "Headhunters för din tjänst.", plattform: "Plattform", firma: "Företaget", rechtliches: "Juridiskt", karriere: "Karriär", anmeldenUnternehmen: "Logga in som företag", anmeldenHeadhunter: "Logga in som headhunter", kontakt: "Kontakt", zeile: "© {jahr} Bluewater & Bridge GmbH · München" },
   e1: {
     titel: "Hjälp oss att göra Matchunt bättre",
     text: "Vi vill förstå hur du använder sidan och vilka annonser som fungerar. Därför använder vi tjänster som även kan behandla data utanför EU. Du bestämmer – och kan ändra det när som helst under ”Cookie-inställningar” längst ned på varje sida.",
@@ -102,7 +120,10 @@ const SV: Texte = {
 const NB: Texte = {
   menue: "Velg språk",
   hinweisSchliessen: "Lukk meldingen",
-  fuss: { impressum: "Juridisk informasjon", datenschutz: "Personvern", agb: "Vilkår", cookies: "Cookie-innstillinger", sprache: "Språk" },
+  kopf: { navigation: "Hovedmeny", startseite: "Matchunt, forside", ablauf: "Slik fungerer det", honorar: "Honorar", headhunter: "For headhuntere", anmelden: "Logg inn", knopf: "Lys ut stillingen gratis", verdienst: "Inntjening", unternehmen: "For bedrifter", alsUnternehmen: "Som bedrift", alsHeadhunter: "Som headhunter", bewerben: "Søk som headhunter", menueAuf: "Åpne menyen", menueZu: "Lukk menyen" },
+  recht: { nurDeutsch: "Denne siden finnes bare på tysk. Den tyske versjonen er juridisk bindende." },
+  abschluss: { kunde: "Din stilling, våre headhuntere.", kundeKlein: "Resultatbasert · Du betaler først ved ansettelse", headhunter: "Besett stillinger i stedet for å jakte kunder.", headhunterKlein: "Kundene skaffer vi." },
+  fuss: { impressum: "Juridisk informasjon", datenschutz: "Personvern", agb: "Vilkår", cookies: "Cookie-innstillinger", sprache: "Språk", satz: "Headhuntere for din stilling.", plattform: "Plattform", firma: "Selskapet", rechtliches: "Juridisk", karriere: "Karriere", anmeldenUnternehmen: "Logg inn som bedrift", anmeldenHeadhunter: "Logg inn som headhunter", kontakt: "Kontakt", zeile: "© {jahr} Bluewater & Bridge GmbH · München" },
   e1: {
     titel: "Hjelp oss å gjøre Matchunt bedre",
     text: "Vi vil forstå hvordan du bruker siden og hvilke annonser som virker. Derfor bruker vi tjenester som også kan behandle data utenfor EU. Du bestemmer – og kan endre det når som helst under «Cookie-innstillinger» nederst på hver side.",

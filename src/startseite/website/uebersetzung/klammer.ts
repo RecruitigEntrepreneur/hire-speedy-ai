@@ -1,0 +1,78 @@
+// Sektion 12.1 „Durcheinander in der Klammer“: Satz oben (Anfang + zwei Enden), vier Karten (Bisher / Mit Matchunt),
+// Wörter in den kleinen Bildern, Satz unten mit Knopf. „Matchunt“ bleibt als Marke stehen.
+import type { Woerterbuch } from "./typ";
+
+const W: Woerterbuch = {
+  en: {
+    // Satz oben
+    "Eine offene Stelle kann": "An open position can",
+    "viel Arbeit machen.": "be a lot of work.",
+    "so einfach sein.": "be this easy.",
+    // Karten
+    "Was eine offene Stelle heute bedeutet": "What an open position means today",
+    "Die vier Schritte mit Matchunt": "The four steps with Matchunt",
+    "Anzeige seit Wochen online": "Ad online for weeks",
+    "Lebensläufe ohne Gespräch": "CVs without a conversation",
+    "Termine per E-Mail": "Scheduling by email",
+    "Je Vermittler ein Vertrag": "One contract per agency",
+    "Stelle beschreiben": "Describe the position",
+    "Headhunter suchen": "Headhunters search",
+    "Kandidaten kennenlernen": "Meet candidates",
+    "Einstellen": "Hire",
+    // Wörter in den Bildern
+    "Wochen": "Weeks",
+    "Re: Termin": "Re: Meeting",
+    "Re: Re: Termin": "Re: Re: Meeting",
+    "Re: Re: Re: Termin": "Re: Re: Re: Meeting",
+    // Satz unten
+    "Anzeige, Lebensläufe, Termine, Verträge.": "Ads, CVs, meetings, contracts.",
+    "Ihnen bleibt eine Aufgabe:": "Your only task:",
+    "die Stelle beschreiben.": "describe the position.",
+  },
+  sv: {
+    "Eine offene Stelle kann": "En ledig tjänst kan",
+    "viel Arbeit machen.": "kräva mycket arbete.",
+    "so einfach sein.": "vara så enkel.",
+    "Was eine offene Stelle heute bedeutet": "Vad en ledig tjänst innebär i dag",
+    "Die vier Schritte mit Matchunt": "De fyra stegen med Matchunt",
+    "Anzeige seit Wochen online": "Annons ute i flera veckor",
+    "Lebensläufe ohne Gespräch": "CV:n utan samtal",
+    "Termine per E-Mail": "Möten bokas via e-post",
+    "Je Vermittler ein Vertrag": "Ett avtal per byrå",
+    "Stelle beschreiben": "Beskriv tjänsten",
+    "Headhunter suchen": "Headhunters söker",
+    "Kandidaten kennenlernen": "Träffa kandidater",
+    "Einstellen": "Anställ",
+    "Wochen": "Veckor",
+    "Re: Termin": "Re: Möte",
+    "Re: Re: Termin": "Re: Re: Möte",
+    "Re: Re: Re: Termin": "Re: Re: Re: Möte",
+    "Anzeige, Lebensläufe, Termine, Verträge.": "Annonser, CV:n, möten, avtal.",
+    "Ihnen bleibt eine Aufgabe:": "Din enda uppgift:",
+    "die Stelle beschreiben.": "beskriv tjänsten.",
+  },
+  nb: {
+    "Eine offene Stelle kann": "En ledig stilling kan",
+    "viel Arbeit machen.": "kreve mye arbeid.",
+    "so einfach sein.": "være så enkel.",
+    "Was eine offene Stelle heute bedeutet": "Hva en ledig stilling betyr i dag",
+    "Die vier Schritte mit Matchunt": "De fire trinnene med Matchunt",
+    "Anzeige seit Wochen online": "Annonse ute i flere uker",
+    "Lebensläufe ohne Gespräch": "CV-er uten samtale",
+    "Termine per E-Mail": "Møter avtales på e-post",
+    "Je Vermittler ein Vertrag": "Én avtale per byrå",
+    "Stelle beschreiben": "Beskriv stillingen",
+    "Headhunter suchen": "Headhuntere søker",
+    "Kandidaten kennenlernen": "Møt kandidater",
+    "Einstellen": "Ansett",
+    "Wochen": "Uker",
+    "Re: Termin": "Re: Møte",
+    "Re: Re: Termin": "Re: Re: Møte",
+    "Re: Re: Re: Termin": "Re: Re: Re: Møte",
+    "Anzeige, Lebensläufe, Termine, Verträge.": "Annonser, CV-er, møter, avtaler.",
+    "Ihnen bleibt eine Aufgabe:": "Din eneste oppgave:",
+    "die Stelle beschreiben.": "beskriv stillingen.",
+  },
+};
+
+export default W;

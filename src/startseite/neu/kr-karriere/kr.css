@@ -1,0 +1,84 @@
+/* Karriere-Seite (27.11.2026): Bausteine im Stil der Startseite – blaue Tafel mit Kerbe wie K1, Karten wie Preis und
+   Plattform, Weg mit Punkten wie Satz 18. Farben nur aus stil.css. */
+.kr { background: var(--mu-bg); color: var(--mu-tx); }
+
+/* 1 · Tafel */
+.kr-tafel { position: relative; width: calc(100% - 32px); max-width: 1232px; min-height: 600px; margin: 16px auto 0; padding: 112px 24px; border-radius: 64px; overflow: hidden; display: grid; place-items: center; text-align: center; }
+.kr-kerbe { position: absolute; left: 50%; top: 0; width: 80px; height: 40px; margin-left: -40px; z-index: 3;
+  background: radial-gradient(circle at 0 100%, transparent 39.5px, var(--mu-bg) 40px) left / 50% 100% no-repeat, radial-gradient(circle at 100% 100%, transparent 39.5px, var(--mu-bg) 40px) right / 50% 100% no-repeat; }
+.kr-raster { position: absolute; inset: 0; pointer-events: none;
+  background-image: linear-gradient(color-mix(in srgb, var(--mu-feld-tx) 9%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--mu-feld-tx) 9%, transparent) 1px, transparent 1px);
+  background-size: 56px 56px; background-position: center;
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 35%, transparent 80%); mask-image: radial-gradient(ellipse at center, #000 35%, transparent 80%); }
+.kr-mitte { position: relative; z-index: 2; max-width: 860px; display: grid; justify-items: center; gap: 20px; }
+.kr-marke { margin: 0; font-size: 15px; font-weight: 500; color: color-mix(in srgb, var(--mu-feld-tx) 85%, transparent); }
+.kr-tafel .mu-text { margin: 0 auto; color: color-mix(in srgb, var(--mu-feld-tx) 88%, transparent); }
+.kr-knopf-weiss.mu-knopf { background: var(--mu-feld-tx); color: var(--mu-feld); }
+.kr-tafel .kr-knopf-weiss { margin-top: 8px; }
+.kr-tafel .mu-knopf:focus-visible, .kr-ende a:focus-visible { outline: 2px solid var(--mu-feld-tx); outline-offset: 3px; }
+.kr-kachel { position: absolute; z-index: 1; width: 112px; height: 112px; display: grid; place-items: center; align-content: center; gap: 10px;
+  border: 1px solid color-mix(in srgb, var(--mu-feld-tx) 28%, transparent); border-radius: 22px; color: var(--mu-feld-tx); font-size: 13px;
+  opacity: 0; transform: translateY(12px); transition: opacity 0.7s ease, transform 0.7s var(--mu-leicht); transition-delay: calc(var(--i) * 120ms); }
+.kr-kachel .s06-z { width: 40px; height: 40px; }
+.kr-da .kr-kachel { opacity: 1; transform: none; }
+.kr-k1 { left: 56px; top: 80px; } .kr-k2 { left: 56px; bottom: 80px; } .kr-k3 { right: 56px; top: 80px; } .kr-k4 { right: 56px; bottom: 80px; }
+
+/* Teile darunter */
+.kr-teil { padding: clamp(72px, 9vw, 128px) 0; }
+.kr-grau { background: var(--mu-fl); }
+.kr-kopfzeile { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; margin-bottom: 40px; }
+.kr-kopfzeile .mu-text { max-width: 24em; font-size: 15px; color: var(--mu-ls); text-align: right; }
+
+/* 2 · Karten */
+.kr-karten { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.kr-karte { display: grid; align-content: start; gap: 12px; min-height: 240px; padding: 32px 28px; border-radius: var(--mu-r); background: var(--mu-fl);
+  opacity: 0; transform: translateY(16px); transition: opacity 0.7s ease, transform 0.7s var(--mu-leicht); transition-delay: calc(var(--i) * 140ms); }
+.kr-da .kr-karte { opacity: 1; transform: none; }
+.kr-karte .s06-z { width: 48px; height: 48px; color: var(--mu-ak); }
+.kr-karte h3 { margin: 12px 0 0; font-family: var(--mu-fh), sans-serif; font-weight: 600; font-size: 22px; letter-spacing: -0.01em; line-height: 1.2; }
+.kr-karte p { margin: 0; color: var(--mu-ls); font-size: 16px; line-height: 1.5; }
+
+/* 3 · Stellen */
+.kr-stellen { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.kr-stelle { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 20px 24px; border: 1px solid var(--mu-ln); border-radius: var(--mu-r-klein); background: var(--mu-bg); color: var(--mu-tx); text-decoration: none; }
+.kr-stelle span { color: var(--mu-ls); }
+.kr-leer { display: grid; justify-items: center; gap: 12px; padding: 56px 32px; border: 1.5px dashed var(--mu-ln); border-radius: var(--mu-r); background: var(--mu-bg); text-align: center; }
+.kr-leer b { font-family: var(--mu-fh), sans-serif; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+.kr-leer p { margin: 0 0 8px; color: var(--mu-ls); font-size: 17px; }
+
+/* 4 · Weg */
+.kr-weg { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 0; padding: 56px 0 0; list-style: none; }
+.kr-weg::before { content: ""; position: absolute; left: 16.66%; right: 16.66%; top: 15px; height: 2px; background: var(--mu-ak); transform: scaleX(0); transform-origin: left; transition: transform 1.2s var(--mu-leicht) 0.2s; }
+.kr-da.kr-weg::before { transform: none; }
+.kr-schritt { position: relative; display: grid; justify-items: center; gap: 8px; text-align: center; }
+.kr-punkt { position: absolute; top: -56px; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; background: var(--mu-ak); color: var(--mu-akt); font-size: 15px; font-weight: 600;
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--mu-ak) 16%, transparent); transform: scale(0); transition: transform 0.5s var(--mu-leicht); transition-delay: calc(var(--i) * 300ms + 200ms); }
+.kr-da .kr-punkt { transform: none; }
+.kr-schritt b { font-family: var(--mu-fh), sans-serif; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+.kr-schritt p { margin: 0; max-width: 18em; color: var(--mu-ls); font-size: 16px; line-height: 1.5; }
+
+/* 5 · Abschluss */
+.kr-ende { width: calc(100% - 32px); max-width: 1232px; margin: 0 auto clamp(48px, 6vw, 96px); padding: clamp(64px, 8vw, 112px) 24px; border-radius: 48px; display: grid; justify-items: center; gap: 24px; text-align: center; }
+.kr-hh { margin: 0; font-size: 15px; color: color-mix(in srgb, var(--mu-feld-tx) 85%, transparent); }
+.kr-hh a { color: var(--mu-feld-tx); }
+
+@media (max-width: 1099px) { .kr-kachel { display: none; } }
+@media (max-width: 899px) {
+  .kr-kopfzeile { display: block; }
+  .kr-kopfzeile .mu-text { margin-top: 12px; text-align: left; }
+  .kr-karten { grid-template-columns: 1fr; }
+  .kr-karte { min-height: 0; }
+  .kr-weg { grid-template-columns: 1fr; gap: 32px; padding: 0 0 0 52px; }
+  .kr-weg::before { left: 15px; right: auto; top: 8px; bottom: 8px; width: 2px; height: auto; transform: scaleY(0); transform-origin: top; }
+  .kr-da.kr-weg::before { transform: none; }
+  .kr-schritt { justify-items: start; text-align: left; }
+  .kr-punkt { top: 0; left: -52px; }
+}
+@media (max-width: 640px) {
+  .kr-tafel { width: calc(100% - 16px); min-height: 480px; padding: 80px 20px; border-radius: 32px; }
+  .kr-ende { width: calc(100% - 16px); border-radius: 32px; }
+  .kr-stelle { flex-direction: column; align-items: flex-start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .kr-kachel, .kr-karte, .kr-punkt, .kr-weg::before { transition: none; opacity: 1; transform: none; }
+}

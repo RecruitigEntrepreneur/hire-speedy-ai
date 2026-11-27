@@ -1,0 +1,56 @@
+/* Neue Sektion H3 „Du siehst je Stelle, was du verdienst.“: Aussage links, Stellenliste mit Beträgen rechts,
+   darunter drei Feststellungen an einer Linie. Farben und Schriften nur aus stil.css. */
+.h3 { padding: clamp(72px, 9vw, 144px) 0; }
+.h3-raster { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); column-gap: clamp(32px, 6vw, 112px); row-gap: 40px; align-items: center; }
+.h3-kopf { display: grid; gap: 20px; justify-items: start; }
+.h3-knopf { margin-top: 12px; }
+
+/* Fenster „Offene Stellen“ */
+.h3-fen { padding: 8px clamp(18px, 2.4vw, 32px) 20px; }
+.h3-fen-kopf { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 60px; border-bottom: 1px solid var(--mu-ln); }
+.h3-fen-kopf b { font-size: 17px; font-weight: 600; }
+.h3-auge { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; border: 1px solid var(--mu-ln); border-radius: var(--mu-rk); background: var(--mu-bg); color: var(--mu-tx); font: inherit; font-size: 14px; cursor: pointer; transition: border-color 0.2s; }
+.h3-auge:hover { border-color: var(--mu-tx); }
+.h3-auge:focus-visible { outline: 2px solid var(--mu-tx); outline-offset: 3px; }
+.h3-auge svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.h3-liste { margin: 0; padding: 0; list-style: none; }
+.h3-zeile { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 0; border-bottom: 1px solid var(--mu-ln); }
+.h3-stelle { display: grid; gap: 3px; min-width: 0; }
+.h3-stelle b { font-size: 17px; font-weight: 600; }
+.h3-stelle em { font-style: normal; font-size: 15px; color: var(--mu-ls); }
+.h3-betrag { flex: none; display: grid; gap: 7px; justify-items: end; }
+.h3-betrag small { font-size: 14px; color: var(--mu-ls); }
+.h3-summe { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: var(--mu-rk); background: color-mix(in srgb, var(--mu-ak) 12%, var(--mu-bg)); color: var(--mu-ak); transition: filter 0.5s var(--mu-leicht), opacity 0.5s var(--mu-leicht); transition-delay: calc(var(--i) * 0.22s + 0.3s); }
+.h3-summe i { font-style: normal; font-size: 17px; font-weight: 600; }
+.h3-summe u { display: block; width: 22px; height: 10px; border-radius: 5px; background: currentColor; opacity: 0.75; text-decoration: none; }
+.h3-summe u + u { width: 34px; }
+/* verdeckt: vor dem ersten Blick und wenn das Auge zu ist */
+.h3-fen[data-da="false"] .h3-summe, .h3-fen[data-offen="false"] .h3-summe { filter: blur(6px); opacity: 0.55; }
+.h3-fen[data-offen="false"] .h3-summe { transition-delay: 0s; }
+.h3-fuss { margin: 16px 0 0; font-size: 14px; line-height: 1.45; color: var(--mu-ls); }
+
+/* drei Feststellungen an einer Linie */
+.h3-fest { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(20px, 3vw, 48px); margin: clamp(56px, 7vw, 104px) 0 0; padding: 28px 0 0; list-style: none; }
+.h3-fest::before, .h3-fest::after { content: ""; position: absolute; left: 0; top: 0; width: 100%; height: 1px; background: var(--mu-ln); }
+.h3-fest::after { height: 2px; top: -0.5px; background: var(--mu-ak); transform: scaleX(0); transform-origin: left; transition: transform 1.6s var(--mu-leicht) 0.2s; }
+.h3-fest[data-da="true"]::after { transform: scaleX(1); }
+.h3-fest li { display: grid; gap: 14px; justify-items: start; }
+.h3-haken { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: color-mix(in srgb, var(--mu-ak) 12%, var(--mu-bg)); }
+.h3-haken svg { width: 18px; height: 18px; fill: none; stroke: var(--mu-ak); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.h3-haken path { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 0.5s var(--mu-leicht); transition-delay: calc(var(--i) * 0.5s + 0.5s); }
+.h3-fest[data-da="true"] .h3-haken path { stroke-dashoffset: 0; }
+
+@media (max-width: 899px) {
+  .h3-raster { grid-template-columns: minmax(0, 1fr); }
+  .h3-fest { grid-template-columns: minmax(0, 1fr); padding-top: 24px; }
+  .h3-fest li { grid-template-columns: auto minmax(0, 1fr); align-items: center; }
+}
+@media (max-width: 479px) {
+  .h3-auge span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .h3-auge { padding: 0 11px; }
+  .h3-zeile { align-items: flex-start; }
+  .h3-summe { padding: 0 11px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .h3-summe, .h3-fest::after, .h3-haken path { transition: none; }
+}

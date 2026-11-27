@@ -6,6 +6,10 @@ import Link from "@/startseite/shims/link";
 import { START_URL } from "@/startseite/nachbau/basis";
 import { SprachMenue } from "@/startseite/website/SprachMenue";
 import { mitHerkunft } from "@/startseite/website/herkunft";
+import { texte } from "@/startseite/website/texte";
+import { useKopfImRahmen, useSeitenSprache } from "@/startseite/website/kontext";
+import { useTx, uebersetzer } from "@/startseite/website/uebersetzen";
+import { SEITEN } from "@/startseite/website/adressen";
 import { MatchuntLogo } from "@/startseite/seite/Logo";
 import { useRuhig } from "@/startseite/nachbau/rampTakt";
 import { TeMarke } from "@/startseite/nachbau3/te/Marke";
@@ -15,12 +19,9 @@ import { Fenster } from "./Fenster";
 import { hhFoto } from "@/startseite/matchunt/fotos";
 import "./k1.css";
 
-// OFFEN: Adressen der Kopfzeile und die Kennung für /start/<Kennung>.
-/** Die eingetippte Stelle als ?stelle= an die Aufnahme (App: GuestIntake). */
+// Kopfzeile: Einträge und Knopf aus website/texte (übersetzt), Adressen aus website/adressen (27.11.2026).
+/** Die eingetippte Stelle als ?stelle= an die Aufnahme (App: GuestIntake übernimmt sie als Stellentitel). */
 const mitStelle = (u: string, s: string) => (s.trim() ? `${u}${u.includes("?") ? "&" : "?"}stelle=${encodeURIComponent(s.trim().slice(0, 120))}` : u);
-
-const NAV: [string, string][] = [["Ablauf", "#ablauf"], ["Honorar", "#honorar"], ["Für Headhunter", "/recruiter/onboarding"], ["Anmelden", "/auth"]];
-const KNOPF = "Stelle kostenlos ausschreiben";
 
 const FUNKEL: [number, number][] = [[56, 56], [1176, 56], [224, 280], [1008, 280], [448, 112], [784, 112], [280, 456], [952, 456], [1176, 600], [56, 600]];
 // Kacheln in der Reihenfolge des Wegs: x, y, Breite, Höhe, Beschriftung, Stelle auf dem Weg (0–1)
@@ -75,6 +76,7 @@ function Bild({ name, cx, cy, s, farbe, bilder, verzug }: { name: string; cx: nu
 }
 
 function Plan({ svgRef, farbe, bilder, namen }: { svgRef: RefObject<SVGSVGElement | null>; farbe: string; bilder: Bilder; namen?: Record<string, string> }) {
+  const tx = useTx();
   return (
     <svg ref={svgRef} className="k1-plan" viewBox="0 0 1232 688" aria-hidden="true">
       <defs>
@@ -93,7 +95,7 @@ function Plan({ svgRef, farbe, bilder, namen }: { svgRef: RefObject<SVGSVGElemen
           <g key={t} className="k1-station" data-f={f} data-name={t} data-an="false">
             <rect className="k1-kachel" x={x} y={y} width={b} height={h} rx="18" />
             <Bild name={t} cx={x + b / 2} cy={y + h / 2 - (gross ? 20 : 8)} s={gross ? 92 : 60} farbe={farbe} bilder={bilder} verzug={300 + i * 260} />
-            <text className="k1-marke" x={x + b / 2} y={y + h - 14}>{namen?.[t] ?? t}</text>
+            <text className="k1-marke" x={x + b / 2} y={y + h - 14}>{tx(namen?.[t] ?? t)}</text>
           </g>
         );
       })}
@@ -103,6 +105,7 @@ function Plan({ svgRef, farbe, bilder, namen }: { svgRef: RefObject<SVGSVGElemen
 }
 
 function PlanHandy({ svgRef, farbe, bilder, namen }: { svgRef: RefObject<SVGSVGElement | null>; farbe: string; bilder: Bilder; namen?: Record<string, string> }) {
+  const tx = useTx();
   return (
     <svg ref={svgRef} className="k1-plan-m" viewBox="0 0 360 680" preserveAspectRatio="xMidYMin meet" aria-hidden="true">
       <defs>
@@ -121,7 +124,7 @@ function PlanHandy({ svgRef, farbe, bilder, namen }: { svgRef: RefObject<SVGSVGE
           <g key={t} className="k1-station" data-cx={x + b / 2} data-cy={y + h / 2} data-name={t} data-an="false">
             <rect className="k1-kachel" x={x} y={y} width={b} height={h} rx="16" />
             <Bild name={t} cx={x + b / 2} cy={y + h / 2 - (gross ? 10 : 8)} s={gross ? 62 : 44} farbe={farbe} bilder={bilder} verzug={300 + i * 260} />
-            <text className="k1-marke" x={x + b / 2} y={y + h - 10}>{namen?.[t] ?? t}</text>
+            <text className="k1-marke" x={x + b / 2} y={y + h - 10}>{tx(namen?.[t] ?? t)}</text>
           </g>
         );
       })}
@@ -139,10 +142,18 @@ const BEISPIELE = ["Leitung Controlling", "Vertriebsleitung", "Bilanzbuchhaltung
 
 export type EinstiegProps = { eingabe?: boolean; namen?: Record<string, string>; h1?: string; satz?: string; knopf?: string; knopfUrl?: string; nav?: [string, string][]; fenster?: (aktiv: boolean, ruhig: boolean) => ReactNode };
 
-export function Einstieg({ namen, h1 = "Die beste Person für Ihre Stelle hat schon einen Job.", satz = "Geprüfte Headhunter sprechen sie an. Erfolgsbasiert.", knopf = KNOPF, knopfUrl = START_URL, nav = NAV, fenster, eingabe = false }: EinstiegProps = {}) {
+export function Einstieg({ namen, h1 = "Die beste Person für Ihre Stelle hat schon einen Job.", satz = "Geprüfte Headhunter sprechen sie an. Erfolgsbasiert.", knopf: knopfVorgabe, knopfUrl = START_URL, nav: navVorgabe, fenster, eingabe = false }: EinstiegProps = {}) {
+  const kopf = texte(useSeitenSprache() ?? "de").kopf;
+  const kopfImRahmen = useKopfImRahmen();
+  const nav: [string, string][] = navVorgabe ?? [[kopf.ablauf, SEITEN.ablauf], [kopf.honorar, SEITEN.honorar], [kopf.headhunter, SEITEN.headhunter], [kopf.anmelden, SEITEN.anmelden]];
+  const knopf = knopfVorgabe ?? kopf.knopf;
+  // Übersetzung (27.11.2026): tx beim Anzeigen; die Beispiele im Suchfeld übersetzt der Takt selbst (Sprache als Abhängigkeit).
+  const tx = useTx();
+  const sprachCode = useSeitenSprache();
   // Suchfeld (nur mit `eingabe`): der getippte Titel erscheint unten im Fenster. Leer tippen sich Beispiele als Platzhalter.
   const [stelle, setStelle] = useState("");
-  const [platz, setPlatz] = useState("Welche Stelle wollen Sie besetzen?");
+  // null = noch kein Beispiel getippt → die Frage steht als Platzhalter (übersetzt beim Anzeigen)
+  const [platz, setPlatz] = useState<string | null>(null);
   const ref = useRef<HTMLElement>(null);
   const [imBild, setImBild] = useState(false);
   const ruhig = useRuhig();
@@ -289,8 +300,9 @@ export function Einstieg({ namen, h1 = "Die beste Person für Ihre Stelle hat sc
   useEffect(() => {
     if (!eingabe || !imBild || ruhig || stelle) return;
     let wort = 0, n = 0, hin = true, uhr = 0;
+    const ueb = uebersetzer(sprachCode);
     const takt = () => {
-      const w = BEISPIELE[wort];
+      const w = ueb(BEISPIELE[wort]);
       n += hin ? 1 : -1;
       setPlatz(n > 0 ? w.slice(0, n) : " ");
       if (hin && n === w.length) { hin = false; uhr = window.setTimeout(takt, 1700); return; }
@@ -299,7 +311,7 @@ export function Einstieg({ namen, h1 = "Die beste Person für Ihre Stelle hat sc
     };
     uhr = window.setTimeout(takt, 2200);
     return () => clearTimeout(uhr);
-  }, [eingabe, imBild, ruhig, stelle]);
+  }, [eingabe, imBild, ruhig, stelle, sprachCode]);
 
   useEffect(() => {
     const el = ref.current;
@@ -311,28 +323,32 @@ export function Einstieg({ namen, h1 = "Die beste Person für Ihre Stelle hat sc
 
   return (
     <section ref={ref} className={kl("k1", !imBild && "k1-ruhe")}>
-      <div className="mu-wrap">
-        <header className="k1-leiste">
-          <Link className="k1-logo" href="/" aria-label="Matchunt, Startseite"><MatchuntLogo size={38} />Matchunt</Link>
-          <nav className="k1-nav" aria-label="Hauptnavigation">{nav.map(([n, h]) => <a key={n} href={h}>{n}</a>)}</nav>
-          {/* Sprachmenü nur auf der Website (/w/…); in den Labor-Ansichten bleibt es weg */}
-          <SprachMenue art="kopf" />
-          <a className="mu-knopf k1-knopf-klein" href={knopfUrl}>{knopf}</a>
-        </header>
-      </div>
+      {/* Eigene Leiste nur, wenn der Rahmen keine feste Kopfzeile zeigt (Labor-Ansichten). Auf der Website hält der
+          Rahmen die Kopfzeile (website/Kopf) oben fest; dann steht hier nur ein Abstand. */}
+      {kopfImRahmen ? <div className="k1-ohne-leiste" aria-hidden="true" /> : (
+        <div className="mu-wrap">
+          <header className="k1-leiste">
+            <Link className="k1-logo" href="/" aria-label={kopf.startseite}><MatchuntLogo size={38} />Matchunt</Link>
+            <nav className="k1-nav" aria-label={kopf.navigation}>{nav.map(([n, h]) => <a key={n} href={h}>{n}</a>)}</nav>
+            {/* Sprachmenü nur auf der Website (/w/…); in den Labor-Ansichten bleibt es weg */}
+            <SprachMenue art="kopf" />
+            <a className="mu-knopf k1-knopf-klein" href={knopfUrl}>{knopf}</a>
+          </header>
+        </div>
+      )}
 
       <div ref={tafel} className="k1-tafel mu-feld">
         <Plan svgRef={plan} farbe={tintenFarbe} bilder={bilder} namen={namen} />
         <PlanHandy svgRef={planHandy} farbe={tintenFarbe} bilder={bilder} namen={namen} />
         <i className="k1-kerbe" aria-hidden="true" />
         <div className="k1-mitte">
-          <h1 className="mu-h1 k1-h1">{h1}</h1>
+          <h1 className="mu-h1 k1-h1">{tx(h1)}</h1>
           {/* Variante A (27.11.2026): mit Suchfeld steht der Satz unter dem Feld, bei den Gesichtern. */}
-          {!eingabe && <p className="mu-text k1-satz">{satz}</p>}
+          {!eingabe && <p className="mu-text k1-satz">{tx(satz)}</p>}
           {eingabe ? (
             <form className="k1-such" onSubmit={(e) => { e.preventDefault(); window.location.href = mitHerkunft(mitStelle(knopfUrl, stelle)); }}>
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.5 4.5" /></svg>
-              <input type="text" value={stelle} onChange={(e) => setStelle(e.target.value)} placeholder={platz} maxLength={40} aria-label="Welche Stelle wollen Sie besetzen?" autoComplete="off" enterKeyHint="go" />
+              <input type="text" value={stelle} onChange={(e) => setStelle(e.target.value)} placeholder={platz ?? tx("Welche Stelle wollen Sie besetzen?")} maxLength={40} aria-label={tx("Welche Stelle wollen Sie besetzen?")} autoComplete="off" enterKeyHint="go" />
               <button type="submit" className="k1-such-knopf">{knopf}</button>
             </form>
           ) : <a className="mu-knopf k1-knopf" href={knopfUrl}>{knopf}</a>}
@@ -342,14 +358,14 @@ export function Einstieg({ namen, h1 = "Die beste Person für Ihre Stelle hat sc
               <span className="k1-koepfe-reihe" aria-hidden="true">
                 {[0, 1, 2, 3, 4].map((i) => { const f = hhFoto(i); return f ? <img key={i} src={f} alt="" loading="eager" /> : <i key={i} />; })}
               </span>
-              <span className="mu-text k1-koepfe-satz">{satz}</span>
+              <span className="mu-text k1-koepfe-satz">{tx(satz)}</span>
             </div>
           )}
         </div>
       </div>
 
       {fenster ? fenster(imBild, ruhig) : <Fenster aktiv={imBild} ruhig={ruhig} stelle={stelle} />}
-      <p className="mu-klein k1-note">Beispiel, keine echten Daten.</p>
+      <p className="mu-klein k1-note">{tx("Beispiel, keine echten Daten.")}</p>
     </section>
   );
 }

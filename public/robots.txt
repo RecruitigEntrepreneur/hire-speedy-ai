@@ -1,14 +1,25 @@
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
+# Matchunt (27.11.2026): Suchmaschinen sehen die Website; App-Bereiche und persönliche Links bleiben draußen.
+# Eine gemeinsame Gruppe für alle – eine eigene Gruppe je Suchmaschine würde die Sperren unten aushebeln.
 User-agent: *
 Allow: /
+Disallow: /dashboard
+Disallow: /recruiter
+Disallow: /admin
+Disallow: /candidate
+Disallow: /onboarding
+Disallow: /settings
+Disallow: /auth
+Disallow: /anmelden
+Disallow: /passwort
+Disallow: /start/
+Disallow: /aufnahme/
+Disallow: /t/
+Disallow: /interview/
+Disallow: /angebot/
+Disallow: /vertrag/
+Disallow: /unterschrift/
+Disallow: /offer/
+Disallow: /invite/
+Disallow: /reference/
+
+Sitemap: https://matchunt.ai/sitemap.xml

@@ -2,7 +2,7 @@
 // (am Handy als Auswahl von unten), im Fuß und in der Einwilligung Fahne + Name.
 // Die Einträge sind echte Links mit hreflang; beim Klick wird die Wahl gemerkt (Cookie, ohne Einwilligung erlaubt).
 import { useEffect, useRef, useState } from "react";
-import { COOKIE_SPRACHE, SPRACHEN, adresse, sprache as def, type Code } from "./sprachen";
+import { COOKIE_SPRACHE, SPRACHEN, WURZEL, adresse, sprache as def, type Code } from "./sprachen";
 import { texte } from "./texte";
 import { useSeitenSprache } from "./kontext";
 
@@ -34,7 +34,11 @@ export function merken(code: Code) {
 /** Zur selben Seite in einer anderen Sprache (Quelle und Anker bleiben). */
 export function wechseln(code: Code) {
   merken(code);
-  window.location.assign(adresse(def(code)) + window.location.search + window.location.hash);
+  const pfad = window.location.pathname;
+  // Startseite mit Sprache in der Adresse (/w/…): zur Adresse der anderen Sprache. Unterseiten (Rechtstexte,
+  // Headhunter) und die App-Startseite „/“ bleiben, wo sie sind; die Sprache kommt dort aus dem gemerkten Cookie.
+  if (pfad === WURZEL || pfad.startsWith(`${WURZEL}/`)) window.location.assign(adresse(def(code)) + window.location.search + window.location.hash);
+  else window.location.reload();
 }
 
 const Pfeil = () => <svg viewBox="0 0 12 12" width="10" height="10" aria-hidden="true"><path d="m3 4.5 3 3 3-3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>;

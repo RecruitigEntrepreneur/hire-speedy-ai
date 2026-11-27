@@ -1,0 +1,27 @@
+/* Neue Sektion H8 „Bewerben, Vertrag, erste Stelle.“: volles blaues Feld, drei Schritte an einer Linie, ein Knopf. */
+.h8 { --f-tx: var(--mu-feld-tx); --f-ls: color-mix(in srgb, var(--mu-feld-tx) 80%, transparent); --f-ln: color-mix(in srgb, var(--mu-feld-tx) 32%, transparent);
+  padding: clamp(72px, 9vw, 144px) 0; }
+.h8-in { display: grid; gap: clamp(48px, 6vw, 88px); }
+.h8 .h8-h2 { max-width: 12em; }
+.h8-reihe { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(20px, 3vw, 48px); margin: 0; padding: 0; list-style: none; }
+.h8-reihe::before, .h8-reihe::after { content: ""; position: absolute; left: 0; top: 21px; height: 2px; }
+.h8-reihe::before { width: 100%; background: var(--f-ln); }
+.h8-reihe::after { width: calc(100% / 3 * 2 + 44px); max-width: 100%; background: var(--f-tx); transform: scaleX(0); transform-origin: left; transition: transform 0.9s var(--mu-leicht); }
+.h8-reihe[data-an="1"]::after { transform: scaleX(0.5); }
+.h8-reihe[data-an="2"]::after { transform: scaleX(1); }
+.h8-reihe li { position: relative; z-index: 1; display: grid; gap: 10px; justify-items: start; align-content: start; }
+.h8-nr { display: grid; place-items: center; width: 44px; height: 44px; margin-bottom: 14px; border: 2px solid var(--f-ln); border-radius: 50%; background: var(--mu-feld); color: var(--f-tx); font-size: 17px; font-weight: 600; transition: background 0.4s var(--mu-leicht), color 0.4s, border-color 0.4s, transform 0.4s var(--mu-leicht); }
+.h8-reihe li[data-an="true"] .h8-nr, .h8-reihe li[data-war="true"] .h8-nr { border-color: var(--f-tx); background: var(--f-tx); color: var(--mu-feld); }
+.h8-reihe li[data-an="true"] .h8-nr { transform: scale(1.12); }
+.h8-reihe p { margin: 0; max-width: 22em; font-size: 17px; line-height: 1.45; color: var(--f-ls); }
+.h8-fuss { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 28px; }
+.h8-fuss p { margin: 0; font-size: 17px; color: var(--f-ls); }
+
+@media (max-width: 767px) {
+  .h8-reihe { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+  .h8-reihe::before { left: 21px; top: 0; width: 2px; height: 100%; }
+  .h8-reihe::after { display: none; }
+  .h8-reihe li { grid-template-columns: 44px minmax(0, 1fr); column-gap: 18px; row-gap: 6px; }
+  .h8-nr { grid-row: span 2; margin: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .h8-reihe::after, .h8-nr { transition: none; } }

@@ -1,0 +1,70 @@
+/* Neue Sektion H2 „Die Stelle kommt fertig zu dir.“: Überschrift, vier Reiter, Stapel aus vier Unterlagen.
+   Farben und Schriften nur aus stil.css. */
+.h2 { --h2-takt: 3200ms; padding: clamp(72px, 9vw, 144px) 0; }
+.h2-raster { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); grid-template-areas: "kopf buehne" "tabs buehne"; column-gap: clamp(32px, 6vw, 112px); row-gap: 40px; align-items: start; }
+.h2-kopf { grid-area: kopf; display: grid; gap: 20px; }
+.h2-tabs { grid-area: tabs; display: grid; border-top: 1px solid var(--mu-ln); }
+.h2-buehne { grid-area: buehne; align-self: center; }
+
+/* Reiter */
+.h2-tab { position: relative; display: grid; gap: 4px; padding: 18px 0 20px; border: 0; border-bottom: 1px solid var(--mu-ln); background: none; color: var(--mu-ls); font: inherit; text-align: left; cursor: pointer; transition: color 0.25s; }
+.h2-tab:hover, .h2-tab[aria-selected="true"] { color: var(--mu-tx); }
+.h2-tab:focus-visible { outline: 2px solid var(--mu-tx); outline-offset: 4px; }
+.h2-tab-t { font-family: var(--mu-fh), sans-serif; font-size: clamp(19px, 1.5vw, 22px); font-weight: var(--mu-hw); letter-spacing: -0.01em; }
+.h2-tab-s { font-size: 16px; line-height: 1.45; color: var(--mu-ls); }
+.h2-lauf { position: absolute; left: 0; bottom: -1px; width: 100%; height: 2px; background: var(--mu-ak); transform: scaleX(0); transform-origin: left; }
+.h2-tab[aria-selected="true"] .h2-lauf { transform: scaleX(1); }
+.h2[data-lauf="true"] .h2-tab[aria-selected="true"] .h2-lauf { animation: h2-lauf var(--h2-takt) linear both; }
+@keyframes h2-lauf { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* Bühne mit Stapel */
+.h2-buehne { position: relative; display: grid; place-items: center; height: clamp(420px, 40vw, 560px); border-radius: var(--mu-r); background: var(--mu-fl); overflow: hidden; }
+.h2-blatt { position: absolute; width: min(74%, 400px); min-height: 318px; padding: 0 22px 24px; border: 1px solid var(--mu-ln); border-radius: var(--mu-r-klein); background: var(--mu-bg); color: var(--mu-tx); font-size: 16px; line-height: 1.35; box-shadow: 0 28px 48px -32px rgba(0, 0, 0, 0.45); transition: transform 0.7s var(--mu-leicht); }
+.h2-blatt > * { transition: opacity 0.5s var(--mu-leicht); }
+.h2-blatt:not([data-pos="0"]) > * { opacity: 0.28; }
+.h2-blatt[data-pos="0"] { z-index: 4; transform: translate(-30px, 30px); }
+.h2-blatt[data-pos="1"] { z-index: 3; transform: translate(-6px, 6px) scale(0.97); }
+.h2-blatt[data-pos="2"] { z-index: 2; transform: translate(18px, -18px) scale(0.94); }
+.h2-blatt[data-pos="3"] { z-index: 1; transform: translate(42px, -42px) scale(0.91); }
+
+.h2-blatt header { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 52px; margin-bottom: 16px; border-bottom: 1px solid var(--mu-ln); white-space: nowrap; }
+.h2-blatt header b { font-weight: 600; }
+.h2-blatt header span { font-size: 14px; color: var(--mu-ls); overflow: hidden; text-overflow: ellipsis; }
+.h2-grau { display: grid; gap: 9px; width: 100%; }
+.h2-grau i { display: block; height: 8px; border-radius: 4px; background: color-mix(in srgb, var(--mu-tx) 14%, transparent); }
+.h2-grau i:nth-child(2) { width: 88%; } .h2-grau i:nth-child(3) { width: 94%; } .h2-grau i:nth-child(4) { width: 56%; }
+.h2-dl { display: grid; gap: 12px; margin: 0 0 18px; }
+.h2-dl > div { display: grid; grid-template-columns: 112px minmax(0, 1fr); align-items: center; min-height: 22px; }
+.h2-dl dt { font-size: 14px; color: var(--mu-ls); }
+.h2-dl dd { margin: 0; font-weight: 500; }
+.h2-dl dd .h2-grau i { width: 62%; }
+.h2-zw { margin: 0 0 12px; padding-top: 16px; border-top: 1px solid var(--mu-ln); font-size: 14px; color: var(--mu-ls); }
+.h2-muss { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.h2-muss li { display: flex; align-items: center; gap: 12px; }
+.h2-muss li > i { flex: none; width: 16px; height: 16px; border-radius: 50%; background: var(--mu-ak); }
+.h2-muss li:nth-child(2) .h2-grau i { width: 72%; } .h2-muss li:nth-child(3) .h2-grau i { width: 84%; }
+.h2-gross { margin: 0 0 16px; font-family: var(--mu-fh), sans-serif; font-size: 22px; font-weight: var(--mu-hw); letter-spacing: -0.02em; line-height: 1.2; }
+.h2-anrede { margin: 0 0 14px; font-weight: 500; }
+.h2-ab { margin-top: 20px; }
+.h2-ab + .h2-grau i { width: 38%; }
+.h2-fragen { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.h2-fragen li { display: grid; gap: 10px; padding: 12px 0 14px; border-bottom: 1px solid var(--mu-ln); }
+.h2-fragen li:last-child { border-bottom: 0; padding-bottom: 0; }
+.h2-fragen li:first-child { padding-top: 0; }
+.h2-fragen span:first-child { font-weight: 500; }
+.h2-fragen .h2-grau i { width: 70%; }
+
+@media (max-width: 899px) {
+  .h2-raster { grid-template-columns: minmax(0, 1fr); grid-template-areas: "kopf" "buehne" "tabs"; row-gap: 32px; }
+  .h2-buehne { height: 420px; }
+  .h2-blatt { width: min(80%, 340px); padding: 0 18px 20px; }
+  .h2-blatt[data-pos="0"] { transform: translate(-14px, 20px); }
+  .h2-blatt[data-pos="1"] { transform: translate(-2px, 4px) scale(0.97); }
+  .h2-blatt[data-pos="2"] { transform: translate(10px, -12px) scale(0.94); }
+  .h2-blatt[data-pos="3"] { transform: translate(22px, -28px) scale(0.91); }
+  .h2-dl > div { grid-template-columns: 104px minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .h2-blatt, .h2-blatt > *, .h2-tab { transition: none; }
+  .h2 .h2-lauf { animation: none !important; }
+}

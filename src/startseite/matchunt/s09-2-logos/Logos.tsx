@@ -4,6 +4,7 @@
 // und auch weiße Logos auf hellem Grund sichtbar sind. h = Höhe in px, je Logo abgestimmt auf gleiche optische Größe.
 /* eslint-disable @next/next/no-img-element */
 import type { CSSProperties } from "react";
+import { useTx } from "@/startseite/website/uebersetzen";
 import "./s092.css";
 
 // flaeche = Logo mit gefüllter Fläche und heller Schrift darin: wird grau statt schwarz gezeigt, sonst wäre es ein Block.
@@ -22,12 +23,13 @@ const LOGOS: { name: string; datei: string; h: number; url: string; flaeche?: bo
 ];
 
 export function Logos() {
+  const tx = useTx();
   return (
     <section className="s09 s092">
       <div className="mu-wrap">
         <div className="s09-kopf">
-          <h2 className="mu-h2">Wo die richtige Person den Unterschied macht.</h2>
-          <p className="mu-text mu-leise">Unternehmen, die in ihrem Feld Maßstäbe setzen.</p>
+          <h2 className="mu-h2">{tx("Wo die richtige Person den Unterschied macht.")}</h2>
+          <p className="mu-text mu-leise">{tx("Unternehmen, die in ihrem Feld Maßstäbe setzen.")}</p>
         </div>
         <div className="s09-reihe">
           <i className="s09-eck" data-wo="ol" aria-hidden="true" />

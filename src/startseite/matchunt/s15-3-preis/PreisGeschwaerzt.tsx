@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { START_URL } from "@/startseite/nachbau/basis";
 import { hhFoto } from "@/startseite/matchunt/fotos";
+import { useTx } from "@/startseite/website/uebersetzen";
 import "../s15-preis/s15.css";
 import "../s15-1-preis/s151.css";
 import "./s153.css";
@@ -23,6 +24,7 @@ const Person = () => <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12"
 
 /** Zahl, die hochzählt, sobald ihre Säule wächst (ab = Verzug in Sekunden). Ohne Bewegung steht sie sofort da. */
 function Zahl({ ziel, ab, da }: { ziel: number; ab: number; da: boolean }) {
+  const tx = useTx();
   const [n, setN] = useState(ziel);
   useEffect(() => {
     if (!da || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -40,11 +42,12 @@ function Zahl({ ziel, ab, da }: { ziel: number; ab: number; da: boolean }) {
     }, ab * 1000);
     return () => { clearTimeout(uhr); cancelAnimationFrame(bild); };
   }, [da, ziel, ab]);
-  return <>{n}&nbsp;%</>;
+  return <>{tx("{n}\u00a0%", { n })}</>;
 }
 
 /** `erfolg` = Fassung 15.4: die blaue Säule trägt das Wort „erfolgsbasiert“, der erste Satz nennt es (aus Sektion 68). */
 export function PreisGeschwaerzt({ erfolg = false }: { erfolg?: boolean } = {}) {
+  const tx = useTx();
   const ref = useRef<HTMLElement>(null);
   const [da, setDa] = useState(false);
   useEffect(() => {
@@ -61,16 +64,16 @@ export function PreisGeschwaerzt({ erfolg = false }: { erfolg?: boolean } = {}) 
         <div className="s15-kasten">
           <div className="s15-links">
             <h2 className="mu-h2">
-              <span className="mu-leise s151-z1">Über Geld spricht man nicht.</span>
-              <span className="s151-z2">Wir schon: 20&nbsp;% Honorar.</span>
+              <span className="mu-leise s151-z1">{tx("Über Geld spricht man nicht.")}</span>
+              <span className="s151-z2">{tx("Wir schon: 20\u00a0% Honorar.")}</span>
             </h2>
             <div className="s15-unten">
               <ul className="s151-saetze">
-                <li>{erfolg ? "Honorar erfolgsbasiert: fällig erst bei Einstellung." : "Honorar als Anteil am Zielgehalt, fällig erst bei Einstellung."}</li>
-                <li>Ein Rahmenvertrag für alle Headhunter.</li>
+                <li>{erfolg ? tx("Honorar erfolgsbasiert: fällig erst bei Einstellung.") : tx("Honorar als Anteil am Zielgehalt, fällig erst bei Einstellung.")}</li>
+                <li>{tx("Ein Rahmenvertrag für alle Headhunter.")}</li>
               </ul>
-              <p className="s15-quelle">Quelle für 27&nbsp;% und 24&nbsp;%: BDU, Studie Personalberatung 2023.</p>
-              <a className="mu-knopf" href={START_URL}>Stelle beschreiben</a>
+              <p className="s15-quelle">{tx("Quelle für 27\u00a0% und 24\u00a0%: BDU, Studie Personalberatung 2023.")}</p>
+              <a className="mu-knopf" href={START_URL}>{tx("Stelle beschreiben")}</a>
             </div>
           </div>
           <figure className="s15-bild" ref={ref} data-da={da}>
@@ -79,9 +82,9 @@ export function PreisGeschwaerzt({ erfolg = false }: { erfolg?: boolean } = {}) 
                 <li key={s.wert} className={s.wir ? "s15-wir" : undefined} style={{ "--h": s.wert / HOECHST, "--d": s.d, "--auf": `${s.auf}s`, "--w": `${s.w}s`, "--wt": `${s.wt}s` } as CSSProperties}>
                   <div className="s15-hoch">
                     <b className="s15-zahl"><span className="s153-zahl"><Zahl ziel={s.wert} ab={s.auf} da={da} /><i className="s153-schwarz" aria-hidden="true" /></span></b>
-                    <div className="s15-saeule">{erfolg && s.wir && <span className="s154-wort">erfolgs­basiert</span>}</div>
+                    <div className="s15-saeule">{erfolg && s.wir && <span className="s154-wort">{tx("erfolgs\u00adbasiert")}</span>}</div>
                   </div>
-                  <span className="s15-name">{s.name}</span>
+                  <span className="s15-name">{tx(s.name)}</span>
                   <div className="s151-wer">
                     <span className="s151-gesichter" aria-hidden="true">
                       {Array.from({ length: s.n }, (_, i) => {
@@ -89,7 +92,7 @@ export function PreisGeschwaerzt({ erfolg = false }: { erfolg?: boolean } = {}) 
                         return <i key={i} style={{ "--i": i } as CSSProperties}>{foto ? <img src={foto} alt="" loading="lazy" /> : <Person />}</i>;
                       })}
                     </span>
-                    <span className="s151-text">{s.wer}</span>
+                    <span className="s151-text">{tx(s.wer)}</span>
                   </div>
                 </li>
               ))}

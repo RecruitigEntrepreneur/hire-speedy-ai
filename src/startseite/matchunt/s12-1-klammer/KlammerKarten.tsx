@@ -13,16 +13,17 @@ import type { Art } from "@/startseite/nachbau3/te/tinte";
 import { Zeichen, type ZeichenArt } from "../s06-zeichen/Zeichen";
 import { START_URL } from "@/startseite/nachbau/basis";
 import { MatchuntLogo } from "@/startseite/seite/Logo";
+import { useTx, type Tx } from "@/startseite/website/uebersetzen";
 import "../s12-nebenarbeit/s12.css";
 import "../s11-1-problem/s111.css";
 import "./s121.css";
 
-// Die vier Karten aus 11.1 (Zustand „Bisher“), mit derselben Schieflage
-const KARTEN: { text: string; neu: string; zeichen: ZeichenArt; bild: ReactNode; schief: number }[] = [
-  { text: "Anzeige seit Wochen online", neu: "Stelle beschreiben", zeichen: "stelle", schief: 2, bild: <div className="s111-kal"><u /><b><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span></b><small>Wochen</small></div> },
-  { text: "Lebensläufe ohne Gespräch", neu: "Headhunter suchen", zeichen: "suche", schief: -3, bild: <div className="s111-stapel">{[0, 1, 2, 3, 4, 5].map((i) => <i key={i} style={{ "--i": i } as CSSProperties} />)}</div> },
-  { text: "Termine per E-Mail", neu: "Kandidaten kennenlernen", zeichen: "kennen", schief: -2, bild: <div className="s111-post">{["Re: Termin", "Re: Re: Termin", "Re: Re: Re: Termin"].map((t, i) => <span key={t} style={{ "--i": i } as CSSProperties}><u />{t}</span>)}</div> },
-  { text: "Je Vermittler ein Vertrag", neu: "Einstellen", zeichen: "einstellen", schief: 4, bild: <div className="s111-faecher">{[0, 1, 2, 3].map((i) => <i key={i} style={{ "--i": i } as CSSProperties}><u /><u /></i>)}</div> },
+// Die vier Karten aus 11.1 (Zustand „Bisher“), mit derselben Schieflage. bild bekommt tx, damit die Wörter im Bild übersetzt werden.
+const KARTEN: { text: string; neu: string; zeichen: ZeichenArt; bild: (tx: Tx) => ReactNode; schief: number }[] = [
+  { text: "Anzeige seit Wochen online", neu: "Stelle beschreiben", zeichen: "stelle", schief: 2, bild: (tx) => <div className="s111-kal"><u /><b><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span></b><small>{tx("Wochen")}</small></div> },
+  { text: "Lebensläufe ohne Gespräch", neu: "Headhunter suchen", zeichen: "suche", schief: -3, bild: () => <div className="s111-stapel">{[0, 1, 2, 3, 4, 5].map((i) => <i key={i} style={{ "--i": i } as CSSProperties} />)}</div> },
+  { text: "Termine per E-Mail", neu: "Kandidaten kennenlernen", zeichen: "kennen", schief: -2, bild: (tx) => <div className="s111-post">{["Re: Termin", "Re: Re: Termin", "Re: Re: Re: Termin"].map((t, i) => <span key={t} style={{ "--i": i } as CSSProperties}><u />{tx(t)}</span>)}</div> },
+  { text: "Je Vermittler ein Vertrag", neu: "Einstellen", zeichen: "einstellen", schief: 4, bild: () => <div className="s111-faecher">{[0, 1, 2, 3].map((i) => <i key={i} style={{ "--i": i } as CSSProperties}><u /><u /></i>)}</div> },
 ];
 // Tinte wie in 11.1: Nach dem Umschwung zeichnen sich die vier Zeichen, dann werden alle vier zu Tinte und spielen
 // die kleine Geschichte ihres Schritts, dann wieder die Zeichen – in Schleife. Fährt man über eine Karte, zeigt sie
@@ -41,6 +42,7 @@ const stueck = (x: number, von: number, bis: number) => klemme((x - von) / (bis 
 const weich = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
 export function KlammerKarten() {
+  const tx = useTx();
   const ref = useRef<HTMLElement>(null);
   const block = useRef<HTMLDivElement>(null);
   const auf = useRef<HTMLSpanElement>(null);
@@ -216,26 +218,26 @@ export function KlammerKarten() {
           <div className="s12-inhalt">
             {/* Der Satzanfang bleibt stehen, nur das Ende schlägt mit den Karten um */}
             <h2 className="mu-h2 s12-h2 s121-h2">
-              <span className="s121-leise">Eine offene Stelle kann</span>{" "}
+              <span className="s121-leise">{tx("Eine offene Stelle kann")}</span>{" "}
               <span className="s121-kipp">
-                <span className="s121-t0" aria-hidden={neu}>viel Arbeit machen.</span>
-                <span className="s121-t1" aria-hidden={!neu}>so einfach sein.</span>
+                <span className="s121-t0" aria-hidden={neu}>{tx("viel Arbeit machen.")}</span>
+                <span className="s121-t1" aria-hidden={!neu}>{tx("so einfach sein.")}</span>
               </span>
             </h2>
             <div className="s12-block" ref={block}>
               <span className="s12-klammer" ref={auf} aria-hidden="true">(</span>
-              <ul className="s111 s121-karten" data-neu={neu} data-lauf="true" aria-label={neu ? "Die vier Schritte mit Matchunt" : "Was eine offene Stelle heute bedeutet"}>
+              <ul className="s111 s121-karten" data-neu={neu} data-lauf="true" aria-label={neu ? tx("Die vier Schritte mit Matchunt") : tx("Was eine offene Stelle heute bedeutet")}>
                 {KARTEN.map((k, i) => (
                   <li className="s121-pk" key={k.text} data-tinte={neu && (alle || tinte === i)} onPointerMove={(e) => rein(i, e)} onPointerDown={(e) => rein(i, e)} onPointerLeave={(e) => { if (e.pointerType === "mouse" && tinte === i) raus(i); }}>
                     <div className="s111-karte">
                       <div className="s111-bild" aria-hidden="true">
-                        <div className="s111-b0">{k.bild}</div>
+                        <div className="s111-b0">{k.bild(tx)}</div>
                         <div className="s111-b1"><Zeichen art={k.zeichen} an={neu} verzug={200 + i * 220} neu={zeichenNeu[i]} /></div>
                         {neu && (alle || tinte === i) && <span className="s111-tinte"><TeMarke art={TINTE[i]} className="s111-leinwand" spanne={3.4} hoch={2.1} farbe={farbe} /></span>}
                       </div>
                       <div className="s111-fuss">
                         <b aria-hidden="true">{i + 1}</b>
-                        <div className="s111-worte"><p className="s111-w0" aria-hidden={neu}>{k.text}</p><p className="s111-w1" aria-hidden={!neu}>{k.neu}</p></div>
+                        <div className="s111-worte"><p className="s111-w0" aria-hidden={neu}>{tx(k.text)}</p><p className="s111-w1" aria-hidden={!neu}>{tx(k.neu)}</p></div>
                       </div>
                     </div>
                   </li>
@@ -246,9 +248,9 @@ export function KlammerKarten() {
               <div className="s12-ende s121-logo" ref={ende} aria-hidden="true"><span className="s121-zeichen"><MatchuntLogo size={44} /></span><b>Matchunt</b></div>
             </div>
             <p className="s12-satz s121-kipp">
-              <span className="s121-t0" aria-hidden={neu}>Anzeige, Lebensläufe, Termine, Verträge.</span>
-              <span className="s121-t1" aria-hidden={!neu}>Ihnen bleibt eine Aufgabe: <a className="s121-marke" href={START_URL} tabIndex={neu ? 0 : -1}>
-                  die Stelle beschreiben.
+              <span className="s121-t0" aria-hidden={neu}>{tx("Anzeige, Lebensläufe, Termine, Verträge.")}</span>
+              <span className="s121-t1" aria-hidden={!neu}>{tx("Ihnen bleibt eine Aufgabe:")} <a className="s121-marke" href={START_URL} tabIndex={neu ? 0 : -1}>
+                  {tx("die Stelle beschreiben.")}
                   {/* Zeiger, der auf den Knopf kommt und klickt: zeigt, dass man hier klicken kann */}
                   <span className="s121-zeiger" aria-hidden="true">
                     <i />

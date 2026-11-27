@@ -3,12 +3,13 @@
 // rutscht weg, die nächste rückt nach und wird zu „Jetzt“. Ruhige Schleife.
 import { useEffect, useRef, useState } from "react";
 import { START_URL } from "@/startseite/nachbau/basis";
+import { useTx } from "@/startseite/website/uebersetzen";
 import "./s42.css";
 
 const AUFGABEN = [
-  { name: "Vorstellung prüfen", wer: "Kandidat 2", knopf: "Interview anfragen" },
-  { name: "Feedback geben", wer: "Kandidat 1", knopf: "Feedback geben" },
-  { name: "Angebot machen", wer: "Kandidat 1", knopf: "Angebot machen" },
+  { name: "Vorstellung prüfen", wer: 2, knopf: "Interview anfragen" },
+  { name: "Feedback geben", wer: 1, knopf: "Feedback geben" },
+  { name: "Angebot machen", wer: 1, knopf: "Angebot machen" },
 ];
 type Zeile = { id: number; art: number; neu: boolean };
 const Haken = () => (
@@ -16,6 +17,7 @@ const Haken = () => (
 );
 
 export function Aufgaben() {
+  const tx = useTx();
   const ref = useRef<HTMLDivElement>(null);
   const [imBild, setImBild] = useState(false);
   const [gesehen, setGesehen] = useState(false);
@@ -62,7 +64,7 @@ export function Aufgaben() {
     <section className="s42">
       <div className="mu-wrap">
         <div className="s42-karte" ref={ref} data-da={gesehen} aria-hidden="true">
-          <div className="s42-titel"><b>Ihre Aufgaben</b><span className="mu-leise">Leitung Konstruktion</span></div>
+          <div className="s42-titel"><b>{tx("Ihre Aufgaben")}</b><span className="mu-leise">{tx("Leitung Konstruktion")}</span></div>
           <div className="s42-liste">
             {zeilen.map((z, i) => {
               const a = AUFGABEN[z.art];
@@ -72,10 +74,10 @@ export function Aufgaben() {
                   <div className="s42-huelle"><div className="s42-innen">
                     <i className="s42-kreis"><Haken /></i>
                     <div className="s42-was">
-                      <b>{a.name}<em>Jetzt</em></b>
-                      <span>{a.wer}</span>
+                      <b>{tx(a.name)}<em>{tx("Jetzt")}</em></b>
+                      <span>{tx("Kandidat {n}", { n: a.wer })}</span>
                     </div>
-                    <span className="s42-knopf" data-druck={druck && i === 0}>{a.knopf}</span>
+                    <span className="s42-knopf" data-druck={druck && i === 0}>{tx(a.knopf)}</span>
                   </div></div>
                 </div>
               );
@@ -83,14 +85,14 @@ export function Aufgaben() {
             <span className="s42-zeiger" data-da={zeiger} data-druck={druck} />
           </div>
           <div className="s42-andere">
-            <span className="s42-andere-titel">Läuft bei anderen</span>
-            <p><i />Headhunter stimmt den Termin ab</p>
+            <span className="s42-andere-titel">{tx("Läuft bei anderen")}</span>
+            <p><i />{tx("Headhunter stimmt den Termin ab")}</p>
           </div>
         </div>
 
         <div className="s42-kopf">
-          <h2 className="mu-h2">Sie sehen immer, was als Nächstes ansteht.</h2>
-          <a className="mu-knopf" href={START_URL}>Stelle beschreiben</a>
+          <h2 className="mu-h2">{tx("Sie sehen immer, was als Nächstes ansteht.")}</h2>
+          <a className="mu-knopf" href={START_URL}>{tx("Stelle beschreiben")}</a>
         </div>
       </div>
     </section>

@@ -27,7 +27,7 @@ export function useOnboardingNav(back: Handlung, later: Handlung = null) {
  * für die vier Kapitel. `.mh-neu.mh-m3` schaltet die Regeln in onboarding.css nur hier ein
  * (Anmeldeseiten und Admin teilen die Datei und bleiben unverändert).
  */
-export default function OnboardingFrame({ stage, title, description, email, accountAction, wide = false, children }: { stage: number; title: string; description: string; email?: string; accountAction?: ReactNode; /** Breites Blatt, für den Vertrag im Rahmen. */ wide?: boolean; children: ReactNode }) {
+export default function OnboardingFrame({ stage, title, description, email, accountAction, wide = false, einladung = true, children }: { stage: number; title: string; description: string; email?: string; accountAction?: ReactNode; /** Breites Blatt, für den Vertrag im Rahmen. */ wide?: boolean; /** „Persönliche Einladung“ unter dem Blatt – nur, wenn jemand mit Einladungslink kommt. */ einladung?: boolean; children: ReactNode }) {
   const { t } = useTranslation('recruiterFunnel');
   const backRef = useRef<Handlung>(null);
   const laterRef = useRef<Handlung>(null);
@@ -62,7 +62,7 @@ export default function OnboardingFrame({ stage, title, description, email, acco
           </li>)}
         </ol>
         <div className="mt-3 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-          {email ? <span className="max-w-[16rem] truncate" title={email}>{email}</span> : <span className="inline-flex items-center gap-1"><LockKeyhole className="h-3 w-3"/>{t('frame.invitation')}</span>}
+          {email ? <span className="max-w-[16rem] truncate" title={email}>{email}</span> : einladung ? <span className="inline-flex items-center gap-1"><LockKeyhole className="h-3 w-3"/>{t('frame.invitation')}</span> : null}
           {accountAction}
           {hasLater && <button type="button" className="font-medium text-klick hover:underline sm:hidden" onClick={() => laterRef.current?.()}>· {t('frame.later')}</button>}
         </div>

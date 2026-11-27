@@ -47,6 +47,11 @@ const en: Messages<typeof de> = {
     },
   },
   invitation: {
+    // Offene Anmeldung: erst die Art, dann E-Mail und Code (27.11.2026).
+    vorab: {
+      artText: 'Next, you confirm your email address – with a code, no password.',
+      weiterMitEmail: 'Already started? Continue with your email',
+    },
     loadFailed: 'The invitation could not be loaded.',
     eventReturn: 'Welcome back. We are waiting for the confirmed response from DocuSign. Returning to this page does not yet confirm a signature.',
     remoteRequested: 'Personal DocuSign access has been requested for the named person.',

@@ -36,9 +36,31 @@ export const SEKTIONEN = [
   ['jo:2', 'matchunt/s42-aufgaben'],
   ['rl:5', 'matchunt/s80-fragen'],
 ];
+/** Die Headhunter-Seite (Labor: Seite H), 27.11.2026 übernommen; Inhalt noch nicht final, Marko geht sie durch. */
+export const HEADHUNTER = [
+  ['neu:h1', 'neu/h1-einstieg'],
+  ['lo:5', 'matchunt/s19-hhschritte'],
+  ['r1:7', 'matchunt/s49-hhfilm'],
+  // jo:3 „Geflecht“ (matchunt/s61-geflecht) fehlt: braucht die 3D-Bibliothek three, die die App nicht hat.
+  ['neu:h2', 'neu/h2-fertig'],
+  ['neu:h5', 'neu/h5-werkzeug'],
+  ['neu:h7', 'neu/h7-name'],
+  ['neu:h4', 'neu/h4-deins'],
+  ['neu:h6', 'neu/h6-regeln'],
+  ['neu:h9', 'neu/h9-fragen'],
+  ['neu:h8', 'neu/h8-start'],
+  ['neu:h3', 'neu/h3-verdienst'],
+];
 const RAHMEN = ['website/Rahmen.tsx', 'website/Fuss.tsx', 'website/SprachHinweis.tsx', 'website/SprachMenue.tsx',
   'website/texte.ts', 'website/sprachen.ts', 'website/herkunft.ts', 'website/kontext.tsx', 'website/website.css',
-  'matchunt/stil.css', 'seiten/seiten.css'];
+  'website/Kopf.tsx', 'website/adressen.ts', 'website/Abschluss.tsx', 'matchunt/stil.css', 'seiten/seiten.css'];
+/** Karriere-Seite (Labor: neu/kr-karriere), 27.11.2026. */
+export const KARRIERE = [['kr', 'neu/kr-karriere']];
+/** Adressen der Website-Seiten in der App (ersetzt website/adressen.ts des Labors). */
+const APP_SEITEN = {
+  start: '/', ablauf: '/#ablauf', honorar: '/#honorar', headhunter: '/headhunter', karriere: '/karriere',
+  anmelden: '/auth', anmeldenUnternehmen: '/anmelden', anmeldenHeadhunter: '/recruiter/login',
+};
 const WEGLASSEN = new Set(['website/einwilligung.ts', 'website/EinwilligungsDialoge.tsx', 'website/NachEinwilligung.tsx']);
 
 if (!fs.existsSync(QUELLE)) { console.error(`Labor nicht gefunden: ${LABOR}`); process.exit(1); }
@@ -64,7 +86,8 @@ const folge = (datei) => {
     if (spec && (spec.startsWith('.') || spec.startsWith('@/'))) folge(aufloesen(datei, spec));
   }
 };
-for (const [, ordner] of SEKTIONEN) folge(aufloesen(path.join(QUELLE, 'x'), `@/${ordner}`));
+for (const [, ordner] of [...SEKTIONEN, ...HEADHUNTER, ...KARRIERE]) folge(aufloesen(path.join(QUELLE, 'x'), `@/${ordner}`));
+if (gesehen.has('neu/register.tsx')) throw new Error('neu/register.tsx (Baukasten des Labors) würde mitkopiert – Import in einer Sektion prüfen.');
 for (const r of RAHMEN) folge(path.join(QUELLE, r));
 
 // ---- 2. Kopieren und anpassen -----------------------------------------------------------
@@ -83,12 +106,13 @@ const anpassen = (rel, text) => {
     .replace(/(['"])\/seiten\/h\1/g, '$1/recruiter/onboarding$1')
     // React 18 kennt inert={bool} noch nicht (erst React 19): als Attribut-Text setzen.
     .replace(/\binert=\{([^{}]+)\}/g, (_m, bed) => `{...((${bed}) ? { inert: '' } : {})}`);
-  if (rel === 'neu/k1-einstieg/Einstieg.tsx') {
-    // Die eingetippte Stelle geht mit in die Aufnahme (?stelle=), statt verloren zu gehen.
-    const vorher = t;
-    t = t.replace('window.location.href = mitHerkunft(knopfUrl);', 'window.location.href = mitHerkunft(mitStelle(knopfUrl, stelle));');
-    if (t === vorher) throw new Error('Einstieg.tsx: Absende-Zeile nicht gefunden – Skript anpassen.');
-    t = t.replace(/(\nconst NAV)/, `\n/** Die eingetippte Stelle als ?stelle= an die Aufnahme (App: GuestIntake). */\nconst mitStelle = (u: string, s: string) => (s.trim() ? \`\${u}\${u.includes("?") ? "&" : "?"}stelle=\${encodeURIComponent(s.trim().slice(0, 120))}\` : u);\n$1`);
+  // ?stelle= hängt das Labor seit 27.11.2026 selbst an (Einstieg.tsx, mitStelle) – hier nur prüfen, dass es so bleibt.
+  if (rel === 'neu/k1-einstieg/Einstieg.tsx' && !t.includes('mitHerkunft(mitStelle(knopfUrl, stelle))')) {
+    throw new Error('Einstieg.tsx: Die getippte Stelle geht nicht mehr als ?stelle= mit – Labor prüfen.');
+  }
+  if (rel === 'neu/h1-einstieg/index.tsx') {
+    // „Für Unternehmen“ zeigt im Labor auf die Website unter /w, in der App auf die Startseite.
+    t = t.replace('["Für Unternehmen", "/w"]', '["Für Unternehmen", "/"]');
   }
   if (rel === 'website/Rahmen.tsx') {
     t = t.replace(/^import \{ EinwilligungsDialoge \}.*\n/m, '')
@@ -122,6 +146,14 @@ export const Inter_Tight = (_o?: unknown) => s();
 export const Poppins = (_o?: unknown) => s();
 export const Source_Serif_4 = (_o?: unknown) => s();
 `);
+// Kontakt bleibt wie im Labor (dieselben Angaben wie im Impressum); nur die Adressen der Seiten wechseln.
+const kontakt = fs.readFileSync(path.join(QUELLE, 'website/adressen.ts'), 'utf8').match(/export const KONTAKT = [^\n]+\n/)?.[0];
+if (!kontakt) throw new Error('website/adressen.ts: KONTAKT nicht gefunden – Skript anpassen.');
+schreibe('website/adressen.ts', `// Adressen der Website-Seiten in der App (vom Übernahme-Skript geschrieben, im Labor zeigen sie auf /w und /seiten/h).
+export const SEITEN = ${JSON.stringify(APP_SEITEN, null, 2)};
+
+/** Kontakt im Fuß – dieselben Angaben wie im Impressum. */
+${kontakt}`);
 schreibe('website/einwilligung.ts', `// „Cookie-Einstellungen“ im Fuß öffnet den Cookie-Hinweis der App (die Website hat keinen eigenen).
 import { setCookieBannerOpen } from '@/lib/cookieBanner';
 export const zentraleOeffnen = () => setCookieBannerOpen(true);

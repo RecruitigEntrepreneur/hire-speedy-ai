@@ -47,6 +47,11 @@ const sv: Messages<typeof de> = {
     },
   },
   invitation: {
+    // Offene Anmeldung: erst die Art, dann E-Mail und Code (27.11.2026).
+    vorab: {
+      artText: 'Därefter bekräftar du din e-postadress – med en kod, utan lösenord.',
+      weiterMitEmail: 'Redan påbörjat? Fortsätt med din e-post',
+    },
     loadFailed: 'Inbjudan kunde inte laddas.',
     eventReturn: 'Välkommen tillbaka. Vi väntar på bekräftelsen från DocuSign. Att du kommit tillbaka hit bekräftar ännu ingen signatur.',
     remoteRequested: 'Personlig DocuSign-åtkomst har begärts för den angivna personen.',

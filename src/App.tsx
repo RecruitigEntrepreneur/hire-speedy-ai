@@ -106,18 +106,11 @@ import ClientConfirmAlternative from "./pages/interview/ClientConfirmAlternative
 import ViewOffer from "./pages/offer/ViewOffer";
 import OfferAccepted from "./pages/offer/OfferAccepted";
 
-// New Public pages
-import About from "./pages/public/About";
-import Contact from "./pages/public/Contact";
-import Blog from "./pages/public/Blog";
-import Guides from "./pages/public/Guides";
-import Docs from "./pages/public/Docs";
-import Help from "./pages/public/Help";
-import Careers from "./pages/public/Careers";
-import Press from "./pages/public/Press";
-import Impressum from "./pages/public/Impressum";
-import Datenschutz from "./pages/public/Datenschutz";
-import AGB from "./pages/public/AGB";
+// Rechtstexte im Rahmen der neuen Website (27.11.2026). Lazy wie die Startseite, damit deren Stile
+// und Schriften nicht im Bündel der App landen.
+const Impressum = lazy(() => import("./pages/public/Impressum"));
+const Datenschutz = lazy(() => import("./pages/public/Datenschutz"));
+const AGB = lazy(() => import("./pages/public/AGB"));
 
 // GDPR Components
 import { CookieConsentBanner } from "@/components/gdpr/CookieConsentBanner";
@@ -129,6 +122,10 @@ import { CookieConsentBanner } from "@/components/gdpr/CookieConsentBanner";
 const GuestIntake = lazy(() => import("./pages/intake/GuestIntake"));
 // Die Website (Startseite C aus dem Labor, 27.11.2026) ersetzt die alte Startseite (pages/Index.tsx).
 const Startseite = lazy(() => import("./pages/Startseite"));
+// „Für Headhunter“ der Website (Seite H aus dem Labor, 27.11.2026).
+const HeadhunterSeite = lazy(() => import("./pages/Headhunter"));
+// Karriere der Website (Labor: neu/kr-karriere, 27.11.2026); /careers führt hierher.
+const KarriereSeite = lazy(() => import("./pages/Karriere"));
 const ClarifyAnswer = lazy(() => import("./pages/intake/ClarifyAnswer"));
 const SignReturn = lazy(() => import("./pages/intake/SignReturn"));
 const ClientContractSign = lazy(() => import("./pages/dashboard/ClientContractSign"));
@@ -209,6 +206,8 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<Suspense fallback={<RouteFallback />}><Startseite /></Suspense>} />
       <Route path="/w/:sprache" element={<Suspense fallback={<RouteFallback />}><Startseite /></Suspense>} />
+      <Route path="/headhunter" element={<Suspense fallback={<RouteFallback />}><HeadhunterSeite /></Suspense>} />
+      <Route path="/karriere" element={<Suspense fallback={<RouteFallback />}><KarriereSeite /></Suspense>} />
       <Route path="/auth" element={<Auth />} />
       
       {/* Client Routes */}
@@ -620,18 +619,16 @@ function AppRoutes() {
       <Route path="/recruiter/onboarding" element={<Suspense fallback={<RouteFallback />}><RecruiterInvitation /></Suspense>} />
       
 
-      {/* Public Routes */}
-      <Route path="/about" element={<About />} />
-      <Route path="/contact" element={<Contact />} />
-      <Route path="/blog" element={<Blog />} />
-      <Route path="/guides" element={<Guides />} />
-      <Route path="/docs" element={<Docs />} />
-      <Route path="/help" element={<Help />} />
-      <Route path="/careers" element={<Careers />} />
-      <Route path="/press" element={<Press />} />
-      <Route path="/impressum" element={<Impressum />} />
-      <Route path="/datenschutz" element={<Datenschutz />} />
-      <Route path="/agb" element={<AGB />} />
+      {/* Website: Rechtstexte im neuen Rahmen. Die alten Platzhalterseiten (Über uns, Kontakt, Blog …)
+          gibt es nicht mehr – ihre Adressen führen auf die neue Startseite (Marko, 27.11.2026). */}
+      <Route path="/impressum" element={<Suspense fallback={<RouteFallback />}><Impressum /></Suspense>} />
+      <Route path="/datenschutz" element={<Suspense fallback={<RouteFallback />}><Datenschutz /></Suspense>} />
+      <Route path="/agb" element={<Suspense fallback={<RouteFallback />}><AGB /></Suspense>} />
+      {/* Alte Seiten: Dateien bleiben (Marko entscheidet je Seite), Adressen führen vorerst auf die Startseite. */}
+      {["/about", "/contact", "/blog", "/guides", "/docs", "/help", "/press"].map((alt) => (
+        <Route key={alt} path={alt} element={<Navigate to="/" replace />} />
+      ))}
+      <Route path="/careers" element={<Navigate to="/karriere" replace />} />
 
       {/* Kundenseitiger Einstieg ohne Login.
           /start/:token       — Aufnahme-Link (persönlich, Kampagne, öffentlich)

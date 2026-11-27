@@ -1,0 +1,47 @@
+/* Neue Sektion H7 „Die Firma sieht deinen Namen.“: Aussage und Treppe der drei Stufen links, Vorstellung rechts. */
+.h7 { padding: clamp(72px, 9vw, 144px) 0; }
+.h7-raster { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); column-gap: clamp(32px, 6vw, 112px); row-gap: 40px; align-items: center; }
+.h7-kopf { display: grid; gap: 20px; }
+
+/* Treppe */
+.h7-treppe { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; gap: 8px; height: 168px; margin-top: 20px; border-bottom: 1px solid var(--mu-ln); }
+.h7-stufe { display: flex; align-items: flex-start; height: 56px; padding: 14px 14px 0; border: 1px solid var(--mu-ln); border-radius: var(--mu-r-klein) var(--mu-r-klein) 0 0; border-bottom: 0; background: var(--mu-fl); color: var(--mu-ls); font: inherit; font-size: 16px; font-weight: 500; text-align: left; cursor: pointer; transition: background 0.35s var(--mu-leicht), color 0.35s, border-color 0.35s; }
+.h7-stufe[data-n="1"] { height: 112px; } .h7-stufe[data-n="2"] { height: 168px; }
+.h7-stufe:hover { color: var(--mu-tx); }
+.h7-stufe[aria-selected="true"] { background: var(--mu-ak); border-color: var(--mu-ak); color: var(--mu-akt); }
+.h7-stufe:focus-visible { outline: 2px solid var(--mu-tx); outline-offset: 3px; }
+
+/* Vorstellung */
+.h7-buehne { display: grid; gap: 18px; justify-items: center; padding: clamp(28px, 4vw, 64px) clamp(18px, 3vw, 48px); }
+.h7-f { width: 100%; max-width: 440px; padding: 0 24px 24px; border: 1px solid var(--mu-ln); border-radius: var(--mu-r-klein); background: var(--mu-bg); font-size: 16px; line-height: 1.3; box-shadow: 0 28px 48px -32px rgba(0, 0, 0, 0.45); }
+.h7-f header { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 56px; margin-bottom: 18px; border-bottom: 1px solid var(--mu-ln); white-space: nowrap; }
+.h7-f header b { font-size: 17px; font-weight: 600; }
+.h7-f header span { font-size: 14px; color: var(--mu-ls); }
+.h7-f dl { display: grid; gap: 12px; margin: 0; }
+.h7-f dl > div { display: grid; grid-template-columns: 132px minmax(0, 1fr); }
+.h7-f dt { font-size: 15px; color: var(--mu-ls); }
+.h7-f dd { margin: 0; font-weight: 500; }
+.h7-von { display: grid; gap: 12px; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--mu-ln); }
+.h7-von small { font-size: 14px; color: var(--mu-ls); }
+.h7-wer { display: flex; align-items: center; gap: 14px; padding: 14px; border-radius: var(--mu-r-klein); background: color-mix(in srgb, var(--mu-ak) 9%, var(--mu-bg)); }
+.h7-bild { flex: none; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; background: var(--mu-ak); color: var(--mu-akt); }
+.h7-bild svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.h7-name { display: grid; gap: 2px; min-width: 0; }
+.h7-name b { font-size: 17px; font-weight: 600; }
+.h7-name em { font-style: normal; font-size: 15px; color: var(--mu-ls); }
+.h7-marken { display: grid; margin-left: auto; justify-items: end; }
+.h7-marke { grid-area: 1 / 1; padding: 6px 12px; border: 1px solid var(--mu-ak); border-radius: var(--mu-rk); color: var(--mu-ak); font-size: 14px; font-weight: 600; white-space: nowrap; opacity: 0; transform: translateY(6px); transition: opacity 0.4s var(--mu-leicht), transform 0.4s var(--mu-leicht); }
+.h7-marke[data-an="true"] { opacity: 1; transform: none; }
+.h7-fuss { margin: 0; font-size: 15px; color: var(--mu-ls); text-align: center; }
+
+@media (max-width: 899px) {
+  .h7-raster { grid-template-columns: minmax(0, 1fr); }
+  .h7-treppe { height: 132px; }
+  .h7-stufe { height: 44px; padding: 10px 10px 0; font-size: 15px; }
+  .h7-stufe[data-n="1"] { height: 88px; } .h7-stufe[data-n="2"] { height: 132px; }
+  .h7-f { padding: 0 16px 18px; }
+  .h7-f dl > div { grid-template-columns: 124px minmax(0, 1fr); }
+  .h7-wer { flex-wrap: wrap; }
+  .h7-marken { margin-left: 60px; justify-items: start; }
+}
+@media (prefers-reduced-motion: reduce) { .h7-stufe, .h7-marke { transition: none; } }

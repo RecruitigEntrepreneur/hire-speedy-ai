@@ -38,9 +38,24 @@ function rememberedVia() {
     return sessionStorage.getItem(VIA_KEY) || '';
   } catch { return fromUrl; }
 }
+// Offene Anmeldung (27.11.2026, Marko): erst ein Klick „Wie arbeitest du?“, dann E-Mail und Code. Danach startet
+// der Vorgang von selbst mit der gewählten Art; „Was du besetzt“ kommt vor der Firma (RecruiterProfileForm
+// besetzenZuerst). Vor der E-Mail merkt sich nur dieser Browser die Art (`gewaehlt`: über „Weiter“ gewählt).
+const VORAB_KEY = 'matchunt-hh-vorab';
+type Vorab = { schritt: 'art' | 'email'; kind: string; gewaehlt?: boolean };
+function vorabLesen(): Vorab | null {
+  try { const v = JSON.parse(localStorage.getItem(VORAB_KEY) || 'null'); return v && typeof v === 'object' && v.schritt ? v as Vorab : null; } catch { return null; }
+}
+function vorabSchreiben(v: Vorab | null) {
+  try { if (v) localStorage.setItem(VORAB_KEY, JSON.stringify(v)); else localStorage.removeItem(VORAB_KEY); } catch { /* ohne Speicher geht es weiter, nur ohne Merken */ }
+}
 export default function RecruiterInvitation() {
   const { t, i18n } = useTranslation(NS);
   const [token] = useState(invitationToken);
+  const [vorab, setVorabState] = useState<Vorab>(() => (invitationToken() ? null : vorabLesen()) ?? { schritt: 'art', kind: 'individual' });
+  const setVorab = (v: Vorab) => { setVorabState(v); vorabSchreiben(v); };
+  const uebernahme = useRef(false);
+  const [uebernimmt, setUebernimmt] = useState(false);
   const [via] = useState(() => invitationToken() ? '' : rememberedVia());
   const viaChecked = useRef(false);
   const [user, setUser] = useState<User | null>(null);
@@ -57,7 +72,7 @@ export default function RecruiterInvitation() {
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const [password, setPassword] = useState('');
   const [repeat, setRepeat] = useState('');
-  const [kind, setKind] = useState('individual');
+  const [kind, setKind] = useState(() => vorab.kind || 'individual');
   const [c, setCase] = useState<StoredOnboarding | null>(null);
   const [profile, setProfile] = useState<RecruiterProfile>(() => cleanProfile({}));
   const [busy, setBusy] = useState(false);
@@ -106,6 +121,18 @@ export default function RecruiterInvitation() {
     return () => { active = false; };
   }, [user?.id, token]); // eslint-disable-line react-hooks/exhaustive-deps
   const run = async (work: () => Promise<void>) => { setBusy(true); setError(''); setMessage(''); try { await work(); } catch (e) { setError(e instanceof Error ? e.message : t('common.requestFailed')); } finally { setBusy(false); } };
+  // Nach der Bestätigung: Wer die Art vor der E-Mail gewählt hat, startet ohne zweite Frage. Einmal je Seite.
+  useEffect(() => {
+    if (token || !user || loadedFor !== user.id || c || busy || uebernahme.current) return;
+    const v = vorabLesen();
+    if (!v?.gewaehlt) return;
+    uebernahme.current = true;
+    setUebernimmt(true);
+    void run(async () => {
+      const begun = await onboardingApi<{ onboarding: StoredOnboarding }>(false, { action: 'begin', kind: v.kind, ...(via ? { via } : {}) });
+      setKind(v.kind); setCase(begun.onboarding); setProfile(begun.onboarding.profile); vorabSchreiben(null);
+    }).finally(() => setUebernimmt(false));
+  }, [user?.id, loadedFor, c, token, busy]); // eslint-disable-line react-hooks/exhaustive-deps
   const identity = token ? { token } : { case_id: c?.id };
   // Wohin der Code geht: bei Einladungen entscheidet der Server, sonst die eingetippte Adresse.
   const codeIdentity = token ? { token } : { email, ...(via ? { via } : {}) };
@@ -194,11 +221,18 @@ export default function RecruiterInvitation() {
     });
     return company?.trim() ? `${line} · ${company.trim()}` : line;
   };
-  return <OnboardingFrame stage={stage} title={titles[stage]} description={packet?.state === 'completed' ? completedDescription : descriptions[stage]} email={user?.email} wide={!!signUrl}
+  // Vor der E-Mail (offene Anmeldung): nur die Art – ein Klick, ohne Server, nur in diesem Browser gemerkt.
+  const vorabAnsicht = <section className="mh-panel mh-stack">
+    <div className="mh-panel-head"><UserRound size={22}/><div><h2>{t('invitation.confirmed.howTitle')}</h2><p>{t('invitation.vorab.artText')}</p></div></div>
+    <div className="mh-choices">{([['individual', t('invitation.confirmed.individual'), t('invitation.confirmed.individualText')], ['agency', t('invitation.confirmed.agency'), t('invitation.confirmed.agencyText')]] as const).map(([value, label, detail]) => <button key={value} className="mh-choice" type="button" aria-pressed={vorab.kind === value} onClick={() => { setKind(value); setVorab({ ...vorab, kind: value }); }}>{value === 'agency' ? <Building2 size={21}/> : <UserRound size={21}/>}<span><strong>{label}</strong><small>{detail}</small></span></button>)}</div>
+    <div className="mh-actions"><button className="mh-button mh-primary" type="button" onClick={() => setVorab({ ...vorab, schritt: 'email', gewaehlt: true })}>{t('common.next')}<ArrowRight size={16}/></button></div>
+    <button type="button" className="mh-link" onClick={() => setVorab({ ...vorab, schritt: 'email', gewaehlt: false })}>{t('invitation.vorab.weiterMitEmail')}<ArrowRight size={14}/></button>
+  </section>;
+  return <OnboardingFrame stage={stage} title={titles[stage]} description={packet?.state === 'completed' ? completedDescription : descriptions[stage]} email={user?.email} wide={!!signUrl} einladung={!!token}
     accountAction={user && <button className="mh-link" disabled={busy} onClick={() => void run(async () => { const { error } = await supabase.auth.signOut(); if (error) throw error; })}>{t('invitation.restart')}</button>}>
     {error && <p role="alert" className="mh-alert mh-error">{error}</p>}
     {message && <p role="status" className="mh-alert">{message}</p>}
-    {!authReady ? <section className="mh-panel" role="status">{t('invitation.checkingAccess')}</section> : !user ? <section className="mh-panel">
+    {!authReady ? <section className="mh-panel" role="status">{t('invitation.checkingAccess')}</section> : !user && !token && vorab.schritt === 'art' ? vorabAnsicht : !user ? <section className="mh-panel">
       <div className="mh-verify">
         <div className="mh-verify-icon"><Mail size={20}/></div>
         <div>
@@ -212,6 +246,7 @@ export default function RecruiterInvitation() {
           <button className="mh-button mh-primary mh-full" type="submit" disabled={busy || linkBlocked}>{busy ? <Loader2 size={16} className="animate-spin"/> : <Mail size={16}/>}{busy ? t('common.oneMoment') : t('common.sendCode')}</button>
           {codeError && <p role="alert" className="mh-alert mh-error">{codeError}</p>}
           {token && peek?.status === 'claimed' && <p className="mh-muted mh-verify-hint">{t('invitation.verify.claimed')}</p>}
+          {!token && <button type="button" className="mh-link" disabled={busy} onClick={() => setVorab({ ...vorab, schritt: 'art' })}>‹ {t('frame.back')}</button>}
         </form> : <>
           <div className="mh-otp" data-length={codeLength}>
             <InputOTP maxLength={codeLength} value={code} pattern={REGEXP_ONLY_DIGITS} inputMode="numeric" autoComplete="one-time-code" disabled={busy} onChange={value => { setCode(value); setCodeError(''); if (value.length === codeLength) void confirmCode(value); }}>
@@ -227,7 +262,7 @@ export default function RecruiterInvitation() {
           <p className="mh-muted mh-verify-hint">{t('invitation.verify.validity')}</p>
         </>}
       </div>
-    </section> : loadedFor !== user.id ? <section className="mh-panel" role="status">{t('invitation.loadingDetails')}</section> : !c ? <section className="mh-panel mh-stack">
+    </section> : loadedFor !== user.id || (!c && uebernimmt) ? <section className="mh-panel" role="status">{t('invitation.loadingDetails')}</section> : !c ? <section className="mh-panel mh-stack">
       <div className="mh-panel-head"><CheckCircle2 size={23}/><div><h2>{t('invitation.confirmed.title')}</h2><p>{t('invitation.confirmed.text')}</p></div></div>
       {!token && <><h3>{t('invitation.confirmed.howTitle')}</h3><div className="mh-choices">{[['individual', t('invitation.confirmed.individual'), t('invitation.confirmed.individualText')], ['agency', t('invitation.confirmed.agency'), t('invitation.confirmed.agencyText')]].map(([value, label, detail]) => <button key={value} className="mh-choice" type="button" disabled={busy} aria-pressed={kind === value} onClick={() => setKind(value)}>{value === 'agency' ? <Building2 size={21}/> : <UserRound size={21}/>}<span><strong>{label}</strong><small>{detail}</small></span></button>)}</div></>}
       <div className="mh-note"><ShieldCheck size={21}/><p>{t('invitation.confirmed.note')}</p></div>
@@ -252,7 +287,7 @@ export default function RecruiterInvitation() {
         }}/>
     </section> : <>
       {c.feedback && <div className="mh-alert"><strong>{t('invitation.feedbackTitle')}</strong><p className="whitespace-pre-wrap">{c.feedback}</p></div>}
-      {c.state === 'draft' ? <RecruiterProfileForm profile={profile} kind={c.kind} busy={busy} email={user.email ?? ''} onChange={setProfile}
+      {c.state === 'draft' ? <RecruiterProfileForm profile={profile} kind={c.kind} busy={busy} email={user.email ?? ''} onChange={setProfile} besetzenZuerst={!token}
         onEnrich={async website => (await onboardingApi<{ suggestion: CompanySuggestion }>(false, { action: 'enrich', ...identity, website })).suggestion}
         onSave={async (silent, snapshot) => {
           if (silent) {

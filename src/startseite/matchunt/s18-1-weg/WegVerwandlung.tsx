@@ -7,6 +7,7 @@
 /* eslint-disable @next/next/no-img-element */
 import type { CSSProperties, ReactNode } from "react";
 import { hhFoto } from "@/startseite/matchunt/fotos";
+import { useTx } from "@/startseite/website/uebersetzen";
 import { Weg } from "../s18-weg/Weg";
 import "./s181.css";
 
@@ -26,19 +27,20 @@ const WEGE: [string, string][] = [
   ["Von Hand beschreiben", "M4 20l1-4L16 5l3 3L8 19zM14 7l3 3"],
 ];
 function BildAnzeige() {
+  const tx = useTx();
   return (
     <div className="s18-b s181 s181-1">
       <span className="s181-wege">
         {WEGE.map(([name, d], i) => (
           <span key={name} style={{ "--n": i } as CSSProperties}>
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>
-            {name}
+            {tx(name)}
           </span>
         ))}
       </span>
       <span className="s181-fall">{WEGE.map(([name], i) => <i key={name} style={{ "--n": i } as CSSProperties} />)}</span>
       <div className="s181-karte s181-ziel">
-        <span className="s181-kopf"><b>{STELLE}</b><em className="s18-stand s181-gelesen"><Haken />angelegt</em></span>
+        <span className="s181-kopf"><b>{tx(STELLE)}</b><em className="s18-stand s181-gelesen"><Haken />{tx("angelegt")}</em></span>
       </div>
     </div>
   );
@@ -54,6 +56,7 @@ const PLAETZE: { x: number; y: number; foto?: number; n: number }[] = [
 const Person = () => <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="9.2" r="4" /><path d="M4 22c0-4.6 3.6-7.4 8-7.4s8 2.8 8 7.4z" /></svg>;
 const KANDIDATEN = 3;
 function BildHeadhunter() {
+  const tx = useTx();
   return (
     <div className="s18-b s181 s181-2">
       {[0, 1, 2].map((i) => <span key={i} className="s181-ring" style={{ "--n": i } as CSSProperties} />)}
@@ -70,11 +73,11 @@ function BildHeadhunter() {
         <span key={p.n} className="s181-flug" style={{ "--x": `${p.x}%`, "--y": `${p.y}%`, "--n": i } as CSSProperties}><Person /></span>
       ))}
       <div className="s181-karte s181-mitte">
-        <span className="s181-kopf"><b>{STELLE}</b><Wechsel von={<em className="s18-stand s181-leise">In Prüfung</em>} zu={<em className="s18-stand">Live</em>} t={0.4} /></span>
-        <Wechsel von="Noch sucht kein Headhunter" zu="3 Headhunter suchen" t={2.7} klasse="s181-klein s181-links" />
+        <span className="s181-kopf"><b>{tx(STELLE)}</b><Wechsel von={<em className="s18-stand s181-leise">{tx("In Prüfung")}</em>} zu={<em className="s18-stand">{tx("Live")}</em>} t={0.4} /></span>
+        <Wechsel von={tx("Noch sucht kein Headhunter")} zu={tx("{n} Headhunter suchen", { n: 3 })} t={2.7} klasse="s181-klein s181-links" />
         <span className="s181-profile">
           <span className="s181-kandidaten">{Array.from({ length: KANDIDATEN }, (_, i) => <i key={i} style={{ "--n": i } as CSSProperties}><Person /></i>)}</span>
-          <small><b>{KANDIDATEN} neu</b></small>
+          <small><b>{tx("{k} neu", { k: KANDIDATEN })}</b></small>
         </span>
       </div>
     </div>
@@ -83,19 +86,20 @@ function BildHeadhunter() {
 
 // 3 · Kandidaten gehen ein, einer bekommt den Interview-Termin
 function BildVorstellung() {
+  const tx = useTx();
   return (
     <div className="s18-b s181 s181-3">
       <div className="s181-karte">
-        <span className="s181-kopf"><b>{STELLE}</b></span>
+        <span className="s181-kopf"><b>{tx(STELLE)}</b></span>
         <span className="s181-reihe s181-wahl" style={{ "--n": 0 } as CSSProperties}>
-          <span className="s181-kreis">K1</span>
-          <span className="s181-wer"><b>Kandidat 1</b><small>Leiter Controlling</small></span>
-          <Wechsel von={<em className="s18-stand s181-leise">Neu</em>} zu={<em className="s18-stand">Interview · Mi, 14:30</em>} t={2.1} />
+          <span className="s181-kreis">{tx("K{n}", { n: 1 })}</span>
+          <span className="s181-wer"><b>{tx("Kandidat {n}", { n: 1 })}</b><small>{tx("Leiter Controlling")}</small></span>
+          <Wechsel von={<em className="s18-stand s181-leise">{tx("Neu")}</em>} zu={<em className="s18-stand">{tx("Interview · Mi, 14:30")}</em>} t={2.1} />
         </span>
         <span className="s181-reihe s181-rest" style={{ "--n": 1 } as CSSProperties}>
-          <span className="s181-kreis">K2</span>
-          <span className="s181-wer"><b>Kandidat 2</b><small>Head of Controlling</small></span>
-          <em className="s18-stand s181-leise">Neu</em>
+          <span className="s181-kreis">{tx("K{n}", { n: 2 })}</span>
+          <span className="s181-wer"><b>{tx("Kandidat {n}", { n: 2 })}</b><small>{tx("Head of Controlling")}</small></span>
+          <em className="s18-stand s181-leise">{tx("Neu")}</em>
         </span>
       </div>
     </div>
@@ -104,11 +108,12 @@ function BildVorstellung() {
 
 // 4 · Der Vertrag wird unterschrieben, die Karte wird „Besetzt“
 function BildUnterschrift() {
+  const tx = useTx();
   return (
     <div className="s18-b s181 s181-4">
       <div className="s181-karte">
-        <span className="s181-kopf"><b>{STELLE}</b><Wechsel von={<em className="s18-stand s181-leise">Angebot angenommen</em>} zu={<em className="s18-stand s181-voll">Besetzt</em>} t={2.4} /></span>
-        <span className="s18-marke">Arbeitsvertrag</span>
+        <span className="s181-kopf"><b>{tx(STELLE)}</b><Wechsel von={<em className="s18-stand s181-leise">{tx("Angebot angenommen")}</em>} zu={<em className="s18-stand s181-voll">{tx("Besetzt")}</em>} t={2.4} /></span>
+        <span className="s18-marke">{tx("Arbeitsvertrag")}</span>
         <svg className="s181-sign" viewBox="0 0 180 44" fill="none"><path pathLength={100} d="M6 30c10-18 18-22 20-12s-6 18-2 16 12-22 18-20 0 18 6 16 10-14 16-12 2 10 8 8 12-8 22-6 20 4 40-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
       </div>
     </div>
