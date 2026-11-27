@@ -1,0 +1,176 @@
+/* Sektion 11.1 „Problem / Ordnung“: Umschalter springt mit Wucht, Konfetti, vier Karten mit bewegtem Bild.
+   Farben aus stil.css; eigene Werte nur Lila (Konfetti) und Rot (überfällig), beide in der Besprechung gewünscht. */
+.s111 { padding: clamp(64px, 8vw, 112px) 0 clamp(40px, 5vw, 72px); background: var(--mu-bg); color: var(--mu-tx); overflow: hidden;
+  --s111-feder: cubic-bezier(0.3, 1.25, 0.4, 1); --s111-lila: #8e5cf6; --s111-rot: #e5484d;
+  --s111-blau: color-mix(in srgb, var(--mu-ak) 55%, var(--mu-ln)); --s111-grau: color-mix(in srgb, var(--mu-tx) 16%, transparent); }
+.s111-kopf { display: flex; flex-direction: column; align-items: center; text-align: center; }
+
+/* Umschalter */
+.s111-schalter { position: relative; display: inline-grid; grid-template-columns: 1fr 1fr; padding: 4px; border-radius: var(--mu-rk); background: var(--mu-fl2); }
+.s111[data-neu="true"] .s111-schalter { animation: s111-stoss 0.55s cubic-bezier(0.3, 1.6, 0.4, 1); }
+.s111-schalter > i { position: absolute; left: 4px; top: 4px; bottom: 4px; width: calc(50% - 4px); border-radius: var(--mu-rk); background: var(--mu-bg); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.16); transition: transform 0.3s cubic-bezier(0.5, 1.9, 0.4, 1), background 0.3s; }
+.s111[data-neu="true"] .s111-schalter > i { transform: translateX(100%); background: var(--mu-ak); }
+.s111 .s111-schalter button { position: relative; min-width: 140px; height: 48px; padding: 0 18px; border: 0; border-radius: var(--mu-rk); background: none; color: var(--mu-ls); font: inherit; font-size: 16px; font-weight: 500; cursor: pointer; transition: color 0.3s; }
+.s111 .s111-schalter button:hover, .s111 .s111-schalter button[aria-selected="true"] { color: var(--mu-tx); }
+.s111[data-neu="true"] .s111-schalter button[aria-selected="true"] { color: var(--mu-akt); }
+.s111 .s111-schalter button:focus-visible { outline: 2px solid var(--mu-tx); outline-offset: 2px; }
+@keyframes s111-stoss { 0% { transform: none; } 30% { transform: translateX(10px) scale(1.06); } 100% { transform: none; } }
+
+/* Konfetti aus „Mit Matchunt“ */
+
+/* Schlichter Konfetti-Stoß aus der Mitte der Sektion: gehört zur Sektion (absolute, die Sektion schneidet ab) und scrollt
+   mit ihr mit. Weg (translate) und Flattern (rotate, scale) sind getrennte Eigenschaften, damit sie sich nicht überschreiben. */
+.s111 { position: relative; }
+.s111-kanone { position: absolute; inset: 0; z-index: 5; overflow: hidden; pointer-events: none; }
+.s111-kanone i { position: absolute; left: 50%; top: 46%; width: 5px; height: 8px; margin: -4px 0 0 -3px; border-radius: 1.5px; background: var(--mu-ak); opacity: 0;
+  animation-name: s111-schuss, s111-flattern; animation-timing-function: linear, linear; animation-iteration-count: 1, infinite; animation-fill-mode: both, none; }
+.s111-kanone i[data-b="true"] { width: 6px; height: 6px; border-radius: 50%; }
+.s111-kanone i[data-f="1"] { background: var(--s111-lila); }
+.s111-kanone i[data-f="2"] { background: color-mix(in srgb, var(--mu-ak) 45%, var(--mu-bg)); }
+.s111-kanone i[data-f="3"] { background: var(--mu-tx); }
+@keyframes s111-schuss {
+  0% { opacity: 0; translate: 0 0; animation-timing-function: cubic-bezier(0.1, 0.7, 0.3, 1); }
+  6% { opacity: 1; }
+  32% { translate: var(--x) var(--y); animation-timing-function: cubic-bezier(0.35, 0, 0.65, 1); }
+  80% { opacity: 1; }
+  100% { opacity: 0; translate: calc(var(--x) * 1.12) calc(var(--y) + 320px); }
+}
+@keyframes s111-flattern { 0% { rotate: 0deg; scale: 1 1; } 50% { rotate: calc(var(--r) * 0.5); scale: 0.2 1; } 100% { rotate: var(--r); scale: 1 1; } }
+
+/* Überschrift je Zustand */
+.s111-texte { display: grid; margin-top: 26px; }
+.s111-texte h2 { grid-area: 1 / 1; transition: opacity 0.35s ease, transform 0.55s var(--s111-feder); }
+.s111-t1, .s111[data-neu="true"] .s111-t0 { opacity: 0; transform: translateY(14px) scale(0.97); pointer-events: none; }
+.s111[data-neu="true"] .s111-t1 { opacity: 1; transform: none; pointer-events: auto; transition-delay: 0.12s; }
+
+/* Feld mit Linien, Pille und Karten */
+.s111-rand { padding: 0 var(--mu-rand); }
+.s111-feld { position: relative; width: 100%; max-width: 1320px; height: 440px; margin: clamp(48px, 6vw, 80px) auto 0; }
+.s111[data-neu="true"] .s111-feld { animation: s111-wucht 0.6s cubic-bezier(0.3, 1.4, 0.4, 1); }
+@keyframes s111-wucht { 0% { transform: none; } 28% { transform: scale(0.955); } 100% { transform: none; } }
+.s111-gewirr, .s111-baum { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; transition: opacity 0.5s ease; }
+.s111-gewirr path, .s111-baum path { stroke: var(--mu-ln); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.s111-gewirr path { stroke-dasharray: 7 9; animation: s111-zug 1.6s linear infinite; }
+@keyframes s111-zug { to { stroke-dashoffset: -32; } }
+.s111-baum path { stroke: var(--s111-blau); stroke-dasharray: 1400; stroke-dashoffset: 1400; transition: stroke-dashoffset 0.9s ease 0.2s; }
+.s111-baum, .s111[data-neu="true"] .s111-gewirr { opacity: 0; }
+.s111[data-neu="true"] .s111-baum { opacity: 1; }
+.s111[data-neu="true"] .s111-baum path { stroke-dashoffset: 0; }
+
+.s111-pille { position: absolute; left: 50%; z-index: 2; display: inline-flex; align-items: center; height: 40px; padding: 0 18px; border-radius: var(--mu-rk); font-size: 16px; font-weight: 500; white-space: nowrap; transform: translate(-50%, -50%); transition: opacity 0.35s ease, transform 0.55s var(--s111-feder); }
+.s111-pille-0 { top: 47.3%; background: var(--mu-bg); color: var(--mu-ls); border: 1px solid var(--mu-ln); }
+.s111-pille-1 { top: 4.5%; background: var(--mu-ak); color: var(--mu-akt); opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+.s111[data-neu="true"] .s111-pille-0 { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+.s111[data-neu="true"] .s111-pille-1 { opacity: 1; transform: translate(-50%, -50%); transition-delay: 0.15s; }
+
+.s111-karten { margin: 0; padding: 0; list-style: none; }
+.s111-pk { position: absolute; left: var(--x0); top: var(--y0); width: 22.4%; rotate: var(--r0); transition: left 0.7s var(--s111-feder), top 0.7s var(--s111-feder), rotate 0.7s var(--s111-feder), translate 0.7s var(--s111-feder); }
+.s111[data-neu="true"] .s111-pk { left: var(--x1); top: 45.5%; rotate: 0deg; }
+.s111-pk-0 { --x0: 31.9%; --y0: 0%; --r0: 2deg; --x1: 0.8%; }
+.s111-pk-1 { --x0: 3.6%; --y0: 50%; --r0: -3deg; --x1: 26.2%; transition-delay: 0.05s; }
+.s111-pk-2 { --x0: 54.6%; --y0: 62%; --r0: -2deg; --x1: 51.4%; transition-delay: 0.1s; }
+.s111-pk-3 { --x0: 77.4%; --y0: 12%; --r0: 4deg; --x1: 76.7%; transition-delay: 0.15s; }
+.s111-karte { border: 1px solid var(--mu-ln); border-radius: var(--mu-r-klein); background: var(--mu-fl); box-shadow: 0 14px 28px -16px rgba(0, 0, 0, 0.28); overflow: hidden; transition: border-color 0.4s ease, background 0.4s ease; }
+.s111[data-neu="true"] .s111-karte { background: var(--mu-bg); border-color: var(--s111-blau); }
+.s111-fuss { display: flex; align-items: center; min-height: 56px; padding: 8px 14px; }
+.s111-fuss > b { flex: none; display: grid; place-items: center; width: 0; height: 28px; border-radius: 8px; background: color-mix(in srgb, var(--mu-ak) 14%, transparent); color: var(--mu-ak); font-size: 15px; font-weight: 600; opacity: 0; overflow: hidden; transition: width 0.5s var(--s111-feder), margin 0.5s var(--s111-feder), opacity 0.3s ease; }
+.s111[data-neu="true"] .s111-fuss > b { width: 28px; margin-right: 10px; opacity: 1; }
+.s111-worte { display: grid; align-items: center; min-width: 0; flex: 1; }
+.s111-worte p { grid-area: 1 / 1; margin: 0; font-size: 16px; font-weight: 500; line-height: 1.25; transition: opacity 0.3s ease; }
+.s111-w0 { color: var(--mu-ls); }
+.s111-w1, .s111[data-neu="true"] .s111-w0 { opacity: 0; }
+.s111[data-neu="true"] .s111-w1 { opacity: 1; transition-delay: 0.25s; }
+
+/* Bild je Karte: bisher (b0) und mit Matchunt (b1) liegen übereinander */
+.s111-bild { position: relative; height: 84px; border-bottom: 1px solid var(--mu-ln); background: var(--mu-fl2); overflow: hidden; transition: background 0.4s; }
+.s111[data-neu="true"] .s111-bild { background: color-mix(in srgb, var(--mu-ak) 8%, var(--mu-bg)); border-bottom-color: color-mix(in srgb, var(--mu-ak) 22%, transparent); }
+.s111-b0, .s111-b1 { position: absolute; inset: 0; display: grid; place-items: center; transition: opacity 0.3s ease, transform 0.5s var(--s111-feder); }
+.s111-b1, .s111[data-neu="true"] .s111-b0 { opacity: 0; transform: scale(0.6); }
+.s111[data-neu="true"] .s111-b1 { opacity: 1; transform: none; transition-delay: 0.2s; }
+/* Zeichen des Schritts (aus Sektion 6), zeichnet sich nach dem Wechsel Strich für Strich */
+.s111-b1 .s06-z { width: 54px; height: 54px; }
+/* Tinte beim Überfahren (wie Sektion 7.3): das Bild blendet nur aus (nicht verkleinern, sonst flackert es), an seiner
+   Stelle spielt die Tinte. Die Leinwand füllt die Bildfläche, damit weggeschobene Tropfen nicht abgeschnitten werden. */
+.s111[data-neu="true"] .s111-pk[data-tinte="true"] .s111-b1 { opacity: 0; transition-delay: 0s; }
+.s111-tinte { position: absolute; left: 50%; top: 0; width: 150px; height: 100%; margin-left: -75px; pointer-events: none; animation: s111-tinte-ein 0.35s ease both; }
+.s111-leinwand { display: block; width: 100%; height: 100%; pointer-events: none; }
+@keyframes s111-tinte-ein { from { opacity: 0; } }
+.s111-bild svg { fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+
+/* 0 bisher: Kalender schießt hoch, Wochen zählen, rot */
+.s111-kal { position: relative; display: grid; justify-items: center; width: 52px; height: 58px; padding-top: 14px; border: 1.5px solid var(--s111-rot); border-radius: 8px; background: var(--mu-bg); overflow: hidden; animation: s111-hoch 3.6s cubic-bezier(0.3, 1.5, 0.4, 1) infinite; }
+.s111-kal u { position: absolute; left: 0; right: 0; top: 0; height: 11px; background: var(--s111-rot); }
+.s111-kal b { display: block; height: 24px; overflow: hidden; font-size: 22px; font-weight: 600; line-height: 24px; color: var(--s111-rot); }
+.s111-kal b span { display: block; animation: s111-zaehl 3.6s steps(6, end) infinite; }
+.s111-kal small { font-size: 10px; line-height: 1; color: var(--mu-ls); }
+@keyframes s111-hoch { 0% { transform: translateY(80px); } 14%, 92% { transform: none; } 100% { transform: translateY(80px); } }
+@keyframes s111-zaehl { 0% { transform: none; } 80%, 100% { transform: translateY(-144px); } }
+/* 0 neu: Blatt mit Haken */
+.s111-blatt { position: relative; display: grid; align-content: center; gap: 6px; width: 46px; height: 58px; padding: 0 9px; border: 1.5px solid var(--mu-ak); border-radius: 7px; background: var(--mu-bg); }
+.s111-blatt i, .s111-vertrag i { display: block; height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--mu-ak) 35%, transparent); }
+.s111-blatt i:nth-child(2) { width: 70%; }
+.s111-blatt em { position: absolute; right: -11px; bottom: -9px; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--mu-ak); color: var(--mu-akt); }
+.s111-blatt em svg, .s111-tage svg { width: 14px; height: 14px; }
+
+/* 1 bisher: Stapel Lebensläufe wächst */
+.s111-stapel { position: relative; width: 60px; height: 64px; }
+.s111-stapel i { position: absolute; left: 6px; bottom: calc(var(--i) * 7px); width: 48px; height: 26px; border: 1.5px solid var(--mu-ls); border-radius: 5px; background: var(--mu-bg); rotate: calc((var(--i) - 2.5) * 5deg); animation: s111-fall 3.6s cubic-bezier(0.3, 1.3, 0.4, 1) infinite; animation-delay: calc(var(--i) * 0.28s); }
+.s111-stapel i::after { content: ""; position: absolute; left: 7px; right: 14px; top: 9px; height: 4px; border-radius: 2px; background: var(--s111-grau); }
+@keyframes s111-fall { 0% { opacity: 0; translate: 0 -46px; } 12%, 88% { opacity: 1; translate: 0 0; } 100% { opacity: 0; translate: 0 0; } }
+/* 1 neu: Headhunter kreisen um die Stelle */
+.s111-suche { position: relative; display: grid; place-items: center; width: 64px; height: 64px; }
+.s111-suche b { width: 20px; height: 20px; border-radius: 50%; background: var(--mu-ak); }
+.s111-suche span { position: absolute; inset: 0; border: 1.5px dashed var(--s111-blau); border-radius: 50%; animation: s111-dreh 5s linear infinite; }
+.s111-suche span i { position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px; border: 1.5px solid var(--mu-ak); border-radius: 50%; background: var(--mu-bg); }
+.s111-suche span i:nth-child(1) { transform: translateY(-32px); }
+.s111-suche span i:nth-child(2) { transform: rotate(120deg) translateY(-32px); }
+.s111-suche span i:nth-child(3) { transform: rotate(240deg) translateY(-32px); }
+@keyframes s111-dreh { to { transform: rotate(360deg); } }
+
+/* 2 bisher: E-Mails stapeln sich */
+.s111-post { display: grid; gap: 4px; width: 78%; }
+.s111-post span { display: flex; align-items: center; gap: 6px; height: 20px; padding: 0 7px; border: 1.5px solid var(--mu-ls); border-radius: 5px; background: var(--mu-bg); font-size: 11px; line-height: 1; white-space: nowrap; overflow: hidden; color: var(--mu-ls); rotate: calc((var(--i) - 1) * -2.5deg); translate: calc((var(--i) - 1) * 7px) 0; animation: s111-rein 3.6s cubic-bezier(0.3, 1.3, 0.4, 1) infinite; animation-delay: calc(var(--i) * 0.5s); }
+.s111-post u { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--s111-rot); }
+@keyframes s111-rein { 0% { opacity: 0; transform: translateX(60px); } 12%, 86% { opacity: 1; transform: none; } 100% { opacity: 0; transform: none; } }
+/* 2 neu: ein Termin im Kalender */
+.s111-tage { display: grid; grid-template-columns: repeat(4, 16px); gap: 5px; }
+.s111-tage i { display: grid; place-items: center; width: 16px; height: 16px; border-radius: 4px; background: color-mix(in srgb, var(--mu-ak) 22%, transparent); }
+.s111-tage i[data-an="true"] { background: var(--mu-ak); color: var(--mu-akt); scale: 1.5; }
+
+/* 3 bisher: je Vermittler ein Vertrag */
+.s111-faecher { position: relative; width: 44px; height: 56px; }
+.s111-faecher i { position: absolute; inset: 0; display: grid; align-content: center; gap: 6px; padding: 0 8px; border: 1.5px solid var(--mu-ls); border-radius: 6px; background: var(--mu-bg); transform-origin: 50% 110%; rotate: calc((var(--i) - 1.5) * 15deg); animation: s111-wackel 2.4s ease-in-out infinite; animation-delay: calc(var(--i) * -0.6s); }
+.s111-faecher u { display: block; height: 4px; border-radius: 2px; background: var(--s111-grau); }
+@keyframes s111-wackel { 50% { rotate: calc((var(--i) - 1.5) * 23deg); } }
+/* 3 neu: ein Vertrag, eine Unterschrift */
+.s111-vertrag { display: grid; align-content: center; gap: 6px; width: 96px; height: 60px; padding: 0 10px; border: 1.5px solid var(--mu-ak); border-radius: 7px; background: var(--mu-bg); color: var(--mu-ak); }
+.s111-vertrag i:nth-child(2) { width: 60%; }
+.s111-vertrag svg { width: 100%; height: 20px; stroke-width: 2; stroke-dasharray: 130; stroke-dashoffset: 130; }
+.s111[data-neu="true"] .s111-vertrag svg { animation: s111-schreib 3.4s ease-in-out 0.6s infinite; }
+@keyframes s111-schreib { 0% { stroke-dashoffset: 130; } 35%, 90% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: 0; opacity: 0; } }
+
+.s111[data-lauf="false"] .s111-feld * { animation-play-state: paused !important; }
+
+/* Handy und schmale Breiten: Karten untereinander, erst versetzt und schief, dann an einer Linie */
+@media (max-width: 900px) {
+  .s111 .s111-schalter button { min-width: 122px; }
+  .s111-feld { height: auto; max-width: 380px; padding-top: 76px; }
+  .s111-gewirr, .s111-baum { display: none; }
+  .s111-feld::before { content: ""; position: absolute; left: 50%; top: 20px; bottom: 30px; width: 2px; margin-left: -1px; background: var(--s111-blau); transform: scaleY(0); transform-origin: 50% 0; transition: transform 0.8s ease 0.2s; }
+  .s111[data-neu="true"] .s111-feld::before { transform: scaleY(1); }
+  .s111-pille { top: 20px; }
+  .s111-karten { position: relative; display: grid; gap: 14px; }
+  .s111-pk, .s111[data-neu="true"] .s111-pk { position: relative; left: auto; top: auto; width: calc(100% - 28px); margin: 0 auto; }
+  .s111-pk { translate: var(--mx) 0; rotate: var(--mr); }
+  .s111[data-neu="true"] .s111-pk { translate: 0 0; }
+  .s111-pk-0 { --mx: -12px; --mr: 1.6deg; }
+  .s111-pk-1 { --mx: 13px; --mr: -2deg; }
+  .s111-pk-2 { --mx: -8px; --mr: -1.4deg; }
+  .s111-pk-3 { --mx: 11px; --mr: 2.4deg; }
+  .s111-bild { height: 76px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .s111 *, .s111 *::before { transition: none !important; animation: none !important; }
+  .s111-kanone { display: none; }
+}

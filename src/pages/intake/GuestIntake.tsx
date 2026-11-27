@@ -57,6 +57,11 @@ export default function GuestIntake() {
           askAi, parseText, parseUrl, parsePdf, enrichCompany, verbinde, holeStand, zurueckziehen, zurueckgeben } = intake;
 
   const [step, setStep] = useState<StepKey>('capture');
+  // Die Stelle, die der Kunde auf der Website eingetippt hat (Startseite, 27.11.2026): ?stelle=…
+  const [titelVonWebsite] = useState<string | null>(() => {
+    const t = new URLSearchParams(window.location.search).get('stelle')?.trim();
+    return t ? t.slice(0, 120) : null;
+  });
   // Zurück aus dem Code-Schritt zur Wahl der Art (CaptureStep zählt mit).
   const [artZeigen, setArtZeigen] = useState(0);
   // Die Art ist in dieser Sitzung gewählt: nach dem Code-Schritt nicht noch einmal fragen.
@@ -747,6 +752,7 @@ export default function GuestIntake() {
           onResumeLater={() => setResumeOpen(true)}
           sperreBisBestaetigt={!verified}
           onArt={() => setArtGewaehlt(true)}
+          titelVorschlag={titelVonWebsite}
           // E-Mail vor den Fragen (27.11.2026): der Code-Schritt an der Stelle, an der der Weg ihn braucht.
           bestaetigung={(weiter, ziel, status) => (
             <VerifyStep

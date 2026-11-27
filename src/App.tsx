@@ -7,7 +7,6 @@ import { BrowserRouter, Routes, Route, Navigate, useParams, useLocation } from "
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { loginPathFor } from "@/lib/recruiterLogin";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -128,6 +127,8 @@ import { CookieConsentBanner } from "@/components/gdpr/CookieConsentBanner";
 // wird kalt aus einer E-Mail geöffnet, oft mobil — sie darf nicht das gesamte
 // Admin- und Recruiter-Bundle mitladen.
 const GuestIntake = lazy(() => import("./pages/intake/GuestIntake"));
+// Die Website (Startseite C aus dem Labor, 27.11.2026) ersetzt die alte Startseite (pages/Index.tsx).
+const Startseite = lazy(() => import("./pages/Startseite"));
 const ClarifyAnswer = lazy(() => import("./pages/intake/ClarifyAnswer"));
 const SignReturn = lazy(() => import("./pages/intake/SignReturn"));
 const ClientContractSign = lazy(() => import("./pages/dashboard/ClientContractSign"));
@@ -206,7 +207,8 @@ function ProtectedRoute({ children, allowedRoles }: { children: React.ReactNode;
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Index />} />
+      <Route path="/" element={<Suspense fallback={<RouteFallback />}><Startseite /></Suspense>} />
+      <Route path="/w/:sprache" element={<Suspense fallback={<RouteFallback />}><Startseite /></Suspense>} />
       <Route path="/auth" element={<Auth />} />
       
       {/* Client Routes */}

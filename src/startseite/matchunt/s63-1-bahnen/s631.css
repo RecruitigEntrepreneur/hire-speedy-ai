@@ -1,0 +1,24 @@
+/* Sektion 63.1: Foto im Kreis statt Personen-Zeichen */
+.s63-knoten img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
+
+/* Am Handy oben mehr Luft (25.11.2026): die Bühne klebt ganz oben am Bildschirm; eine feste Leiste darüber (Builder,
+   später die Kopfzeile) verdeckte sonst die erste Zeile der Überschrift. */
+@media (max-width: 899px) {
+  .s63 .s63-innen { padding-top: clamp(104px, 13.5vh, 124px); }
+  .s63 { --cy: 70%; }
+}
+
+/* Lupe mit Tinte hinter der Überschrift (wie im Satz der Sektionen 7.3 / 18.3) */
+.s631-fest { white-space: nowrap; }
+.s631-feld { position: relative; display: inline-block; line-height: 0; cursor: default; }
+.s63-kopf .s06-z { width: 1em; height: 1em; margin: 0 -0.02em 0 0.14em; vertical-align: -0.17em; transition: opacity 0.3s ease, color 0.25s; }
+.s63-kopf .s06-zug { stroke-width: 9.5; }
+.s631-feld[data-tinte="true"] .s06-z { opacity: 0; }
+.s631-tinte { position: absolute; left: -30%; top: -30%; width: 160%; height: 160%; pointer-events: none; animation: s631-tinte 0.35s ease both; }
+.s631-leinwand { display: block; width: 100%; height: 100%; pointer-events: none; }
+@keyframes s631-tinte { from { opacity: 0; scale: 0.7; } }
+/* auf dem blauen Feld ist das Zeichen weiß */
+.s63-blau .s63-kopf .s06-z { color: var(--mu-feld-tx); }
+/* Die untere Lage (weißer Grund) bleibt für sich: nichts aus ihr darf sich über das blaue Feld legen. Vorher lag die
+   blaue Tinte der unteren Lage über der weißen der oberen und hat sie verdeckt. */
+.s63-buehne > .s63-lage { isolation: isolate; }

@@ -1,0 +1,81 @@
+/* Sektion 18 „Weg“: gezeichnete Linie mit vier Knoten, färbt sich beim Scrollen. Farben nur aus stil.css. */
+.s18 { background: var(--mu-bg); color: var(--mu-tx); padding: clamp(64px, 10vh, 120px) 0; overflow: hidden; }
+.s18-h2 { text-align: center; max-width: 16em; margin: 0 auto; }
+
+.s18-buehne { position: relative; margin-top: 28px; padding-top: 90px; }
+.s18-linie { position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.s18-linie path { fill: none; stroke-linecap: round; }
+.s18-linie-grund { stroke: var(--mu-ln); stroke-width: 2.5; stroke-dasharray: 0.1 8; }
+/* Fassung 18.4: kleiner Trichter an der Oberkante, aus dem die Linie kommt */
+.s18-linie .s18-quelle { fill: var(--mu-ak); stroke: none; opacity: 0; transition: opacity 0.25s; }
+.s18-linie-farbe { stroke: var(--mu-ak); stroke-width: 4; stroke-dasharray: 99999; stroke-dashoffset: 99999; }
+
+.s18-stationen { position: relative; margin: 0; padding: 0; list-style: none; display: grid; gap: 56px; }
+.s18-station { display: grid; grid-template-columns: minmax(0, 1fr) 320px minmax(0, 1fr); align-items: center; min-height: 250px; }
+.s18-text { grid-column: 1; grid-row: 1; justify-self: end; text-align: right; max-width: 21em; }
+.s18-bild { grid-column: 3; grid-row: 1; justify-self: start; }
+.s18-station[data-seite="rechts"] .s18-text { grid-column: 3; justify-self: start; text-align: left; }
+.s18-station[data-seite="rechts"] .s18-bild { grid-column: 1; justify-self: end; }
+.s18-text p { margin: 10px 0 0; font-size: 18px; line-height: 1.5; color: var(--mu-ls); }
+.s18-bild { width: 100%; max-width: 380px; border: 1px solid color-mix(in srgb, var(--mu-ln) 60%, transparent); }
+
+/* Stationen erscheinen, wenn die Linie ihren Knoten erreicht (erst nach dem Messen verstecken). */
+.s18[data-bereit="true"] .s18-text, .s18[data-bereit="true"] .s18-bild { opacity: 0; transform: translateY(18px); transition: opacity 0.6s, transform 0.7s var(--mu-leicht); }
+.s18[data-bereit="true"] .s18-bild { transition-delay: 0.12s; }
+.s18[data-bereit="true"] .s18-station[data-da="true"] :is(.s18-text, .s18-bild) { opacity: 1; transform: none; }
+
+.s18-knoten span { position: absolute; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; display: grid; place-items: center; background: var(--mu-bg); border: 2px solid var(--mu-ln); color: var(--mu-ls); font-size: 17px; font-weight: 500; font-variant-numeric: tabular-nums; transition: background-color 0.4s, border-color 0.4s, color 0.4s; }
+.s18-knoten span[data-an="true"] { background: var(--mu-ak); border-color: var(--mu-ak); color: var(--mu-akt); }
+.s18-knoten span[data-jetzt="true"] { animation: s18-puls 2.4s ease-out infinite; }
+@keyframes s18-puls { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--mu-ak) 45%, transparent); } 70%, 100% { box-shadow: 0 0 0 18px transparent; } }
+
+.s18-ende { position: relative; display: flex; justify-content: center; margin-top: 110px; }
+
+/* kleine Bilder */
+.s18-b { padding: 20px; min-height: 190px; display: flex; flex-direction: column; justify-content: center; }
+.s18-marke { font-size: 13px; color: var(--mu-ls); }
+.s18-blatt { align-self: center; width: 78%; display: flex; flex-direction: column; gap: 9px; padding: 16px 16px 20px; border-radius: var(--mu-r-klein); background: var(--mu-bg); border: 1px solid var(--mu-ln); box-shadow: 0 10px 24px rgba(0, 0, 0, 0.07); transform: rotate(-2deg); }
+.s18-blatt b { font-size: 16px; line-height: 1.3; font-weight: 500; margin-bottom: 4px; }
+.s18-blatt i { height: 6px; border-radius: 3px; background: var(--mu-fl2); }
+.s18-blatt i:nth-of-type(2) { width: 84%; } .s18-blatt i:nth-of-type(4) { width: 52%; }
+
+.s18-b-hh { position: relative; padding: 16px; }
+.s18-b-hh svg { display: block; width: 100%; height: auto; }
+.s18-faden { stroke: var(--mu-ln); stroke-width: 1; }
+.s18-hh { fill: var(--mu-ln); transition: fill 0.5s calc(0.3s + var(--n) * 0.18s); }
+.s18-station[data-da="true"] .s18-hh { fill: var(--mu-ak); }
+.s18-stelle { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 7px 14px; border-radius: var(--mu-rk); background: var(--mu-bg); border: 1px solid var(--mu-ln); font-size: 14px; font-weight: 500; white-space: nowrap; }
+
+.s18-vor-kopf { display: flex; align-items: center; gap: 12px; }
+.s18-kreis { flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--mu-ak); color: var(--mu-akt); font-size: 15px; font-weight: 600; }
+.s18-wer { min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: 15px; line-height: 1.25; }
+.s18-wer b { font-family: var(--mu-fh), sans-serif; font-size: 18px; font-weight: var(--mu-hw); letter-spacing: var(--mu-hs); }
+.s18-stand { align-self: flex-start; padding: 5px 11px; border-radius: var(--mu-rk); background: color-mix(in srgb, var(--mu-ak) 14%, transparent); color: var(--mu-ak); font-size: 13px; font-weight: 500; white-space: nowrap; }
+.s18-b-vor .s18-stand { margin-top: 14px; }
+.s18-knopf { display: flex; align-items: center; justify-content: center; min-height: 44px; margin-top: 16px; border-radius: var(--mu-rk); background: var(--mu-ak); color: var(--mu-akt); font-size: 16px; font-weight: 500; }
+
+.s18-sign-kopf { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.s18-b-sign svg { width: 200px; max-width: 100%; height: auto; margin-top: 26px; color: var(--mu-tx); border-bottom: 1px solid var(--mu-ln); }
+.s18-b-sign path { stroke-dasharray: 100; stroke-dashoffset: 100; transition: stroke-dashoffset 1.4s ease-in-out 0.5s; }
+.s18-station[data-da="true"] .s18-b-sign path { stroke-dashoffset: 0; }
+
+@media (max-width: 899px) {
+  .s18 { padding: 56px 0; }
+  .s18-h2 { text-align: left; margin: 0; }
+  .s18-buehne { padding-top: 48px; }
+  .s18-stationen { gap: 44px; }
+  .s18-station { display: block; min-height: 0; padding-left: 64px; }
+  .s18-text, .s18-station[data-seite="rechts"] .s18-text { text-align: left; max-width: none; }
+  .s18-text .mu-h3 { line-height: 32px; }
+  .s18-text p { margin-top: 6px; font-size: 17px; }
+  .s18-bild { margin-top: 18px; max-width: 340px; }
+  .s18-b { padding: 16px; min-height: 0; }
+  .s18-knoten span { width: 32px; height: 32px; margin: -16px 0 0 -16px; font-size: 15px; }
+  .s18-ende { justify-content: flex-start; margin-top: 64px; padding-left: 64px; }
+  .s18-linie-farbe { stroke-width: 3; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .s18[data-bereit="true"] .s18-text, .s18[data-bereit="true"] .s18-bild { opacity: 1; transform: none; transition: none; }
+  .s18-knoten span { transition: none; } .s18-knoten span[data-jetzt="true"] { animation: none; }
+  .s18-hh, .s18-b-sign path { transition: none; }
+}

@@ -1,0 +1,40 @@
+/* Fassung 60.4: nur die neue fünfte Karte (aus Sektion 100); alles andere kommt aus s602.css und s603.css. */
+.mu .pf4-app { position: relative; gap: 10px; overflow: hidden; }
+.mu .pf4-stand { padding: 4px 10px; border-radius: var(--mu-rk); background: var(--mu-fl2); color: var(--mu-ls); font-size: 12px; font-weight: 500; white-space: nowrap; animation: pf4-rein .45s var(--mu-leicht) both; }
+.mu .pf4-stand.gut { background: color-mix(in srgb, var(--mu-ak) 14%, transparent); color: var(--mu-ak); }
+/* die Anzeige zieht von rechts herein und ungelesen links hinaus */
+.mu .pf4-anzeige { position: absolute; right: 20px; top: 66px; display: grid; gap: 6px; width: 46%; padding: 10px 12px; border: 1px solid var(--mu-ln); border-radius: var(--mu-r-klein); background: var(--mu-bg); opacity: 0; transform: translateX(120%); transition: transform 1.1s var(--mu-leicht), opacity .6s; }
+.mu .pf4-anzeige.vorbei { opacity: 1; transform: translateX(-20%); }
+.mu .pf4-anzeige.fort { opacity: 0; transform: translateX(-160%); }
+.mu .pf4-anzeige small { font-size: 11px; color: var(--mu-ls); }
+.mu .pf4-anzeige i { display: block; height: 6px; border-radius: 3px; background: var(--mu-fl2); }
+.mu .pf4-anzeige i + i { width: 70%; }
+.mu .pf4-anzeige em { justify-self: end; font-size: 11px; font-style: normal; color: var(--mu-ls); }
+.mu .pf4-chat { display: grid; gap: 8px; margin-top: 12px; }
+.mu .pf4-chat p { margin: 0; max-width: 85%; padding: 9px 13px; border-radius: 16px; font-size: 14px; line-height: 1.35; }
+.mu .pf4-hh { justify-self: start; border-bottom-left-radius: 5px; background: var(--mu-ak); color: var(--mu-akt); }
+.mu .pf4-hh small { display: block; font-size: 11px; opacity: .8; }
+.mu .pf4-antwort { justify-self: end; border-bottom-right-radius: 5px; background: var(--mu-fl); }
+@keyframes pf4-rein { from { opacity: 0; transform: translateY(4px); } }
+@media (prefers-reduced-motion: reduce) { .mu .pf4-anzeige { display: none; } .mu .pf4-stand { animation: none; } }
+
+/* Karte 2: Stapel der Headhunter, die gerade dazukommen (neuester oben) */
+/* zweite Szene im ersten Fenster: Erst läuft alles wie in 60.2. Danach blenden Balken und Fußzeile aus und an ihrer
+   Stelle schieben sich die Headhunter-Karten übereinander; beim Neustart kommt alles wie vorher zurück. */
+.mu .pf4-mit-stapel { position: relative; }
+.mu .pf4-mit-stapel > .s602-weg, .mu .pf4-mit-stapel > .s602-wegnamen, .mu .pf4-mit-stapel > .s602-fuss { transition: opacity .45s; }
+.mu .pf4-mit-stapel[data-stapel="true"] > .s602-weg, .mu .pf4-mit-stapel[data-stapel="true"] > .s602-wegnamen, .mu .pf4-mit-stapel[data-stapel="true"] > .s602-fuss { opacity: 0; }
+.mu .pf4-stapel { position: absolute; left: 20px; right: 20px; bottom: 16px; height: 84px; pointer-events: none; }
+.mu .pf4-sh { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 12px; background: var(--mu-bg); border: 1px solid var(--mu-ln); box-shadow: 0 10px 24px -16px rgba(0, 0, 0, .35);
+  transform: translateY(calc(var(--pos) * -13px)) scale(calc(1 - var(--pos) * .05)); transform-origin: 50% 0; opacity: calc(1 - var(--pos) * .3); z-index: calc(10 - var(--pos)); transition: transform .6s var(--mu-leicht), opacity .5s; }
+.mu .pf4-sh[data-da="false"] { transform: translateY(26px) scale(.96); opacity: 0; }
+.mu .pf4-sh .s602-person { width: 32px; height: 32px; }
+.mu .pf4-sh-wer { display: grid; gap: 1px; min-width: 0; flex: 1; }
+.mu .pf4-sh-wer b { font-size: 14px; font-weight: 600; }
+.mu .pf4-sh-wer small { display: flex !important; align-items: center; gap: 8px; font-size: 12px !important; }
+.mu .pf4-sh-wer em { font-style: normal; font-weight: 600; color: var(--mu-tx); }
+.mu .pf4-sh-wer em[data-stufe="Gold Partner"] { color: #b8860b; }
+.mu .pf4-note { display: inline-flex; align-items: center; gap: 3px; color: var(--mu-tx); font-weight: 600; font-variant-numeric: tabular-nums; }
+.mu .pf4-note svg { width: 12px; fill: #f5a623; }
+.mu .pf4-sh-neu { flex: none; padding: 3px 9px; border-radius: var(--mu-rk); background: color-mix(in srgb, var(--mu-ak) 14%, transparent); color: var(--mu-ak); font-size: 12px; font-weight: 500; }
+@media (prefers-reduced-motion: reduce) { .mu .pf4-sh { transition: none; } }

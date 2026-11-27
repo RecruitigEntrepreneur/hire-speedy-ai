@@ -1,0 +1,62 @@
+/* Sektion 39 „Was in keinem Lebenslauf steht“: links die Vorstellung als Blatt mit Markierungen, daneben vier
+   Notiz-Zettel aus dem Gespräch, die sich nacheinander füllen und abhaken. Text rechts. Farben nur aus stil.css. */
+.s39 { padding: clamp(64px, 10vh, 120px) 0; background: var(--mu-bg); color: var(--mu-tx); overflow: hidden; }
+.s39-raster { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr); align-items: center; gap: clamp(32px, 5vw, 80px); }
+.s39-text .mu-text { margin-top: 20px; color: var(--mu-ls); }
+
+.s39-buehne { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.86fr); align-items: center; gap: 0; padding: clamp(20px, 3.4vw, 52px); border-radius: var(--mu-r); background: var(--mu-fl); }
+
+/* Das Blatt: die Vorstellung */
+.s39-blatt { position: relative; z-index: 1; padding: 26px 26px 24px; border-radius: var(--mu-r); background: var(--mu-bg); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.1); }
+.s39-kopf { display: flex; align-items: center; gap: 14px; padding-bottom: 18px; border-bottom: 1px solid var(--mu-ln); }
+.s39-kreis { flex: none; width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: var(--mu-ak); color: var(--mu-akt); font-size: 16px; font-weight: 600; }
+.s39-wer { min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: 16px; line-height: 1.25; }
+.s39-wer b { font-family: var(--mu-fh), sans-serif; font-size: 20px; font-weight: var(--mu-hw); letter-spacing: var(--mu-hs); }
+.s39-marke { margin: 18px 0 10px; font-size: 14px; line-height: 1.3; color: var(--mu-ls); }
+.s39-zeilen { display: grid; gap: 11px; }
+.s39-zeile { display: flex; gap: 8px; }
+.s39-zeile > span { position: relative; height: 10px; border-radius: 5px; background: var(--mu-fl2); }
+.s39-punkt { position: absolute; inset: -5px -6px; border-radius: 8px; background: color-mix(in srgb, var(--mu-ak) 20%, transparent); box-shadow: inset 0 0 0 1.5px var(--mu-ak); opacity: 0; transform: scale(0.6); }
+.s39-punkt::after { content: ""; position: absolute; right: -6px; top: -6px; width: 12px; height: 12px; border-radius: 50%; background: var(--mu-ak); box-shadow: 0 0 0 2px var(--mu-bg); }
+.s39[data-an="true"] .s39-punkt { opacity: 1; transform: none; transition: opacity 0.3s ease calc(0.4s + var(--i) * 1.15s), transform 0.55s cubic-bezier(0.3, 1.5, 0.5, 1) calc(0.4s + var(--i) * 1.15s); }
+.s39-von { display: flex; align-items: center; gap: 10px; margin: 20px 0 0; padding-top: 16px; border-top: 1px solid var(--mu-ln); font-size: 14px; line-height: 1.35; }
+.s39-von i { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--mu-fl2); font-style: normal; font-size: 11px; font-weight: 500; }
+
+/* Die Zettel: Felder aus dem Gespräch */
+.s39-zettel { display: grid; gap: 10px; margin: 0 0 0 -14px; padding: 0; list-style: none; position: relative; z-index: 2; }
+.s39-zettel li { position: relative; min-height: 78px; padding: 13px 48px 14px 16px; border-radius: var(--mu-r-klein); background: var(--mu-bg); border: 1px solid var(--mu-ln); box-shadow: 0 10px 28px rgba(0, 0, 0, 0.08); opacity: 0; transform: translateX(-14px); }
+.s39[data-an="true"] .s39-zettel li { opacity: 1; transform: none; transition: opacity 0.45s ease calc(0.6s + var(--i) * 1.15s), transform 0.7s var(--mu-leicht) calc(0.6s + var(--i) * 1.15s); }
+.s39-feld { display: block; font-size: 14px; line-height: 1.3; color: var(--mu-ls); }
+.s39-wert { display: block; margin-top: 4px; font-size: 17px; line-height: 1.3; font-weight: 500; opacity: 0; }
+.s39[data-an="true"] .s39-wert { opacity: 1; transition: opacity 0.6s ease calc(0.95s + var(--i) * 1.15s); }
+.s39-grau { display: grid; gap: 8px; margin-top: 10px; }
+.s39-grau i { display: block; height: 8px; border-radius: 4px; background: var(--mu-fl2); transform: scaleX(0); transform-origin: 0 50%; }
+.s39-grau i:last-child { width: 58%; }
+.s39[data-an="true"] .s39-grau i { transform: none; transition: transform 0.7s var(--mu-leicht) calc(0.9s + var(--i) * 1.15s); }
+.s39[data-an="true"] .s39-grau i:last-child { transition-delay: calc(1.05s + var(--i) * 1.15s); }
+.s39-haken { position: absolute; right: 14px; top: 14px; width: 24px; height: 24px; }
+.s39-haken circle { fill: transparent; stroke: var(--mu-ln); stroke-width: 1.5; }
+.s39-haken path { fill: none; stroke: var(--mu-akt); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
+.s39[data-an="true"] .s39-haken circle { fill: var(--mu-ak); stroke: var(--mu-ak); transition: fill 0.35s ease calc(1.45s + var(--i) * 1.15s), stroke 0.35s ease calc(1.45s + var(--i) * 1.15s); }
+.s39[data-an="true"] .s39-haken path { stroke-dashoffset: 0; transition: stroke-dashoffset 0.4s ease calc(1.55s + var(--i) * 1.15s); }
+
+@media (max-width: 899px) {
+  .s39 { padding: 48px 0; }
+  .s39-raster { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .s39-text { order: -1; }
+  .s39-text .mu-text { margin-top: 14px; }
+  .s39-buehne { grid-template-columns: minmax(0, 1fr); padding: 14px; }
+  .s39-blatt { padding: 18px 18px 18px; }
+  .s39-kreis { width: 40px; height: 40px; font-size: 14px; }
+  .s39-wer b { font-size: 18px; }
+  .s39-von { margin-top: 16px; padding-top: 12px; }
+  .s39-zettel { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: -8px 6px 0; }
+  .s39-zettel li { min-height: 84px; padding: 11px 12px 12px 12px; transform: translateY(-10px); }
+  .s39-feld { white-space: nowrap; }
+  .s39-grau { margin-right: 30px; }
+  .s39-haken { right: 9px; top: auto; bottom: 10px; width: 22px; height: 22px; }
+  .s39-wert { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .s39 *, .s39 *::before, .s39 *::after { transition: none !important; }
+}

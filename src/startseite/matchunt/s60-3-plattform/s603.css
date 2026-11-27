@@ -1,0 +1,53 @@
+/* Sektion 60.3: nur die Karte „Läuft mit Ihren Werkzeugen“. Alles andere aus s602.css. */
+.mu .s603 { align-items: center; gap: 0; text-align: center; }
+.mu .s603-marke { display: flex; align-items: center; justify-content: center; gap: 6px; font-weight: 500; color: var(--mu-ak); }
+.mu .s603-marke i { width: 7px; height: 7px; border-radius: 50%; background: var(--mu-ak); }
+.mu .s603-marke.leise { color: var(--mu-ls); font-weight: 400; }
+
+/* die drei verbundenen Werkzeuge, jedes mit einer Leitung zur Mitte */
+.mu .s603-da { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; width: 100%; margin: 12px 0 0; padding: 0; list-style: none; }
+.mu .s603-da li { display: flex; flex-direction: column; align-items: center; gap: 2px; opacity: 0.25; transform: translateY(4px); transition: opacity 0.45s var(--mu-leicht), transform 0.45s var(--mu-leicht); }
+.mu .s603-da li.an { opacity: 1; transform: none; }
+.mu .s603-da b { margin-top: 6px; font-size: 13.5px; font-weight: 600; }
+.mu .s603-da small { font-size: 11.5px; line-height: 1.25; }
+.mu .s603-kachel { display: grid; place-items: center; width: 100%; max-width: 84px; height: 56px; padding: 8px; border-radius: 12px; background: #fff; box-shadow: inset 0 0 0 1px var(--mu-ln), 0 4px 12px -8px rgba(0, 0, 0, 0.3); }
+.mu .s603-kachel img { display: block; height: 32px; width: auto; max-width: 100%; }
+.mu .s603-kachel[data-breit="true"] img { height: 16px; }
+.mu .s603-da u { flex: 1; width: 2px; min-height: 18px; margin-top: 8px; border-radius: 1px; background: var(--mu-ln); text-decoration: none; transition: background 0.45s; }
+.mu .s603-da li.an u { background: var(--mu-ak); }
+
+/* Matchunt als Schiene über die ganze Breite: alle drei Leitungen münden hinein (26.11.: statt des Kreises) */
+.mu .s603-mitte { display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; height: 46px; border-radius: 12px; background: var(--mu-ak); color: var(--mu-akt); font-family: var(--mu-fh), sans-serif; font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+
+/* was in Arbeit ist: dieselben Logos, blasser und kleiner */
+.mu .s603-kommt { display: grid; gap: 10px; width: 100%; margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--mu-ln); }
+.mu .s603-kommt ul { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.mu .s603-kommt li { display: grid; place-items: center; height: 30px; min-width: 30px; padding: 5px; border-radius: 8px; background: #fff; box-shadow: inset 0 0 0 1px var(--mu-ln); opacity: 0.6; transition: opacity 0.2s; }
+.mu .s603-kommt li:hover { opacity: 1; }
+.mu .s603-kommt li[data-breit="true"] { padding: 5px 8px; }
+.mu .s603-kommt img { display: block; height: 20px; width: auto; }
+.mu .s603-kommt li[data-breit="true"] img { height: 12px; }
+@media (prefers-reduced-motion: reduce) { .mu .s603-da li, .mu .s603-da u { transition: none; } }
+/* zweite Reihe verbundener Werkzeuge unter der Schiene: Leitung zuerst, dann die Kachel */
+.mu .s603-unten { margin-top: 0; }
+.mu .s603-unten u { flex: none; height: 18px; margin: 0 0 8px; }
+.mu .s603-kommt { margin-top: 14px; padding-top: 12px; }
+
+/* 60.3, Rechner: die Werkzeug-Karte steht hoch über zwei Reihen, die zwei Karten daneben liegen quer übereinander
+   (Überschrift links, Fenster rechts). Ab 1000 px Breite abwärts wie bisher untereinander. */
+@media (min-width: 1001px) {
+  /* 26.11.: Werkzeug-Karte rechts, die zwei queren Karten links */
+  .mu .s603-quer .s602-klein:nth-child(3) { grid-column: 5 / span 2; grid-row: 2 / span 2; }
+  .mu .s603-quer .s602-klein:nth-child(4) { grid-row: 2; }
+  .mu .s603-quer .s602-klein:nth-child(5) { grid-row: 3; }
+  .mu .s603-quer .s602-klein:nth-child(n + 4) { grid-column: 1 / span 4; flex-direction: row; align-items: stretch; gap: clamp(20px, 2.4vw, 36px); }
+  .mu .s603-quer .s602-klein:nth-child(n + 4) .s602-kt { flex: 0 0 32%; margin: 0; }
+  .mu .s603-quer .s602-klein:nth-child(n + 4) .s602-bild { flex: 1; min-width: 0; }
+}
+
+/* 26.11.: 60.3 auf blauem Grund. Überschrift und Hinweis hell, die Karten bleiben hell mit dunkler Schrift. */
+.mu .s603-quer { background: var(--mu-feld); color: var(--mu-feld-tx); padding-bottom: clamp(64px, 8vw, 120px); }
+.mu .s603-quer .s602-knoepfe .mu-knopf { background: var(--mu-feld-tx); color: var(--mu-feld); }
+.mu .s603-quer .s602-knoepfe .s602-zweit { background: color-mix(in srgb, var(--mu-feld-tx) 16%, transparent); color: var(--mu-feld-tx); }
+.mu .s603-quer .s602-note { color: color-mix(in srgb, var(--mu-feld-tx) 75%, transparent); }
+.mu .s603-quer .s602-k { color: var(--mu-tx); border-color: transparent; box-shadow: 0 24px 48px -32px rgba(0, 0, 0, 0.5); }

@@ -1,0 +1,65 @@
+/* Sektion 42 „Was als Nächstes ansteht“: eine große Karte mit der Aufgabenliste, darunter Überschrift und Knopf. */
+.s42 { padding: clamp(64px, 10vh, 120px) 0; overflow: hidden; }
+.s42-karte { max-width: 760px; margin: 0 auto; padding: 32px; border-radius: var(--mu-r); background: var(--mu-fl); border: 1px solid var(--mu-ln); box-shadow: 0 30px 70px -28px rgba(0, 0, 0, 0.28); }
+.s42-titel { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding-bottom: 18px; font-size: 16px; }
+.s42-titel b { font-family: var(--mu-fh), sans-serif; font-size: 22px; font-weight: var(--mu-hw); letter-spacing: var(--mu-hs); }
+
+.s42-liste { position: relative; }
+/* Zeile: äußere Hülle klappt in der Höhe (weg / neu), innen der Inhalt */
+.s42-zeile { display: grid; grid-template-rows: 1fr; opacity: 0; transition: grid-template-rows 0.7s var(--mu-leicht), opacity 0.45s ease; }
+.s42-karte[data-da="true"] .s42-zeile { opacity: 1; transition-delay: 0s, calc(0.2s + var(--n) * 0.22s); }
+.s42-karte[data-da="true"] .s42-zeile[data-neu="true"] { animation: s42-neu 0.7s var(--mu-leicht) both; transition-delay: 0s; }
+.s42-karte[data-da="true"] .s42-zeile[data-weg="true"] { grid-template-rows: 0fr; opacity: 0; transition-delay: 0s; }
+.s42-huelle { min-height: 0; overflow: hidden; }
+.s42-innen { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; padding: 0 18px; height: 80px; border-radius: var(--mu-r-klein); background: var(--mu-bg); border: 1px solid transparent; transition: border-color 0.5s, height 0.6s var(--mu-leicht); }
+.s42-zeile[data-jetzt="true"] .s42-innen { border-color: var(--mu-ak); }
+
+.s42-kreis { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; border: 1.5px solid var(--mu-ln); color: transparent; transition: background-color 0.3s, border-color 0.3s, color 0.3s; }
+.s42-kreis svg { width: 13px; height: 13px; }
+.s42-zeile[data-erledigt="true"] .s42-kreis { background: var(--mu-ak); border-color: var(--mu-ak); color: var(--mu-akt); }
+.s42-was { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: 16px; line-height: 1.3; color: var(--mu-ls); }
+.s42-was b { display: flex; align-items: center; gap: 10px; font-size: 18px; font-weight: 500; color: var(--mu-tx); transition: color 0.3s; }
+.s42-was em { padding: 3px 10px; border-radius: var(--mu-rk); background: color-mix(in srgb, var(--mu-ak) 14%, transparent); color: var(--mu-ak); font-style: normal; font-size: 13px; font-weight: 500; opacity: 0; transition: opacity 0.5s; }
+.s42-zeile[data-jetzt="true"] .s42-was em { opacity: 1; }
+.s42-zeile[data-erledigt="true"] .s42-was b { color: var(--mu-ls); }
+
+.s42-knopf { flex: none; display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 20px; border-radius: var(--mu-rk); border: 1.5px solid var(--mu-ln); color: var(--mu-ls); font-size: 16px; font-weight: 500; white-space: nowrap; transition: transform 0.16s var(--mu-leicht), background-color 0.5s, border-color 0.5s, color 0.5s; }
+.s42-zeile[data-jetzt="true"] .s42-knopf { background: var(--mu-ak); border-color: var(--mu-ak); color: var(--mu-akt); }
+.s42-knopf[data-druck="true"] { transform: scale(0.95); }
+.s42-zeile[data-erledigt="true"] .s42-knopf { background: var(--mu-fl2); border-color: var(--mu-fl2); color: var(--mu-ls); }
+
+.s42-zeiger { position: absolute; right: 64px; top: 46px; width: 18px; height: 18px; border-radius: 50%; background: var(--mu-tx); border: 2px solid var(--mu-bg); opacity: 0; transform: translate(80px, 110px); transition: transform 0.85s var(--mu-leicht), opacity 0.35s; pointer-events: none; }
+.s42-zeiger[data-da="true"] { opacity: 0.85; transform: none; }
+.s42-zeiger[data-da="true"][data-druck="true"] { transform: scale(0.78); }
+
+.s42-andere { margin-top: 14px; padding-top: 18px; border-top: 1px solid var(--mu-ln); }
+.s42-andere-titel { font-size: 14px; color: var(--mu-ls); }
+.s42-andere p { display: flex; align-items: center; gap: 12px; margin: 10px 0 0; font-size: 16px; color: var(--mu-ls); }
+.s42-andere i { flex: none; width: 8px; height: 8px; margin: 0 9px; border-radius: 50%; background: var(--mu-ls); animation: s42-puls 2.4s ease-in-out infinite; }
+
+.s42-kopf { display: flex; flex-direction: column; align-items: center; gap: 28px; margin-top: clamp(36px, 6vh, 56px); text-align: center; }
+.s42-kopf .mu-h2 { max-width: 13em; }
+
+@keyframes s42-neu { from { grid-template-rows: 0fr; opacity: 0; } to { grid-template-rows: 1fr; opacity: 1; } }
+@keyframes s42-puls { 50% { opacity: 0.3; } }
+
+@media (max-width: 699px) {
+  .s42 { padding: 56px 0; }
+  .s42-karte { padding: 18px; }
+  .s42-titel { flex-direction: column; gap: 2px; padding-bottom: 14px; }
+  .s42-titel b { font-size: 20px; }
+  .s42-innen { gap: 12px; padding: 0 12px; height: 68px; }
+  .s42-was b { font-size: 16px; gap: 8px; white-space: nowrap; }
+  .s42-was span { font-size: 14px; }
+  /* Am Handy steht das Knopf-Wort nur bei der Aufgabe „Jetzt“ */
+  .s42-knopf { display: none; }
+  .s42-zeile[data-jetzt="true"] .s42-innen { flex-wrap: wrap; height: 122px; align-content: center; row-gap: 10px; }
+  .s42-zeile[data-jetzt="true"] .s42-knopf { display: flex; flex: 1 1 100%; min-height: 42px; }
+  .s42-zeiger { right: 30%; top: 84px; }
+  .s42-kopf { align-items: flex-start; text-align: left; gap: 22px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .s42-zeile, .s42-innen, .s42-knopf, .s42-kreis, .s42-was em { transition: none; }
+  .s42-andere i { animation: none; }
+  .s42-zeiger { display: none; }
+}

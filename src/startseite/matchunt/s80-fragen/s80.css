@@ -1,0 +1,31 @@
+/* Sektion 80 „Häufige Fragen“ (Preise und Vertrag): links Überschrift, rechts aufklappbare Zeilen. Farben nur aus
+   stil.css. */
+.s80 { padding: clamp(64px, 9vw, 128px) 0; background: var(--mu-bg); color: var(--mu-tx); }
+.s80-innen { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); gap: clamp(32px, 6vw, 96px); align-items: start; }
+.s80-kopf { position: sticky; top: clamp(24px, 12vh, 120px); }
+.s80-kopf .mu-text { margin-top: clamp(14px, 1.6vw, 22px); }
+
+.s80-liste { border-top: 1px solid var(--mu-ln); }
+.s80-frage { border-bottom: 1px solid var(--mu-ln); transition: background-color 0.3s; }
+.s80-frage[data-auf="true"] { background: var(--mu-fl); }
+.s80-frage h3 { margin: 0; font: inherit; }
+.s80-frage button { display: flex; align-items: center; justify-content: space-between; gap: 20px; width: 100%; min-height: 76px; padding: 20px clamp(16px, 2vw, 28px); border: 0; background: none; color: inherit; font-family: var(--mu-fh), sans-serif; font-size: clamp(19px, 1.6vw, 24px); line-height: 1.25; font-weight: var(--mu-hw); letter-spacing: var(--mu-hs); text-align: left; cursor: pointer; }
+.s80-frage button:focus-visible { outline: 2px solid var(--mu-tx); outline-offset: -2px; }
+.s80-frage button svg { flex: none; width: 22px; height: 22px; color: var(--mu-ls); transition: transform 0.35s var(--mu-leicht), color 0.2s; }
+.s80-frage button:hover svg, .s80-frage[data-auf="true"] button svg { color: var(--mu-ak); }
+.s80-frage[data-auf="true"] button svg { transform: rotate(180deg); }
+.s80-antwort { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 0.45s var(--mu-leicht), opacity 0.3s; }
+.s80-antwort > div { overflow: hidden; min-height: 0; }
+.s80-antwort p { margin: 0; max-width: 34em; padding: 0 clamp(16px, 2vw, 28px) 26px; font-size: clamp(17px, 1.3vw, 19px); line-height: 1.5; color: var(--mu-ls); }
+.s80-frage[data-auf="true"] .s80-antwort { grid-template-rows: 1fr; opacity: 1; }
+
+@media (max-width: 899px) {
+  .s80-innen { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .s80-kopf { position: static; }
+  .s80-liste { margin: 0 calc(-1 * var(--mu-rand)); }
+  .s80-frage button { min-height: 68px; padding: 18px var(--mu-rand); }
+  .s80-antwort p { padding: 0 var(--mu-rand) 22px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .s80-frage, .s80-frage button svg, .s80-antwort { transition: none; }
+}

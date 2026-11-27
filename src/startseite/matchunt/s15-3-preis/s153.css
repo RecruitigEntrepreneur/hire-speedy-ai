@@ -1,0 +1,14 @@
+/* Sektion 15.3: alles aus s15.css und s151.css. Hier: die Schwärzung über den Zahlen und die geänderten Zeiten. */
+.s153 .s15-links .mu-h2 span:last-child { white-space: normal; }
+.s153-zahl { position: relative; display: inline-block; }
+/* schwarzer Balken über der Zahl, zieht nach rechts weg */
+.s153-schwarz { position: absolute; inset: 0.06em -0.1em 0.04em; border-radius: 0.1em; background: var(--mu-tx); transform-origin: 100% 50%; }
+@media (prefers-reduced-motion: no-preference) {
+  .s153[data-da="true"] .s153-schwarz { animation: s153-weg 0.55s cubic-bezier(0.6, 0, 0.2, 1) var(--auf) both; }
+  /* zweite Zeile und die Sätze links kommen später als in 15.1 */
+  .s153[data-da="true"] .s151-z2 { animation-delay: 2s; }
+  .s153[data-da="true"] .s15-unten { animation-delay: 5.8s; }
+}
+@keyframes s153-weg { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+/* ohne Bewegung: keine Schwärzung, die Zahlen stehen offen */
+@media (prefers-reduced-motion: reduce) { .s153-schwarz { display: none; } }

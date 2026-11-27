@@ -1,0 +1,87 @@
+/* Neue Sektion K1 „Einstieg für Kunden“: blaue Tafel mit Kerbe und Linien-Zeichnung wie Sektion 5, darunter
+   überlappend ein klickbares Dashboard. Farben nur aus stil.css; auf der Tafel Mischungen aus --mu-feld-tx. */
+.k1 { position: relative; background: var(--mu-bg); color: var(--mu-tx); padding-bottom: clamp(40px, 6vh, 72px); overflow: hidden; }
+
+.k1-leiste { height: 72px; display: flex; align-items: center; gap: 16px; }
+.k1-logo { display: inline-flex; align-items: center; gap: 10px; color: var(--mu-tx); text-decoration: none; font-family: var(--mu-fh), sans-serif; font-size: 19px; font-weight: 600; letter-spacing: -0.01em; }
+.k1-nav { display: flex; gap: 28px; margin-left: auto; margin-right: 12px; }
+.k1-nav a { color: var(--mu-ls); text-decoration: none; font-size: 15px; transition: color 0.15s; }
+.k1-nav a:hover { color: var(--mu-tx); }
+.k1-knopf-klein.mu-knopf { min-height: 40px; padding: 0 18px; font-size: 15px; white-space: nowrap; }
+
+/* Tafel */
+.k1-tafel { position: relative; width: calc(100% - 32px); max-width: 1232px; height: 688px; margin: 0 auto; border-radius: 64px; overflow: hidden; }
+.k1-kerbe { position: absolute; left: 50%; top: 0; width: 80px; height: 40px; margin-left: -40px; z-index: 3;
+  background: radial-gradient(circle at 0 100%, transparent 39.5px, var(--mu-bg) 40px) left / 50% 100% no-repeat, radial-gradient(circle at 100% 100%, transparent 39.5px, var(--mu-bg) 40px) right / 50% 100% no-repeat; }
+.k1-plan { position: absolute; left: 50%; top: 0; width: 1232px; height: 688px; margin-left: -616px; }
+.k1-rl { fill: none; stroke: color-mix(in srgb, var(--mu-feld-tx) 9%, transparent); stroke-width: 1; }
+.k1-bahn { fill: none; stroke: color-mix(in srgb, var(--mu-feld-tx) 24%, transparent); stroke-width: 1; }
+.k1-weg { fill: none; stroke: color-mix(in srgb, var(--mu-feld-tx) 38%, transparent); stroke-width: 1.25; }
+.k1-puls { fill: none; stroke: var(--mu-feld-tx); stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 0.07 0.93; stroke-dashoffset: 0.035; }
+.k1-puls-weich { stroke-width: 10; opacity: 0.55; }
+/* Station: leuchtet auf, wenn das Licht bei ihr ist (data-an wird vom Licht gesetzt) */
+.k1-kachel { fill: var(--mu-feld); stroke: color-mix(in srgb, var(--mu-feld-tx) 34%, var(--mu-feld)); stroke-width: 1.25; transition: fill 0.5s, stroke 0.5s, stroke-width 0.5s; }
+.k1-station[data-an="true"] .k1-kachel { stroke: var(--mu-feld-tx); stroke-width: 2; fill: color-mix(in srgb, var(--mu-feld-tx) 20%, var(--mu-feld)); transition-duration: 0.2s; }
+/* Bild der Kachel: unser Zeichen (weiß, beim Zeichnen hellblau „nass“) oder die Tinte. Gedämpft, solange das Licht
+   woanders ist; voll, wenn es bei der Kachel ist. */
+.k1-bild { width: 100%; height: 100%; display: grid; place-items: center; }
+.k1-bild .s06-z { width: 58%; height: 58%; color: var(--mu-feld-tx); }
+.k1-bild .s06-z[data-an="true"] svg { animation-name: k1-nass; }
+@keyframes k1-nass { from, 80% { color: color-mix(in srgb, var(--mu-feld-tx) 55%, var(--mu-feld)); } }
+.k1-bild .k1-leinwand { animation: k1-tinte-ein 0.35s ease both; }
+@keyframes k1-tinte-ein { from { opacity: 0; } }
+.k1-tinte { opacity: 0.55; transition: opacity 0.5s; overflow: visible; }
+.k1-station[data-an="true"] .k1-tinte { opacity: 1; transition-duration: 0.2s; }
+.k1-leinwand { display: block; width: 100%; height: 100%; pointer-events: none; }
+.k1-station[data-an="true"] .k1-kern { fill: color-mix(in srgb, var(--mu-feld-tx) 85%, var(--mu-feld)); }
+.k1-marke { font-family: var(--mu-ft), sans-serif; font-size: 13px; fill: var(--mu-feld-tx); text-anchor: middle; opacity: 0.6; transition: opacity 0.5s; }
+.k1-station[data-an="true"] .k1-marke { opacity: 1; transition-duration: 0.2s; }
+.k1-fp { fill: var(--mu-feld-tx); animation: k1-funkel 2.6s steps(1) infinite; }
+.k1-ruhe .k1-fp { animation-play-state: paused; }
+
+.k1-mitte { position: absolute; left: 50%; top: 112px; width: 784px; max-width: 100%; height: 344px; transform: translateX(-50%); padding: 0 32px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.k1-h1.mu-h1 { font-size: clamp(36px, 4.2vw, 60px); line-height: 1.05; }
+.k1-satz.mu-text { margin: 20px 0 0; font-size: clamp(18px, 1.6vw, 22px); color: color-mix(in srgb, var(--mu-feld-tx) 88%, transparent); }
+.k1-knopf.mu-knopf { margin-top: 32px; min-height: 58px; padding: 0 34px; font-size: 19px; font-weight: 600; box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.45); }
+.k1-tafel .mu-knopf:focus-visible { outline-color: var(--mu-feld-tx); }
+
+.k1-note { margin: 14px auto 0; text-align: center; }
+
+@keyframes k1-funkel { 0%, 100% { opacity: 1; } 46% { opacity: 1; } 50% { opacity: 0.15; } 54% { opacity: 1; } 58% { opacity: 0.4; } 62% { opacity: 1; } }
+
+/* Handy-Zeichnung (nur unter 900 px sichtbar) und kurze Reiter */
+.k1-plan-m { display: none; }
+@media (max-width: 1099px) { .k1-nav { display: none; } .k1-knopf-klein.mu-knopf { margin-left: auto; } }
+@media (max-width: 899px) {
+  .k1-leiste { height: 60px; }
+  .k1-logo { font-size: 17px; }
+  .k1-tafel { width: calc(100% - 16px); height: 680px; border-radius: 32px; }
+  .k1-plan { display: none; }
+  .k1-mitte { top: 152px; height: 300px; padding: 0 24px; }
+  .k1-h1.mu-h1 { font-size: clamp(30px, 8.6vw, 40px); }
+  .k1-satz.mu-text { margin-top: 14px; font-size: 17px; }
+  .k1-knopf.mu-knopf { margin-top: 22px; }
+  /* Handy: dieselbe Zeichnung wie am Desktop, fürs Hochformat zusammengeschoben (PlanHandy) */
+  .k1-plan-m { display: block; position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .k1-plan-m .k1-station { cursor: pointer; }
+  .k1-mitte { pointer-events: none; }
+  .k1-mitte a { pointer-events: auto; }
+  .k1-knopf.mu-knopf { width: 100%; max-width: 360px; padding: 0 18px; font-size: 17px; }
+}
+@media (max-width: 479px) { .k1-knopf-klein.mu-knopf { display: none; } }
+@media (prefers-reduced-motion: reduce) { .k1-fp { animation: none; } .k1-puls { display: none; } .k1-marke { opacity: 1; } }
+
+/* Fassung mit Suchfeld (26.11.2026): Feld und Knopf in einer Form, an der Stelle des einen Knopfs */
+.k1-such { display: flex; align-items: center; gap: 10px; width: min(620px, 100%); margin-top: 30px; padding: 6px 6px 6px 20px; border-radius: 999px; background: var(--mu-feld-tx); color: var(--mu-feld); box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.45); pointer-events: auto; }
+.k1-such:focus-within { outline: 3px solid color-mix(in srgb, var(--mu-feld-tx) 55%, transparent); outline-offset: 3px; }
+.k1-such > svg { flex: none; opacity: 0.7; }
+.k1-such input { flex: 1; min-width: 0; height: 50px; border: 0; outline: 0; background: none; font: inherit; font-size: 18px; color: var(--mu-feld); }
+.k1-such input::placeholder { color: color-mix(in srgb, var(--mu-feld) 55%, transparent); opacity: 1; }
+.k1-such-knopf { flex: none; height: 50px; padding: 0 24px; border: 0; border-radius: 999px; background: var(--mu-feld); color: var(--mu-feld-tx); font: inherit; font-size: 17px; font-weight: 600; white-space: nowrap; cursor: pointer; transition: filter 0.18s; }
+.k1-such-knopf:hover { filter: brightness(1.1); }
+@media (max-width: 899px) {
+  .k1-such { flex-wrap: wrap; gap: 6px; margin-top: 18px; padding: 6px; border-radius: 26px; }
+  .k1-such > svg { margin-left: 12px; }
+  .k1-such input { height: 44px; font-size: 16px; }
+  .k1-such-knopf { width: 100%; height: 46px; font-size: 16px; }
+}

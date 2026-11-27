@@ -1,0 +1,106 @@
+/* Website-Rahmen: Sprachmenü, Hinweisleiste, Fuß, Einwilligung. Nur Werte aus stil.css (var(--mu-…)),
+   damit Apple/Google und hell/dunkel automatisch stimmen. */
+
+/* Fahnen: SVG auf festem 20×14-Raster (SprachMenue.tsx), feiner Rand, damit Weiß nicht ausläuft */
+.mw-flagge { display: block; flex: none; width: 20px; height: 14px; border-radius: 2px; overflow: hidden; box-shadow: 0 0 0 1px color-mix(in srgb, var(--mu-tx) 16%, transparent); }
+
+/* Knöpfe */
+.mw-knopf { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 18px; border: 1px solid var(--mu-ln); border-radius: var(--mu-rk); background: var(--mu-bg); color: var(--mu-tx); font: inherit; font-size: 15px; font-weight: 500; cursor: pointer; transition: filter 0.15s, background 0.15s; }
+.mw-knopf:hover { background: var(--mu-fl); }
+.mw-knopf.voll { border-color: transparent; background: var(--mu-tx); color: var(--mu-bg); }
+.mw-knopf.voll:hover { filter: brightness(1.15); }
+.mw-knopf.klein { min-height: 34px; padding: 0 14px; font-size: 14px; }
+.mw-zu { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border: 0; border-radius: 50%; background: transparent; color: var(--mu-ls); cursor: pointer; }
+.mw-zu:hover { background: var(--mu-fl); color: var(--mu-tx); }
+.mw :is(.mw-knopf, .mw-zu, .mw-sprache-knopf, .mw-schalter, .mw-auf, .mw-fuss-links button, a):focus-visible { outline: 2px solid var(--mu-ak); outline-offset: 2px; }
+
+/* Hinweisleiste oben (wie Apple) */
+.mw-hinweis { border-bottom: 1px solid var(--mu-ln); background: var(--mu-fl); color: var(--mu-tx); font-size: 14px; }
+.mw-hinweis-innen { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding-top: 10px; padding-bottom: 10px; }
+.mw-hinweis-text { flex: 1 1 260px; }
+.mw-hinweis-wahl { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; border: 1px solid var(--mu-ln); border-radius: var(--mu-r-klein); background: var(--mu-bg); }
+.mw-hinweis-wahl select { border: 0; background: transparent; color: var(--mu-tx); font: inherit; font-size: 14px; cursor: pointer; }
+.mw-hinweis-wahl select:focus-visible { outline: none; }
+.mw-hinweis-wahl:focus-within { outline: 2px solid var(--mu-ak); outline-offset: 2px; }
+
+/* Sprachmenü */
+.mw-sprache { position: relative; flex: none; }
+.mw-sprache-knopf { display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 12px; border: 1px solid var(--mu-ln); border-radius: var(--mu-rk); background: transparent; color: var(--mu-tx); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.15s; }
+.mw-sprache-knopf:hover, .mw-sprache-knopf[aria-expanded="true"] { background: var(--mu-fl); }
+.mw-sprache-knopf svg { color: var(--mu-ls); }
+.mw-sprache-liste { position: absolute; top: calc(100% + 8px); right: 0; z-index: 60; min-width: 236px; margin: 0; padding: 6px; list-style: none; border: 1px solid var(--mu-ln); border-radius: var(--mu-r-klein); background: var(--mu-bg); box-shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.4); animation: mw-rein 0.16s ease-out both; }
+.mw-sprache-liste a { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; color: var(--mu-tx); font-size: 14.5px; text-decoration: none; }
+.mw-sprache-liste a:hover { background: var(--mu-fl); }
+.mw-sprache-liste a[aria-current] { background: color-mix(in srgb, var(--mu-ak) 12%, var(--mu-bg)); font-weight: 500; }
+.mw-sprache-liste a svg:not(.mw-flagge) { margin-left: auto; color: var(--mu-ak); }
+.mw-sprache-titel, .mw-sprache-grund { display: none; }
+.mw-sprache[data-art="fuss"] .mw-sprache-liste { top: auto; bottom: calc(100% + 8px); }
+.mw-sprache[data-art="dialog"] .mw-sprache-knopf { height: 32px; padding: 0 10px; font-size: 13px; }
+@keyframes mw-rein { from { opacity: 0; transform: translateY(-4px); } }
+
+/* in der Kopfzeile der Hero-Sektion (k1) */
+.k1-leiste .mw-sprache { margin-right: 12px; }
+@media (max-width: 1099px) {
+  .k1-leiste .mw-sprache { margin-left: auto; margin-right: 10px; }
+  .k1-leiste .mw-sprache + .k1-knopf-klein.mu-knopf { margin-left: 0; }
+}
+
+.mw-inhalt { min-height: 100svh; }
+
+/* Fuß */
+.mw-fuss { border-top: 1px solid var(--mu-ln); background: var(--mu-bg); color: var(--mu-ls); font-size: 14px; }
+.mw-fuss-innen { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 28px; padding-top: 28px; padding-bottom: 28px; }
+.mw-fuss-marke { display: inline-flex; align-items: center; gap: 8px; color: var(--mu-tx); font-weight: 600; }
+.mw-fuss-links { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-left: auto; }
+.mw-fuss-links a, .mw-fuss-links button { padding: 0; border: 0; background: none; color: var(--mu-ls); font: inherit; text-decoration: none; cursor: pointer; }
+.mw-fuss-links a:hover, .mw-fuss-links button:hover { color: var(--mu-tx); }
+
+/* Einwilligung: Abdunklung und Fenster (Mitte; am Handy von unten) */
+.mw-dunkel { position: fixed; inset: 0; z-index: 1000; background: rgba(0, 0, 0, 0.45); animation: mw-blende 0.2s ease-out both; }
+.mw-dialog { position: fixed; inset: 0; z-index: 1001; width: min(560px, calc(100% - 32px)); height: fit-content; max-height: calc(100dvh - 48px); margin: auto; overflow: auto; padding: 24px; border-radius: var(--mu-r); background: var(--mu-bg); color: var(--mu-tx); box-shadow: 0 30px 70px -30px rgba(0, 0, 0, 0.55); font-size: 15px; line-height: 1.5; animation: mw-hoch 0.25s var(--mu-leicht) both; }
+.mw-zentrale { width: min(640px, calc(100% - 32px)); }
+@keyframes mw-blende { from { opacity: 0; } }
+@keyframes mw-hoch { from { opacity: 0; transform: translateY(14px); } }
+.mw-dialog-kopf { display: flex; align-items: center; gap: 10px; }
+.mw-dialog-kopf h2 { flex: 1; margin: 0; font-family: var(--mu-fh), sans-serif; font-size: 20px; font-weight: var(--mu-hw); letter-spacing: var(--mu-hs); line-height: 1.25; }
+.mw-dialog p { margin: 12px 0 0; }
+.mw-leise { color: var(--mu-ls); }
+.mw-knoepfe { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 20px; }
+.mw-recht, .mw-id { font-size: 13px; color: var(--mu-ls); }
+.mw-recht a, .mw-id a { color: var(--mu-ls); }
+
+/* Zentrale: Zwecke mit Schalter und Details */
+.mw-zwecke { margin: 16px 0 0; padding: 0; list-style: none; }
+.mw-zwecke > li { border-top: 1px solid var(--mu-ln); }
+.mw-zweck { display: flex; align-items: center; gap: 12px; padding: 12px 0; }
+.mw-zweck-name { display: grid; flex: 1; gap: 2px; min-width: 0; }
+.mw-zweck-name b { font-size: 15px; font-weight: 600; }
+.mw-zweck-name small { font-size: 13px; color: var(--mu-ls); }
+.mw-immer { font-size: 13px; }
+.mw-schalter { position: relative; flex: none; width: 44px; height: 26px; border: 0; border-radius: var(--mu-rk); background: var(--mu-fl2); cursor: pointer; transition: background 0.2s; }
+.mw-schalter::after { content: ""; position: absolute; left: 3px; top: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); transition: transform 0.2s var(--mu-leicht); }
+.mw-schalter[aria-checked="true"] { background: var(--mu-ak); }
+.mw-schalter[aria-checked="true"]::after { transform: translateX(18px); }
+.mw-auf { display: grid; place-items: center; flex: none; width: 32px; height: 32px; border: 0; border-radius: 50%; background: transparent; color: var(--mu-ls); cursor: pointer; }
+.mw-auf:hover { background: var(--mu-fl); color: var(--mu-tx); }
+.mw-auf svg { transition: transform 0.2s; }
+.mw-details { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 14px; margin: 0 0 12px; padding: 10px 12px; border-radius: var(--mu-r-klein); background: var(--mu-fl); font-size: 13px; }
+.mw-details dt { color: var(--mu-ls); }
+.mw-details dd { margin: 0; }
+
+@media (max-width: 599px) {
+  .mw-hinweis-innen { gap: 8px; }
+  .mw-fuss-links { margin-left: 0; }
+  .mw-dialog { inset: auto 0 0 0; width: 100%; max-height: 88dvh; margin: 0; padding: 20px 16px calc(16px + env(safe-area-inset-bottom)); border-radius: var(--mu-r) var(--mu-r) 0 0; }
+  .mw-knoepfe { grid-template-columns: minmax(0, 1fr); }
+  .mw-dialog-kopf h2 { font-size: 18px; }
+  /* Sprachauswahl der Kopfzeile von unten */
+  .mw-sprache[data-art="kopf"] .mw-sprache-grund { display: block; position: fixed; inset: 0; z-index: 90; background: rgba(0, 0, 0, 0.35); }
+  .mw-sprache[data-art="kopf"] .mw-sprache-liste { position: fixed; inset: auto 0 0 0; z-index: 91; min-width: 0; padding: 10px 12px calc(14px + env(safe-area-inset-bottom)); border-radius: var(--mu-r) var(--mu-r) 0 0; animation: mw-hoch 0.22s var(--mu-leicht) both; }
+  .mw-sprache[data-art="kopf"] .mw-sprache-titel { display: block; padding: 4px 0 8px; text-align: center; font-size: 13px; color: var(--mu-ls); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mw-dunkel, .mw-dialog, .mw-sprache-liste { animation: none; }
+  .mw-schalter, .mw-schalter::after, .mw-auf svg { transition: none; }
+}

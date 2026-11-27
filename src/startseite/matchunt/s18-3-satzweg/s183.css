@@ -1,0 +1,16 @@
+/* Sektion 18.3: Weg aus s18.css, Bilder aus s181.css; die Satzteile stehen groß an den Knoten. */
+.s183 .s18-text { max-width: 520px; }
+.s183 .s18-text .mu-h3 { margin: 0; font-size: clamp(28px, 2.9vw, 42px); line-height: 1.16; }
+@media (max-width: 899px) {
+  .s183 .s18-text .mu-h3 { font-size: clamp(25px, 7vw, 32px); line-height: 1.2; }
+}
+
+/* Überraschung: anfangs steht nur die Überschrift da. Keine gepunktete Vorschau der Linie; die Knoten
+   erscheinen erst, wenn die Linie sie erreicht. */
+.s183 .s18-linie-grund { display: none; }
+.s183 .s18-knoten span { opacity: 0; scale: 0.4; transition: opacity 0.3s, scale 0.45s cubic-bezier(0.3, 1.6, 0.5, 1), background-color 0.4s, border-color 0.4s, color 0.4s; }
+.s183 .s18-knoten span[data-an="true"] { opacity: 1; scale: 1; }
+@media (prefers-reduced-motion: reduce) { .s183 .s18-knoten span { transition: none; } }
+
+/* 18.4 am Handy: die Linie läuft links von oben herein, die Überschrift rückt neben sie */
+@media (max-width: 899px) { .s184 .s18-h2 { padding-left: 64px; } }

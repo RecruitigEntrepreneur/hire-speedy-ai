@@ -1,0 +1,31 @@
+/* Sektion 9.2: Reihe mit acht echten Logos. Rahmen, Kopf und Eck-Marken kommen aus s09.css. */
+@import "../s09-logos/s09.css";
+.s092-liste { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); margin: 0; padding: 0; list-style: none; }
+.s092-platz { display: grid; place-items: center; height: clamp(104px, 8.4vw, 128px); padding: 0 12px; border-left: 1px solid var(--mu-ln);
+  animation: s092-hell 10.5s linear infinite; animation-delay: calc(var(--s09-i) * 1.5s); }
+.s092-platz:first-child { border-left: 0; }
+/* FITSEVENELEVEN ist sehr breit (300 × 58): am Desktop bekommt seine Spalte mehr Breite, damit das Logo gleich gewichtig wirkt */
+@media (min-width: 1100px) { .s092-liste { grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.45fr) repeat(4, minmax(0, 1fr)); }
+  .s092-platz { padding: 0 8px; } }
+/* einfarbig: im hellen Modus schwarz, im dunklen weiß */
+.s092-platz img { display: block; width: auto; max-width: 100%; object-fit: contain; filter: brightness(0); opacity: 0.72; transition: opacity 0.2s; }
+.mu[data-modus="dunkel"] .s092-platz img { filter: brightness(0) invert(1); }
+.s092-platz img[data-flaeche] { filter: grayscale(1) contrast(1.15); opacity: 0.85; }
+.mu[data-modus="dunkel"] .s092-platz img[data-flaeche] { filter: grayscale(1) invert(1) contrast(1.15); }
+.s092-platz:hover img { opacity: 1; }
+@keyframes s092-hell { 0%, 20%, 100% { background-color: transparent; } 6%, 13% { background-color: var(--mu-fl); } }
+
+@media (max-width: 1099px) {
+  .s092-liste { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .s092-platz:nth-child(4n + 1) { border-left: 0; }
+  .s092-platz:nth-child(n + 5) { border-top: 1px solid var(--mu-ln); }
+}
+@media (max-width: 559px) {
+  .s092-liste { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .s092-platz { height: 92px; border-left: 1px solid var(--mu-ln); }
+  .s092-platz:nth-child(4n + 1) { border-left: 1px solid var(--mu-ln); }
+  .s092-platz:nth-child(odd) { border-left: 0; }
+  .s092-platz:nth-child(n + 3) { border-top: 1px solid var(--mu-ln); }
+  .s092-platz img { transform: scale(0.85); }
+}
+@media (prefers-reduced-motion: reduce) { .s092-platz { animation: none; } }

@@ -1,0 +1,51 @@
+/* Sektion 12 „Nebenarbeit“: blaue Tafel, Rahmen öffnet sich, Pillen zwischen Klammern. Farben nur aus stil.css. */
+.s12 { height: 320vh; background: var(--mu-bg); overflow: clip; }
+.s12-klebt { position: sticky; top: 0; height: 100vh; display: grid; place-items: stretch; }
+@supports (height: 100svh) { .s12-klebt { height: 100svh; } }
+.s12-tafel { --ein: calc(1 - var(--rein, 1)); --s12-linie: color-mix(in srgb, var(--mu-feld-tx) 26%, transparent); position: relative; margin: calc(var(--ein) * 5vh) calc(var(--ein) * 5vw); border-radius: calc(var(--ein) * var(--mu-r)); overflow: hidden; }
+
+/* Rahmen: vier durchlaufende Linien mit Eckpunkten, rückt beim Scrollen nach außen */
+.s12-rahmen, .s12-inhalt { --bx: calc(18.5vw * (1 - var(--a, 0)) + 40px * var(--a, 0)); --by: calc(31vh * (1 - var(--a, 0)) + 16vh * var(--a, 0)); position: absolute; left: var(--bx); right: var(--bx); top: var(--by); bottom: var(--by); }
+.s12-l { position: absolute; background: var(--s12-linie); }
+.s12-l-o, .s12-l-u { left: -50vw; right: -50vw; height: 1px; }
+.s12-l-o { top: 0; } .s12-l-u { bottom: 0; }
+.s12-l-l, .s12-l-r { top: -50vh; bottom: -50vh; width: 1px; }
+.s12-l-l { left: 0; } .s12-l-r { right: 0; }
+.s12-p { position: absolute; width: 5px; height: 5px; margin: -2.5px; background: var(--mu-feld-tx); }
+.s12-p-ol { left: 0; top: 0; } .s12-p-or { left: 100%; top: 0; } .s12-p-ul { left: 0; top: 100%; } .s12-p-ur { left: 100%; top: 100%; }
+
+.s12-inhalt { display: grid; grid-template-columns: 1fr 1fr; padding: clamp(24px, 2.6vw, 40px); }
+.s12-h2 { align-self: start; max-width: 9.4em; }
+.s12-satz { grid-column: 2; align-self: end; justify-self: end; margin: 0; max-width: 15em; text-align: right; font-family: var(--mu-fh), sans-serif; font-size: clamp(20px, 2vw, 30px); line-height: 1.2; font-weight: var(--mu-hw); letter-spacing: -0.01em; text-wrap: balance; }
+
+/* Block in der Mitte: Liste der Nebenarbeiten, zwei Klammern, die eine Zeile */
+.s12-block { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+.s12-liste { display: grid; grid-template-columns: auto auto; justify-items: center; gap: 10px 11px; margin: 0; padding: 0; list-style: none; }
+.s12-liste li:nth-child(odd) { justify-self: end; }
+.s12-liste li:nth-child(even) { justify-self: start; }
+.s12-pille { display: inline-flex; align-items: center; height: 48px; padding: 0 24px; border-radius: var(--mu-rk); border: 1px solid color-mix(in srgb, var(--mu-feld-tx) 36%, transparent); background: color-mix(in srgb, var(--mu-feld-tx) 14%, transparent); color: var(--mu-feld-tx); font-size: 19px; font-weight: 500; white-space: nowrap; will-change: transform, opacity; }
+.s12-klammer { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size: 72px; line-height: 1; font-weight: 300; color: var(--mu-feld-tx); pointer-events: none; will-change: transform; }
+.s12-ende.mu-knopf { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); min-height: 56px; padding: 0 30px; font-size: 20px; white-space: nowrap; opacity: 0; visibility: hidden; transition: filter 0.18s, box-shadow 0.18s; }
+.s12-ende.mu-knopf:hover { filter: none; box-shadow: 0 0 0 5px color-mix(in srgb, var(--mu-feld-tx) 30%, transparent); }
+.s12-ende.mu-knopf:focus-visible { outline-color: var(--mu-feld-tx); }
+
+@media (max-width: 899px) {
+  .s12 { height: 300vh; }
+  .s12-rahmen, .s12-inhalt { --bx: calc(9vw * (1 - var(--a, 0)) + 14px * var(--a, 0)); --by: calc(22vh * (1 - var(--a, 0)) + 7vh * var(--a, 0)); }
+  .s12-inhalt { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto; padding: 18px 14px; }
+  .s12-h2.mu-h2 { font-size: 28px; }
+  .s12-satz { grid-column: 1; font-size: 19px; }
+  .s12-block { position: relative; left: auto; top: auto; transform: none; place-self: center; }
+  .s12-liste { grid-template-columns: auto; gap: 7px; }
+  .s12-liste li:nth-child(n) { justify-self: center; }
+  .s12-pille { height: 40px; padding: 0 16px; font-size: 16px; }
+  .s12-klammer { font-size: 48px; }
+  .s12-ende.mu-knopf { min-height: 48px; padding: 0 22px; font-size: 17px; }
+}
+
+/* Weniger Bewegung: alles steht, die eine Zeile unter der Liste */
+.s12.s12-still { height: auto; }
+.s12-still .s12-klebt { position: static; }
+.s12-still .s12-klammer { display: none; }
+.s12-still .s12-block { display: grid; justify-items: center; gap: 28px; }
+.s12-still .s12-ende.mu-knopf { position: static; transform: none; opacity: 1; visibility: visible; }

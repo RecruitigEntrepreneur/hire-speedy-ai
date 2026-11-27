@@ -1,0 +1,62 @@
+/* Sektion 63 „Bahnen“: vom Seiten-Grund ins volle blaue Feld, darin das große Netz aus Kreisbahnen. Farben nur aus stil.css. */
+.s63 { position: relative; height: 240vh; background: var(--mu-bg); color: var(--mu-tx); --f: 0;
+  --u: min(0.111vh, 0.0695vw); --cx: 68%; --cy: 50%; --kn: 46px;
+  --ring: var(--mu-ln); --kn-bg: var(--mu-fl); --kn-tx: var(--mu-ls); --an-bg: var(--mu-ak); --an-tx: var(--mu-akt); --punkt: var(--mu-ak); }
+.s63-buehne { position: sticky; top: 0; height: 100vh; overflow: hidden; background: var(--mu-bg); }
+@supports (height: 100svh) { .s63-buehne { height: 100svh; } }
+
+/* das blaue Feld wächst als Kreis aus der Mitte */
+.s63-blau { position: absolute; inset: 0; clip-path: circle(calc(var(--u) * 78 + var(--f) * 118vmax) at var(--cx) var(--cy));
+  --ring: color-mix(in srgb, var(--mu-feld-tx) 26%, transparent); --kn-bg: color-mix(in srgb, var(--mu-feld-tx) 18%, var(--mu-feld)); --kn-tx: var(--mu-feld-tx);
+  --an-bg: var(--mu-feld-tx); --an-tx: var(--mu-feld); --punkt: var(--mu-feld-tx); }
+.s63-lage { position: absolute; inset: 0; }
+
+/* Netz aus Kreisbahnen */
+.s63-netz { position: absolute; inset: 0; overflow: hidden; }
+.s63-halt { position: absolute; left: var(--cx); top: var(--cy); width: 0; height: 0; }
+.s63-bahn { position: absolute; left: 0; top: 0; width: calc(var(--r) * 2 * var(--u)); height: calc(var(--r) * 2 * var(--u)); margin: calc(var(--r) * -1 * var(--u)) 0 0 calc(var(--r) * -1 * var(--u)); border: 1px solid var(--ring); border-radius: 50%; animation: s63-dreh var(--t) linear infinite; }
+.s63-bahn.s63-gegenlauf { animation-direction: reverse; }
+@keyframes s63-dreh { to { transform: rotate(360deg); } }
+.s63-arm { position: absolute; inset: 0; pointer-events: none; }
+.s63-sitz { position: absolute; left: 50%; top: 0; width: 0; height: 0; }
+.s63-aufrecht { animation: s63-dreh var(--t) linear infinite reverse; }
+.s63-gegenlauf .s63-aufrecht { animation-direction: normal; }
+.s63-knoten { display: grid; place-items: center; width: var(--kn); height: var(--kn); margin: calc(var(--kn) / -2) 0 0 calc(var(--kn) / -2); border-radius: 50%; background: var(--kn-bg); color: var(--kn-tx); box-shadow: 0 0 0 1px var(--ring), 0 0 0 0 transparent; transition: background 0.5s, color 0.5s, box-shadow 0.6s, transform 0.6s var(--mu-leicht); }
+.s63-knoten svg { width: 56%; height: 56%; fill: currentColor; }
+.s63-knoten[data-an="true"] { background: var(--an-bg); color: var(--an-tx); transform: scale(1.16); box-shadow: 0 0 0 1px var(--an-bg), 0 0 0 9px color-mix(in srgb, var(--an-bg) 22%, transparent); }
+.s63[data-ruht="true"] .s63-bahn, .s63[data-ruht="true"] .s63-aufrecht { animation-play-state: paused; }
+
+/* eine Vorstellung: Punkt läuft vom Headhunter zur Mitte */
+.s63-punkt { position: absolute; left: 50%; top: 0; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: var(--punkt); box-shadow: 0 0 12px var(--punkt); opacity: 0; animation: s63-lauf 1.5s cubic-bezier(0.5, 0, 0.3, 1) 0.5s both; }
+@keyframes s63-lauf { 0% { top: 0; opacity: 0; } 12% { opacity: 1; } 88% { opacity: 1; } 100% { top: 50%; opacity: 0; } }
+
+.s63-mitte { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); display: grid; place-items: center; }
+.s63-mitte span { position: relative; padding: 9px 18px; border-radius: var(--mu-rk); background: var(--mu-feld-tx); color: var(--mu-feld); font-family: var(--mu-fh), sans-serif; font-size: 17px; font-weight: 600; white-space: nowrap; }
+.s63-welle { position: absolute; inset: -6px; border-radius: var(--mu-rk); border: 2px solid var(--mu-feld-tx); opacity: 0; animation: s63-welle 1.2s ease-out 1.85s both; }
+@keyframes s63-welle { 0% { opacity: 0; transform: scale(0.9); } 25% { opacity: 0.9; } 100% { opacity: 0; transform: scale(1.3, 1.7); } }
+
+/* Text */
+.s63-innen { position: absolute; inset: 0; margin: 0 auto; display: flex; align-items: center; pointer-events: none; }
+.s63-kopf { width: min(38%, 470px); pointer-events: auto; }
+.s63-kopf .mu-text { margin-top: 20px; color: var(--mu-ls); }
+.s63-blau .s63-kopf .mu-text { color: color-mix(in srgb, var(--mu-feld-tx) 84%, transparent); }
+.s63-kopf .mu-knopf { margin-top: 32px; }
+
+@media (max-width: 899px) {
+  .s63 { --u: 0.19vw; --cx: 50%; --cy: 67%; --kn: 38px; height: 220vh; }
+  .s63-bahn:nth-child(n + 4) { display: none; }
+  .s63-innen { align-items: flex-start; padding-top: clamp(44px, 8vh, 72px); }
+  .s63-kopf { width: 100%; }
+  .s63-kopf .mu-text { margin-top: 12px; }
+  .s63-kopf .mu-knopf { margin-top: 20px; }
+  .s63-mitte span { font-size: 16px; padding: 8px 15px; }
+}
+
+/* „weniger Bewegung“: Endzustand, das volle blaue Feld, nichts kreist */
+@media (prefers-reduced-motion: reduce) {
+  .s63 { height: auto; }
+  .s63-buehne { position: relative; }
+  .s63-blau { clip-path: none; }
+  .s63-bahn, .s63-aufrecht { animation: none; }
+  .s63-knoten { transition: none; }
+}

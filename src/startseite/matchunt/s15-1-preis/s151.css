@@ -1,0 +1,40 @@
+/* Sektion 15.1: alles aus s15.css, dazu die Zeile „Wer sucht“ unter den Säulen und die zwei Sätze links. */
+.s151 .s15-saeulen { grid-template-rows: clamp(280px, 31vw, 430px) auto auto; }
+.s151 .s15-saeulen li { grid-row: span 3; }
+.s151 .s15-name { padding-bottom: 14px; }
+
+.s151-wer { display: grid; gap: 8px; align-content: start; padding: 14px clamp(5px, 1vw, 14px) 0; border-top: 1px solid var(--mu-ln); }
+.s151-gesichter { display: flex; min-height: 34px; }
+.s151-gesichter i { flex: none; width: 34px; height: 34px; margin-left: -10px; border-radius: 50%; overflow: hidden; background: var(--mu-fl2); border: 2px solid var(--mu-fl); }
+.s151-gesichter i:first-child { margin-left: 0; }
+.s151-gesichter img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.s151-gesichter svg { display: block; width: 100%; height: 100%; fill: color-mix(in srgb, var(--mu-ls) 55%, transparent); }
+.s15-wir .s151-gesichter i { border-color: var(--mu-fl); box-shadow: 0 0 0 1.5px var(--mu-ak); }
+.s151-text { font-size: 15px; line-height: 1.3; color: var(--mu-ls); }
+.s15-wir .s151-text { color: var(--mu-ak); font-weight: 500; }
+
+.s151-saetze { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; max-width: 24em; }
+.s151-saetze li { padding-left: 14px; border-left: 2px solid var(--mu-ak); font-size: 17px; line-height: 1.4; }
+
+/* Ablauf: Zeile 1 mit der 27 · Zeile 2 mit der blauen Säule · je eine Beratung · die Gesichter bei
+   Matchunt nacheinander · die zwei Sätze links. Zeiten in Sekunden ab dem Moment, in dem die Säulen ins Bild kommen. */
+@media (prefers-reduced-motion: no-preference) {
+  .s151:not([data-da="true"]) :is(.s151-z1, .s151-z2, .s15-unten),
+  .s151:not([data-da="true"]) :is(.s151-gesichter i, .s151-text) { opacity: 0; }
+  .s151[data-da="true"] .s151-z1 { animation: s151-zeile 0.55s var(--mu-leicht) 0.2s backwards; }
+  .s151[data-da="true"] .s151-z2 { animation: s151-zeile 0.55s var(--mu-leicht) 1.7s backwards; }
+  .s151[data-da="true"] .s15-unten { animation: s15-da 0.7s 4.9s backwards; }
+  .s151 .s15-bild[data-da="true"] .s151-gesichter i { animation: s151-rein 0.45s cubic-bezier(0.3, 1.5, 0.5, 1) calc(var(--w) + var(--i) * 0.13s) backwards; }
+  .s151 .s15-bild[data-da="true"] .s151-text { animation: s15-da 0.5s var(--wt) backwards; }
+}
+@keyframes s151-zeile { from { opacity: 0; transform: translateY(0.3em); } }
+@keyframes s151-rein { from { opacity: 0; transform: scale(0.4); } }
+
+@media (max-width: 899px) {
+  .s151 .s15-saeulen { grid-template-rows: clamp(210px, 56vw, 340px) auto auto; }
+  .s151-gesichter i { width: 26px; height: 26px; margin-left: -9px; }
+  .s151-gesichter i:nth-child(n + 5) { display: none; }
+  .s151-gesichter { min-height: 26px; }
+  .s151-text { font-size: 13.5px; }
+  .s151-saetze li { font-size: 16px; }
+}

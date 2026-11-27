@@ -1,0 +1,121 @@
+/* Sektion 12.1: Rahmen und Ablauf aus s12.css, Karten aus s111.css. Hier nur: die Karten zwischen den Klammern
+   und die großen Klammern. Die Farbwerte, die s111.css sonst an .s111 hängt, stehen hier an der Kartenliste. */
+/* Die Liste trägt die Klasse .s111, damit der Umschwung aus s111.css ([data-neu]) greift; deren Abstände und
+   weißer Grund werden hier zurückgenommen. */
+.s121 .s121-karten.s111 { padding: 0; background: none; overflow: visible; position: static; }
+.s121-karten { --s111-feder: cubic-bezier(0.3, 1.25, 0.4, 1); --s111-rot: #e5484d; --s111-blau: color-mix(in srgb, var(--mu-ak) 55%, var(--mu-ln)); --s111-grau: color-mix(in srgb, var(--mu-tx) 16%, transparent);
+  display: grid; grid-template-columns: repeat(2, clamp(170px, 13.6vw, 206px)); gap: clamp(8px, 1vw, 14px) clamp(16px, 2vw, 30px); margin: 0; padding: 0; list-style: none; color: var(--mu-tx); }
+/* 26.11.: ohne will-change – die eigene Ebene hat Schrift und Bilder der schrägen Karten weich gezeichnet */
+.s121-pk { transition: margin 0.6s var(--s111-feder); }
+/* Umschwung: sauberes Raster, ein kurzer Ruck durch alle Karten */
+.s121[data-neu="true"] .s121-pk:nth-child(n) { margin: 0; }
+.s121[data-neu="true"] .s121-pk .s111-karte { animation: s121-ruck 0.55s cubic-bezier(0.3, 1.5, 0.4, 1) both; }
+@keyframes s121-ruck { 0% { scale: 1; } 30% { scale: 0.93; } 100% { scale: 1; } }
+/* zwei Texte an einer Stelle: oben das Satzende, unten der ganze Satz; beim Umschwung kippt der eine weg, der andere herein */
+.s121-h2 { align-self: start; }
+.s121-kipp { display: grid; }
+.s121-kipp > span { grid-area: 1 / 1; transition: opacity 0.4s ease, transform 0.55s cubic-bezier(0.3, 1.25, 0.4, 1); }
+.s121-kipp > .s121-t1, .s121[data-neu="true"] .s121-kipp > .s121-t0 { opacity: 0; }
+.s121-kipp > .s121-t1 { transform: translateY(0.35em); }
+.s121[data-neu="true"] .s121-kipp > .s121-t0 { transform: translateY(-0.35em); }
+.s121[data-neu="true"] .s121-kipp > .s121-t1 { opacity: 1; transform: none; }
+.s121 .s12-satz.s121-kipp > span { justify-self: end; align-self: end; }
+/* leicht versetzt, damit es nach Durcheinander aussieht und nicht nach Raster */
+.s121-pk:nth-child(1) { margin-top: -10px; } .s121-pk:nth-child(2) { margin-top: 16px; }
+.s121-pk:nth-child(3) { margin-left: -14px; } .s121-pk:nth-child(4) { margin-left: 10px; margin-top: 12px; }
+.s121 .s111-karte { box-shadow: 0 22px 40px -20px rgba(0, 0, 0, 0.45); }
+.s121 .s111-worte p { font-size: 15px; }
+.s121 .s111-bild { height: 66px; }
+.s121 .s111-fuss { min-height: 48px; }
+.s121 .s12-klammer { font-size: clamp(196px, 17.6vw, 264px); font-weight: 200; transform-origin: 50% 50%; }
+/* die Überschrift ist länger als in 12 */
+/* Überschrift und Karten dürfen sich nicht berühren: die Überschrift ist kleiner und zweizeilig (Satzende in einer
+   Zeile) und bleibt damit über den Klammern; der Block mit Karten und Klammern steht mittig, etwas tiefer. */
+.s121 .s12-h2.mu-h2 { max-width: none; font-size: clamp(32px, 3.2vw, 50px); }
+.s121 .s121-kipp > span { white-space: nowrap; }
+.s121 .s12-satz.s121-kipp > span { white-space: normal; }
+.s121 .s12-block { top: 56%; }
+/* Balken wie mit dem Textmarker hinter dem Satzende der Überschrift (Idee 2, 24.11.2026): vorher blass,
+   nach dem Umschwung voll weiß mit blauer Schrift */
+.s121-h2 .s121-kipp { margin-top: 0.1em; }
+.s121-h2 .s121-kipp > span { justify-self: start; margin-left: -0.2em; padding: 0.04em 0.2em 0.08em; border-radius: 0.16em; }
+.s121-h2 .s121-t0 { background: color-mix(in srgb, var(--mu-feld-tx) 20%, transparent); }
+.s121-h2 .s121-t1 { background: var(--mu-feld-tx); color: var(--mu-feld); }
+/* Derselbe Balken unten: kurz vor dem Ende (wenn die Karten zusammenziehen) läuft er von links hinter
+   „die Stelle beschreiben.“ und kehrt die Schrift um */
+.s121-marke { display: inline-block; white-space: nowrap; margin-right: -0.2em; padding: 0.02em 0.2em 0.06em; border-radius: 0.16em; background: linear-gradient(var(--mu-feld-tx), var(--mu-feld-tx)) 0 0 / 0% 100% no-repeat; transition: background-size 0.55s cubic-bezier(0.3, 0, 0.2, 1), color 0.3s ease 0.15s, box-shadow 0.18s; }
+.s121[data-schluss="true"] .s121-marke { background-size: 100% 100%; color: var(--mu-feld); }
+/* Logo zwischen den Klammern am Ende (statt des Knopfs aus Sektion 12). Ablauf, sobald es dasteht (data-logo):
+   1 nur das Zeichen, anderthalb Sekunden lang · 2 ein Stoß von unten, das Zeichen hüpft und dreht sich einmal wie eine Münze um die
+   senkrechte Achse · 3 daneben rollt der Name aus. */
+.s121-logo { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; padding: 0 6px; opacity: 0; visibility: hidden; color: var(--mu-feld-tx); font-family: var(--mu-fh), sans-serif; font-size: clamp(24px, 2.2vw, 32px); white-space: nowrap; perspective: 420px; }
+.s121-zeichen { display: grid; transform-style: preserve-3d; }
+.s121-logo b { display: block; max-width: 0; margin-left: 0; overflow: hidden; font-weight: 600; letter-spacing: -0.01em; clip-path: inset(0 100% 0 0); opacity: 0; }
+.s121[data-logo="true"] .s121-zeichen { animation: s121-muenze 0.95s cubic-bezier(0.3, 0.1, 0.3, 1) 0.7s both; }
+.s121[data-logo="true"] .s121-logo b { animation: s121-ausrollen 0.75s cubic-bezier(0.2, 0.8, 0.2, 1) 1.45s both; }
+@keyframes s121-muenze {
+  0% { transform: translateY(0) rotateY(0deg); }
+  16% { transform: translateY(-18px) rotateY(70deg); }
+  55% { transform: translateY(-6px) rotateY(290deg); }
+  82% { transform: translateY(2px) rotateY(360deg); }
+  100% { transform: translateY(0) rotateY(360deg); }
+}
+@keyframes s121-ausrollen {
+  0% { max-width: 0; margin-left: 0; clip-path: inset(0 100% 0 0); opacity: 0; transform: translateX(-0.5em); }
+  25% { opacity: 1; }
+  100% { max-width: 7em; margin-left: 12px; clip-path: inset(0 0 0 0); opacity: 1; transform: none; }
+}
+.s12-still .s121-logo b { max-width: none; margin-left: 12px; clip-path: none; opacity: 1; }
+.s12-still .s121-logo { position: static; transform: none; opacity: 1; visibility: visible; }
+/* der markierte Satzteil unten ist der Knopf */
+a.s121-marke { text-decoration: none; color: inherit; cursor: pointer; }
+.s121[data-schluss="true"] a.s121-marke:hover { box-shadow: 0 0 0 5px color-mix(in srgb, var(--mu-feld-tx) 30%, transparent); }
+a.s121-marke:focus-visible { outline: 2px solid var(--mu-feld-tx); outline-offset: 3px; }
+/* Zeiger am Knopf unten: fährt nach dem Balken von rechts unten heran und klickt in Abständen (Ring) */
+a.s121-marke { position: relative; }
+.s121-zeiger { position: absolute; right: 0.5em; bottom: -0.55em; width: 26px; height: 26px; pointer-events: none; opacity: 0; transform: translate(34px, 30px); transition: opacity 0.3s ease, transform 0.7s cubic-bezier(0.2, 0.9, 0.3, 1); }
+.s121-zeiger svg { position: relative; display: block; filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.35)); }
+.s121-zeiger path { fill: var(--mu-tx); stroke: var(--mu-feld-tx); stroke-width: 1.6; stroke-linejoin: round; }
+.s121-zeiger i { position: absolute; left: -9px; top: -10px; width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--mu-feld-tx); opacity: 0; }
+.s121[data-schluss="true"] .s121-zeiger { opacity: 1; transform: none; transition-delay: 0.7s; }
+.s121[data-schluss="true"] .s121-zeiger svg { animation: s121-tipp 2.6s ease-in-out 1.5s infinite; }
+.s121[data-schluss="true"] .s121-zeiger i { animation: s121-ring 2.6s ease-out 1.5s infinite; }
+@keyframes s121-tipp { 0%, 14%, 100% { transform: none; } 7% { transform: translate(-2px, -2px) scale(0.88); } }
+@keyframes s121-ring { 0%, 6% { opacity: 0; transform: scale(0.4); } 10% { opacity: 0.9; } 34%, 100% { opacity: 0; transform: scale(1.5); } }
+/* gelesen wird das Satzende: der Anfang tritt zurück, das Ende steht voll da */
+.s121-leise { opacity: 0.66; }
+/* Lösung mit etwas Farbe: Zeichen im Blau der Marke, Tinte tritt an ihre Stelle */
+.s121[data-neu="true"] .s111-b1 { color: var(--mu-ak); }
+.s121[data-neu="true"] .s121-pk[data-tinte="true"] .s111-b1 { opacity: 0; transition-delay: 0s; }
+.s121[data-neu="true"] .s121-pk { cursor: default; }
+.s121.s12 { height: 430vh; }
+.s121 .s12-satz { max-width: 17em; }
+
+@media (max-width: 899px) {
+  .s121.s12 { height: 390vh; }
+  .s121 .s12-h2.mu-h2 { font-size: 28px; }
+  /* oben mehr Luft: eine feste Leiste über der Seite (Builder, später die Kopfzeile) verdeckt sonst die erste Zeile */
+  .s121 .s12-inhalt { padding-top: 62px; }
+  .s121 .s12-block { top: auto; }
+  .s121 .s111-tinte { width: 110px; margin-left: -55px; }
+  .s121-karten { grid-template-columns: repeat(2, minmax(0, 132px)); gap: 10px 12px; }
+  .s121 .s111-fuss > b { height: 22px; font-size: 12px; border-radius: 6px; }
+  .s121[data-neu="true"] .s111-fuss > b { width: 22px; margin-right: 6px; }
+  .s121-pk:nth-child(n) { margin: 0; }
+  .s121 .s111-bild { height: 58px; }
+  .s121 .s111-fuss { min-height: 44px; padding: 6px 9px; }
+  .s121 .s111-worte p { font-size: 12.5px; }
+  .s121 .s12-klammer { font-size: 190px; }
+  .s121 .s111-kal, .s121 .s111-stapel, .s121 .s111-faecher, .s121 .s111-post { scale: 0.78; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .s121[data-neu="true"] .s121-pk .s111-karte { animation: none; }
+  .s121-kipp > span, .s121-pk, .s121-marke, .s121-zeiger { transition: none !important; }
+  .s121-zeiger svg, .s121-zeiger i, .s121-zeichen, .s121-logo b { animation: none !important; }
+}
+
+/* 26.11.: Block ohne Verschiebung um halbe Pixel mittig setzen (translate(-50%, -50%) legte die Karten zwischen die
+   Bildpunkte, dadurch wirkten sie unscharf). Nur am Rechner; am Handy steht der Block ohnehin im Fluss. */
+@media (min-width: 900px) {
+  .s121 .s12-block { left: 0; top: 0; right: 0; bottom: 0; margin: auto; width: fit-content; height: fit-content; transform: none; }
+}

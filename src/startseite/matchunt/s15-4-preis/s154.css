@@ -1,0 +1,8 @@
+/* Sektion 15.4: das Wort „erfolgsbasiert“ unten in der blauen Säule. Erscheint mit den Gesichtern. */
+.s154 .s15-saeule { position: relative; }
+.s154-wort { position: absolute; left: 0; right: 0; bottom: 0; padding: clamp(10px, 1.2vw, 18px); color: var(--mu-akt); font-size: clamp(14px, 1.5vw, 21px); font-weight: 600; line-height: 1.15; letter-spacing: -0.01em; hyphens: manual; }
+@media (prefers-reduced-motion: no-preference) {
+  .s154 .s154-wort { opacity: 0; }
+  .s154[data-da="true"] .s154-wort { animation: s154-ein 0.6s ease var(--w) both; }
+}
+@keyframes s154-ein { from { opacity: 0; translate: 0 8px; } to { opacity: 1; translate: 0 0; } }

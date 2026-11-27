@@ -1,0 +1,38 @@
+/* Matchunt-Stil-Blatt: die EINE Stelle für Farben, Schriften und Formen der umgebauten Sektionen.
+   Zwei Stile zur Wahl (data-stil="apple" | "google"), je hell und dunkel (data-modus). Sektionen benutzen
+   nur diese Werte (var(--mu-…)), nie feste Farben oder Schriften. */
+.mu { --mu-r: 18px; --mu-r-klein: 10px; --mu-rk: 999px; --mu-rand: clamp(20px, 5vw, 80px); --mu-breit: 1280px;
+  --mu-leicht: cubic-bezier(0.2, 0.8, 0.2, 1);
+  background: var(--mu-bg); color: var(--mu-tx); font-family: var(--mu-ft), system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+.mu *, .mu *::before, .mu *::after { box-sizing: border-box; }
+
+/* Stil „Apple“ */
+.mu[data-stil="apple"] { --mu-fh: var(--mu-intertight); --mu-ft: var(--mu-intertight); --mu-hw: 600; --mu-hs: -0.03em; }
+.mu[data-stil="apple"][data-modus="hell"] { --mu-bg: #ffffff; --mu-fl: #f5f5f7; --mu-fl2: #e8e8ed; --mu-tx: #1d1d1f; --mu-ls: #6e6e73; --mu-ln: #d2d2d7; --mu-ak: #0071e3; --mu-akt: #ffffff; --mu-feld: #0071e3; --mu-feld-tx: #ffffff; }
+.mu[data-stil="apple"][data-modus="dunkel"] { --mu-bg: #000000; --mu-fl: #1d1d1f; --mu-fl2: #2c2c2e; --mu-tx: #f5f5f7; --mu-ls: #a1a1a6; --mu-ln: #424245; --mu-ak: #2997ff; --mu-akt: #000000; --mu-feld: #0071e3; --mu-feld-tx: #ffffff; }
+/* Stil „Google“ */
+.mu[data-stil="google"] { --mu-fh: var(--mu-figtree); --mu-ft: var(--mu-figtree); --mu-hw: 500; --mu-hs: -0.02em; --mu-r: 16px; }
+.mu[data-stil="google"][data-modus="hell"] { --mu-bg: #ffffff; --mu-fl: #f8f9fa; --mu-fl2: #e8eaed; --mu-tx: #202124; --mu-ls: #5f6368; --mu-ln: #dadce0; --mu-ak: #1a73e8; --mu-akt: #ffffff; --mu-feld: #1a73e8; --mu-feld-tx: #ffffff; }
+.mu[data-stil="google"][data-modus="dunkel"] { --mu-bg: #202124; --mu-fl: #303134; --mu-fl2: #3c4043; --mu-tx: #e8eaed; --mu-ls: #9aa0a6; --mu-ln: #5f6368; --mu-ak: #8ab4f8; --mu-akt: #202124; --mu-feld: #1a73e8; --mu-feld-tx: #ffffff; }
+
+/* Gemeinsame Bausteine */
+.mu-wrap { width: 100%; max-width: var(--mu-breit); margin: 0 auto; padding-left: var(--mu-rand); padding-right: var(--mu-rand); }
+.mu-h1, .mu-h2, .mu-h3 { margin: 0; font-family: var(--mu-fh), sans-serif; font-weight: var(--mu-hw); letter-spacing: var(--mu-hs); text-wrap: balance; }
+.mu-h1 { font-size: clamp(40px, 5.6vw, 88px); line-height: 1.03; }
+.mu-h2 { font-size: clamp(30px, 3.6vw, 56px); line-height: 1.06; }
+.mu-h3 { font-size: clamp(20px, 1.6vw, 26px); line-height: 1.2; }
+.mu-leise { color: var(--mu-ls); }
+.mu-text { margin: 0; font-size: clamp(17px, 1.3vw, 21px); line-height: 1.5; max-width: 34em; }
+.mu-klein { font-size: 14px; line-height: 1.45; color: var(--mu-ls); }
+.mu-knopf { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 24px; border-radius: var(--mu-rk); border: 0; background: var(--mu-ak); color: var(--mu-akt); font: inherit; font-size: 17px; font-weight: 500; text-decoration: none; cursor: pointer; transition: transform 0.18s var(--mu-leicht), filter 0.18s; }
+.mu-knopf:hover { transform: translateY(-2px); filter: brightness(1.08); }
+.mu-knopf:active { transform: scale(0.98); }
+.mu-link { color: var(--mu-ak); font-size: 17px; font-weight: 500; text-decoration: none; cursor: pointer; }
+.mu-link::after { content: " ›"; }
+.mu-link:hover { text-decoration: underline; text-underline-offset: 4px; }
+.mu-knopf:focus-visible, .mu-link:focus-visible { outline: 2px solid var(--mu-tx); outline-offset: 3px; }
+.mu-karte { border-radius: var(--mu-r); background: var(--mu-fl); }
+.mu-feld { background: var(--mu-feld); color: var(--mu-feld-tx); }
+.mu-feld .mu-knopf { background: var(--mu-feld-tx); color: var(--mu-feld); }
+.mu-name-verdeckt { display: inline-block; height: 0.9em; min-width: 6em; border-radius: 4px; background: color-mix(in srgb, var(--mu-tx) 22%, transparent); filter: blur(3px); vertical-align: middle; }
+@media (prefers-reduced-motion: reduce) { .mu-knopf { transition: none; } }

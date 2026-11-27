@@ -1,0 +1,119 @@
+/* Sektion 18.1: vier Verwandlungen derselben Stellenkarte. Rahmen, Linie und Texte kommen aus s18.css.
+   Grundzustand = Anfang. Erreicht die Linie den Knoten (li[data-da="true"]), laufen die Bewegungen einmal
+   und bleiben im Endzustand stehen (fill both). Zeiten in Sekunden ab diesem Moment. */
+.s181 { min-height: 214px; justify-content: center; }
+.s181 em { font-style: normal; }
+.s181-karte { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: var(--mu-r-klein); background: var(--mu-bg); border: 1px solid var(--mu-ln); box-shadow: 0 10px 24px rgba(0, 0, 0, 0.07); }
+.s181-karte b { font-size: 16px; line-height: 1.3; font-weight: 500; }
+.s181-kopf { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.s181-leise { background: var(--mu-fl); color: var(--mu-ls); }
+.s181-voll { background: var(--mu-ak); color: var(--mu-akt); }
+.s181-klein { font-size: 13.5px; color: var(--mu-ls); }
+
+/* Zwei Texte an einer Stelle */
+.s181-wechsel { display: inline-grid; justify-items: end; }
+.s181-wechsel > span { grid-area: 1 / 1; white-space: nowrap; }
+.s181-wechsel > span:last-child { opacity: 0; transform: translateY(6px); }
+[data-da="true"] .s181-wechsel > span:first-child { animation: s181-raus 0.3s var(--t) both; }
+[data-da="true"] .s181-wechsel > span:last-child { animation: s181-rein 0.45s calc(var(--t) + 0.2s) cubic-bezier(0.3, 1.5, 0.5, 1) both; }
+@keyframes s181-raus { to { opacity: 0; transform: translateY(-6px); } }
+@keyframes s181-rein { to { opacity: 1; transform: none; } }
+
+/* 1 · „Viele Wege, eine Stelle“: vier Wege leuchten nacheinander auf, je ein Tropfen fällt in die Stellenkarte */
+.s181-1 { align-items: stretch; gap: 0; }
+.s181-wege { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.s181-wege > span { display: flex; align-items: center; gap: 7px; min-width: 0; padding: 8px 10px; border-radius: var(--mu-r-klein); background: var(--mu-bg); border: 1px solid var(--mu-ln); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.s181-wege svg { flex: none; color: var(--mu-ls); }
+/* jeder Weg ist 0,6 s dran: aufleuchten, dann ruhig blau umrandet stehen bleiben */
+[data-da="true"] .s181-wege > span { animation: s181-weg 0.7s calc(0.5s + var(--n) * 0.6s) both; }
+[data-da="true"] .s181-wege svg { animation: s181-weg-zeichen 0.7s calc(0.5s + var(--n) * 0.6s) both; }
+@keyframes s181-weg { 35% { background: color-mix(in srgb, var(--mu-ak) 16%, var(--mu-bg)); border-color: var(--mu-ak); transform: scale(1.04); } 100% { background: var(--mu-bg); border-color: color-mix(in srgb, var(--mu-ak) 45%, var(--mu-ln)); transform: none; } }
+@keyframes s181-weg-zeichen { to { color: var(--mu-ak); } }
+.s181-fall { position: relative; height: 34px; }
+.s181-fall::before { content: ""; position: absolute; left: 50%; top: 4px; bottom: 4px; border-left: 2px dotted var(--mu-ln); }
+.s181-fall i { position: absolute; left: 50%; top: 0; width: 9px; height: 9px; margin-left: -3.5px; border-radius: 50%; background: var(--mu-ak); opacity: 0; }
+[data-da="true"] .s181-fall i { animation: s181-tropfen 0.45s calc(0.75s + var(--n) * 0.6s) cubic-bezier(0.5, 0, 0.9, 0.6) both; }
+@keyframes s181-tropfen { 0% { opacity: 1; transform: translateY(0); } 85% { opacity: 1; } 100% { opacity: 0; transform: translateY(30px); } }
+.s181-ziel { opacity: 0; transform: translateY(8px) scale(0.96); }
+.s181-gelesen { display: inline-flex; align-items: center; gap: 4px; }
+/* die Karte erscheint mit dem ersten Tropfen und nickt bei jedem weiteren kurz */
+[data-da="true"] .s181-ziel { animation: s181-ziel 0.45s 1.15s cubic-bezier(0.3, 1.5, 0.5, 1) both, s181-nicken 0.3s 1.8s 3 both; animation-delay: 1.15s, 1.8s; }
+@keyframes s181-ziel { to { opacity: 1; transform: none; border-color: color-mix(in srgb, var(--mu-ak) 55%, var(--mu-ln)); } }
+@keyframes s181-nicken { 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--mu-ak) 16%, transparent), 0 10px 24px rgba(0, 0, 0, 0.07); } }
+@keyframes s181-pop { to { transform: none; opacity: 1; } }
+
+/* 2 · „Die Welle“: Kreise laufen von der Stelle nach außen, erreichte Headhunter leuchten auf */
+.s181-2 { position: relative; overflow: hidden; border-radius: inherit; align-items: center; }
+.s181-mitte { position: relative; z-index: 2; gap: 6px; min-width: 62%; }
+.s181-links { justify-items: start; }
+.s181-links > span { text-align: left; }
+.s181-ring { position: absolute; left: 50%; top: 50%; width: 420px; height: 420px; margin: -210px 0 0 -210px; border-radius: 50%; border: 1.5px solid color-mix(in srgb, var(--mu-ak) 60%, transparent); opacity: 0; transform: scale(0.12); }
+[data-da="true"] .s181-ring { animation: s181-welle 2.2s calc(0.8s + var(--n) * 0.5s) cubic-bezier(0.2, 0.6, 0.4, 1) both; }
+@keyframes s181-welle { 0% { opacity: 0.9; transform: scale(0.12); } 100% { opacity: 0; transform: scale(1); } }
+.s181-platz { position: absolute; z-index: 1; width: 38px; height: 38px; margin: -19px 0 0 -19px; border-radius: 50%; overflow: hidden; background: var(--mu-fl2); border: 2px solid var(--mu-bg); }
+.s181-platz svg { display: block; width: 100%; height: 100%; fill: color-mix(in srgb, var(--mu-ls) 45%, transparent); }
+.s181-platz img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; }
+[data-da="true"] .s181-platz[data-an] { animation: s181-an 0.5s calc(1.3s + var(--n) * 0.45s) cubic-bezier(0.3, 1.6, 0.5, 1) both; }
+[data-da="true"] .s181-platz[data-an] img { animation: s181-zeigen 0.4s calc(1.3s + var(--n) * 0.45s) both; }
+@keyframes s181-an { 0% { transform: scale(1); } 50% { transform: scale(1.18); } 100% { transform: scale(1); border-color: var(--mu-ak); box-shadow: 0 0 0 4px color-mix(in srgb, var(--mu-ak) 18%, transparent); } }
+@keyframes s181-zeigen { to { opacity: 1; } }
+
+/* 2b · Kandidaten einreichen: ab 3,4 s löst sich von jedem der drei Headhunter ein Kandidaten-Zeichen, fliegt in die
+   Stellenkarte und reiht sich dort rechts ein (Zeichen wie in 60.2). Der Flug endet ungefähr über der Reihe. */
+.s181-2 { min-height: 250px; }
+.s181-flug, .s181-kandidaten i { flex: none; width: 27px; height: 27px; border-radius: 50%; background: var(--mu-fl2); border: 2px solid var(--mu-bg); }
+.s181-flug svg, .s181-kandidaten svg { display: block; width: 100%; height: 100%; border-radius: 50%; fill: color-mix(in srgb, var(--mu-ls) 55%, transparent); }
+.s181-flug { position: absolute; z-index: 3; left: var(--x); top: var(--y); margin: -13.5px 0 0 -13.5px; opacity: 0; box-shadow: 0 0 0 2px var(--mu-ak), 0 6px 14px rgba(0, 0, 0, 0.14); }
+[data-da="true"] .s181-flug { animation: s181-flug 0.9s calc(3.4s + var(--n) * 0.65s) cubic-bezier(0.5, 0, 0.25, 1) both; }
+@keyframes s181-flug { 0% { opacity: 0; left: var(--x); top: var(--y); scale: 0.4; } 25% { opacity: 1; left: var(--x); top: var(--y); scale: 1.15; } 90% { opacity: 1; scale: 1; } 100% { opacity: 0; left: calc(52.6% + var(--n) * 5.25%); top: 63.5%; scale: 1; } }
+.s181-profile { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding-top: 10px; border-top: 1px solid var(--mu-ln); }
+.s181-kandidaten { display: flex; padding-left: 7px; }
+.s181-kandidaten i { position: relative; margin-left: -7px; opacity: 0; scale: 0.6; }
+/* der zuletzt Gekommene trägt den blauen Punkt für „neu“ */
+.s181-kandidaten i:last-child::after { content: ""; position: absolute; right: -3px; top: -3px; width: 10px; height: 10px; border-radius: 50%; background: var(--mu-ak); border: 2px solid var(--mu-bg); }
+.s181-profile small { font-size: 13px; white-space: nowrap; opacity: 0; }
+.s181-profile small b { font-weight: 600; color: var(--mu-ak); }
+[data-da="true"] .s181-kandidaten i { animation: s181-profil 0.35s calc(4.2s + var(--n) * 0.65s) cubic-bezier(0.3, 1.6, 0.5, 1) both; }
+[data-da="true"] .s181-profile small { animation: s181-zeigen 0.4s 6s both; }
+@keyframes s181-profil { to { opacity: 1; scale: 1; } }
+
+/* 3 · Kandidaten gehen ein, einer bekommt den Termin */
+.s181-reihe { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--mu-r-klein); border: 1px solid var(--mu-ln); opacity: 0; transform: translateY(10px); }
+.s181-kreis { flex: none; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--mu-fl2); color: var(--mu-ls); font-size: 12px; font-weight: 600; }
+.s181-wer { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.s181-wer b { font-size: 14.5px; }
+.s181-wer small { font-size: 12.5px; color: var(--mu-ls); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.s181-reihe .s18-stand { margin-top: 0; padding: 3px 9px; font-size: 12px; }
+[data-da="true"] .s181-reihe { animation: s181-rein 0.5s calc(0.5s + var(--n) * 0.5s) cubic-bezier(0.2, 1.2, 0.4, 1) both; }
+[data-da="true"] .s181-wahl { animation: s181-rein 0.5s 0.5s cubic-bezier(0.2, 1.2, 0.4, 1) both, s181-gewaehlt 0.4s 2.1s both; }
+[data-da="true"] .s181-rest { animation: s181-rein 0.5s 1s cubic-bezier(0.2, 1.2, 0.4, 1) both, s181-blass 0.4s 2.3s forwards; }
+[data-da="true"] .s181-wahl .s181-kreis { animation: s181-kreis 0.4s 2.1s both; }
+@keyframes s181-gewaehlt { to { border-color: var(--mu-ak); background: color-mix(in srgb, var(--mu-ak) 7%, var(--mu-bg)); } }
+@keyframes s181-blass { to { opacity: 0.45; } }
+@keyframes s181-kreis { to { background: var(--mu-ak); color: var(--mu-akt); } }
+
+/* 4 · Unterschrift, Karte wird „Besetzt“ */
+.s181-sign { width: 200px; max-width: 100%; height: auto; margin-top: 4px; color: var(--mu-tx); border-bottom: 1px solid var(--mu-ln); }
+.s181-sign path { stroke-dasharray: 100; stroke-dashoffset: 100; }
+[data-da="true"] .s181-sign path { animation: s181-schreiben 1.4s 0.7s cubic-bezier(0.55, 0, 0.25, 1) both; }
+[data-da="true"] .s181-4 .s181-karte { animation: s181-gewaehlt-rand 0.5s 2.5s both; }
+@keyframes s181-schreiben { to { stroke-dashoffset: 0; } }
+@keyframes s181-gewaehlt-rand { to { border-color: color-mix(in srgb, var(--mu-ak) 55%, var(--mu-ln)); } }
+
+/* Die Bilder dürfen ihre Spalte nie breiter drücken (lange Zeilen brechen um) */
+.s18-station:has(.s181) { min-width: 0; }
+.s181, .s181-karte { min-width: 0; }
+.s181-leute { flex-wrap: wrap; }
+.s181-klein > span { white-space: normal; text-align: right; }
+
+@media (max-width: 899px) {
+  .s181 { min-height: 0; }
+    .s181-wege > span { font-size: 12px; padding: 7px 8px; gap: 5px; }
+  .s181-2 { min-height: 250px; }
+  .s181-mitte { min-width: 0; width: 70%; }
+  .s181-platz { width: 32px; height: 32px; margin: -16px 0 0 -16px; }
+}
+/* Ohne Bewegung: sofort der Endzustand */
+@media (prefers-reduced-motion: reduce) {
+  .s181 *, .s181 { animation-duration: 0.01s !important; animation-delay: 0s !important; }
+}

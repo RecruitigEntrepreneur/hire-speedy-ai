@@ -1,0 +1,33 @@
+/* Satzteile für 18.2 und 18.3: Aussehen, Einblenden, Welle und Tinte wie Sektion 7.2/7.3 (dort .s072/.s073). */
+.sw-teil { --sw-lila: #8e5cf6; }
+.mu[data-modus="dunkel"] .sw-teil { --sw-lila: #b79bff; }
+.sw-nur-leser { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.sw-fest { white-space: nowrap; }
+.sw-teil .s06-z { width: 1em; height: 1em; margin: 0 -0.04em 0 0.12em; vertical-align: -0.17em; }
+.sw-teil .s06-zug { stroke-width: 9.5; }
+
+.sw-wort { display: inline-block; opacity: 0; transform: translateY(0.3em); filter: blur(6px); }
+.sw-teil[data-da="true"] .sw-wort { animation: sw-ein 0.55s var(--mu-leicht) var(--t) both; }
+@keyframes sw-ein { to { opacity: 1; transform: none; filter: none; } }
+.sw-wort > span { display: inline-block; }
+.sw-wort[data-hell="true"] > span { padding: 0 0.04em 0.1em; margin: 0 -0.04em -0.1em; transform-origin: 50% 80%;
+  background: linear-gradient(90deg, var(--mu-ak) 0%, var(--sw-lila) 50%, var(--mu-tx) 50.1%, var(--mu-tx) 100%) 100% 0 / 200% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent; }
+.sw-teil[data-da="true"] .sw-wort[data-hell="true"] > span { animation: sw-farbe 0.9s var(--mu-leicht) calc(var(--t) + 120ms) both, sw-welle 7s ease-in-out calc(var(--t) + 80ms) infinite; }
+@keyframes sw-farbe { to { background-position: 0 0; } }
+@keyframes sw-welle { 0% { transform: none; } 4% { transform: translateY(-0.11em) scale(1.06); } 10%, 100% { transform: none; } }
+
+/* Tinte an der Stelle des Zeichens */
+.sw-feld { position: relative; display: inline-block; line-height: 0; }
+.sw-fest[data-tinte] { cursor: default; }
+.sw-feld .s06-z { transition: color 0.25s, opacity 0.3s ease, scale 0.45s var(--mu-leicht); }
+@media (hover: hover) { .sw-fest[data-tinte]:hover .s06-z { color: var(--mu-ak); } }
+.sw-fest[data-tinte="true"] .s06-z { opacity: 0; }
+.sw-tinte { position: absolute; left: -30%; top: -30%; width: 160%; height: 160%; pointer-events: none; z-index: 2; animation: sw-tinte 0.35s ease both; }
+.sw-leinwand { display: block; width: 100%; height: 100%; pointer-events: none; }
+@keyframes sw-tinte { from { opacity: 0; scale: 0.7; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .sw-teil .sw-wort { opacity: 1; transform: none; filter: none; animation: none !important; }
+  .sw-teil .sw-wort[data-hell="true"] > span { animation: none !important; background-position: 0 0; }
+}

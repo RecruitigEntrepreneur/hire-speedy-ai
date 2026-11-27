@@ -162,6 +162,8 @@ interface Props {
   sperreBisBestaetigt?: boolean;
   /** Der Code-Schritt; `weiter` setzt den gewählten Weg fort, `status` sagt, was inzwischen läuft. */
   bestaetigung?: (weiter: () => void, ziel: 'fragen' | 'einladen' | 'anzeige', status: ReactNode | null) => ReactNode;
+  /** Die Stelle, die der Kunde schon auf der Website eingetippt hat (?stelle=): Titel in „Worum geht es?“. */
+  titelVorschlag?: string | null;
   /** Die Art der Besetzung ist gewählt. */
   onArt?: () => void;
   /** Hochzählen: zurück zur Wahl der Art (Zurück aus dem Code-Schritt). */
@@ -189,7 +191,7 @@ export function CaptureStep({
   askAi, parseText, parseUrl, parsePdf, onNext, onResumeLater, company, onCompany, onEnrich,
   nextLabel: nextLabelProp, entrySub, entryExtras, autoBuildText, autoBuildFile,
   fertigesProfil = false, firmaFest = null, firmen = [], firmaId = null, onFirma, ansicht = 'etappen', speicherStand, kopfRechts, onKopf,
-  sperreBisBestaetigt = false, bestaetigung, onArt, artZeigen = 0, nachWahl = false, onKollegen, onOrt, artFest = false,
+  sperreBisBestaetigt = false, bestaetigung, onArt, titelVorschlag = null, artZeigen = 0, nachWahl = false, onKollegen, onOrt, artFest = false,
 }: Props) {
   const { t, i18n } = useTranslation(['intake', 'intakeCatalog']);
   // Nicht als Default-Parameter: der Text folgt der gewählten Sprache.
@@ -349,6 +351,7 @@ export function CaptureStep({
       return;
     }
     const job = fromParsedJobData(parsed);
+    if (!job.title?.trim() && titelVorschlag) job.title = titelVorschlag;
     /**
      * Was die Anzeige als nachschulbar bezeichnet, gehoert in die
      * Kriterienliste -- sonst kann es niemand als "lernbar" einstufen.
@@ -453,7 +456,7 @@ export function CaptureStep({
     start({
       ...EMPTY_BUILT,
       description: behalten,
-      title: seed.length > 0 && seed.length <= 120 ? seed : titelZeile,
+      title: seed.length > 0 && seed.length <= 120 ? seed : titelZeile || titelVorschlag || '',
       company_name: companyDefaults?.company_name ?? '',
       location: companyDefaults?.location ?? '',
       industry: companyDefaults?.industry ?? '',

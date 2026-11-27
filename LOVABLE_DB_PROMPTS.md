@@ -1944,6 +1944,22 @@ Headhunter: Onboarding im neuen Look, Regionen Schweden und Norwegen, Rundgang m
 
 ---
 
+## 67 — Neue Website als Startseite: Startseite C aus dem Website-Labor (27.11.2026)
+
+Commit siehe `git log` („Neue Startseite: Startseite C aus dem Website-Labor“). **Keine Migration, keine Edge
+Function, nur Publish.** Nach Nr. 66. `/` zeigt jetzt die neue Website (zehn Sektionen, Rahmen mit Sprachwahl und
+Fuß), `/w/<sprache>` dieselbe Seite in einer bestimmten Sprache. Die eingetippte Stelle im Suchfeld geht als
+`?stelle=` an die Aufnahme und steht dort als Stellentitel. Schriften liegen selbst ausgeliefert unter
+`public/fonts/startseite` (kein Google-Abruf), Bilder unter `public/headhunter` und `public/logos`.
+Die alte Startseite (`src/pages/Index.tsx`) ist nicht mehr verlinkt.
+
+> 1. Aktuellen Stand von `main` übernehmen.
+> 2. Keine Migration ausführen, keine Edge Function deployen, keine Secrets ändern.
+> 3. Publish.
+> 4. Am Code nichts ändern. Am Ende melden, dass Publish durch ist.
+
+---
+
 ## Wichtig: wie Migrationen bei diesem Projekt überhaupt laufen
 
 Lovable führt Migrationen **nicht per Dateiscan** aus, sondern nur die, die explizit über
