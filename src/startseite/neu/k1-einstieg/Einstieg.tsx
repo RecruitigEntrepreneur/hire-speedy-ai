@@ -327,7 +327,8 @@ export function Einstieg({ namen, h1 = "Die beste Person für Ihre Stelle hat sc
         <i className="k1-kerbe" aria-hidden="true" />
         <div className="k1-mitte">
           <h1 className="mu-h1 k1-h1">{h1}</h1>
-          <p className="mu-text k1-satz">{satz}</p>
+          {/* Variante A (27.11.2026): mit Suchfeld steht der Satz unter dem Feld, bei den Gesichtern. */}
+          {!eingabe && <p className="mu-text k1-satz">{satz}</p>}
           {eingabe ? (
             <form className="k1-such" onSubmit={(e) => { e.preventDefault(); window.location.href = mitHerkunft(mitStelle(knopfUrl, stelle)); }}>
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4.5 4.5" /></svg>
@@ -335,13 +336,13 @@ export function Einstieg({ namen, h1 = "Die beste Person für Ihre Stelle hat sc
               <button type="submit" className="k1-such-knopf">{knopf}</button>
             </form>
           ) : <a className="mu-knopf k1-knopf" href={knopfUrl}>{knopf}</a>}
-          {/* Idee 3 (27.11.2026, Marko): unter dem Suchfeld fünf Gesichter und ein Satz – wer gleich sucht. */}
+          {/* Unter dem Suchfeld: fünf Gesichter (weißer Rand) und der Satz – keine zweite Aussage über Headhunter. */}
           {eingabe && (
             <div className="k1-koepfe">
               <span className="k1-koepfe-reihe" aria-hidden="true">
                 {[0, 1, 2, 3, 4].map((i) => { const f = hhFoto(i); return f ? <img key={i} src={f} alt="" loading="eager" /> : <i key={i} />; })}
               </span>
-              <span className="k1-koepfe-satz">Hunderte geprüfte Headhunter warten auf Ihre Stelle</span>
+              <span className="mu-text k1-koepfe-satz">{satz}</span>
             </div>
           )}
         </div>
