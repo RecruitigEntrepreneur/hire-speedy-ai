@@ -12,6 +12,7 @@ import { TeMarke } from "@/startseite/nachbau3/te/Marke";
 import type { Art } from "@/startseite/nachbau3/te/tinte";
 import { Zeichen, type ZeichenArt } from "@/startseite/matchunt/s06-zeichen/Zeichen";
 import { Fenster } from "./Fenster";
+import { hhFoto } from "@/startseite/matchunt/fotos";
 import "./k1.css";
 
 // OFFEN: Adressen der Kopfzeile und die Kennung für /start/<Kennung>.
@@ -334,6 +335,15 @@ export function Einstieg({ namen, h1 = "Die beste Person für Ihre Stelle hat sc
               <button type="submit" className="k1-such-knopf">{knopf}</button>
             </form>
           ) : <a className="mu-knopf k1-knopf" href={knopfUrl}>{knopf}</a>}
+          {/* Idee 3 (27.11.2026, Marko): unter dem Suchfeld fünf Gesichter und ein Satz – wer gleich sucht. */}
+          {eingabe && (
+            <div className="k1-koepfe">
+              <span className="k1-koepfe-reihe" aria-hidden="true">
+                {[0, 1, 2, 3, 4].map((i) => { const f = hhFoto(i); return f ? <img key={i} src={f} alt="" loading="eager" /> : <i key={i} />; })}
+              </span>
+              <span className="k1-koepfe-satz">Hunderte geprüfte Headhunter warten auf Ihre Stelle</span>
+            </div>
+          )}
         </div>
       </div>
 

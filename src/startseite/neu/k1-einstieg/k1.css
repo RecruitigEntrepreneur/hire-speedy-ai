@@ -85,3 +85,14 @@
   .k1-such input { height: 44px; font-size: 16px; }
   .k1-such-knopf { width: 100%; height: 46px; font-size: 16px; }
 }
+
+/* Idee 3 (27.11.2026): Gesichter der Headhunter unter dem Suchfeld */
+.k1-koepfe { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 26px; color: var(--mu-feld-tx); pointer-events: auto; animation: k1-koepfe-ein 700ms cubic-bezier(.2, .7, .2, 1) 350ms both; }
+.k1-koepfe-reihe { display: flex; }
+.k1-koepfe-reihe img, .k1-koepfe-reihe i { display: block; width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid var(--mu-feld); margin-left: -11px; background: color-mix(in srgb, var(--mu-feld-tx) 30%, var(--mu-feld)); }
+.k1-koepfe-reihe > :first-child { margin-left: 0; }
+.k1-koepfe-satz { font-size: 16px; line-height: 1.3; opacity: 0.92; }
+@keyframes k1-koepfe-ein { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* Handy: zwischen Suchfeld und den unteren Kacheln liegt die Rahmenlinie der Mitte – kein Platz, ausblenden */
+@media (max-width: 640px) { .k1-koepfe { display: none; } }
+@media (prefers-reduced-motion: reduce) { .k1-koepfe { animation: none; } }
